@@ -247,7 +247,7 @@ function addAboutPillar() {
             </div>
 
             <!-- ── Editor Views ──────────────────────────────────────────── -->
-            <div v-else class="space-y-6">
+            <div v-else class="space-y-6 pb-36">
 
                 <!-- 1. Home Page Editor -->
                 <div v-if="activePage === 'home'" class="space-y-6">
@@ -733,8 +733,8 @@ function addAboutPillar() {
                 </div>
 
                 <!-- Floating Save Button for Editor page -->
-                <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 p-3.5 rounded-2xl shadow-glow-primary flex items-center gap-3"
-                     style="background-color: rgba(15, 23, 42, 0.4) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important;">
+                <div class="fixed bottom-6 z-40 p-3.5 rounded-2xl shadow-glow-primary flex items-center gap-3"
+                     style="left: 50% !important; transform: translateX(-50%) !important; background-color: rgba(15, 23, 42, 0.4) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important;">
                     <button @click="activePage = null" class="btn-ghost text-xs px-4 py-2 text-white/80 hover:text-white rounded-xl">إلغاء</button>
                     <button @click="submitPageSettings(activePage)" class="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 transition-transform hover:scale-102">
                         <span>💾 حفظ التغييرات</span>
