@@ -621,7 +621,7 @@ function addAboutPillar() {
                     <div class="card p-6">
                         <h3 class="font-bold text-sm text-surface-800 dark:text-white border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">حالة النافذة وعنوانها</h3>
                         <div class="grid grid-cols-1 gap-4">
-                            <div class="flex items-center gap-3 bg-surface-50 dark:bg-surface-850 p-4 rounded-2xl border border-surface-150/40">
+                            <div class="flex items-center gap-3 bg-surface-50 dark:bg-surface-900/50 p-4 rounded-2xl border border-surface-200 dark:border-surface-800">
                                 <input v-model="form.welcome_popup_active" id="popup_status" type="checkbox" class="w-5 h-5 accent-primary-600 rounded">
                                 <label for="popup_status" class="font-bold text-xs cursor-pointer select-none">تفعيل وعرض النافذة الترحيبية للطلاب عند الدخول</label>
                             </div>
