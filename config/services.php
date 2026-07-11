@@ -35,11 +35,6 @@ return [
         ],
     ],
 
-    'myfatoorah' => [
-        'api_key'   => env('MYFATOORAH_API_KEY'),
-        'test_mode' => env('MYFATOORAH_TEST_MODE', true),
-    ],
-
     'fatora' => [
         'api_key' => env('FATORA_API_KEY'),
     ],
