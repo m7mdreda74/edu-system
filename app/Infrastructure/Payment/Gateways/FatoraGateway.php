@@ -47,10 +47,16 @@ class FatoraGateway implements PaymentGatewayInterface
         $amount = (float) ($amountInSmallestUnit / 100);
 
         // Call Fatora v1 Checkout API
-        $response = Http::withHeaders([
+        $http = Http::withHeaders([
             'Content-Type' => 'application/json',
             'api_key'      => $this->apiKey,
-        ])->post($this->baseUrl . '/payments/checkout', [
+        ]);
+
+        if (app()->isLocal()) {
+            $http = $http->withoutVerifying();
+        }
+
+        $response = $http->post($this->baseUrl . '/payments/checkout', [
             'amount'       => $amount,
             'currency'     => $currency,
             'order_id'     => $orderId,
@@ -71,7 +77,7 @@ class FatoraGateway implements PaymentGatewayInterface
         }
 
         $data = $response->json();
-        if (($data['status'] ?? '') !== 'success') {
+        if (strtolower($data['status'] ?? '') !== 'success') {
             Log::error('Fatora checkout logic error: ' . json_encode($data));
             throw new RuntimeException('Fatora: ' . ($data['message'] ?? 'Unknown error'));
         }
@@ -91,10 +97,16 @@ class FatoraGateway implements PaymentGatewayInterface
             return ['status' => 'pending'];
         }
 
-        $response = Http::withHeaders([
+        $http = Http::withHeaders([
             'Content-Type' => 'application/json',
             'api_key'      => $this->apiKey,
-        ])->post($this->baseUrl . '/payments/verify', [
+        ]);
+
+        if (app()->isLocal()) {
+            $http = $http->withoutVerifying();
+        }
+
+        $response = $http->post($this->baseUrl . '/payments/verify', [
             'transaction_id' => $transactionId,
         ]);
 
@@ -104,7 +116,7 @@ class FatoraGateway implements PaymentGatewayInterface
         }
 
         $data = $response->json();
-        if (($data['status'] ?? '') !== 'success') {
+        if (strtolower($data['status'] ?? '') !== 'success') {
             Log::error('Fatora verify logic error: ' . json_encode($data));
             return ['status' => 'failed'];
         }

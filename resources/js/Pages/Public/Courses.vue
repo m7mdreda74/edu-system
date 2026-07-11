@@ -150,8 +150,12 @@ const hasActiveFilters = () =>
 
                     <!-- Empty state -->
                     <div v-if="courses.data.length === 0"
-                         class="card p-16 text-center">
-                        <div class="text-6xl mb-4">🔍</div>
+                         class="card p-16 text-center flex flex-col items-center justify-center">
+                        <div class="p-4 bg-surface-100 dark:bg-surface-800 text-surface-400 rounded-full mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
                         <h3 class="text-xl font-bold text-surface-700 dark:text-white mb-2">لا توجد نتائج</h3>
                         <p class="text-surface-500 dark:text-surface-400 mb-6">جرّب تغيير معايير البحث</p>
                         <button @click="clearFilters" class="btn-primary">عرض كل الكورسات</button>

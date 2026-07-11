@@ -37,7 +37,7 @@ class CheckoutController extends Controller
         ]);
     }
 
-    public function process(Request $request, string $slug): RedirectResponse
+    public function process(Request $request, string $slug): \Symfony\Component\HttpFoundation\Response
     {
         $validated = $request->validate([
             'coupon_code' => ['nullable', 'string', 'max:50'],
@@ -55,7 +55,7 @@ class CheckoutController extends Controller
             );
 
             // Redirect to gateway payment page
-            return redirect()->away($result['redirect_url']);
+            return Inertia::location($result['redirect_url']);
         } catch (LogicException $e) {
             return back()->with('error', $e->getMessage());
         }

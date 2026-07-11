@@ -399,8 +399,11 @@ function uploadHomework(id) {
                                         : 'text-surface-300'">
                                     {{ lesson.title }}
                                 </div>
-                                <div class="text-xs text-surface-500 mt-0.5">
-                                    ⏱ {{ formatDuration(lesson.duration_seconds) }}
+                                <div class="text-xs text-surface-500 mt-0.5 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {{ formatDuration(lesson.duration_seconds) }}
                                 </div>
                             </div>
                         </button>

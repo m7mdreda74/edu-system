@@ -29,14 +29,14 @@ function getGradeLabel(key) {
 }
 
 const iconOptions = [
-    { value: 'calculator', label: 'رياضيات 📐' },
-    { value: 'atom', label: 'فيزياء ⚛️' },
-    { value: 'flask', label: 'كيمياء 🧪' },
-    { value: 'dna', label: 'أحياء 🧬' },
-    { value: 'landmark', label: 'تاريخ/اجتماعيات 🏛️' },
-    { value: 'globe', label: 'جغرافيا 🌍' },
-    { value: 'book', label: 'كتاب عام 📖' },
-    { value: 'language', label: 'لغات 🗣️' },
+    { value: 'calculator', label: 'رياضيات' },
+    { value: 'atom', label: 'فيزياء' },
+    { value: 'flask', label: 'كيمياء' },
+    { value: 'dna', label: 'أحياء' },
+    { value: 'landmark', label: 'تاريخ/اجتماعيات' },
+    { value: 'globe', label: 'جغرافيا' },
+    { value: 'book', label: 'كتاب عام' },
+    { value: 'language', label: 'لغات' },
 ];
 
 function openAddModal() {

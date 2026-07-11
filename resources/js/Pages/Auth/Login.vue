@@ -124,8 +124,12 @@ const submit = () => form.post(route('login'), { onFinish: () => form.reset('pas
                 <div class="absolute top-20 start-20 w-80 h-80 rounded-full bg-white/30 blur-3xl"></div>
                 <div class="absolute bottom-20 end-20 w-60 h-60 rounded-full bg-accent-400/40 blur-3xl"></div>
             </div>
-            <div class="relative text-center text-white px-12">
-                <div class="text-7xl mb-6">🎓</div>
+            <div class="relative text-center text-white px-12 flex flex-col items-center">
+                <div class="mb-6 text-white/90">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-20 h-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 019.897 5.837c-.896.3-1.783.57-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M12 13.489v5.526" />
+                    </svg>
+                </div>
                 <h2 class="text-4xl font-black mb-4">طريقك للتفوق<br>يبدأ من هنا</h2>
                 <p class="text-white/75 text-lg leading-relaxed">
                     انضم لآلاف الطلاب الذين<br>حققوا نتائج استثنائية

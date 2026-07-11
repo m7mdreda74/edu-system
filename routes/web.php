@@ -69,12 +69,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // ─── Student Routes ────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
-
-    Route::get('/dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
-
+Route::middleware(['auth', 'verified'])->group(function () {
     // Enrollment
     Route::post('/courses/{slug}/enroll', [App\Http\Controllers\Student\EnrollController::class, 'store'])->name('student.enroll');
+});
+
+Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
+    Route::get('/dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/my-courses/{slug}/learn', [App\Http\Controllers\Student\LearnController::class, 'show'])->name('student.learn');
     Route::post('/my-courses/{slug}/lessons/{lessonId}/progress', [App\Http\Controllers\Student\LearnController::class, 'updateProgress'])->name('student.lesson.progress');
@@ -103,7 +104,7 @@ Route::get('/stream/{lessonId}', [App\Http\Controllers\Student\VideoUrlControlle
     ->middleware('signed');
 
 // ─── Checkout Routes ──────────────────────────────────────────────────────────
-Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/checkout/success',        [CheckoutController::class, 'success'])->name('checkout.success');
     Route::get('/checkout/cancel',         [CheckoutController::class, 'cancel'])->name('checkout.cancel');
     Route::get('/checkout/{slug}',         [CheckoutController::class, 'show'])->name('checkout.show');
