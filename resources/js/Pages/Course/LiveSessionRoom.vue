@@ -10,6 +10,7 @@ const props = defineProps({
 
 const jitsiContainer = ref(null);
 let jitsiApi = null;
+const isRoomLoading = ref(true);
 
 // Screen Recording state & logic
 const isRecording = ref(false);
@@ -202,6 +203,7 @@ function initJitsi() {
     };
 
     jitsiApi = new window.JitsiMeetExternalAPI(domain, options);
+    isRoomLoading.value = false;
     
     // Only teacher is moderator in this basic setup
     if (props.user.isTeacher) {
@@ -263,7 +265,7 @@ onBeforeUnmount(() => {
 
         <div class="flex-1 w-full bg-black relative" ref="jitsiContainer">
             <!-- Jitsi Meet iframe will be injected here -->
-            <div v-if="!jitsiApi" class="absolute inset-0 flex items-center justify-center">
+            <div v-if="isRoomLoading" class="absolute inset-0 flex items-center justify-center bg-black/80 z-20">
                 <div class="text-surface-400 flex flex-col items-center gap-3">
                     <div class="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
                     <div>جاري الاتصال بقاعة البث...</div>
