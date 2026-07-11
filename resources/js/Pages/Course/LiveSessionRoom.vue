@@ -12,6 +12,11 @@ const jitsiContainer = ref(null);
 let jitsiApi = null;
 const isRoomLoading = ref(true);
 
+// Moderation & security panel state
+const activeParticipants = ref([]);
+const lobbyParticipants = ref([]);
+const lobbyEnabled = ref(true);
+
 // Screen Recording state & logic
 const isRecording = ref(false);
 const recordingDuration = ref(0);
@@ -162,6 +167,41 @@ function stopRecording() {
     }
 }
 
+// Moderation & Lobby control handlers
+function acceptLobby(id) {
+    if (jitsiApi) {
+        jitsiApi.executeCommand('lobbyAcceptAccess', id);
+        lobbyParticipants.value = lobbyParticipants.value.filter(p => p.id !== id);
+    }
+}
+
+function rejectLobby(id) {
+    if (jitsiApi) {
+        jitsiApi.executeCommand('lobbyRejectAccess', id);
+        lobbyParticipants.value = lobbyParticipants.value.filter(p => p.id !== id);
+    }
+}
+
+function kickStudent(id) {
+    if (jitsiApi && confirm('هل تريد طرد هذا الطالب من الحصة؟')) {
+        jitsiApi.executeCommand('kickParticipant', id);
+        activeParticipants.value = activeParticipants.value.filter(p => p.id !== id);
+    }
+}
+
+function toggleLobbyMode() {
+    if (jitsiApi) {
+        lobbyEnabled.value = !lobbyEnabled.value;
+        jitsiApi.executeCommand('toggleLobby', lobbyEnabled.value);
+    }
+}
+
+function muteAllStudents() {
+    if (jitsiApi && confirm('هل تريد كتم صوت الجميع؟')) {
+        jitsiApi.executeCommand('muteEveryone');
+    }
+}
+
 onMounted(() => {
     // Load Jitsi Meet API script dynamically
     const script = document.createElement('script');
@@ -205,10 +245,51 @@ function initJitsi() {
     jitsiApi = new window.JitsiMeetExternalAPI(domain, options);
     isRoomLoading.value = false;
     
-    // Only teacher is moderator in this basic setup
+    // Only teacher is moderator in this setup
     if (props.user.isTeacher) {
         jitsiApi.executeCommand('subject', props.session.title);
-        jitsiApi.executeCommand('toggleLobby', true); // Optional: turn on lobby
+        jitsiApi.executeCommand('toggleLobby', lobbyEnabled.value);
+
+        // Listen for Jitsi meeting events to update the moderation lists
+        jitsiApi.addEventListener('videoConferenceJoined', () => {
+            setTimeout(() => {
+                try {
+                    const list = jitsiApi.getParticipantsInfo();
+                    activeParticipants.value = list.map(p => ({
+                        id: p.participantId,
+                        name: p.displayName || 'طالب مجهول'
+                    }));
+                } catch (e) {
+                    console.warn("Could not load initial participants:", e);
+                }
+            }, 3000);
+        });
+
+        jitsiApi.addEventListener('participantJoined', (event) => {
+            if (!activeParticipants.value.some(p => p.id === event.id)) {
+                activeParticipants.value.push({
+                    id: event.id,
+                    name: event.displayName || 'طالب مجهول'
+                });
+            }
+        });
+
+        jitsiApi.addEventListener('participantLeft', (event) => {
+            activeParticipants.value = activeParticipants.value.filter(p => p.id !== event.id);
+        });
+
+        jitsiApi.addEventListener('lobbyParticipantJoined', (event) => {
+            if (!lobbyParticipants.value.some(p => p.id === event.id)) {
+                lobbyParticipants.value.push({
+                    id: event.id,
+                    name: event.displayName || 'طالب ينتظر'
+                });
+            }
+        });
+
+        jitsiApi.addEventListener('lobbyParticipantLeft', (event) => {
+            lobbyParticipants.value = lobbyParticipants.value.filter(p => p.id !== event.id);
+        });
     }
 }
 
@@ -263,12 +344,80 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <div class="flex-1 w-full bg-black relative" ref="jitsiContainer">
-            <!-- Jitsi Meet iframe will be injected here -->
-            <div v-if="isRoomLoading" class="absolute inset-0 flex items-center justify-center bg-black/80 z-20">
-                <div class="text-surface-400 flex flex-col items-center gap-3">
-                    <div class="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-                    <div>جاري الاتصال بقاعة البث...</div>
+        <div class="flex-1 w-full flex overflow-hidden">
+            <!-- Jitsi Meet iframe container -->
+            <div class="flex-1 bg-black relative h-full" ref="jitsiContainer">
+                <!-- Loading overlay -->
+                <div v-if="isRoomLoading" class="absolute inset-0 flex items-center justify-center bg-black/80 z-20">
+                    <div class="text-surface-400 flex flex-col items-center gap-3">
+                        <div class="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div>جاري الاتصال بقاعة البث...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teacher Moderation Panel (Sidebar on the left) -->
+            <div v-if="user.isTeacher" class="w-80 shrink-0 bg-surface-900 border-r border-surface-800 flex flex-col overflow-hidden text-sm">
+                <!-- Header -->
+                <div class="p-4 border-b border-surface-800 flex items-center justify-between bg-surface-950">
+                    <div class="flex items-center gap-2 font-bold text-white">
+                        <span>🛡️ لوحة التحكم والإشراف</span>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="p-4 border-b border-surface-800 flex flex-col gap-2.5">
+                    <button @click="toggleLobbyMode" 
+                            class="w-full py-2 px-3 text-xs font-bold rounded-xl flex items-center justify-between transition-colors"
+                            :class="lobbyEnabled 
+                                ? 'bg-green-600/10 text-green-400 hover:bg-green-600/20 border border-green-600/20' 
+                                : 'bg-surface-800 text-surface-400 hover:bg-surface-700 border border-surface-700'">
+                        <span>غرفة الانتظار (Lobby)</span>
+                        <span>{{ lobbyEnabled ? 'نشطة 🟢' : 'ملغاة ⚪' }}</span>
+                    </button>
+
+                    <button @click="muteAllStudents" 
+                            class="w-full py-2 px-3 bg-red-600/10 hover:bg-red-600/20 text-red-400 font-bold border border-red-600/20 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors">
+                        <span>🔇 كتم صوت الجميع</span>
+                    </button>
+                </div>
+
+                <!-- Waiting Lobby Section -->
+                <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div>
+                        <h4 class="text-xs font-bold text-surface-400 uppercase tracking-wider mb-2">طلبات الدخول (غرفة الانتظار)</h4>
+                        <div v-if="!lobbyParticipants.length" class="text-xs text-surface-500 py-3 bg-surface-950/30 rounded-xl text-center border border-dashed border-surface-800">
+                            لا توجد طلبات معلقة حالياً
+                        </div>
+                        <div v-else class="space-y-2">
+                            <div v-for="student in lobbyParticipants" :key="student.id" 
+                                 class="p-2.5 bg-surface-950/60 rounded-xl flex items-center justify-between gap-2 border border-surface-800">
+                                <span class="font-medium text-white truncate max-w-[120px]">{{ student.name }}</span>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <button @click="acceptLobby(student.id)" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[10px] font-bold">قبول</button>
+                                    <button @click="rejectLobby(student.id)" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-bold">رفض</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Participants Section -->
+                    <div>
+                        <h4 class="text-xs font-bold text-surface-400 uppercase tracking-wider mb-2">الطلاب المتواجدون حالياً</h4>
+                        <div v-if="!activeParticipants.length" class="text-xs text-surface-500 py-3 text-center">
+                            لا يوجد طلاب متصلين بقاعة البث
+                        </div>
+                        <div v-else class="space-y-2">
+                            <div v-for="student in activeParticipants" :key="student.id" 
+                                 class="p-2.5 bg-surface-950/30 rounded-xl flex items-center justify-between gap-2 border border-surface-800/50">
+                                <span class="font-medium text-surface-300 truncate max-w-[150px]">{{ student.name }}</span>
+                                <button @click="kickStudent(student.id)" 
+                                        class="px-2.5 py-1 text-red-500 hover:text-white hover:bg-red-600 rounded-lg text-[10px] font-bold border border-red-500/20 hover:border-transparent transition-colors">
+                                    طرد
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
