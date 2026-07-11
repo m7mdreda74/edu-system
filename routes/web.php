@@ -117,6 +117,7 @@ Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
 // ─── Webhook Routes (NO auth, NO CSRF) ────────────────────────────────────────
 Route::withoutMiddleware(['web'])->group(function () {
     Route::post('/webhooks/stripe', [WebhookController::class, 'stripe'])->name('webhooks.stripe');
+    Route::post('/webhooks/fatora', [WebhookController::class, 'fatora'])->name('webhooks.fatora');
 });
 
 // ─── Teacher Routes ────────────────────────────────────────────────────────────

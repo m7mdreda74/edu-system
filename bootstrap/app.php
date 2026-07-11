@@ -20,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\LimitConcurrentSessions::class,
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/*',
+        ]);
+
         // ─── API Rate Limiting ─────────────────────────────────────────────
         // Protect progress update + quiz submit from abuse
         $middleware->throttleApi();

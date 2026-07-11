@@ -48,4 +48,25 @@ class WebhookController extends Controller
 
         return response('OK', 200);
     }
+
+    public function fatora(Request $request): Response
+    {
+        $payload = $request->getContent();
+
+        if (! $this->paymentService->getGateway()->verifyWebhookSignature($payload, '')) {
+            Log::warning('Fatora webhook: invalid authorization', ['ip' => $request->ip()]);
+            return response('Unauthorized', 401);
+        }
+
+        try {
+            $this->paymentService->processWebhookEvent($payload);
+        } catch (\Throwable $e) {
+            Log::error('Fatora webhook processing error', [
+                'error'   => $e->getMessage(),
+                'payload' => substr($payload, 0, 500),
+            ]);
+        }
+
+        return response('OK', 200);
+    }
 }

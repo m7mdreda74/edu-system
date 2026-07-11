@@ -164,17 +164,20 @@ class PaymentService
     /**
      * Verify payment status directly with the gateway and process it using local payment ID.
      */
-    public function verifyAndProcessPaymentDirect(string $paymentId): void
+    public function verifyAndProcessPaymentDirect(string $paymentId, ?string $transactionId = null): void
     {
         $payment = Payment::find($paymentId);
         if ($payment && !$payment->isPaid()) {
-            $gatewayRef = $payment->gateway_ref;
+            $gatewayRef = $transactionId ?? $payment->gateway_ref;
             if ($gatewayRef) {
                 $gateway = $this->gateway;
                 if (method_exists($gateway, 'getPaymentStatus')) {
                     /** @var \App\Infrastructure\Payment\Gateways\FatoraGateway $gateway */
                     $statusData = $gateway->getPaymentStatus($gatewayRef);
                     if (($statusData['status'] ?? '') === 'paid') {
+                        if ($transactionId && $payment->gateway_ref !== $transactionId) {
+                            $payment->update(['gateway_ref' => $transactionId]);
+                        }
                         $this->completeSuccessfulPayment($payment);
                     }
                 }
