@@ -40,6 +40,7 @@ class DatabaseSeeder extends Seeder
         DB::table('payments')->truncate();
         DB::table('platform_settings')->truncate();
         DB::table('worksheets')->truncate();
+        DB::table('lesson_progress')->truncate();
         DB::table('model_has_roles')->truncate();
         Schema::enableForeignKeyConstraints();
 
