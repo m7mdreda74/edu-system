@@ -20,6 +20,7 @@ class GradeLevel extends Model
         'key',
         'name',
         'name_en',
+        'stage',
         'is_active',
     ];
 

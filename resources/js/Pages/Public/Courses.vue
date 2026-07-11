@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { useDebounceFn } from '@vueuse/core';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CourseCard from '@/Components/CourseCard.vue';
@@ -15,13 +15,40 @@ const props = defineProps({
 const search      = ref(props.filters.search ?? '');
 const subjectId   = ref(props.filters.subject_id ?? '');
 const gradeLevel  = ref(props.filters.grade_level ?? '');
+const stage       = ref(props.filters.stage ?? '');
 const level       = ref(props.filters.level ?? '');
 const sort        = ref(props.filters.sort ?? 'latest');
 
 const filteredSubjects = computed(() => {
-    if (!gradeLevel.value) return props.subjects;
-    return props.subjects.filter(s => s.grade_level === gradeLevel.value || s.grade_level === 'all');
+    let result = props.subjects;
+    if (gradeLevel.value) {
+        result = result.filter(s => s.grade_level === gradeLevel.value || s.grade_level === 'all');
+    } else if (stage.value) {
+        result = result.filter(s => {
+            if (s.grade_level === 'all') return true;
+            const gl = page.props.grade_levels?.find(g => g.key === s.grade_level);
+            return gl && gl.stage === stage.value;
+        });
+    }
+    return result;
 });
+
+// Filter grade levels based on selected stage
+const page = usePage();
+const filteredGradeLevels = computed(() => {
+    const gls = page.props.grade_levels || [];
+    if (!stage.value) return gls.filter(g => g.key !== 'all');
+    return gls.filter(g => g.stage === stage.value && g.key !== 'all');
+});
+
+function onStageChange() {
+    // If current gradeLevel is not in the filtered grade levels, reset it
+    const hasGrade = filteredGradeLevels.value.some(g => g.key === gradeLevel.value);
+    if (!hasGrade) {
+        gradeLevel.value = '';
+    }
+    applyFilters();
+}
 
 // Debounce search to avoid request on every keystroke
 const debouncedSearch = useDebounceFn(() => applyFilters(), 300);
@@ -33,6 +60,7 @@ function applyFilters() {
         search:      search.value     || undefined,
         subject_id:  subjectId.value  || undefined,
         grade_level: gradeLevel.value || undefined,
+        stage:       stage.value      || undefined,
         level:       level.value      || undefined,
         sort:        sort.value       || undefined,
     }, { preserveState: true, replace: true });
@@ -42,13 +70,28 @@ function clearFilters() {
     search.value     = '';
     subjectId.value  = '';
     gradeLevel.value = '';
+    stage.value      = '';
     level.value      = '';
     sort.value       = 'latest';
     applyFilters();
 }
 
 const hasActiveFilters = () =>
-    !!(search.value || subjectId.value || gradeLevel.value || level.value);
+    !!(search.value || subjectId.value || gradeLevel.value || stage.value || level.value);
+
+const stageLabels = {
+    primary: 'المرحلة الابتدائية',
+    preparatory: 'المرحلة الإعدادية',
+    secondary: 'المرحلة الثانوية',
+};
+function getStageLabel(key) {
+    return stageLabels[key] || key;
+}
+const levelLabels = {
+    beginner: 'مبتدئ',
+    intermediate: 'متوسط',
+    advanced: 'متقدم',
+};
 </script>
 
 <template>
@@ -66,103 +109,67 @@ const hasActiveFilters = () =>
         </div>
 
         <div class="container-app px-4 py-8">
-            <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Active Filters Bar -->
+            <div v-if="hasActiveFilters()" class="flex flex-wrap items-center gap-2 mb-6 p-4 rounded-xl bg-surface-50 dark:bg-surface-900/40 border border-surface-100 dark:border-surface-800/60" dir="rtl">
+                <span class="text-xs font-bold text-surface-500 dark:text-surface-450">التصفية النشطة:</span>
+                
+                <!-- Search tag -->
+                <span v-if="search" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-200 dark:bg-primary-950/40 dark:text-primary-300 dark:border-primary-900/50">
+                    <span>البحث: "{{ search }}"</span>
+                    <button @click="search = ''; applyFilters()" class="hover:text-red-500 font-bold">×</button>
+                </span>
 
-                <!-- ── Sidebar Filters ──────────────────────────── -->
-                <aside class="w-full lg:w-64 flex-shrink-0">
-                    <div class="card p-5 sticky top-20 space-y-5">
-                        <div class="flex items-center justify-between">
-                            <h2 class="font-bold text-surface-800 dark:text-white">تصفية النتائج</h2>
-                            <button v-if="hasActiveFilters()"
-                                @click="clearFilters"
-                                class="text-xs text-red-500 hover:text-red-700 font-medium">
-                                مسح الكل ✕
-                            </button>
-                        </div>
+                <!-- Subject tag -->
+                <span v-if="subjectId" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-200 dark:bg-primary-950/40 dark:text-primary-300 dark:border-primary-900/50">
+                    <span>المادة: {{ props.subjects.find(s => s.id === Number(subjectId))?.name }}</span>
+                    <button @click="subjectId = ''; applyFilters()" class="hover:text-red-500 font-bold">×</button>
+                </span>
 
-                        <!-- Search -->
-                        <div>
-                            <label class="input-label">بحث</label>
-                            <input
-                                v-model="search"
-                                type="text"
-                                placeholder="ابحث عن كورس..."
-                                class="input"
-                                id="search-input"
-                            />
-                        </div>
+                <!-- Stage tag -->
+                <span v-if="stage" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-200 dark:bg-primary-950/40 dark:text-primary-300 dark:border-primary-900/50">
+                    <span>المرحلة: {{ getStageLabel(stage) }}</span>
+                    <button @click="stage = ''; applyFilters()" class="hover:text-red-500 font-bold">×</button>
+                </span>
 
-                        <!-- Subject -->
-                        <div>
-                            <label class="input-label">المادة</label>
-                            <select v-model="subjectId" @change="applyFilters" class="input" id="subject-filter">
-                                <option value="">كل المواد</option>
-                                <option v-for="s in filteredSubjects" :key="s.id" :value="s.id">
-                                    {{ s.name }}
-                                </option>
-                            </select>
-                        </div>
+                <!-- Grade Level tag -->
+                <span v-if="gradeLevel" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-200 dark:bg-primary-950/40 dark:text-primary-300 dark:border-primary-900/50">
+                    <span>الصف: {{ page.props.grade_levels?.find(gl => gl.key === gradeLevel)?.name }}</span>
+                    <button @click="gradeLevel = ''; applyFilters()" class="hover:text-red-500 font-bold">×</button>
+                </span>
 
-                        <!-- Grade Level -->
-                        <div>
-                            <label class="input-label">الصف الدراسي</label>
-                            <select v-model="gradeLevel" @change="applyFilters" class="input" id="grade-filter">
-                                <option value="">كل الصفوف</option>
-                                <option v-for="gl in $page.props.grade_levels?.filter(g => g.key !== 'all')" :key="gl.key" :value="gl.key">
-                                    {{ gl.name }}
-                                </option>
-                            </select>
-                        </div>
+                <!-- Level tag -->
+                <span v-if="level" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-200 dark:bg-primary-950/40 dark:text-primary-300 dark:border-primary-900/50">
+                    <span>المستوى: {{ levelLabels[level] }}</span>
+                    <button @click="level = ''; applyFilters()" class="hover:text-red-500 font-bold">×</button>
+                </span>
 
-                        <!-- Level -->
-                        <div>
-                            <label class="input-label">المستوى</label>
-                            <select v-model="level" @change="applyFilters" class="input" id="level-filter">
-                                <option value="">كل المستويات</option>
-                                <option value="beginner">مبتدئ</option>
-                                <option value="intermediate">متوسط</option>
-                                <option value="advanced">متقدم</option>
-                            </select>
-                        </div>
+                <button @click="clearFilters" class="text-xs text-red-500 hover:text-red-650 font-bold mr-auto">
+                    مسح الكل ×
+                </button>
+            </div>
 
-                        <!-- Sort -->
-                        <div>
-                            <label class="input-label">الترتيب</label>
-                            <select v-model="sort" @change="applyFilters" class="input" id="sort-filter">
-                                <option value="latest">الأحدث</option>
-                                <option value="popular">الأكثر شعبية</option>
-                                <option value="price_asc">السعر: من الأقل</option>
-                                <option value="price_desc">السعر: من الأعلى</option>
-                            </select>
-                        </div>
-                    </div>
-                </aside>
+            <!-- Results count -->
+            <div class="flex items-center justify-between mb-6">
+                <p class="text-sm text-surface-500 dark:text-surface-400">
+                    عرض {{ courses.from }}–{{ courses.to }} من {{ courses.total }} نتيجة
+                </p>
+            </div>
 
-                <!-- ── Courses Grid ──────────────────────────────── -->
-                <div class="flex-1 min-w-0">
+            <!-- Empty state -->
+            <div v-if="courses.data.length === 0"
+                 class="card p-16 text-center flex flex-col items-center justify-center">
+                <div class="p-4 bg-surface-100 dark:bg-surface-800 text-surface-400 rounded-full mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-surface-700 dark:text-white mb-2">لا توجد نتائج</h3>
+                <p class="text-surface-500 dark:text-surface-400 mb-6">جرّب تغيير معايير البحث</p>
+                <button @click="clearFilters" class="btn-primary">عرض كل الكورسات</button>
+            </div>
 
-                    <!-- Results count -->
-                    <div class="flex items-center justify-between mb-6">
-                        <p class="text-sm text-surface-500 dark:text-surface-400">
-                            عرض {{ courses.from }}–{{ courses.to }} من {{ courses.total }} نتيجة
-                        </p>
-                    </div>
-
-                    <!-- Empty state -->
-                    <div v-if="courses.data.length === 0"
-                         class="card p-16 text-center flex flex-col items-center justify-center">
-                        <div class="p-4 bg-surface-100 dark:bg-surface-800 text-surface-400 rounded-full mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                        <h3 class="text-xl font-bold text-surface-700 dark:text-white mb-2">لا توجد نتائج</h3>
-                        <p class="text-surface-500 dark:text-surface-400 mb-6">جرّب تغيير معايير البحث</p>
-                        <button @click="clearFilters" class="btn-primary">عرض كل الكورسات</button>
-                    </div>
-
-                    <!-- Grid -->
-                    <div v-else class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mb-8">
+            <!-- Grid -->
+            <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mb-8">
                         <CourseCard
                             v-for="course in courses.data"
                             :key="course.id"
@@ -189,8 +196,6 @@ const hasActiveFilters = () =>
                             <span v-html="link.label"></span>
                         </Link>
                     </div>
-                </div>
-            </div>
         </div>
     </AppLayout>
 </template>

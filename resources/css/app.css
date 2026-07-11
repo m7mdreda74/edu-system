@@ -22,13 +22,17 @@
     body {
         @apply text-surface-900 antialiased;
         @apply dark:text-surface-100;
-        background: linear-gradient(135deg, #f5f0dc 0%, #f2dee4 40%, #ffffff 85%) !important;
+        background: radial-gradient(circle at 5% 5%, rgba(197, 160, 57, 0.08) 0%, transparent 40%),
+                    radial-gradient(circle at 95% 95%, rgba(122, 28, 55, 0.04) 0%, transparent 40%),
+                    linear-gradient(135deg, #fdfbfa 0%, #f7f5f2 100%) !important;
         background-attachment: fixed !important;
     }
     
     html.dark body,
     .dark body {
-        background: linear-gradient(135deg, #1b160f 0%, #1d0a10 45%, #0a0405 85%) !important;
+        background: radial-gradient(circle at 5% 5%, rgba(197, 160, 57, 0.15) 0%, transparent 45%),
+                    radial-gradient(circle at 95% 95%, rgba(122, 28, 55, 0.08) 0%, transparent 45%),
+                    linear-gradient(135deg, #0e0a0b 0%, #060203 100%) !important;
         background-attachment: fixed !important;
     }
 
@@ -85,8 +89,8 @@
 
     .btn-outline {
         @apply btn border-2 border-primary-600 text-primary-700
-               hover:bg-primary-50 dark:text-primary-400
-               dark:border-primary-500 dark:hover:bg-primary-950;
+               hover:bg-primary-50 dark:text-accent-400
+               dark:border-accent-500/45 dark:hover:bg-accent-950/20;
     }
 
     .btn-ghost {
@@ -106,7 +110,7 @@
     }
 
     .card-hover {
-        @apply card border border-surface-100 dark:border-surface-800 hover:border-primary-500/20 hover:shadow-card-hover hover:-translate-y-2 transition-all duration-300 ease-out;
+        @apply card border border-surface-100 dark:border-surface-800/60 hover:border-accent-500/30 hover:shadow-glow-accent hover:-translate-y-1.5 transition-all duration-300 ease-out;
     }
 
     /* ── Inputs ── */
@@ -116,7 +120,13 @@
                transition-colors duration-200
                focus:ring-2 focus:ring-primary-500 focus:border-transparent
                dark:bg-surface-800 dark:border-surface-600
-               dark:text-surface-100 dark:placeholder-surface-500;
+               dark:text-surface-100 dark:placeholder-surface-400;
+    }
+
+    select.input {
+        text-align: start;
+        text-align-last: start;
+        padding-left: 2.5rem !important;
     }
 
     .input-error  { @apply border-red-400 focus:ring-red-400; }
@@ -184,9 +194,9 @@
 
     /* ── Gradient Hero ── */
     .hero-gradient {
-        background: radial-gradient(circle at 80% 20%, rgba(122, 28, 55, 0.35) 0%, transparent 60%),
-                    radial-gradient(circle at 10% 80%, rgba(197, 160, 57, 0.22) 0%, transparent 50%),
-                    linear-gradient(135deg, #22030c 0%, #560d22 50%, #7a1c37 100%);
+        background: radial-gradient(circle at 80% 20%, rgba(122, 28, 55, 0.45) 0%, transparent 60%),
+                    radial-gradient(circle at 15% 50%, rgba(197, 160, 57, 0.35) 0%, transparent 55%),
+                    linear-gradient(135deg, #1c0209 0%, #46091b 50%, #1f1406 100%);
     }
 
     /* ── Glass morphism ── */

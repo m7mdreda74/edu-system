@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, useForm, router, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -10,17 +10,35 @@ const props = defineProps({
 
 const isModalOpen = ref(false);
 const editingGradeLevel = ref(null);
+const selectedStage = ref('all_stages');
 
 const form = useForm({
     key: '',
     name: '',
     name_en: '',
+    stage: 'secondary',
     is_active: true,
 });
+
+const filteredGradeLevels = computed(() => {
+    if (selectedStage.value === 'all_stages') return props.gradeLevels;
+    return props.gradeLevels.filter(gl => gl.stage === selectedStage.value);
+});
+
+function getStageLabel(stage) {
+    const labels = {
+        primary: 'ابتدائية',
+        preparatory: 'إعدادية',
+        secondary: 'ثانوية',
+        all: 'عام',
+    };
+    return labels[stage] || stage;
+}
 
 function openAddModal() {
     editingGradeLevel.value = null;
     form.reset();
+    form.stage = 'secondary';
     form.is_active = true;
     isModalOpen.value = true;
 }
@@ -30,6 +48,7 @@ function openEditModal(gradeLevel) {
     form.key = gradeLevel.key;
     form.name = gradeLevel.name;
     form.name_en = gradeLevel.name_en || '';
+    form.stage = gradeLevel.stage || 'secondary';
     form.is_active = gradeLevel.is_active ? true : false;
     isModalOpen.value = true;
 }
@@ -79,17 +98,43 @@ function deleteGradeLevel(id) {
                 </button>
             </div>
 
+            <!-- Filter Tabs -->
+            <div class="flex flex-wrap gap-2 mb-8">
+                <button 
+                    v-for="stage in [
+                        { key: 'all_stages', label: 'كل المراحل' },
+                        { key: 'primary', label: 'المرحلة الابتدائية' },
+                        { key: 'preparatory', label: 'المرحلة الإعدادية' },
+                        { key: 'secondary', label: 'المرحلة الثانوية' },
+                        { key: 'all', label: 'عام / غير مصنف' }
+                    ]"
+                    :key="stage.key"
+                    @click="selectedStage = stage.key"
+                    class="btn btn-sm px-4 py-2 border transition-all"
+                    :class="selectedStage === stage.key 
+                        ? 'bg-accent-500 text-white border-accent-500 hover:bg-accent-600 shadow-glow-accent/25 font-bold' 
+                        : 'bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-300 border-surface-200 dark:border-surface-700/80 hover:bg-surface-50 dark:hover:bg-surface-750'"
+                >
+                    {{ stage.label }}
+                </button>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div v-for="gl in gradeLevels" :key="gl.id" 
+                <div v-for="gl in filteredGradeLevels" :key="gl.id" 
                      class="card p-6 flex flex-col justify-between hover:-translate-y-1.5 hover:border-accent-500/40 hover:shadow-glow-accent/15 transition-all duration-300 transform border border-surface-100 dark:border-surface-800"
                 >
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <!-- Code badge and Status -->
-                            <span class="bg-accent-500/10 text-accent-600 dark:text-accent-400 font-bold px-3 py-1 rounded-xl text-xs">
-                                {{ gl.key }}
-                            </span>
-                            <span :class="gl.is_active ? 'badge-green' : 'badge-gray'">
+                        <div class="flex items-center justify-between gap-2 mb-4">
+                            <!-- Code badge and Stage / Status -->
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="bg-accent-500/10 text-accent-600 dark:text-accent-400 font-bold px-2.5 py-0.5 rounded-lg text-xs">
+                                    {{ gl.key }}
+                                </span>
+                                <span class="bg-primary-500/10 text-primary-600 dark:text-primary-400 font-semibold px-2.5 py-0.5 rounded-lg text-xs">
+                                    {{ getStageLabel(gl.stage) }}
+                                </span>
+                            </div>
+                            <span :class="gl.is_active ? 'badge-green' : 'badge-gray'" class="ms-auto">
                                 {{ gl.is_active ? 'نشط' : 'غير نشط' }}
                             </span>
                         </div>
@@ -179,6 +224,17 @@ function deleteGradeLevel(id) {
                             <label class="input-label mb-1">اسم المرحلة (بالإنجليزية - اختياري)</label>
                             <input v-model="form.name_en" type="text" class="input" placeholder="مثال: Grade 10" />
                             <p v-if="form.errors.name_en" class="text-red-500 text-xs mt-1">{{ form.errors.name_en }}</p>
+                        </div>
+
+                        <div>
+                            <label class="input-label mb-1">المرحلة التعليمية العامة</label>
+                            <select v-model="form.stage" required class="input">
+                                <option value="primary">المرحلة الابتدائية (الصفوف 1 - 6)</option>
+                                <option value="preparatory">المرحلة الإعدادية (الصفوف 7 - 9)</option>
+                                <option value="secondary">المرحلة الثانوية (الصفوف 10 - 12)</option>
+                                <option value="all">عام / كل المراحل</option>
+                            </select>
+                            <p v-if="form.errors.stage" class="text-red-500 text-xs mt-1">{{ form.errors.stage }}</p>
                         </div>
 
                         <div v-if="editingGradeLevel" class="flex items-center gap-2 pt-2">

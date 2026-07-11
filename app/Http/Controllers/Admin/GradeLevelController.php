@@ -39,6 +39,7 @@ class GradeLevelController extends Controller
             'key'       => ['required', 'string', 'max:20', 'unique:grade_levels,key', 'regex:/^[a-zA-Z0-9_-]+$/'],
             'name'      => ['required', 'string', 'max:255'],
             'name_en'   => ['nullable', 'string', 'max:255'],
+            'stage'     => ['required', 'string', 'in:primary,preparatory,secondary,all'],
             'is_active' => ['sometimes', 'boolean'],
         ], [
             'key.regex' => 'يجب أن يحتوي رمز المرحلة على أحرف إنجليزية وأرقام وعلامة شرطة فقط بدون مسافات.',
@@ -75,6 +76,7 @@ class GradeLevelController extends Controller
             'key'       => ['required', 'string', 'max:20', 'unique:grade_levels,key,' . $gl->id, 'regex:/^[a-zA-Z0-9_-]+$/'],
             'name'      => ['required', 'string', 'max:255'],
             'name_en'   => ['nullable', 'string', 'max:255'],
+            'stage'     => ['required', 'string', 'in:primary,preparatory,secondary,all'],
             'is_active' => ['required', 'boolean'],
         ], [
             'key.regex' => 'يجب أن يحتوي رمز المرحلة على أحرف إنجليزية وأرقام وعلامة شرطة فقط بدون مسافات.',

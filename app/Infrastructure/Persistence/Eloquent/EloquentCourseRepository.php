@@ -49,6 +49,12 @@ class EloquentCourseRepository implements CourseRepositoryInterface
             $query->where('grade_level', $filters['grade_level']);
         }
 
+        if (! empty($filters['stage'])) {
+            $query->whereHas('gradeLevel', function ($q) use ($filters) {
+                $q->where('stage', $filters['stage']);
+            });
+        }
+
         if (! empty($filters['level'])) {
             $query->where('level', $filters['level']);
         }

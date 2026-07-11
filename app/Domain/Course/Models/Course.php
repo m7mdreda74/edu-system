@@ -63,6 +63,11 @@ class Course extends Model
         return $this->belongsTo(User::class, 'teacher_id');
     }
 
+    public function gradeLevel(): BelongsTo
+    {
+        return $this->belongsTo(GradeLevel::class, 'grade_level', 'key');
+    }
+
     public function liveSessions(): HasMany
     {
         return $this->hasMany(LiveSession::class);

@@ -25,6 +25,7 @@ class CourseController extends Controller
         $filters = $request->validate([
             'subject_id'  => ['nullable', 'integer', 'exists:subjects,id'],
             'grade_level' => ['nullable', 'string', 'exists:grade_levels,key'],
+            'stage'       => ['nullable', 'string', 'in:primary,preparatory,secondary,all'],
             'level'       => ['nullable', 'string', 'in:beginner,intermediate,advanced'],
             'search'      => ['nullable', 'string', 'max:100'],
             'sort'        => ['nullable', 'string', 'in:latest,popular,price_asc,price_desc'],

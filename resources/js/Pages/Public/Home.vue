@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
-import { Link, Head } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { Link, Head, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CourseCard from '@/Components/CourseCard.vue';
 import Icon from '@/Components/Icon.vue';
@@ -12,8 +12,6 @@ const props = defineProps({
     subjects:        { type: Array, default: () => [] },
     teachers:        { type: Array, default: () => [] },
 });
-
-import { usePage } from '@inertiajs/vue3';
 
 const page = usePage();
 
@@ -124,14 +122,57 @@ const parsedFaqs = computed(() => {
     ];
 });
 
+const selectedStageTab = ref('all');
 const selectedGradeTab = ref('all');
 
-const filteredSubjects = computed(() => {
-    if (selectedGradeTab.value === 'all') {
-        return props.subjects;
+watch(selectedStageTab, () => {
+    if (selectedStageTab.value !== 'all' && selectedGradeTab.value !== 'all') {
+        const gl = page.props.grade_levels?.find(g => g.key === selectedGradeTab.value);
+        if (!gl || gl.stage !== selectedStageTab.value) {
+            selectedGradeTab.value = 'all';
+        }
     }
-    return props.subjects.filter(s => s.grade_level === selectedGradeTab.value || s.grade_level === 'all');
 });
+
+const subGrades = computed(() => {
+    const gls = page.props.grade_levels || [];
+    if (selectedStageTab.value === 'all') {
+        return gls.filter(g => g.key !== 'all');
+    }
+    return gls.filter(g => g.stage === selectedStageTab.value && g.key !== 'all');
+});
+
+const filteredSubjects = computed(() => {
+    let result = props.subjects;
+
+    if (selectedStageTab.value !== 'all') {
+        result = result.filter(s => {
+            if (s.grade_level === 'all') return true;
+            const gl = page.props.grade_levels?.find(g => g.key === s.grade_level);
+            return gl && gl.stage === selectedStageTab.value;
+        });
+    }
+
+    if (selectedGradeTab.value !== 'all') {
+        result = result.filter(s => s.grade_level === selectedGradeTab.value || s.grade_level === 'all');
+    }
+
+    return result;
+});
+
+function getGradeNumber(key) {
+    return key.replace('grade_', '');
+}
+
+function selectGrade(glKey) {
+    selectedGradeTab.value = glKey;
+    if (glKey === 'all') return;
+    
+    const gl = page.props.grade_levels?.find(g => g.key === glKey);
+    if (gl && gl.stage && selectedStageTab.value !== gl.stage) {
+        selectedStageTab.value = gl.stage;
+    }
+}
 </script>
 
 
@@ -217,26 +258,48 @@ const filteredSubjects = computed(() => {
                 </div>
 
                 <!-- Grade Filter Tabs -->
-                <div class="flex flex-wrap justify-center gap-3 mb-10 animate-fade-in-up animation-delay-100">
+                <div class="flex flex-wrap justify-center gap-3 mb-6 animate-fade-in-up animation-delay-100">
                     <button 
-                        @click="selectedGradeTab = 'all'" 
+                        v-for="tab in [
+                            { key: 'all', label: 'كل المراحل' },
+                            { key: 'primary', label: 'المرحلة الابتدائية' },
+                            { key: 'preparatory', label: 'المرحلة الإعدادية' },
+                            { key: 'secondary', label: 'المرحلة الثانوية' }
+                        ]"
+                        :key="tab.key"
+                        @click="selectedStageTab = tab.key" 
                         class="px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 transform active:scale-95 border"
-                        :class="selectedGradeTab === 'all' 
+                        :class="selectedStageTab === tab.key 
                             ? 'bg-primary-600 border-primary-600 text-white shadow-glow-primary' 
                             : 'border-surface-200 dark:border-surface-800 text-surface-600 dark:text-surface-300 bg-surface-50 dark:bg-surface-900/50 hover:bg-surface-100 dark:hover:bg-surface-800'"
                     >
-                        كل المراحل
+                        {{ tab.label }}
+                    </button>
+                </div>
+
+                <!-- Sub-Grades (Grade Levels) Tabs -->
+                <div class="flex flex-wrap justify-center items-center gap-2 mb-10 animate-fade-in-up animation-delay-150" dir="rtl">
+                    <span class="text-xs font-bold text-surface-450 dark:text-surface-500 ml-2">الصف الدراسي:</span>
+                    <button 
+                        @click="selectGrade('all')" 
+                        class="px-4 py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 transform active:scale-95 border"
+                        :class="selectedGradeTab === 'all' 
+                            ? 'bg-accent-500 border-accent-500 text-white shadow-glow-accent' 
+                            : 'border-surface-200 dark:border-surface-800/60 text-surface-550 dark:text-surface-400 bg-surface-50/50 dark:bg-surface-950/30 hover:bg-surface-100 dark:hover:bg-surface-900'"
+                    >
+                        كل الصفوف
                     </button>
                     <button 
-                        v-for="gl in $page.props.grade_levels?.filter(g => g.key !== 'all')" 
+                        v-for="gl in subGrades" 
                         :key="gl.key"
-                        @click="selectedGradeTab = gl.key" 
-                        class="px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 transform active:scale-95 border"
+                        @click="selectGrade(gl.key)" 
+                        class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 transform active:scale-95 border"
                         :class="selectedGradeTab === gl.key 
-                            ? 'bg-primary-600 border-primary-600 text-white shadow-glow-primary' 
-                            : 'border-surface-200 dark:border-surface-800 text-surface-600 dark:text-surface-300 bg-surface-50 dark:bg-surface-900/50 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                            ? 'bg-accent-500 border-accent-500 text-white shadow-glow-accent' 
+                            : 'border-surface-200 dark:border-surface-800/60 text-surface-550 dark:text-surface-400 bg-surface-50/50 dark:bg-surface-950/30 hover:bg-surface-100 dark:hover:bg-surface-900'"
+                        :title="gl.name"
                     >
-                        {{ gl.name }}
+                        {{ getGradeNumber(gl.key) }}
                     </button>
                 </div>
 
@@ -244,7 +307,11 @@ const filteredSubjects = computed(() => {
                     <Link
                         v-for="subject in filteredSubjects"
                         :key="subject.id"
-                        :href="route('courses.index', { subject_id: subject.id })"
+                        :href="route('courses.index', { 
+                            subject_id: subject.id,
+                            stage: selectedStageTab !== 'all' ? selectedStageTab : undefined,
+                            grade_level: selectedGradeTab !== 'all' ? selectedGradeTab : undefined
+                        })"
                         class="hover-scale-premium card p-6 text-center group flex flex-col items-center justify-center transition-all duration-300 border border-surface-100 dark:border-surface-800/40 hover:border-accent-500/30"
                     >
                         <div class="p-4 rounded-full bg-accent-50/70 dark:bg-accent-950/40 text-primary-600 dark:text-primary-400 mb-4 group-hover:scale-110 group-hover:bg-accent-100 dark:group-hover:bg-accent-900/50 transition-all duration-300 border border-accent-500/10">

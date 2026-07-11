@@ -135,8 +135,8 @@ const isActive = (link) => {
                     <!-- Desktop Search Bar -->
                     <div class="hidden lg:block relative flex-1 max-w-xs mx-4" dir="rtl">
                         <div class="relative">
-                            <input v-model="searchQuery" @input="onSearchInput" type="text" placeholder="البحث عن كورسات أو معلمين..." class="w-full bg-surface-100 dark:bg-surface-800 border border-transparent focus:border-primary-500 rounded-xl px-4 py-2 text-xs text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-surface-500 focus:outline-none focus:ring-0" />
-                            <Icon name="search" class="w-4 h-4 text-surface-400 absolute left-3 top-2.5" />
+                            <input v-model="searchQuery" @input="onSearchInput" type="text" placeholder="البحث عن كورسات أو معلمين..." class="w-full bg-surface-100 dark:bg-black/45 border border-transparent dark:border-surface-700/40 focus:border-primary-500 focus:dark:border-accent-500 rounded-xl px-4 py-2 text-xs text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-white/35 focus:outline-none focus:ring-0" />
+                            <Icon name="search" class="w-4 h-4 text-surface-400 dark:text-surface-300 absolute left-3 top-2.5" />
                         </div>
 
                         <!-- Autocomplete Dropdown -->
