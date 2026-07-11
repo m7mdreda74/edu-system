@@ -24,45 +24,46 @@ export default {
             },
 
             // ─── Color Palette ────────────────────────────────────────
-            // Qatari Maroon (Burgundy/العنابي) + Amber accent — premium Qatari feel
+            // Luxurious Burgundy (العنابي) + Metallic Gold (الذهبي)
             colors: {
                 primary: {
-                    50:  '#fdf2f4',
-                    100: '#fbe5e9',
-                    200: '#f7ccd5',
-                    300: '#f1a3b5',
-                    400: '#e46e8c',
-                    500: '#8D1C3D', // Qatar Maroon
-                    600: '#7A1732',
-                    700: '#661127',
-                    800: '#540d1e',
-                    900: '#460c1b',
-                    950: '#26040d',
+                    50:  '#faf4f5',
+                    100: '#f5e2e6',
+                    200: '#e8b2bf',
+                    300: '#d57d93',
+                    400: '#ac3a55', // Deep premium crimson/burgundy tone (no hot pink)
+                    500: '#7A1C37', // Luxurious Burgundy
+                    600: '#68142c',
+                    700: '#560d22',
+                    800: '#46091b',
+                    900: '#3a0817',
+                    950: '#22030c',
                 },
                 accent: {
-                    50:  '#fffbeb',
-                    100: '#fef3c7',
-                    200: '#fde68a',
-                    300: '#fcd34d',
-                    400: '#fbbf24',
-                    500: '#f59e0b',
-                    600: '#d97706',
-                    700: '#b45309',
-                    800: '#92400e',
-                    900: '#78350f',
+                    50:  '#fbfaf3',
+                    100: '#faf3df',
+                    200: '#f4e5b9',
+                    300: '#eacc80',
+                    400: '#dfaf49',
+                    500: '#C5A039', // Luxury Gold
+                    600: '#a7842c',
+                    700: '#826420',
+                    800: '#5d4617',
+                    900: '#3e2e0f',
+                    950: '#261c0a',
                 },
                 surface: {
-                    50:  '#f8fafc',
-                    100: '#f1f5f9',
-                    200: '#e2e8f0',
-                    300: '#cbd5e1',
-                    400: '#94a3b8',
-                    500: '#64748b',
-                    600: '#475569',
-                    700: '#334155',
-                    800: '#1e293b',
-                    900: '#0f172a',
-                    950: '#020617',
+                    50:  '#faf8f6',
+                    100: '#f4efea',
+                    200: '#e8dfd7',
+                    300: '#d2c4b7',
+                    400: '#9f8c7f',
+                    500: '#776558',
+                    600: '#5f4e43',
+                    700: '#33272c',
+                    800: '#1c1416',
+                    900: '#130b0d',
+                    950: '#0a0405',
                 },
             },
 
@@ -83,8 +84,8 @@ export default {
 
             // ─── Box Shadow ───────────────────────────────────────────
             boxShadow: {
-                'glow-primary': '0 0 20px rgba(141, 28, 61, 0.3)',
-                'glow-accent':  '0 0 20px rgba(245, 158, 11, 0.3)',
+                'glow-primary': '0 0 20px rgba(122, 28, 55, 0.3)',
+                'glow-accent':  '0 0 20px rgba(197, 160, 57, 0.3)',
                 'card':         '0 2px 15px -3px rgba(0,0,0,0.07), 0 10px 20px -2px rgba(0,0,0,0.04)',
                 'card-hover':   '0 10px 40px -10px rgba(0,0,0,0.15)',
             },
@@ -108,8 +109,8 @@ export default {
                     '100%': { backgroundPosition: '200% 0' },
                 },
                 'pulse-ring': {
-                    '0%, 100%': { boxShadow: '0 0 0 0 rgba(141, 28, 61, 0.4)' },
-                    '50%':      { boxShadow: '0 0 0 8px rgba(141, 28, 61, 0)' },
+                    '0%, 100%': { boxShadow: '0 0 0 0 rgba(122, 28, 55, 0.4)' },
+                    '50%':      { boxShadow: '0 0 0 8px rgba(122, 28, 55, 0)' },
                 },
             },
 

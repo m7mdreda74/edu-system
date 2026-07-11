@@ -83,9 +83,9 @@ const submit = () => form.post(route('register'));
                         <div v-if="form.role === 'student'">
                             <label class="input-label" for="reg-grade">الصف الدراسي</label>
                             <select id="reg-grade" v-model="form.grade_level" class="input">
-                                <option value="grade_10">الصف العاشر</option>
-                                <option value="grade_11">الصف الحادي عشر</option>
-                                <option value="grade_12">الصف الثاني عشر</option>
+                                <option v-for="gl in $page.props.grade_levels?.filter(g => g.key !== 'all')" :key="gl.key" :value="gl.key">
+                                    {{ gl.name }}
+                                </option>
                             </select>
                         </div>
                     </div>

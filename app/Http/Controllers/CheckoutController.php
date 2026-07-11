@@ -21,6 +21,7 @@ class CheckoutController extends Controller
 
     public function show(string $slug): Response
     {
+        /** @var \App\Domain\User\Models\User $user */
         $user   = auth()->user();
         $course = Course::with(['teacher:id,name', 'subject:id,name'])
             ->where('slug', $slug)
@@ -42,6 +43,7 @@ class CheckoutController extends Controller
             'coupon_code' => ['nullable', 'string', 'max:50'],
         ]);
 
+        /** @var \App\Domain\User\Models\User $user */
         $user   = auth()->user();
         $course = Course::where('slug', $slug)->where('is_published', true)->firstOrFail();
 
@@ -61,10 +63,25 @@ class CheckoutController extends Controller
 
     public function success(Request $request): Response
     {
-        // Called by gateway after successful payment
-        // Actual enrollment happens via webhook (more reliable)
+        $paymentId = $request->query('paymentId'); // MyFatoorah
+        $localPaymentId = $request->query('payment_id'); // Fatora
+
+        if ($paymentId) {
+            try {
+                $this->paymentService->verifyAndProcessPayment((string) $paymentId);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('MyFatoorah callback verification failed: ' . $e->getMessage());
+            }
+        } elseif ($localPaymentId) {
+            try {
+                $this->paymentService->verifyAndProcessPaymentDirect((string) $localPaymentId);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Fatora callback verification failed: ' . $e->getMessage());
+            }
+        }
+
         return Inertia::render('Checkout/Success', [
-            'session_id' => $request->query('session_id'),
+            'session_id' => $paymentId ?? $localPaymentId ?? $request->query('session_id'),
         ]);
     }
 
@@ -80,6 +97,7 @@ class CheckoutController extends Controller
             'course_id'   => ['required', 'integer', 'exists:courses,id'],
         ]);
 
+        /** @var \App\Domain\Payment\Models\Coupon|null $coupon */
         $coupon = \App\Domain\Payment\Models\Coupon::where('code', strtoupper(trim($validated['coupon_code'])))->first();
 
         if (! $coupon || ! $coupon->isUsable()) {
@@ -98,6 +116,7 @@ class CheckoutController extends Controller
 
     public function mockGateway(string $ref): Response
     {
+        /** @var \App\Domain\Payment\Models\Payment $payment */
         $payment = Payment::where('gateway_ref', $ref)->firstOrFail();
         $course  = Course::with(['teacher:id,name', 'subject:id,name'])->findOrFail($payment->course_id);
 
@@ -125,6 +144,7 @@ class CheckoutController extends Controller
 
     public function mockCancel(string $ref): RedirectResponse
     {
+        /** @var \App\Domain\Payment\Models\Payment $payment */
         $payment = Payment::where('gateway_ref', $ref)->firstOrFail();
         $payment->update(['status' => Payment::STATUS_FAILED]);
 

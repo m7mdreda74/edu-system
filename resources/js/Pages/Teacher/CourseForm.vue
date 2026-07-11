@@ -19,6 +19,7 @@ const form = useForm({
     grade_level:   props.course?.grade_level   ?? 'grade_12',
     level:         props.course?.level         ?? 'beginner',
     is_published:  props.course?.is_published  ?? false,
+    thumbnail:     null,
 });
 
 // Price must be stored as halala (×100) before submitting
@@ -30,9 +31,14 @@ function submit() {
     };
 
     if (isEdit) {
-        form.transform(() => submitData).put(route('teacher.courses.update', { id: props.course.id }));
+        submitData._method = 'PUT';
+        form.transform(() => submitData).post(route('teacher.courses.update', { id: props.course.id }), {
+            forceFormData: true,
+        });
     } else {
-        form.transform(() => submitData).post(route('teacher.courses.store'));
+        form.transform(() => submitData).post(route('teacher.courses.store'), {
+            forceFormData: true,
+        });
     }
 }
 </script>
@@ -70,6 +76,22 @@ function submit() {
                     <p v-if="form.errors.title" class="text-red-500 text-xs mt-1">{{ form.errors.title }}</p>
                 </div>
 
+                <!-- Thumbnail -->
+                <div>
+                    <label class="input-label" for="course-thumbnail">صورة الكورس (الغلاف)</label>
+                    <div class="mt-2 flex items-center gap-4">
+                        <img v-if="course?.thumbnail" :src="course.thumbnail" class="w-24 aspect-video rounded-xl object-cover border" />
+                        <input
+                            id="course-thumbnail"
+                            type="file"
+                            accept="image/*"
+                            class="text-sm text-surface-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                            @input="form.thumbnail = $event.target.files[0]"
+                        />
+                    </div>
+                    <p v-if="form.errors.thumbnail" class="text-red-500 text-xs mt-1">{{ form.errors.thumbnail }}</p>
+                </div>
+
                 <!-- Description -->
                 <div>
                     <label class="input-label" for="course-desc">وصف الكورس *</label>
@@ -98,10 +120,9 @@ function submit() {
                     <div>
                         <label class="input-label" for="grade">الصف الدراسي *</label>
                         <select id="grade" v-model="form.grade_level" class="input" required>
-                            <option value="grade_10">الصف العاشر</option>
-                            <option value="grade_11">الصف الحادي عشر</option>
-                            <option value="grade_12">الصف الثاني عشر</option>
-                            <option value="all">كل الصفوف</option>
+                            <option v-for="gl in $page.props.grade_levels" :key="gl.key" :value="gl.key">
+                                {{ gl.name }}
+                            </option>
                         </select>
                     </div>
 

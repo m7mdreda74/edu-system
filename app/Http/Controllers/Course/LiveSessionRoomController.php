@@ -19,11 +19,10 @@ class LiveSessionRoomController extends Controller
 
         // Check if teacher or enrolled student
         $isTeacher = $session->teacher_id === $user->id;
-        $isEnrolled = false;
 
         if (!$isTeacher) {
             $isEnrolled = \App\Domain\Enrollment\Models\Enrollment::where('course_id', $session->course_id)
-                ->where('student_id', $user->id)
+                ->where('user_id', $user->id)
                 ->exists();
             abort_unless($isEnrolled, 403, 'غير مصرح.');
         }

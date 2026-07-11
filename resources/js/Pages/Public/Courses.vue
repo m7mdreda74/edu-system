@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { useDebounceFn } from '@vueuse/core';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -17,6 +17,11 @@ const subjectId   = ref(props.filters.subject_id ?? '');
 const gradeLevel  = ref(props.filters.grade_level ?? '');
 const level       = ref(props.filters.level ?? '');
 const sort        = ref(props.filters.sort ?? 'latest');
+
+const filteredSubjects = computed(() => {
+    if (!gradeLevel.value) return props.subjects;
+    return props.subjects.filter(s => s.grade_level === gradeLevel.value || s.grade_level === 'all');
+});
 
 // Debounce search to avoid request on every keystroke
 const debouncedSearch = useDebounceFn(() => applyFilters(), 300);
@@ -92,7 +97,7 @@ const hasActiveFilters = () =>
                             <label class="input-label">المادة</label>
                             <select v-model="subjectId" @change="applyFilters" class="input" id="subject-filter">
                                 <option value="">كل المواد</option>
-                                <option v-for="s in subjects" :key="s.id" :value="s.id">
+                                <option v-for="s in filteredSubjects" :key="s.id" :value="s.id">
                                     {{ s.name }}
                                 </option>
                             </select>
@@ -103,9 +108,9 @@ const hasActiveFilters = () =>
                             <label class="input-label">الصف الدراسي</label>
                             <select v-model="gradeLevel" @change="applyFilters" class="input" id="grade-filter">
                                 <option value="">كل الصفوف</option>
-                                <option value="grade_10">الصف العاشر</option>
-                                <option value="grade_11">الصف الحادي عشر</option>
-                                <option value="grade_12">الصف الثاني عشر</option>
+                                <option v-for="gl in $page.props.grade_levels?.filter(g => g.key !== 'all')" :key="gl.key" :value="gl.key">
+                                    {{ gl.name }}
+                                </option>
                             </select>
                         </div>
 
@@ -168,7 +173,6 @@ const hasActiveFilters = () =>
                             v-for="link in courses.links"
                             :key="link.label"
                             :href="link.url ?? '#'"
-                            v-html="link.label"
                             class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150"
                             :class="link.active
                                 ? 'bg-primary-600 text-white'
@@ -177,7 +181,9 @@ const hasActiveFilters = () =>
                                     : 'opacity-40 cursor-not-allowed bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-600 text-surface-400'"
                             :aria-disabled="!link.url"
                             preserve-scroll
-                        />
+                        >
+                            <span v-html="link.label"></span>
+                        </Link>
                     </div>
                 </div>
             </div>

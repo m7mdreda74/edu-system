@@ -59,6 +59,7 @@ class PaymentService
         $finalAmount    = $originalAmount;
 
         if ($couponCode) {
+            /** @var Coupon|null $coupon */
             $coupon = Coupon::where('code', strtoupper(trim($couponCode)))->first();
 
             if (! $coupon || ! $coupon->isUsable()) {
@@ -121,6 +122,71 @@ class PaymentService
             return; // Unknown payment — ignore (log in production)
         }
 
+        $this->completeSuccessfulPayment($payment);
+    }
+
+    /**
+     * Verify payment status directly with the gateway and process it.
+     * Useful for redirect callbacks.
+     */
+    public function verifyAndProcessPayment(string $paymentId): void
+    {
+        $gateway = $this->gateway;
+        if (method_exists($gateway, 'getPaymentStatus')) {
+            /** @var \App\Infrastructure\Payment\Gateways\MyFatoorahGateway $gateway */
+            $statusData = $gateway->getPaymentStatus($paymentId);
+
+            if (($statusData['status'] ?? '') === 'paid') {
+                $localPaymentId = $statusData['payment_id'] ?? null;
+                $payment = null;
+
+                if ($localPaymentId) {
+                    $payment = Payment::find($localPaymentId);
+                }
+
+                if (! $payment) {
+                    $payment = Payment::where('gateway_ref', $statusData['invoice_id'] ?? '')
+                        ->orWhere('gateway_ref', $paymentId)
+                        ->first();
+                }
+
+                if ($payment) {
+                    // Update to the final Transaction PaymentId if not set
+                    if ($payment->gateway_ref !== $paymentId) {
+                        $payment->update(['gateway_ref' => $paymentId]);
+                    }
+                    $this->completeSuccessfulPayment($payment);
+                }
+            }
+        }
+    }
+
+    /**
+     * Verify payment status directly with the gateway and process it using local payment ID.
+     */
+    public function verifyAndProcessPaymentDirect(string $paymentId): void
+    {
+        $payment = Payment::find($paymentId);
+        if ($payment && !$payment->isPaid()) {
+            $gatewayRef = $payment->gateway_ref;
+            if ($gatewayRef) {
+                $gateway = $this->gateway;
+                if (method_exists($gateway, 'getPaymentStatus')) {
+                    /** @var \App\Infrastructure\Payment\Gateways\FatoraGateway $gateway */
+                    $statusData = $gateway->getPaymentStatus($gatewayRef);
+                    if (($statusData['status'] ?? '') === 'paid') {
+                        $this->completeSuccessfulPayment($payment);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Complete the payment process and enroll the student.
+     */
+    public function completeSuccessfulPayment(Payment $payment): void
+    {
         // Idempotency check: skip if already processed
         if ($payment->isPaid()) {
             return;
@@ -146,7 +212,6 @@ class PaymentService
         });
 
         // Enroll student after successful payment
-        // Uses the same idempotent enrollFree logic (just bypasses the free check)
         $course = $payment->course;
         $user   = $payment->user;
 

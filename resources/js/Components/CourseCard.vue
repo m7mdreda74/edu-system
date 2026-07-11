@@ -1,6 +1,13 @@
 <script setup>
-import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+
+const page = usePage();
+
+function getGradeShortLabel(key) {
+    const gl = page.props.grade_levels?.find(item => item.key === key);
+    if (!gl) return key;
+    return gl.name.replace('الصف ', '');
+}
 
 const props = defineProps({
     course: { type: Object, required: true },
@@ -82,7 +89,7 @@ const levelColors = {
                 </span>
                 <span v-if="course.grade_level && course.grade_level !== 'all'"
                       class="badge-primary text-xs">
-                    {{ { grade_10: 'عاشر', grade_11: 'حادي عشر', grade_12: 'ثاني عشر' }[course.grade_level] }}
+                    {{ getGradeShortLabel(course.grade_level) }}
                 </span>
             </div>
 

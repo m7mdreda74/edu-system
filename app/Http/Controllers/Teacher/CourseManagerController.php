@@ -47,6 +47,10 @@ class CourseManagerController extends Controller
         $validated['slug']       = $this->uniqueSlug($validated['title']);
         $validated['is_published'] = false; // Draft by default
 
+        if ($request->hasFile('thumbnail')) {
+            $validated['thumbnail'] = \App\Services\ImageUploadService::uploadAndConvertToWebp($request->file('thumbnail'), 'thumbnails');
+        }
+
         $course = $this->courseRepository->create($validated);
 
         return redirect()
@@ -68,6 +72,15 @@ class CourseManagerController extends Controller
     {
         $course    = $this->ownerCourseOrFail($id);
         $validated = $this->validateCourse($request);
+
+        if ($request->hasFile('thumbnail')) {
+            // Delete old thumbnail if it exists
+            if ($course->thumbnail) {
+                $oldPath = str_replace('/storage/', '', $course->thumbnail);
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($oldPath);
+            }
+            $validated['thumbnail'] = \App\Services\ImageUploadService::uploadAndConvertToWebp($request->file('thumbnail'), 'thumbnails');
+        }
 
         $this->courseRepository->update($course, $validated);
 
@@ -91,9 +104,10 @@ class CourseManagerController extends Controller
             'subject_id'     => ['required', 'integer', 'exists:subjects,id'],
             'price'          => ['required', 'integer', 'min:0'],
             'discount_price' => ['nullable', 'integer', 'lt:price'],
-            'grade_level'    => ['required', 'in:grade_10,grade_11,grade_12,all'],
+            'grade_level'    => ['required', 'exists:grade_levels,key'],
             'level'          => ['required', 'in:beginner,intermediate,advanced'],
             'is_published'   => ['sometimes', 'boolean'],
+            'thumbnail'      => ['nullable', 'image', 'max:2048'], // Max 2MB
         ]);
     }
 

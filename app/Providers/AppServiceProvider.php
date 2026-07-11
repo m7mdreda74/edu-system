@@ -45,7 +45,7 @@ class AppServiceProvider extends ServiceProvider
         // Switch gateway by changing this binding only — controllers unaffected
         $this->app->bind(
             \App\Infrastructure\Payment\PaymentGatewayInterface::class,
-            \App\Infrastructure\Payment\Gateways\StripeGateway::class,
+            \App\Infrastructure\Payment\Gateways\FatoraGateway::class,
         );
 
         $this->app->singleton(\App\Application\Payment\Services\PaymentService::class);

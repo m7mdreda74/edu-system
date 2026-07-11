@@ -177,6 +177,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/coupons',               [App\Http\Controllers\Admin\CouponController::class, 'store'])->name('coupons.store');
     Route::patch('/coupons/{id}/toggle',  [App\Http\Controllers\Admin\CouponController::class, 'toggle'])->name('coupons.toggle');
     Route::delete('/coupons/{id}',        [App\Http\Controllers\Admin\CouponController::class, 'destroy'])->name('coupons.destroy');
+
+    // Grade Levels
+    Route::get('/grade-levels',               [App\Http\Controllers\Admin\GradeLevelController::class, 'index'])->name('grade-levels');
+    Route::post('/grade-levels',              [App\Http\Controllers\Admin\GradeLevelController::class, 'store'])->name('grade-levels.store');
+    Route::get('/grade-levels/{id}',          [App\Http\Controllers\Admin\GradeLevelController::class, 'show'])->name('grade-levels.show');
+    Route::put('/grade-levels/{id}',          [App\Http\Controllers\Admin\GradeLevelController::class, 'update'])->name('grade-levels.update');
+    Route::delete('/grade-levels/{id}',       [App\Http\Controllers\Admin\GradeLevelController::class, 'destroy'])->name('grade-levels.destroy');
 });
 
 // ─── Parent Routes ────────────────────────────────────────────────────────────

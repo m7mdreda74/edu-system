@@ -45,12 +45,14 @@ class DatabaseSeeder extends Seeder
         ];
 
         $teacherUsers = [];
-        foreach ($teachers as $teacherData) {
-            $teacher = User::firstOrCreate(
+        foreach ($teachers as $index => $teacherData) {
+            $avatarPath = $this->generateSeededImage("Teacher " . ($index + 1), 'avatars', 150, 150, '#8d1c3d');
+            $teacher = User::updateOrCreate(
                 ['email' => $teacherData['email']],
                 [
                     'name'              => $teacherData['name'],
                     'bio'               => $teacherData['bio'],
+                    'avatar'            => $avatarPath,
                     'password'          => Hash::make('password'),
                     'is_active'         => true,
                     'email_verified_at' => now(),
@@ -239,7 +241,10 @@ class DatabaseSeeder extends Seeder
             $teacher  = $teacherUsers[$courseData['teacher_idx']];
             $subject  = $subjectModels[$courseData['subject_idx']];
 
-            $course = Course::firstOrCreate(
+            // Generate seeded thumbnail
+            $thumbnailPath = $this->generateSeededImage($courseData['slug'], 'thumbnails', 640, 360, '#3a0612');
+
+            $course = Course::updateOrCreate(
                 ['slug' => $courseData['slug']],
                 [
                     'teacher_id'     => $teacher->id,
@@ -250,6 +255,7 @@ class DatabaseSeeder extends Seeder
                     'discount_price' => $courseData['discount_price'],
                     'grade_level'    => $courseData['grade_level'],
                     'level'          => $courseData['level'],
+                    'thumbnail'      => $thumbnailPath,
                     'is_published'   => true,
                 ]
             );
@@ -305,5 +311,51 @@ class DatabaseSeeder extends Seeder
         $this->command->info('   Admin:   admin@altafawwuq.com / password');
         $this->command->info('   Teacher: teacher1@altafawwuq.com / password');
         $this->command->info('   Student: student1@altafawwuq.com / password');
+    }
+
+    /**
+     * Generate a simple WebP image using GD library and save it.
+     */
+    private function generateSeededImage(string $text, string $folder, int $width, int $height, string $bgColorHex): string
+    {
+        $dir = storage_path('app/public/' . $folder);
+        if (!file_exists($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $image = imagecreatetruecolor($width, $height);
+
+        // Convert hex bg color
+        $bgR = hexdec(substr($bgColorHex, 1, 2));
+        $bgG = hexdec(substr($bgColorHex, 3, 2));
+        $bgB = hexdec(substr($bgColorHex, 5, 2));
+        $bgColor = imagecolorallocate($image, $bgR, $bgG, $bgB);
+        imagefill($image, 0, 0, $bgColor);
+
+        // Draw some abstract background patterns for aesthetics
+        for ($i = 0; $i < 6; $i++) {
+            $circleColor = imagecolorallocate($image, rand(30, 220), rand(30, 220), rand(30, 220));
+            imagefilledellipse($image, rand(0, $width), rand(0, $height), rand(30, 150), rand(30, 150), $circleColor);
+        }
+
+        // Add a semi-transparent dark overlay for text contrast
+        $overlay = imagecreatetruecolor($width, $height);
+        $black = imagecolorallocate($overlay, 0, 0, 0);
+        imagefill($overlay, 0, 0, $black);
+        imagecopymerge($image, $overlay, 0, 0, 0, 0, $width, $height, 40); // 40% opacity overlay
+        imagedestroy($overlay);
+
+        // Text color: white
+        $textColor = imagecolorallocate($image, 255, 255, 255);
+
+        // Draw English text (GD imagestring supports ASCII)
+        imagestring($image, 5, 15, intval($height / 2) - 10, $text, $textColor);
+
+        $filename = uniqid() . '.webp';
+        $path = $dir . '/' . $filename;
+        imagewebp($image, $path, 80);
+        imagedestroy($image);
+
+        return '/storage/' . $folder . '/' . $filename;
     }
 }

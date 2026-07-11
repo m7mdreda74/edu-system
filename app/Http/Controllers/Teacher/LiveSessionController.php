@@ -69,7 +69,7 @@ class LiveSessionController extends Controller
             
             // Notify enrolled students
             $studentIds = \App\Domain\Enrollment\Models\Enrollment::where('course_id', $session->course_id)
-                ->pluck('student_id');
+                ->pluck('user_id');
             $students = User::whereIn('id', $studentIds)->get();
             foreach ($students as $student) {
                 $student->notify(new LiveSessionStartedNotification($session));

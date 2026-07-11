@@ -1,9 +1,16 @@
 <script setup>
 import { computed } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { useCartStore } from '@/stores/cartStore';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
+
+const page = usePage();
+
+function getGradeLabel(key) {
+    const gl = page.props.grade_levels?.find(item => item.key === key);
+    return gl ? gl.name : key;
+}
 
 const props = defineProps({
     course:     { type: Object,  required: true },
@@ -91,7 +98,7 @@ function handleEnroll() {
                                 {{ course.subject.name }}
                             </span>
                             <span v-if="course.grade_level && course.grade_level !== 'all'" class="badge-gray">
-                                {{ { grade_10: 'الصف العاشر', grade_11: 'الحادي عشر', grade_12: 'الثاني عشر' }[course.grade_level] }}
+                                {{ getGradeLabel(course.grade_level) }}
                             </span>
                         </div>
 

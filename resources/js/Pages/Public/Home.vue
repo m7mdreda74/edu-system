@@ -13,12 +13,14 @@ const props = defineProps({
     teachers:        { type: Array, default: () => [] },
 });
 
-const gradeLabels = {
-    grade_10: 'الصف العاشر',
-    grade_11: 'الصف الحادي عشر',
-    grade_12: 'الصف الثاني عشر',
-    all:      'كل الصفوف',
-};
+import { usePage } from '@inertiajs/vue3';
+
+const page = usePage();
+
+function getGradeLabel(key) {
+    const gl = page.props.grade_levels?.find(item => item.key === key);
+    return gl ? gl.name : key;
+}
 
 const subjectIcons = {
     calculator: 'calculator',
@@ -121,6 +123,15 @@ const parsedFaqs = computed(() => {
         { q: 'من هم المعلمون في منصة التفوق؟', a: 'تضم المنصة نخبة من أكفأ المعلمين المتخصصين ذوي الخبرة الواسعة في تدريس المناهج القطرية والذين حقق طلابهم أعلى الدرجات في السنوات السابقة.' },
     ];
 });
+
+const selectedGradeTab = ref('all');
+
+const filteredSubjects = computed(() => {
+    if (selectedGradeTab.value === 'all') {
+        return props.subjects;
+    }
+    return props.subjects.filter(s => s.grade_level === selectedGradeTab.value || s.grade_level === 'all');
+});
 </script>
 
 
@@ -139,38 +150,38 @@ const parsedFaqs = computed(() => {
 
             <div class="container-app px-4 py-20 md:py-28 relative">
                 <div class="max-w-2xl">
-                    <div class="badge bg-white/20 text-white mb-6 text-sm py-1.5 px-4 flex items-center gap-1.5 w-fit">
-                        <Icon name="success" class="w-4 h-4 text-accent-300" />
+                    <div class="badge bg-white/20 text-white mb-6 text-sm py-1.5 px-4 flex items-center gap-1.5 w-fit animate-fade-in-up">
+                        <Icon name="success" class="w-4 h-4 text-accent-300 animate-float" />
                         <span>منصة التعليم الأولى في قطر</span>
                     </div>
 
-                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.3] md:leading-[1.4] lg:leading-[1.5] mb-6 tracking-tight">
+                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.3] md:leading-[1.4] lg:leading-[1.5] mb-6 tracking-tight animate-fade-in-up animation-delay-100">
                         {{ stripEmojis($page.props.settings?.home_hero_title) || 'تفوّق في دراستك' }}
                         <span class="block text-accent-400 mt-3 font-bold">{{ stripEmojis($page.props.settings?.home_hero_subtitle) || 'مع أفضل المدرسين' }}</span>
                     </h1>
 
-                    <p class="text-lg text-white/80 mb-8 leading-relaxed max-w-lg">
+                    <p class="text-lg text-white/80 mb-8 leading-relaxed max-w-lg animate-fade-in-up animation-delay-200">
                         {{ stripEmojis($page.props.settings?.home_hero_desc) || 'كورسات متخصصة لمواد المرحلة الثانوية — رياضيات، فيزياء، كيمياء، أحياء، وأكثر. تعلّم بالسرعة التي تناسبك، من أي مكان وبجودة استثنائية.' }}
                     </p>
 
-                    <div class="flex flex-wrap gap-4 items-center">
+                    <div class="flex flex-wrap gap-4 items-center animate-fade-in-up animation-delay-300">
                         <Link :href="route('courses.index')" class="btn-accent btn-lg flex items-center gap-2 transform transition-all duration-300 hover:scale-105 hover:shadow-glow-accent">
                             <Icon name="courses" class="w-5 h-5 text-white" />
                             <span>{{ stripEmojis($page.props.settings?.home_hero_btn1) || 'ابدأ التعلم الآن' }}</span>
                         </Link>
-                        <Link :href="route('register')" class="btn btn-lg bg-white/10 text-white border border-white/20 hover:bg-white/20 flex items-center gap-2 transition-all duration-300">
+                        <Link :href="route('register')" class="btn btn-lg bg-white/10 text-white border border-white/20 hover:bg-white/20 flex items-center gap-2 transition-all duration-300 hover:scale-105">
                             <span>{{ stripEmojis($page.props.settings?.home_hero_btn2) || 'إنشاء حساب مجاني' }}</span>
                         </Link>
                     </div>
 
                     <!-- Stats -->
-                    <div class="flex flex-wrap gap-8 mt-12 pt-8 border-t border-white/20">
+                    <div class="flex flex-wrap gap-8 mt-12 pt-8 border-t border-white/20 animate-fade-in-up animation-delay-400">
                         <div v-for="stat in [
                             { value: $page.props.settings?.home_stats_students ?? '+500', label: 'طالب مسجّل' },
                             { value: $page.props.settings?.home_stats_courses ?? '+50',  label: 'كورس متاح' },
                             { value: $page.props.settings?.home_stats_teachers ?? '+20',  label: 'مدرس خبير' },
                         ]" :key="stat.label">
-                            <div class="text-3xl font-black text-white">{{ stat.value }}</div>
+                            <div class="text-3xl font-black text-white hover:text-accent-400 transition-colors duration-300">{{ stat.value }}</div>
                             <div class="text-sm text-white/70">{{ stat.label }}</div>
                         </div>
                     </div>
@@ -194,7 +205,7 @@ const parsedFaqs = computed(() => {
         </section>
 
         <!-- ── Subjects Grid ─────────────────────────────────────── -->
-        <section class="section bg-white dark:bg-surface-900">
+        <section class="section bg-transparent">
             <div class="container-app">
                 <div class="text-center mb-12">
                     <h2 class="text-3xl font-black text-surface-900 dark:text-white mb-3">
@@ -205,22 +216,46 @@ const parsedFaqs = computed(() => {
                     </p>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <!-- Grade Filter Tabs -->
+                <div class="flex flex-wrap justify-center gap-3 mb-10 animate-fade-in-up animation-delay-100">
+                    <button 
+                        @click="selectedGradeTab = 'all'" 
+                        class="px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 transform active:scale-95 border"
+                        :class="selectedGradeTab === 'all' 
+                            ? 'bg-primary-600 border-primary-600 text-white shadow-glow-primary' 
+                            : 'border-surface-200 dark:border-surface-800 text-surface-600 dark:text-surface-300 bg-surface-50 dark:bg-surface-900/50 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                    >
+                        كل المراحل
+                    </button>
+                    <button 
+                        v-for="gl in $page.props.grade_levels?.filter(g => g.key !== 'all')" 
+                        :key="gl.key"
+                        @click="selectedGradeTab = gl.key" 
+                        class="px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 transform active:scale-95 border"
+                        :class="selectedGradeTab === gl.key 
+                            ? 'bg-primary-600 border-primary-600 text-white shadow-glow-primary' 
+                            : 'border-surface-200 dark:border-surface-800 text-surface-600 dark:text-surface-300 bg-surface-50 dark:bg-surface-900/50 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                    >
+                        {{ gl.name }}
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-fade-in-up animation-delay-200">
                     <Link
-                        v-for="subject in subjects"
+                        v-for="subject in filteredSubjects"
                         :key="subject.id"
                         :href="route('courses.index', { subject_id: subject.id })"
-                        class="card-hover p-6 text-center group flex flex-col items-center justify-center transition-all duration-300"
+                        class="hover-scale-premium card p-6 text-center group flex flex-col items-center justify-center transition-all duration-300 border border-surface-100 dark:border-surface-800/40 hover:border-accent-500/30"
                     >
-                        <div class="p-4 rounded-full bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 mb-4 group-hover:scale-110 group-hover:bg-primary-100 transition-all duration-300">
-                            <Icon :name="subjectIcons[subject.icon] ?? 'courses'" class="w-8 h-8" />
+                        <div class="p-4 rounded-full bg-accent-50/70 dark:bg-accent-950/40 text-primary-600 dark:text-primary-400 mb-4 group-hover:scale-110 group-hover:bg-accent-100 dark:group-hover:bg-accent-900/50 transition-all duration-300 border border-accent-500/10">
+                            <Icon :name="subjectIcons[subject.icon] ?? 'courses'" class="w-8 h-8 group-hover:animate-float" />
                         </div>
-                        <div class="font-bold text-surface-800 dark:text-surface-100 text-sm">
+                        <div class="font-bold text-surface-800 dark:text-surface-100 text-sm group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                             {{ subject.name }}
                         </div>
                         <div v-if="subject.grade_level && subject.grade_level !== 'all'"
                              class="badge-gray mt-2 text-xs">
-                            {{ gradeLabels[subject.grade_level] }}
+                            {{ getGradeLabel(subject.grade_level) }}
                         </div>
                     </Link>
                 </div>
@@ -228,7 +263,7 @@ const parsedFaqs = computed(() => {
         </section>
 
         <!-- ── Student Results Section ───────────────────────────── -->
-        <section class="section bg-surface-50 dark:bg-surface-950">
+        <section class="section bg-transparent">
             <div class="container-app">
                 <div class="text-center mb-12 max-w-2xl mx-auto">
                     <span class="badge bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 mb-3 inline-block">تميز ونتائج استثنائية</span>
@@ -242,12 +277,12 @@ const parsedFaqs = computed(() => {
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div v-for="result in studentResults" :key="result.name"
-                        class="card p-6 flex flex-col items-center justify-center text-center hover:shadow-card-hover transition-all duration-300 border border-surface-200 dark:border-surface-800"
+                        class="card-hover hover-scale-premium p-6 flex flex-col items-center justify-center text-center border border-surface-200 dark:border-surface-800 group"
                     >
-                        <div class="w-16 h-16 rounded-full overflow-hidden bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center text-primary-600 dark:text-primary-400 mb-4 border-2 border-primary-100 dark:border-primary-900">
-                            <span class="text-lg font-black">{{ result.name.charAt(0) }}</span>
+                        <div class="w-16 h-16 rounded-full overflow-hidden bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center text-primary-600 dark:text-primary-400 mb-4 border-2 border-primary-100 dark:border-primary-900 group-hover:scale-110 group-hover:border-primary-500 transition-all duration-300">
+                            <span class="text-lg font-black group-hover:animate-float">{{ result.name.charAt(0) }}</span>
                         </div>
-                        <h3 class="font-bold text-surface-800 dark:text-white text-sm mb-1">{{ result.name }}</h3>
+                        <h3 class="font-bold text-surface-800 dark:text-white text-sm mb-1 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{ result.name }}</h3>
                         <div class="badge bg-accent-50 text-accent-700 dark:bg-accent-950 dark:text-accent-400 text-[10px] mb-2 font-bold">{{ result.title }}</div>
                         <p class="text-xs text-surface-500 dark:text-surface-400 leading-relaxed">{{ result.desc }}</p>
                     </div>
@@ -256,7 +291,7 @@ const parsedFaqs = computed(() => {
         </section>
 
         <!-- ── Featured Courses ──────────────────────────────────── -->
-        <section class="section bg-white dark:bg-surface-900">
+        <section class="section bg-transparent">
             <div class="container-app">
                 <div class="flex items-center justify-between mb-10">
                     <div>
@@ -287,7 +322,7 @@ const parsedFaqs = computed(() => {
         </section>
 
         <!-- ── Instructors Section ──────────────────────────────── -->
-        <section v-if="teachers && teachers.length > 0" class="section bg-white dark:bg-surface-900">
+        <section v-if="teachers && teachers.length > 0" class="section bg-transparent">
             <div class="container-app">
                 <div class="text-center mb-12">
                     <span class="badge bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 mb-3 inline-block">نخبة كادرنا التعليمي</span>
@@ -299,14 +334,14 @@ const parsedFaqs = computed(() => {
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     <Link v-for="teacher in teachers" :key="teacher.id" :href="route('teachers.show', teacher.id)"
-                        class="card p-6 flex items-center gap-4 hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 text-start"
+                        class="card-hover p-6 flex items-center gap-4 text-start group"
                     >
-                        <div class="w-16 h-16 rounded-full overflow-hidden bg-surface-100 border-2 border-primary-200 flex-shrink-0 flex items-center justify-center text-primary-600 font-bold text-xl">
+                        <div class="w-16 h-16 rounded-full overflow-hidden bg-surface-100 border-2 border-primary-200 flex-shrink-0 flex items-center justify-center text-primary-600 font-bold text-xl group-hover:scale-105 group-hover:border-primary-500 transition-all duration-300">
                             <img v-if="teacher.avatar" :src="teacher.avatar" class="w-full h-full object-cover">
                             <span v-else>{{ teacher.name.charAt(0) }}</span>
                         </div>
                         <div>
-                            <h3 class="font-bold text-surface-850 dark:text-white text-base mb-1">{{ teacher.name }}</h3>
+                            <h3 class="font-bold text-surface-850 dark:text-white text-base mb-1 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{ teacher.name }}</h3>
                             <p class="text-xs text-surface-500 dark:text-surface-400 line-clamp-2 leading-relaxed font-semibold">{{ teacher.bio }}</p>
                         </div>
                     </Link>
@@ -315,7 +350,7 @@ const parsedFaqs = computed(() => {
         </section>
 
         <!-- ── YouTube Videos Section ────────────────────────────── -->
-        <section class="section bg-surface-50 dark:bg-surface-950">
+        <section class="section bg-transparent">
             <div class="container-app">
                 <div class="text-center mb-12">
                     <span class="badge bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400 mb-3 inline-block font-bold">التفوق على يوتيوب</span>
@@ -327,22 +362,22 @@ const parsedFaqs = computed(() => {
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     <a v-for="video in youtubeVideos" :key="video.title" :href="video.url" target="_blank"
-                       class="card group overflow-hidden border border-surface-200 dark:border-surface-850 flex flex-col justify-between"
+                       class="card-hover group flex flex-col justify-between"
                     >
                         <div class="relative aspect-video overflow-hidden bg-surface-100 flex-shrink-0">
                             <img :src="video.thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                             <!-- Overlay Play Button -->
                             <div class="absolute inset-0 bg-black/35 flex items-center justify-center group-hover:bg-black/50 transition-colors">
-                                <div class="w-12 h-12 rounded-full bg-red-650 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-200">
+                                <div class="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-200">
                                     <Icon name="live" class="w-5 h-5 text-white" />
                                 </div>
                             </div>
                         </div>
                         <div class="p-5 text-start">
-                            <h4 class="font-bold text-surface-850 dark:text-white text-sm line-clamp-2 leading-relaxed mb-2">
+                            <h4 class="font-bold text-surface-850 dark:text-white text-sm line-clamp-2 leading-relaxed mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                                 {{ video.title }}
                             </h4>
-                            <span class="text-[10px] text-red-650 dark:text-red-400 font-bold flex items-center gap-1">
+                            <span class="text-[10px] text-red-600 dark:text-red-400 font-bold flex items-center gap-1 group-hover:translate-x-[-4px] transition-transform">
                                 <span>شاهد الآن على يوتيوب</span>
                                 <span>🔗</span>
                             </span>
@@ -353,7 +388,7 @@ const parsedFaqs = computed(() => {
         </section>
 
         <!-- ── Why Choose Us ────────────────────────────────────── -->
-        <section class="section bg-surface-50 dark:bg-surface-950 relative overflow-hidden">
+        <section class="section bg-transparent relative overflow-hidden">
             <div class="container-app">
                 <div class="text-center mb-12">
                     <h2 class="text-3xl font-black text-surface-900 dark:text-white mb-3">
@@ -364,13 +399,13 @@ const parsedFaqs = computed(() => {
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div v-for="item in whyChooseUs" :key="item.title"
-                        class="card p-6 flex items-start gap-4 hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 text-start"
+                        class="card-hover hover-scale-premium p-6 flex items-start gap-4 text-start group"
                     >
-                        <div class="p-3 bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 rounded-2xl flex-shrink-0">
-                            <Icon :name="item.icon" class="w-6 h-6" />
+                        <div class="p-3 bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 rounded-2xl flex-shrink-0 group-hover:scale-110 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/50 transition-all duration-300">
+                            <Icon :name="item.icon" class="w-6 h-6 group-hover:animate-float" />
                         </div>
                         <div>
-                            <h3 class="font-bold text-surface-800 dark:text-white text-base mb-1.5">{{ item.title }}</h3>
+                            <h3 class="font-bold text-surface-800 dark:text-white text-base mb-1.5 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{ item.title }}</h3>
                             <p class="text-xs text-surface-500 dark:text-surface-400 leading-relaxed">{{ item.desc }}</p>
                         </div>
                     </div>
@@ -379,7 +414,7 @@ const parsedFaqs = computed(() => {
         </section>
 
         <!-- ── FAQ Section ──────────────────────────────────────── -->
-        <section class="section bg-white dark:bg-surface-900">
+        <section class="section bg-transparent">
             <div class="container-app max-w-3xl">
                 <div class="text-center mb-12">
                     <span class="badge bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 mb-3 inline-block">الأسئلة الشائعة</span>

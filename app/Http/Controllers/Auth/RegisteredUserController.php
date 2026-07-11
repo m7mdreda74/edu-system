@@ -28,7 +28,7 @@ class RegisteredUserController extends Controller
             'email'       => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
             'password'    => ['required', 'confirmed', Rules\Password::defaults()],
             'role'        => ['required', 'in:student,teacher,parent'],
-            'grade_level' => ['nullable', 'in:grade_10,grade_11,grade_12,all'],
+            'grade_level' => ['nullable', 'exists:grade_levels,key'],
         ]);
 
         $user = User::create([

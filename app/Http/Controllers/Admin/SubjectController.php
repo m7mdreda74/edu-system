@@ -30,7 +30,7 @@ class SubjectController extends Controller
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'name_en'     => ['nullable', 'string', 'max:255'],
-            'grade_level' => ['required', 'string', 'in:grade_10,grade_11,grade_12,all'],
+            'grade_level' => ['required', 'string', 'exists:grade_levels,key'],
             'icon'        => ['required', 'string', 'in:calculator,atom,flask,dna,landmark,globe,book,language'],
         ]);
 
@@ -46,7 +46,7 @@ class SubjectController extends Controller
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'name_en'     => ['nullable', 'string', 'max:255'],
-            'grade_level' => ['required', 'string', 'in:grade_10,grade_11,grade_12,all'],
+            'grade_level' => ['required', 'string', 'exists:grade_levels,key'],
             'icon'        => ['required', 'string', 'in:calculator,atom,flask,dna,landmark,globe,book,language'],
             'is_active'   => ['required', 'boolean'],
         ]);

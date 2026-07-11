@@ -19,25 +19,46 @@ const user = usePage().props.auth.user;
 const form = useForm({
     name: user.name,
     email: user.email,
+    avatar: null,
+    _method: 'PATCH',
 });
 </script>
 
 <template>
     <section>
         <header>
-            <h2 class="text-lg font-medium text-gray-900">
-                Profile Information
+            <h2 class="text-lg font-bold text-surface-900 dark:text-white">
+                معلومات الحساب
             </h2>
 
-            <p class="mt-1 text-sm text-gray-600">
-                Update your account's profile information and email address.
+            <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                تحديث معلومات حسابك الشخصي والبريد الإلكتروني والصورة الشخصية.
             </p>
         </header>
 
         <form
-            @submit.prevent="form.patch(route('profile.update'))"
+            @submit.prevent="form.post(route('profile.update'), { forceFormData: true })"
             class="mt-6 space-y-6"
         >
+            <!-- Avatar -->
+            <div>
+                <InputLabel for="avatar" value="الصورة الشخصية" />
+                <div class="mt-2 flex items-center gap-4">
+                    <img v-if="user.avatar" :src="user.avatar" class="w-16 h-16 rounded-full object-cover border" />
+                    <div v-else class="w-16 h-16 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-750 font-bold border">
+                        {{ user.name.charAt(0) }}
+                    </div>
+                    <input
+                        id="avatar"
+                        type="file"
+                        accept="image/*"
+                        class="text-sm text-surface-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                        @input="form.avatar = $event.target.files[0]"
+                    />
+                </div>
+                <InputError class="mt-2" :message="form.errors.avatar" />
+            </div>
+
             <div>
                 <InputLabel for="name" value="Name" />
 

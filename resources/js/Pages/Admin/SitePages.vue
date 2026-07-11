@@ -181,7 +181,7 @@ function addAboutPillar() {
                         <span v-else-if="activePage === 'contact'">تعديل صفحة تواصل معنا</span>
                         <span v-else-if="activePage === 'popup'">تعديل النافذة الترحيبية</span>
                     </h1>
-                    <p class="text-xs text-surface-550 mt-1">
+                    <p class="text-xs text-surface-500 mt-1">
                         <span v-if="!activePage">تعديل محتويات صفحات المنصة العامة والواجهات التفاعلية دون لمس الأكواد.</span>
                         <span v-else>قم بتعديل الحقول المطلوبة بالأسفل ثم اضغط على حفظ التغييرات.</span>
                     </p>
@@ -304,8 +304,14 @@ function addAboutPillar() {
                             <button @click="addFeature" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة ميزة</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(feat, idx) in form.home_features" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-xl p-4 bg-surface-50/40 relative animate-fade-up">
-                                <button @click="form.home_features.splice(idx, 1)" class="absolute top-4 left-4 text-red-500 text-xs hover:bg-red-55/10 p-1.5 rounded" title="حذف">🗑️</button>
+                            <div v-for="(feat, idx) in form.home_features" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                                    <span class="text-[10px] font-bold text-surface-500">البند #{{ idx + 1 }}</span>
+                                    <button type="button" @click="form.home_features.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
+                                        <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
+                                        <span>حذف البند</span>
+                                    </button>
+                                </div>
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div class="md:col-span-2">
                                         <label class="label mb-1 block text-[10px]">العنوان</label>
@@ -336,8 +342,14 @@ function addAboutPillar() {
                             <button @click="addResult" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة طالب متفوق</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(res, idx) in form.home_results" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-xl p-4 bg-surface-50/40 relative animate-fade-up">
-                                <button @click="form.home_results.splice(idx, 1)" class="absolute top-4 left-4 text-red-500 text-xs hover:bg-red-55/10 p-1.5 rounded" title="حذف">🗑️</button>
+                            <div v-for="(res, idx) in form.home_results" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                                    <span class="text-[10px] font-bold text-surface-500">الطالب المتفوق #{{ idx + 1 }}</span>
+                                    <button type="button" @click="form.home_results.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
+                                        <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
+                                        <span>حذف الطالب</span>
+                                    </button>
+                                </div>
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label class="label mb-1 block text-[10px]">اسم الطالب</label>
@@ -367,8 +379,14 @@ function addAboutPillar() {
                             <button @click="addWhyUs" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة عنصر</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(item, idx) in form.home_why_choose_us" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-xl p-4 bg-surface-50/40 relative animate-fade-up">
-                                <button @click="form.home_why_choose_us.splice(idx, 1)" class="absolute top-4 left-4 text-red-500 text-xs hover:bg-red-55/10 p-1.5 rounded" title="حذف">🗑️</button>
+                            <div v-for="(item, idx) in form.home_why_choose_us" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                                    <span class="text-[10px] font-bold text-surface-500">العنصر #{{ idx + 1 }}</span>
+                                    <button type="button" @click="form.home_why_choose_us.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
+                                        <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
+                                        <span>حذف العنصر</span>
+                                    </button>
+                                </div>
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div class="md:col-span-2">
                                         <label class="label mb-1 block text-[10px]">العنوان</label>
@@ -401,8 +419,14 @@ function addAboutPillar() {
                             <button @click="addYoutube" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة فيديو</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(vid, idx) in form.home_youtube_videos" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-xl p-4 bg-surface-50/40 relative animate-fade-up">
-                                <button @click="form.home_youtube_videos.splice(idx, 1)" class="absolute top-4 left-4 text-red-500 text-xs hover:bg-red-55/10 p-1.5 rounded" title="حذف">🗑️</button>
+                            <div v-for="(vid, idx) in form.home_youtube_videos" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                                    <span class="text-[10px] font-bold text-surface-500">الفيديو #{{ idx + 1 }}</span>
+                                    <button type="button" @click="form.home_youtube_videos.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
+                                        <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
+                                        <span>حذف الفيديو</span>
+                                    </button>
+                                </div>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="md:col-span-2">
                                         <label class="label mb-1 block text-[10px]">عنوان الفيديو الرئيسي</label>
@@ -428,8 +452,14 @@ function addAboutPillar() {
                             <button @click="addFaq" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة سؤال</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(faq, idx) in form.home_faqs" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-xl p-4 bg-surface-50/40 relative animate-fade-up">
-                                <button @click="form.home_faqs.splice(idx, 1)" class="absolute top-4 left-4 text-red-500 text-xs hover:bg-red-55/10 p-1.5 rounded" title="حذف">🗑️</button>
+                            <div v-for="(faq, idx) in form.home_faqs" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                                    <span class="text-[10px] font-bold text-surface-500">السؤال #{{ idx + 1 }}</span>
+                                    <button type="button" @click="form.home_faqs.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
+                                        <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
+                                        <span>حذف السؤال</span>
+                                    </button>
+                                </div>
                                 <div class="space-y-3">
                                     <div>
                                         <label class="label mb-1 block text-[10px]">السؤال</label>
@@ -491,8 +521,14 @@ function addAboutPillar() {
                             <button @click="addAboutValue" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة قيمة</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(val, idx) in form.about_values" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-xl p-4 bg-surface-50/40 relative animate-fade-up">
-                                <button @click="form.about_values.splice(idx, 1)" class="absolute top-4 left-4 text-red-500 text-xs hover:bg-red-55/10 p-1.5 rounded" title="حذف">🗑️</button>
+                            <div v-for="(val, idx) in form.about_values" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                                    <span class="text-[10px] font-bold text-surface-500">القيمة #{{ idx + 1 }}</span>
+                                    <button type="button" @click="form.about_values.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
+                                        <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
+                                        <span>حذف القيمة</span>
+                                    </button>
+                                </div>
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div class="md:col-span-2">
                                         <label class="label mb-1 block text-[10px]">العنوان</label>
@@ -521,8 +557,14 @@ function addAboutPillar() {
                             <button @click="addAboutPillar" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة ركيزة</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(pillar, idx) in form.about_pillars" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-xl p-4 bg-surface-50/40 relative animate-fade-up">
-                                <button @click="form.about_pillars.splice(idx, 1)" class="absolute top-4 left-4 text-red-500 text-xs hover:bg-red-55/10 p-1.5 rounded" title="حذف">🗑️</button>
+                            <div v-for="(pillar, idx) in form.about_pillars" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                                    <span class="text-[10px] font-bold text-surface-500">الركيزة #{{ idx + 1 }}</span>
+                                    <button type="button" @click="form.about_pillars.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
+                                        <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
+                                        <span>حذف الركيزة</span>
+                                    </button>
+                                </div>
                                 <div class="space-y-3">
                                     <div>
                                         <label class="label mb-1 block text-[10px]">العنوان الرئيسي</label>

@@ -1,5 +1,5 @@
 <script setup>
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
@@ -16,22 +16,21 @@ defineProps({
 </script>
 
 <template>
-    <Head title="Profile" />
+    <Head title="الملف الشخصي" />
 
-    <AuthenticatedLayout>
-        <template #header>
-            <h2
-                class="text-xl font-semibold leading-tight text-gray-800"
-            >
-                Profile
-            </h2>
-        </template>
+    <DashboardLayout>
+        <div class="py-6">
+            <div class="mx-auto max-w-3xl space-y-6">
+                
+                <!-- Header -->
+                <div class="mb-8">
+                    <h1 class="text-2xl font-black text-surface-900 dark:text-white">
+                        الملف الشخصي
+                    </h1>
+                    <p class="text-sm text-surface-500 mt-1">إدارة معلومات الحساب الشخصي وتعديل كلمة المرور والصورة الشخصية.</p>
+                </div>
 
-        <div class="py-12">
-            <div class="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
+                <div class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">
                     <UpdateProfileInformationForm
                         :must-verify-email="mustVerifyEmail"
                         :status="status"
@@ -39,18 +38,14 @@ defineProps({
                     />
                 </div>
 
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
+                <div class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">
                     <UpdatePasswordForm class="max-w-xl" />
                 </div>
 
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
+                <div class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">
                     <DeleteUserForm class="max-w-xl" />
                 </div>
             </div>
         </div>
-    </AuthenticatedLayout>
+    </DashboardLayout>
 </template>

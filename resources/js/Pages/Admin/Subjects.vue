@@ -19,12 +19,14 @@ const form = useForm({
     is_active: true,
 });
 
-const gradeLabels = {
-    grade_10: 'الصف العاشر',
-    grade_11: 'الصف الحادي عشر',
-    grade_12: 'الصف الثاني عشر',
-    all: 'كل الصفوف',
-};
+import { usePage } from '@inertiajs/vue3';
+
+const page = usePage();
+
+function getGradeLabel(key) {
+    const gl = page.props.grade_levels?.find(item => item.key === key);
+    return gl ? gl.name : key;
+}
 
 const iconOptions = [
     { value: 'calculator', label: 'رياضيات 📐' },
@@ -122,7 +124,7 @@ function deleteSubject(id) {
 
                         <div class="flex flex-wrap gap-2 text-xs text-surface-500 mb-6">
                             <span class="bg-surface-100 dark:bg-surface-800 px-2.5 py-1 rounded-lg">
-                                {{ gradeLabels[subj.grade_level] || subj.grade_level }}
+                                {{ getGradeLabel(subj.grade_level) }}
                             </span>
                             <span class="bg-surface-100 dark:bg-surface-800 px-2.5 py-1 rounded-lg">
                                 {{ subj.courses_count }} كورس
@@ -185,10 +187,9 @@ function deleteSubject(id) {
                             <div>
                                 <label class="label mb-1">الصف الدراسي</label>
                                 <select v-model="form.grade_level" required class="input">
-                                    <option value="grade_10">الصف العاشر</option>
-                                    <option value="grade_11">الصف الحادي عشر</option>
-                                    <option value="grade_12">الصف الثاني عشر</option>
-                                    <option value="all">كل الصفوف</option>
+                                    <option v-for="gl in $page.props.grade_levels" :key="gl.key" :value="gl.key">
+                                        {{ gl.name }}
+                                    </option>
                                 </select>
                             </div>
 

@@ -49,6 +49,11 @@ class HandleInertiaRequests extends Middleware
             // Dynamic platform settings (cached)
             'settings' => PlatformSetting::getAllCached(),
 
+            // Active grade levels
+            'grade_levels' => \App\Domain\Course\Models\GradeLevel::where('is_active', true)
+                ->select('id', 'key', 'name', 'name_en')
+                ->get(),
+
             // Environment info for admin panel
             'env' => app()->environment(),
         ];

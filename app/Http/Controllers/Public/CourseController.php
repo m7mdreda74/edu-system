@@ -24,7 +24,7 @@ class CourseController extends Controller
         // Validate query params (even GET requests need validation)
         $filters = $request->validate([
             'subject_id'  => ['nullable', 'integer', 'exists:subjects,id'],
-            'grade_level' => ['nullable', 'string', 'in:grade_10,grade_11,grade_12,all'],
+            'grade_level' => ['nullable', 'string', 'exists:grade_levels,key'],
             'level'       => ['nullable', 'string', 'in:beginner,intermediate,advanced'],
             'search'      => ['nullable', 'string', 'max:100'],
             'sort'        => ['nullable', 'string', 'in:latest,popular,price_asc,price_desc'],

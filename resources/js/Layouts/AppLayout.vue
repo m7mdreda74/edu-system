@@ -43,16 +43,75 @@ function toggleDark() {
     document.documentElement.classList.toggle('dark', isDark.value);
 }
 
-const navLinks = [
-    { label: 'الرئيسية',     href: route('home'),              name: 'home' },
-    { label: 'الكورسات',     href: route('courses.index'),     name: 'courses.index' },
-    { label: 'من نحن',       href: route('about'),             name: 'about' },
-    { label: 'نتائج طلابنا',  href: route('students_results'),  name: 'students_results' },
-    { label: 'تطبيقاتنا',    href: route('our_apps'),          name: 'our_apps' },
-    { label: 'تواصل معنا',   href: route('contact'),           name: 'contact' },
-];
+const navLinks = computed(() => {
+    const raw = page.props.settings?.navbar_links;
+    if (raw) {
+        try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+            }
+        } catch (e) {}
+    }
+    return [
+        { label: 'الرئيسية',     href: route('home'),              name: 'home' },
+        { label: 'الكورسات',     href: route('courses.index'),     name: 'courses.index' },
+        { label: 'من نحن',       href: route('about'),             name: 'about' },
+        { label: 'نتائج طلابنا',  href: route('students_results'),  name: 'students_results' },
+        { label: 'تطبيقاتنا',    href: route('our_apps'),          name: 'our_apps' },
+        { label: 'تواصل معنا',   href: route('contact'),           name: 'contact' },
+    ];
+});
 
-const isActive = (name) => page.component?.startsWith(name.split('.')[0]);
+const footerLinks = computed(() => {
+    const raw = page.props.settings?.footer_links;
+    if (raw) {
+        try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+            }
+        } catch (e) {}
+    }
+    return [
+        { label: 'الرئيسية',     href: route('home'),              name: 'home' },
+        { label: 'الكورسات',     href: route('courses.index'),     name: 'courses.index' },
+        { label: 'من نحن',       href: route('about'),             name: 'about' },
+        { label: 'نتائج طلابنا',  href: route('students_results'),  name: 'students_results' },
+        { label: 'تطبيقاتنا',    href: route('our_apps'),          name: 'our_apps' },
+        { label: 'تواصل معنا',   href: route('contact'),           name: 'contact' },
+    ];
+});
+
+const socialLinks = computed(() => {
+    const raw = page.props.settings?.footer_social_links;
+    if (raw) {
+        try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+            }
+        } catch (e) {}
+    }
+    return [
+        { platform: 'facebook', url: '#', icon: 'facebook' },
+        { platform: 'instagram', url: '#', icon: 'instagram' },
+        { platform: 'whatsapp', url: '#', icon: 'whatsapp' },
+        { platform: 'youtube', url: '#', icon: 'live' },
+    ];
+});
+
+const isActive = (link) => {
+    if (!link) return false;
+    const name = link.name || '';
+    if (name && page.component?.startsWith(name.split('.')[0])) return true;
+    
+    const path = window.location.pathname;
+    const href = link.href || '';
+    if (href === '/' && path === '/') return true;
+    if (href !== '/' && href.startsWith('/') && path.startsWith(href)) return true;
+    return false;
+};
 </script>
 
 <template>
@@ -96,12 +155,12 @@ const isActive = (name) => page.component?.startsWith(name.split('.')[0]);
                     <div class="hidden md:flex items-center gap-1">
                         <Link
                             v-for="link in navLinks"
-                            :key="link.name"
+                            :key="link.label"
                             :href="link.href"
-                            class="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
-                            :class="isActive(link.name)
-                                ? 'bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300'
-                                : 'text-surface-600 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-800'"
+                            class="px-4 py-2 text-sm font-semibold transition-all duration-200"
+                            :class="isActive(link)
+                                ? 'text-primary-600 dark:text-primary-300 border-b-2 border-accent-500 font-bold rounded-t-xl bg-primary-500/5'
+                                : 'text-surface-600 hover:text-primary-600 dark:text-surface-300 dark:hover:text-white'"
                         >
                             {{ link.label }}
                         </Link>
@@ -188,10 +247,10 @@ const isActive = (name) => page.component?.startsWith(name.split('.')[0]);
                     <div v-if="mobileMenuOpen" class="md:hidden py-3 border-t border-surface-200 dark:border-surface-700">
                         <Link
                             v-for="link in navLinks"
-                            :key="link.name"
+                            :key="link.label"
                             :href="link.href"
                             class="block px-4 py-2.5 rounded-lg text-sm font-semibold mb-1"
-                            :class="isActive(link.name)
+                            :class="isActive(link)
                                 ? 'bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300'
                                 : 'text-surface-600 dark:text-surface-300'"
                             @click="mobileMenuOpen = false"
@@ -241,17 +300,24 @@ const isActive = (name) => page.component?.startsWith(name.split('.')[0]);
                     <div>
                         <h4 class="text-white font-semibold mb-3">روابط سريعة</h4>
                         <ul class="space-y-2 text-sm">
-                            <li><Link :href="route('home')"           class="hover:text-primary-400 transition-colors">الرئيسية</Link></li>
-                            <li><Link :href="route('courses.index')"  class="hover:text-primary-400 transition-colors">الكورسات</Link></li>
-                            <li><Link :href="route('about')"          class="hover:text-primary-400 transition-colors">من نحن</Link></li>
-                            <li><Link :href="route('students_results')" class="hover:text-primary-400 transition-colors">نتائج طلابنا</Link></li>
-                            <li><Link :href="route('our_apps')"       class="hover:text-primary-400 transition-colors">تطبيقاتنا</Link></li>
-                            <li><Link :href="route('contact')"        class="hover:text-primary-400 transition-colors">تواصل معنا</Link></li>
+                            <li v-for="link in footerLinks" :key="link.label">
+                                <Link :href="link.href" class="hover:text-primary-400 transition-colors">{{ link.label }}</Link>
+                            </li>
                         </ul>
                     </div>
                     <div>
                         <h4 class="text-white font-semibold mb-3">تواصل معنا</h4>
-                        <p class="text-sm text-surface-400">{{ $page.props.settings?.contact_email ?? 'support@altafawwuq.com' }}</p>
+                        <p class="text-sm text-surface-400 mb-4">{{ $page.props.settings?.contact_email ?? 'support@altafawwuq.com' }}</p>
+                        
+                        <!-- Social Links -->
+                        <div v-if="socialLinks.length > 0" class="flex items-center gap-3">
+                            <a v-for="social in socialLinks" :key="social.platform" :href="social.url" target="_blank"
+                               class="w-8 h-8 rounded-lg bg-surface-800 hover:bg-primary-600 flex items-center justify-center text-white transition-colors"
+                               :title="social.platform"
+                            >
+                                <Icon :name="social.icon || social.platform" class="w-4 h-4 text-white" />
+                            </a>
+                        </div>
                     </div>
                 </div>
                 <div class="divider border-surface-700 pt-6 text-center text-xs text-surface-500">

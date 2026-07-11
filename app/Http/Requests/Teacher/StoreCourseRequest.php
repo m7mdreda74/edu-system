@@ -27,7 +27,7 @@ class StoreCourseRequest extends FormRequest
             'description'    => ['required', 'string', 'min:20', 'max:5000'],
             'price'          => ['required', 'integer', 'min:0'],       // in halala
             'discount_price' => ['nullable', 'integer', 'min:0', 'lt:price'],
-            'grade_level'    => ['required', Rule::in(['grade_10', 'grade_11', 'grade_12', 'all'])],
+            'grade_level'    => ['required', 'exists:grade_levels,key'],
             'level'          => ['required', Rule::in(['beginner', 'intermediate', 'advanced'])],
             'is_published'   => ['boolean'],
             'thumbnail'      => ['nullable', 'image', 'max:2048'],      // 2MB max
