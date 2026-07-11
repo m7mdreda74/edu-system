@@ -19,6 +19,8 @@ const progressPercent   = ref(props.enrollment.progress_percent);
 const sidebarOpen       = ref(true);
 const isCompleted       = ref(props.enrollment.completed_at !== null);
 const activeTab         = ref('description'); // description | worksheets
+const signedVideoUrl   = ref('');
+const isVideoLoading   = ref(false);
 
 const activeLesson = computed(() => props.lessons[activeLessonIndex.value] ?? null);
 
@@ -114,10 +116,27 @@ function formatDuration(seconds) {
     return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-watch(activeLesson, () => {
+watch(activeLesson, async () => {
     if (player) {
         player.destroy();
         player = null;
+    }
+    
+    if (!activeLesson.value) {
+        signedVideoUrl.value = '';
+        return;
+    }
+    
+    isVideoLoading.value = true;
+    signedVideoUrl.value = '';
+    
+    try {
+        const response = await axios.get(route('student.video.url', { lessonId: activeLesson.value.id }));
+        signedVideoUrl.value = response.data.signed_url;
+    } catch (e) {
+        console.error('Failed to get signed URL:', e.message);
+    } finally {
+        isVideoLoading.value = false;
     }
     
     setTimeout(() => {
@@ -220,18 +239,27 @@ function uploadHomework(id) {
 
                 <!-- Video Player -->
                 <div class="bg-black flex-shrink-0">
-                    <div class="max-w-4xl mx-auto w-full aspect-video">
+                    <div class="max-w-4xl mx-auto w-full aspect-video relative">
+                        <!-- Loading spinner -->
+                        <div v-if="isVideoLoading" class="absolute inset-0 flex items-center justify-center bg-black/80 z-20">
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                                <div class="text-xs text-surface-400">جاري تحميل تشفير الفيديو الآمن...</div>
+                            </div>
+                        </div>
+
                         <video
-                            v-if="activeLesson?.video_url"
+                            v-if="signedVideoUrl"
+                            :key="activeLesson.id"
                             ref="videoRef"
                             class="w-full h-full"
                             controls
                             crossorigin
                             playsinline
                         >
-                            <source :src="activeLesson.video_url" type="video/mp4" />
+                            <source :src="signedVideoUrl" type="video/mp4" />
                         </video>
-                        <div v-else class="w-full h-full flex items-center justify-center text-surface-500">
+                        <div v-else-if="!isVideoLoading" class="w-full h-full flex items-center justify-center text-surface-500">
                             <div class="text-center">
                                 <div class="text-6xl mb-4">🎥</div>
                                 <p>الفيديو غير متاح حالياً</p>

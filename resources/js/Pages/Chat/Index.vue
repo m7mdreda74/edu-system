@@ -11,6 +11,7 @@ const props = defineProps({
 
 // Reactivity for messages to append new ones
 const chatMessages = ref([...props.messages]);
+const showMobileChat = ref(!!props.activeConversation);
 
 const page = usePage();
 const currentUser = page.props.auth.user;
@@ -70,6 +71,7 @@ function sendMessage() {
 }
 
 function selectConversation(id) {
+    showMobileChat.value = true;
     router.get(route('chat.index'), { conversation: id }, { preserveState: false, preserveScroll: false });
 }
 
@@ -99,7 +101,8 @@ onUnmounted(() => {
             <div class="flex-1 flex overflow-hidden card rounded-2xl border border-surface-200 dark:border-surface-700">
                 
                 <!-- Sidebar (Conversations List) -->
-                <div class="w-1/3 md:w-1/4 border-l border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/50 flex flex-col">
+                <div class="w-full md:w-1/3 lg:w-1/4 border-l border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/50 flex flex-col"
+                     :class="{ 'hidden md:flex': showMobileChat, 'flex': !showMobileChat }">
                     <div class="p-4 border-b border-surface-200 dark:border-surface-700">
                         <h2 class="font-bold text-surface-800 dark:text-surface-200">المحادثات</h2>
                     </div>
@@ -132,11 +135,18 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Chat Area -->
-                <div class="flex-1 flex flex-col bg-white dark:bg-surface-900 relative">
+                <div class="flex-1 flex flex-col bg-white dark:bg-surface-900 relative"
+                     :class="{ 'hidden md:flex': !showMobileChat, 'flex': showMobileChat }">
                     <template v-if="activeConversation">
                         <!-- Chat Header -->
                         <div class="p-4 border-b border-surface-200 dark:border-surface-700 flex items-center justify-between bg-white dark:bg-surface-900 z-10">
                             <div class="flex items-center gap-3">
+                                <!-- Back button on mobile -->
+                                <Link :href="route('chat.index')" 
+                                      @click="showMobileChat = false"
+                                      class="md:hidden p-2 -mr-2 rounded-lg text-surface-500 hover:text-surface-950 dark:hover:text-white transition-colors">
+                                    <span class="text-base font-bold">➡️</span>
+                                </Link>
                                 <div class="avatar-sm bg-primary-100 dark:bg-primary-900 shrink-0">
                                     <span class="text-primary-700 dark:text-primary-300 font-bold">
                                         {{ getOtherUser(activeConversation)?.name?.charAt(0) }}

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, onBeforeUnmount } from 'vue';
+import { onMounted, ref, onBeforeUnmount, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -10,6 +10,156 @@ const props = defineProps({
 
 const jitsiContainer = ref(null);
 let jitsiApi = null;
+
+// Screen Recording state & logic
+const isRecording = ref(false);
+const recordingDuration = ref(0);
+let mediaRecorder = null;
+let recordedChunks = [];
+let durationInterval = null;
+const audioContext = ref(null);
+
+const formattedDuration = computed(() => {
+    const mins = Math.floor(recordingDuration.value / 60);
+    const secs = recordingDuration.value % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+});
+
+async function startRecording() {
+    recordedChunks = [];
+    recordingDuration.value = 0;
+    
+    try {
+        // 1. Capture screen video + system audio (includes Jitsi conference audio)
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+                displaySurface: "browser",
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 }
+            },
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
+        });
+
+        // 2. Capture teacher microphone audio
+        let micStream = null;
+        try {
+            micStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+        } catch (e) {
+            console.warn("Microphone access denied or not available. Recording only system audio.", e);
+        }
+
+        // 3. Set up Audio Context to mix System Audio + Mic Audio
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        audioContext.value = ctx;
+        
+        const dest = ctx.createMediaStreamDestination();
+        let hasAudioTracks = false;
+
+        // Add screen/system audio track if exists
+        if (screenStream.getAudioTracks().length > 0) {
+            const screenSource = ctx.createMediaStreamSource(new MediaStream([screenStream.getAudioTracks()[0]]));
+            screenSource.connect(dest);
+            hasAudioTracks = true;
+        }
+
+        // Add microphone audio track if exists
+        if (micStream && micStream.getAudioTracks().length > 0) {
+            const micSource = ctx.createMediaStreamSource(micStream);
+            micSource.connect(dest);
+            hasAudioTracks = true;
+        }
+
+        // Combine video track and mixed audio track
+        const tracks = [...screenStream.getVideoTracks()];
+        if (hasAudioTracks) {
+            tracks.push(...dest.stream.getAudioTracks());
+        }
+
+        const mixedStream = new MediaStream(tracks);
+
+        // 4. Set up MediaRecorder
+        let options = { mimeType: 'video/webm;codecs=vp9,opus' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/webm;codecs=vp8,opus' };
+        }
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/webm' };
+        }
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/mp4' };
+        }
+
+        mediaRecorder = new MediaRecorder(mixedStream, options);
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data && event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = () => {
+            // Stop all source stream tracks
+            screenStream.getTracks().forEach(t => t.stop());
+            if (micStream) {
+                micStream.getTracks().forEach(t => t.stop());
+            }
+            if (audioContext.value && audioContext.value.state !== 'closed') {
+                audioContext.value.close();
+            }
+
+            clearInterval(durationInterval);
+            isRecording.value = false;
+
+            // Trigger file download
+            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            const dateStr = new Date().toISOString().slice(0, 10);
+            a.download = `class-recording-${props.session.id}-${dateStr}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+
+            alert("تم إيقاف التسجيل وتنزيل ملف الحصة بنجاح! يمكنك الآن تحويله ورفعه للطلاب كدرس مسجل.");
+        };
+
+        // Start recording
+        mediaRecorder.start(1000); // chunk every 1 second
+        isRecording.value = true;
+        
+        // Start duration counter
+        durationInterval = setInterval(() => {
+            recordingDuration.value++;
+        }, 1000);
+
+    } catch (err) {
+        console.error("Error starting recording:", err);
+        alert("لم يتم بدء التسجيل. يرجى التأكد من الموافقة على مشاركة الشاشة والصوت.");
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+}
 
 onMounted(() => {
     // Load Jitsi Meet API script dynamically
@@ -80,7 +230,24 @@ onBeforeUnmount(() => {
                     <div class="text-xs text-primary-400">{{ session.course.title }}</div>
                 </div>
             </div>
-            <div>
+            <div class="flex items-center gap-4">
+                <!-- Screen Recording Panel (Teacher only) -->
+                <div v-if="user.isTeacher" class="flex items-center gap-3">
+                    <span v-if="isRecording" class="flex items-center gap-1.5 text-xs text-red-500 font-bold animate-pulse">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                        تسجيل الحصة: {{ formattedDuration }}
+                    </span>
+                    
+                    <button v-if="!isRecording" @click="startRecording" 
+                            class="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-transform hover:scale-105 shadow-glow-primary">
+                        <span>📹 تسجيل الشاشة والصوت</span>
+                    </button>
+                    <button v-else @click="stopRecording" 
+                            class="px-4 py-1.5 bg-surface-700 hover:bg-surface-600 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-transform hover:scale-105">
+                        <span>⏹️ إيقاف وحفظ</span>
+                    </button>
+                </div>
+
                 <span class="badge-accent animate-pulse">🔴 مباشر الآن</span>
             </div>
         </div>
