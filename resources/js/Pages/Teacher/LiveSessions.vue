@@ -114,7 +114,9 @@ const statusLabels = {
                                     <div class="flex items-center gap-2">
                                         <button v-if="session.status === 'scheduled'" @click="updateStatus(session.id, 'live')" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">بدء الحصة</button>
                                         <button v-if="session.status === 'live'" @click="updateStatus(session.id, 'ended')" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
-                                        <button @click="deleteSession(session.id)" class="btn-sm btn-ghost text-red-500 hover:bg-red-50" title="حذف">🗑️</button>
+                                        <button @click="deleteSession(session.id)" class="btn-sm btn-ghost text-red-500 hover:bg-red-50" title="حذف">
+                                            <Icon name="trash" class="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
