@@ -239,16 +239,25 @@ onBeforeUnmount(() => {
                     </span>
                     
                     <button v-if="!isRecording" @click="startRecording" 
-                            class="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-transform hover:scale-105 shadow-glow-primary">
-                        <span>📹 تسجيل الشاشة والصوت</span>
+                            class="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-transform hover:scale-105 shadow-glow-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                        <span>تسجيل الشاشة والصوت</span>
                     </button>
                     <button v-else @click="stopRecording" 
-                            class="px-4 py-1.5 bg-surface-700 hover:bg-surface-600 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-transform hover:scale-105">
-                        <span>⏹️ إيقاف وحفظ</span>
+                            class="px-4 py-1.5 bg-surface-700 hover:bg-surface-600 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-transform hover:scale-105">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                            <rect x="5.25" y="5.25" width="13.5" height="13.5" rx="1.5" fill="currentColor" />
+                        </svg>
+                        <span>إيقاف وحفظ</span>
                     </button>
                 </div>
 
-                <span class="badge-accent animate-pulse">🔴 مباشر الآن</span>
+                <span class="badge-accent animate-pulse flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                    <span>مباشر الآن</span>
+                </span>
             </div>
         </div>
 

@@ -141,7 +141,7 @@ function handleEnroll() {
                         <div v-for="stat in [
                             { label: 'الدروس', value: `${course.total_lessons} درس` },
                             { label: 'المدة',  value: totalDurationFormatted ?? 'غير محدد' },
-                            { label: 'التقييم', value: avgRating ? `⭐ ${avgRating}` : 'جديد' },
+                            { label: 'التقييم', value: avgRating ? `${avgRating} / 5` : 'جديد' },
                             { label: 'المستوى', value: { beginner: 'مبتدئ', intermediate: 'متوسط', advanced: 'متقدم' }[course.level] },
                         ]" :key="stat.label"
                             class="card p-4 text-center"
@@ -206,8 +206,11 @@ function handleEnroll() {
                                         <span class="font-semibold text-sm text-surface-800 dark:text-white">
                                             {{ review.user?.name }}
                                         </span>
-                                        <span class="text-accent-400">
-                                            {{ '⭐'.repeat(review.rating) }}
+                                        <span class="flex items-center gap-0.5 text-yellow-500">
+                                            <svg v-for="i in 5" :key="i" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5"
+                                                 :class="i <= review.rating ? 'text-yellow-500' : 'text-surface-300 dark:text-surface-700'">
+                                                <path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.6 3.102-1.196 4.49c-.258 1.074.877 1.898 1.777 1.329L10 15.657l4.188 2.581c.9.569 2.035-.255 1.777-1.33l-1.196-4.49 3.6-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clip-rule="evenodd" />
+                                            </svg>
                                         </span>
                                     </div>
                                     <p class="text-sm text-surface-500 dark:text-surface-400">{{ review.comment }}</p>

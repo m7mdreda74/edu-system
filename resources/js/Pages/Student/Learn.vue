@@ -260,8 +260,8 @@ function uploadHomework(id) {
                             <source :src="signedVideoUrl" type="video/mp4" />
                         </video>
                         <div v-else-if="!isVideoLoading" class="w-full h-full flex items-center justify-center text-surface-500">
-                            <div class="text-center">
-                                <div class="text-6xl mb-4">🎥</div>
+                            <div class="text-center flex flex-col items-center justify-center">
+                                <Icon name="video" class="w-16 h-16 text-surface-500 mb-4" />
                                 <p>الفيديو غير متاح حالياً</p>
                             </div>
                         </div>

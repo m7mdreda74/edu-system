@@ -64,7 +64,10 @@ const statusLabels = {
         <div class="container-app px-4 py-8">
             <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
                 <div>
-                    <h1 class="text-3xl font-black text-surface-900 dark:text-white">الحصص المباشرة 🔴</h1>
+                    <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2">
+                        <Icon name="live" class="w-8 h-8 text-primary-500" />
+                        <span>الحصص المباشرة</span>
+                    </h1>
                     <p class="text-surface-500 mt-1">جدولة وبدء حصص البث المباشر (Zoom, Meet) لطلابك</p>
                 </div>
                 <button @click="isModalOpen = true" class="btn-primary">

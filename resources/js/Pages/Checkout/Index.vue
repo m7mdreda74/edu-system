@@ -109,7 +109,7 @@ function submit() {
                                 :disabled="checkingCoupon || !form.coupon_code"
                                 class="btn-outline"
                             >
-                                <span v-if="checkingCoupon">⏳</span>
+                                <span v-if="checkingCoupon" class="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin block"></span>
                                 <span v-else>تطبيق</span>
                             </button>
                         </div>

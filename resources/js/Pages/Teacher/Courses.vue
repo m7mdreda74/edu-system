@@ -65,8 +65,9 @@ function deleteCourse(courseId) {
 
                         <!-- Status badge -->
                         <div class="absolute top-3 start-3">
-                            <span :class="course.is_published ? 'badge-green' : 'badge-gray'">
-                                {{ course.is_published ? '🟢 منشور' : '⚪ مسودة' }}
+                            <span :class="course.is_published ? 'badge-green' : 'badge-gray'" class="flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="course.is_published ? 'bg-green-500' : 'bg-surface-400 dark:bg-surface-500'"></span>
+                                <span>{{ course.is_published ? 'منشور' : 'مسودة' }}</span>
                             </span>
                         </div>
                     </div>

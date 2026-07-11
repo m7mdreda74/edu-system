@@ -103,8 +103,16 @@ const submit = () => form.post(route('login'), { onFinish: () => form.reset('pas
                         :class="{ 'opacity-60': form.processing }"
                         id="login-submit-btn"
                     >
-                        <span v-if="form.processing">⏳ جاري تسجيل الدخول...</span>
-                        <span v-else>تسجيل الدخول →</span>
+                        <span v-if="form.processing" class="flex items-center justify-center gap-2">
+                            <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>جاري تسجيل الدخول...</span>
+                        </span>
+                        <span v-else class="flex items-center justify-center gap-2">
+                            <span>تسجيل الدخول</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                            </svg>
+                        </span>
                     </button>
 
                     <p class="text-center text-sm text-surface-500 dark:text-surface-400">

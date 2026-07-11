@@ -96,7 +96,10 @@ onUnmounted(() => {
         <Head title="الرسائل" />
 
         <div class="container-app px-4 py-8 h-[calc(100vh-64px)] flex flex-col">
-            <h1 class="text-3xl font-black text-surface-900 dark:text-white mb-6">الرسائل 💬</h1>
+            <h1 class="text-3xl font-black text-surface-900 dark:text-white mb-6 flex items-center gap-2">
+                <Icon name="chat" class="w-8 h-8 text-primary-500" />
+                <span>الرسائل</span>
+            </h1>
 
             <div class="flex-1 flex overflow-hidden card rounded-2xl border border-surface-200 dark:border-surface-700">
                 
@@ -145,7 +148,7 @@ onUnmounted(() => {
                                 <Link :href="route('chat.index')" 
                                       @click="showMobileChat = false"
                                       class="md:hidden p-2 -mr-2 rounded-lg text-surface-500 hover:text-surface-950 dark:hover:text-white transition-colors">
-                                    <span class="text-base font-bold">➡️</span>
+                                    <Icon name="arrowRight" class="w-5 h-5 rtl-flip" />
                                 </Link>
                                 <div class="avatar-sm bg-primary-100 dark:bg-primary-900 shrink-0">
                                     <span class="text-primary-700 dark:text-primary-300 font-bold">
@@ -175,7 +178,7 @@ onUnmounted(() => {
                                 </div>
                             </div>
                             <div v-if="chatMessages.length === 0" class="text-center text-surface-500 py-10">
-                                كن أول من يرسل رسالة! 👋
+                                ابدأ المحادثة بإرسال رسالة ترحيبية!
                             </div>
                         </div>
 
@@ -190,13 +193,15 @@ onUnmounted(() => {
                                        required>
                                 <button type="submit" :disabled="form.processing || !form.message.trim()" 
                                         class="absolute left-1.5 btn-primary w-10 h-10 rounded-full p-0 flex items-center justify-center disabled:opacity-50 transition-transform hover:scale-105">
-                                    <span class="-mr-1">✈️</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-white">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                                    </svg>
                                 </button>
                             </form>
                         </div>
                     </template>
                     <div v-else class="flex-1 flex flex-col items-center justify-center text-surface-400">
-                        <span class="text-6xl mb-4">💬</span>
+                        <Icon name="chat" class="w-16 h-16 text-surface-300 dark:text-surface-600 mb-4" />
                         <p>اختر محادثة للبدء في المراسلة</p>
                     </div>
                 </div>
