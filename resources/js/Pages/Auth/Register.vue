@@ -1,13 +1,38 @@
 <script setup>
-import { useForm, Link } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { useForm, Link, usePage } from '@inertiajs/vue3';
+
+const page = usePage();
 
 const form = useForm({
     name:                  '',
     email:                 '',
     password:              '',
     password_confirmation: '',
-    grade_level:           'grade_12',
+    grade_level:           '',
     role:                  'student',
+});
+
+const selectedStage = ref('secondary');
+
+const filteredGradeLevels = computed(() => {
+    return page.props.grade_levels?.filter(g => g.stage === selectedStage.value && g.key !== 'all') || [];
+});
+
+const onStageChange = () => {
+    const firstGrade = filteredGradeLevels.value[0];
+    form.grade_level = firstGrade ? firstGrade.key : '';
+};
+
+// Initialize
+onStageChange();
+
+watch(() => form.role, (newRole) => {
+    if (newRole !== 'student') {
+        form.grade_level = null;
+    } else {
+        onStageChange();
+    }
 });
 
 const submit = () => form.post(route('register'));
@@ -70,20 +95,31 @@ const submit = () => form.post(route('register'));
                         <p v-if="form.errors.email" class="text-red-500 text-xs mt-1">{{ form.errors.email }}</p>
                     </div>
 
-                    <!-- Role + Grade Level in row -->
-                    <div class="grid grid-cols-2 gap-4">
+                    <!-- Role Select -->
+                    <div>
+                        <label class="input-label" for="reg-role">نوع الحساب</label>
+                        <select id="reg-role" v-model="form.role" class="input">
+                            <option value="student">طالب</option>
+                            <option value="teacher">مدرس</option>
+                            <option value="parent">ولي أمر</option>
+                        </select>
+                    </div>
+
+                    <!-- Stage + Grade Level in row (shown only for student) -->
+                    <div v-if="form.role === 'student'" class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="input-label" for="reg-role">أنا</label>
-                            <select id="reg-role" v-model="form.role" class="input">
-                                <option value="student">طالب</option>
-                                <option value="teacher">مدرس</option>
-                                <option value="parent">ولي أمر</option>
+                            <label class="input-label" for="reg-stage">المرحلة الدراسية</label>
+                            <select id="reg-stage" v-model="selectedStage" class="input" @change="onStageChange">
+                                <option value="primary">المرحلة الابتدائية</option>
+                                <option value="preparatory">المرحلة الإعدادية</option>
+                                <option value="secondary">المرحلة الثانوية</option>
                             </select>
                         </div>
-                        <div v-if="form.role === 'student'">
+                        <div>
                             <label class="input-label" for="reg-grade">الصف الدراسي</label>
-                            <select id="reg-grade" v-model="form.grade_level" class="input">
-                                <option v-for="gl in $page.props.grade_levels?.filter(g => g.key !== 'all')" :key="gl.key" :value="gl.key">
+                            <select id="reg-grade" v-model="form.grade_level" class="input" required>
+                                <option value="" disabled>اختر الصف...</option>
+                                <option v-for="gl in filteredGradeLevels" :key="gl.key" :value="gl.key">
                                     {{ gl.name }}
                                 </option>
                             </select>

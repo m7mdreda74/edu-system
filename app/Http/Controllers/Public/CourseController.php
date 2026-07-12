@@ -66,14 +66,23 @@ class CourseController extends Controller
         }
 
         $searchTerm = '%' . $search . '%';
-        $courses = \App\Domain\Course\Models\Course::where('is_published', true)
+        $query = \App\Domain\Course\Models\Course::where('is_published', true)
             ->where(function($q) use ($searchTerm) {
                 $q->where('title', 'like', $searchTerm)
                   ->orWhereHas('teacher', function ($q2) use ($searchTerm) {
                       $q2->where('name', 'like', $searchTerm);
                   });
-            })
-            ->with(['teacher:id,name'])
+            });
+
+        $user = Auth::user();
+        if ($user && $user->hasRole('student') && $user->grade_level) {
+            $query->where(function ($q) use ($user) {
+                $q->where('grade_level', $user->grade_level)
+                  ->orWhere('grade_level', 'all');
+            });
+        }
+
+        $courses = $query->with(['teacher:id,name'])
             ->limit(5)
             ->get(['id', 'title', 'slug', 'price', 'discount_price', 'teacher_id']);
 

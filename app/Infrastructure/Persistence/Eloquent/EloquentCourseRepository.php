@@ -19,15 +19,24 @@ class EloquentCourseRepository implements CourseRepositoryInterface
 {
     public function findBySlug(string $slug): Course
     {
-        return Course::with([
+        $query = Course::with([
             'teacher:id,name,avatar,bio',
             'subject:id,name,name_en,icon',
             'lessons:id,course_id,title,duration_seconds,order,is_free_preview',
             'reviews' => fn($q) => $q->where('is_approved', true)->with('user:id,name,avatar'),
         ])
         ->where('slug', $slug)
-        ->where('is_published', true)
-        ->firstOrFail();
+        ->where('is_published', true);
+
+        $user = auth()->user();
+        if ($user && $user->hasRole('student') && $user->grade_level) {
+            $query->where(function ($q) use ($user) {
+                $q->where('grade_level', $user->grade_level)
+                  ->orWhere('grade_level', 'all');
+            });
+        }
+
+        return $query->firstOrFail();
     }
 
     public function getPublished(array $filters = [], int $perPage = 12): LengthAwarePaginator
@@ -39,6 +48,14 @@ class EloquentCourseRepository implements CourseRepositoryInterface
                 'thumbnail', 'price', 'discount_price',
                 'grade_level', 'level', 'total_duration', 'total_lessons',
             ]);
+
+        $user = auth()->user();
+        if ($user && $user->hasRole('student') && $user->grade_level) {
+            $query->where(function ($q) use ($user) {
+                $q->where('grade_level', $user->grade_level)
+                  ->orWhere('grade_level', 'all');
+            });
+        }
 
         // Apply filters
         if (! empty($filters['subject_id'])) {
@@ -88,16 +105,25 @@ class EloquentCourseRepository implements CourseRepositoryInterface
 
     public function getFeatured(int $limit = 8): Collection
     {
-        return Course::with(['teacher:id,name,avatar', 'subject:id,name,icon'])
+        $query = Course::with(['teacher:id,name,avatar', 'subject:id,name,icon'])
             ->where('is_published', true)
             ->withCount('enrollments')
             ->orderBy('enrollments_count', 'desc')
-            ->limit($limit)
-            ->get([
-                'id', 'teacher_id', 'subject_id', 'title', 'slug',
-                'thumbnail', 'price', 'discount_price',
-                'grade_level', 'level', 'total_lessons',
-            ]);
+            ->limit($limit);
+
+        $user = auth()->user();
+        if ($user && $user->hasRole('student') && $user->grade_level) {
+            $query->where(function ($q) use ($user) {
+                $q->where('grade_level', $user->grade_level)
+                  ->orWhere('grade_level', 'all');
+            });
+        }
+
+        return $query->get([
+            'id', 'teacher_id', 'subject_id', 'title', 'slug',
+            'thumbnail', 'price', 'discount_price',
+            'grade_level', 'level', 'total_lessons',
+        ]);
     }
 
     public function getByTeacher(int $teacherId, int $perPage = 12): LengthAwarePaginator
