@@ -22,10 +22,11 @@ class Payment extends Model
     }
 
     // Payment status constants — no magic strings
-    const STATUS_PENDING  = 'pending';
-    const STATUS_PAID     = 'paid';
-    const STATUS_FAILED   = 'failed';
-    const STATUS_REFUNDED = 'refunded';
+    const STATUS_PENDING              = 'pending';
+    const STATUS_PENDING_VERIFICATION = 'pending_verification';
+    const STATUS_PAID                 = 'paid';
+    const STATUS_FAILED               = 'failed';
+    const STATUS_REFUNDED             = 'refunded';
 
     protected $fillable = [
         'user_id',
@@ -37,6 +38,7 @@ class Payment extends Model
         'gateway',
         'gateway_ref',
         'status',
+        'receipt_path',
         'paid_at',
     ];
 

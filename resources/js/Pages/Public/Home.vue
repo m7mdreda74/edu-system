@@ -491,12 +491,26 @@ function selectGrade(glKey) {
                 </div>
 
                 <div class="space-y-4">
-                    <div v-for="(faq, idx) in parsedFaqs" :key="idx" class="border border-surface-200 dark:border-surface-800 rounded-2xl overflow-hidden bg-surface-50/50 dark:bg-surface-955/20">
-                        <button @click="activeFaq = (activeFaq === idx ? null : idx)" class="w-full px-6 py-4 flex items-center justify-between text-start font-bold text-sm text-surface-850 dark:text-white">
+                    <div 
+                        v-for="(faq, idx) in parsedFaqs" 
+                        :key="idx" 
+                        class="border rounded-2xl overflow-hidden transition-all duration-300"
+                        :class="activeFaq === idx 
+                            ? 'border-primary-500/40 dark:border-primary-500/30 bg-surface-100/50 dark:bg-surface-900/50 shadow-sm' 
+                            : 'border-surface-200 dark:border-surface-800/80 bg-surface-50/50 dark:bg-surface-900/20'"
+                    >
+                        <button 
+                            @click="activeFaq = (activeFaq === idx ? null : idx)" 
+                            class="w-full px-6 py-4 flex items-center justify-between text-start font-bold text-sm text-surface-850 dark:text-surface-100 transition-colors"
+                            :class="{ 'text-primary-600 dark:text-primary-450': activeFaq === idx }"
+                        >
                             <span>{{ faq.q }}</span>
-                            <span class="text-xs transition-transform duration-200" :class="{ 'rotate-180': activeFaq === idx }">▼</span>
+                            <span class="text-xs transition-transform duration-300" :class="{ 'rotate-180 text-primary-500': activeFaq === idx }">▼</span>
                         </button>
-                        <div v-if="activeFaq === idx" class="px-6 pb-5 pt-1 text-xs text-surface-500 dark:text-surface-400 leading-relaxed border-t border-surface-150/50 dark:border-surface-800/50">
+                        <div 
+                            v-if="activeFaq === idx" 
+                            class="px-6 pb-5 pt-1 text-xs text-surface-600 dark:text-surface-300 leading-relaxed border-t border-surface-150/50 dark:border-surface-800/40"
+                        >
                             {{ faq.a }}
                         </div>
                     </div>

@@ -8,6 +8,7 @@ const props = defineProps({
     inProgress: { type: Array, default: () => [] },
     completed:  { type: Array, default: () => [] },
     upcomingSessions: { type: Array, default: () => [] },
+    pendingPayments: { type: Array, default: () => [] },
     stats:      { type: Object, default: () => ({}) },
 });
 
@@ -110,6 +111,38 @@ onMounted(() => {
                             <button v-else-if="session.status === 'scheduled'" disabled class="btn-sm bg-surface-100 text-surface-400 dark:bg-surface-800 cursor-not-allowed">
                                 يبدأ قريباً...
                             </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Pending Verification Payments ─────────────────── -->
+            <section v-if="pendingPayments && pendingPayments.length" class="mb-10 animate-fade-in-up">
+                <h2 class="text-xl font-bold text-surface-900 dark:text-white mb-5 flex items-center gap-2">
+                    <Icon name="clock" class="w-6 h-6 text-amber-500 animate-pulse shrink-0" />
+                    <span>طلبات الاشتراك قيد التحقق</span>
+                    <span class="badge bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 font-semibold px-2 py-0.5 rounded-full text-xs border-none">{{ pendingPayments.length }}</span>
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    <div v-for="payment in pendingPayments" :key="payment.id"
+                         class="card p-5 border-l-4 border-amber-500 bg-amber-50/10 dark:bg-amber-950/5 flex gap-4 items-center">
+                        <div class="w-14 h-14 rounded-xl overflow-hidden bg-surface-200 dark:bg-surface-800 flex-shrink-0">
+                            <img v-if="payment.course?.thumbnail"
+                                 :src="payment.course.thumbnail"
+                                 class="w-full h-full object-cover" />
+                            <div v-else class="w-full h-full flex items-center justify-center text-surface-400 bg-surface-100 dark:bg-surface-800">
+                                <Icon name="courses" class="w-6 h-6" />
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0 space-y-1">
+                            <h3 class="font-bold text-surface-800 dark:text-white text-sm leading-snug line-clamp-1">
+                                {{ payment.course?.title }}
+                            </h3>
+                            <div class="text-xs text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1.5 mt-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                                <span>جاري مراجعة إيصال التحويل ({{ payment.gateway_ref }})</span>
+                            </div>
                         </div>
                     </div>
                 </div>

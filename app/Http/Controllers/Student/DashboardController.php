@@ -8,6 +8,7 @@ use App\Application\Certificate\Services\CertificateService;
 use App\Domain\Course\Models\LiveSession;
 use App\Domain\Enrollment\Contracts\EnrollmentServiceInterface;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,7 +21,7 @@ class DashboardController extends Controller
 
     public function index(): Response
     {
-        $user        = auth()->user();
+        $user        = Auth::user();
         $enrollments = $this->enrollmentService->getStudentEnrollments($user->id);
 
         // Separate completed from in-progress
@@ -41,10 +42,17 @@ class DashboardController extends Controller
             ->orderBy('scheduled_at', 'asc')
             ->get();
 
+        // Fetch pending manual payments awaiting verification
+        $pendingPayments = \App\Domain\Payment\Models\Payment::with('course:id,title,thumbnail')
+            ->where('user_id', $user->id)
+            ->where('status', \App\Domain\Payment\Models\Payment::STATUS_PENDING_VERIFICATION)
+            ->get();
+
         return Inertia::render('Student/Dashboard', [
             'inProgress'       => $inProgress->values(),
             'completed'        => $completedWithCert->values(),
             'upcomingSessions' => $upcomingSessions,
+            'pendingPayments'  => $pendingPayments,
             'stats'      => [
                 'totalEnrolled'  => $enrollments->count(),
                 'completed'      => $completed->count(),

@@ -26,6 +26,7 @@ class RegisteredUserController extends Controller
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'email'       => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
+            'phone'       => ['required', 'string', 'max:20', 'unique:users'],
             'password'    => ['required', 'confirmed', Rules\Password::defaults()],
             'role'        => ['required', 'in:student,teacher,parent'],
             'grade_level' => ['nullable', 'exists:grade_levels,key'],
@@ -34,6 +35,7 @@ class RegisteredUserController extends Controller
         $user = User::create([
             'name'        => $validated['name'],
             'email'       => $validated['email'],
+            'phone'       => $validated['phone'],
             'password'    => $validated['password'],
             'grade_level' => $validated['grade_level'] ?? null,
             'is_active'   => true,

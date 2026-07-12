@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useDebounceFn } from '@vueuse/core';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -9,6 +9,8 @@ const props = defineProps({
     users:   { type: Object, required: true },  // paginated
     filters: { type: Object, default: () => ({}) },
 });
+
+const page = usePage();
 
 const search = ref(props.filters.search ?? '');
 const role   = ref(props.filters.role ?? '');
@@ -25,6 +27,53 @@ function applyFilters() {
 function toggleActive(userId) {
     router.patch(route('admin.users.toggle', { id: userId }), {}, {
         onSuccess: () => {},
+        preserveScroll: true,
+    });
+}
+
+// ─── Add User Management ───
+const createUserModalOpen = ref(false);
+const createForm = useForm({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    role: 'student',
+    grade_level: '',
+});
+
+const selectedStage = ref('secondary');
+
+const filteredGradeLevels = computed(() => {
+    return page.props.grade_levels?.filter(g => g.stage === selectedStage.value && g.key !== 'all') || [];
+});
+
+const onStageChange = () => {
+    const firstGrade = filteredGradeLevels.value[0];
+    createForm.grade_level = firstGrade ? firstGrade.key : '';
+};
+
+watch(() => createForm.role, (newRole) => {
+    if (newRole === 'student') {
+        onStageChange();
+    } else {
+        createForm.grade_level = '';
+    }
+});
+
+function openCreateModal() {
+    createForm.reset();
+    selectedStage.value = 'secondary';
+    onStageChange();
+    createUserModalOpen.value = true;
+}
+
+function submitCreateUser() {
+    createForm.post(route('admin.users.store'), {
+        onSuccess: () => {
+            createUserModalOpen.value = false;
+            createForm.reset();
+        },
         preserveScroll: true,
     });
 }
@@ -52,9 +101,8 @@ function updateRole() {
     });
 }
 
-const roleLabel  = { admin: 'مدير', teacher: 'مدرس', student: 'طالب' };
-const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: 'badge-gray' };
-</script>
+const roleLabel  = { admin: 'مدير', teacher: 'مدرس', student: 'طالب', parent: 'ولي أمر' };
+const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: 'badge-gray', parent: 'badge-green' };</script>
 
 <template>
     <DashboardLayout>
@@ -73,7 +121,13 @@ const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: '
                         {{ users.total?.toLocaleString('ar') }} مستخدم مسجّل
                     </p>
                 </div>
-                <Link :href="route('admin.dashboard')" class="btn-ghost">← الداشبورد</Link>
+                <div class="flex items-center gap-3">
+                    <button @click="openCreateModal" class="btn-primary flex items-center gap-2">
+                        <Icon name="plus" class="w-4 h-4" />
+                        <span>إضافة مستخدم جديد</span>
+                    </button>
+                    <Link :href="route('admin.dashboard')" class="btn-ghost">← الداشبورد</Link>
+                </div>
             </div>
 
             <!-- Filters -->
@@ -178,14 +232,15 @@ const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: '
                     <Link
                         v-for="link in users.links" :key="link.label"
                         :href="link.url ?? '#'"
-                        v-html="link.label"
                         class="px-3 py-1.5 rounded-lg text-sm border transition-colors"
                         :class="link.active
                             ? 'bg-primary-600 text-white border-primary-600'
                             : link.url
                                 ? 'border-surface-200 dark:border-surface-600 text-surface-600 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700'
                                 : 'opacity-40 cursor-not-allowed border-surface-200 dark:border-surface-600'"
-                    />
+                    >
+                        <span v-html="link.label"></span>
+                    </Link>
                 </div>
             </div>
         </div>
@@ -215,6 +270,14 @@ const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: '
                             </div>
                         </label>
                         
+                        <label class="flex items-center gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-xl cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors" :class="{'border-primary-500 bg-primary-50 dark:bg-primary-900/20': selectedRole === 'parent'}">
+                            <input type="radio" v-model="selectedRole" value="parent" class="text-primary-600 focus:ring-primary-500">
+                            <div>
+                                <div class="font-bold text-surface-800 dark:text-white">ولي أمر</div>
+                                <div class="text-xs text-surface-500">يمكنه متابعة دراسة ونتائج أبنائه</div>
+                            </div>
+                        </label>
+                        
                         <label class="flex items-center gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-xl cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors" :class="{'border-primary-500 bg-primary-50 dark:bg-primary-900/20': selectedRole === 'admin'}">
                             <input type="radio" v-model="selectedRole" value="admin" class="text-primary-600 focus:ring-primary-500">
                             <div>
@@ -228,6 +291,85 @@ const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: '
                     <button @click="roleModalOpen = false" class="btn-ghost">إلغاء</button>
                     <button @click="updateRole" class="btn-primary">حفظ التغييرات</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Create User Modal -->
+        <div v-if="createUserModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="createUserModalOpen = false"></div>
+            <div class="relative bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-up">
+                <form @submit.prevent="submitCreateUser">
+                    <div class="p-6 space-y-4">
+                        <h3 class="text-xl font-bold text-surface-900 dark:text-white">إضافة مستخدم جديد</h3>
+                        
+                        <!-- Name -->
+                        <div>
+                            <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-name">الاسم الكامل</label>
+                            <input id="create-name" v-model="createForm.name" type="text" class="input w-full text-sm" placeholder="أدخل الاسم الكامل..." required />
+                            <p v-if="createForm.errors.name" class="text-red-500 text-xs mt-1">{{ createForm.errors.name }}</p>
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-email">البريد الإلكتروني</label>
+                            <input id="create-email" v-model="createForm.email" type="email" class="input w-full text-sm" placeholder="example@email.com" required />
+                            <p v-if="createForm.errors.email" class="text-red-500 text-xs mt-1">{{ createForm.errors.email }}</p>
+                        </div>
+
+                        <!-- Phone -->
+                        <div>
+                            <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-phone">رقم الهاتف / الجوال</label>
+                            <input id="create-phone" v-model="createForm.phone" type="text" class="input w-full text-sm" placeholder="مثال: +97433554858" required />
+                            <p v-if="createForm.errors.phone" class="text-red-500 text-xs mt-1">{{ createForm.errors.phone }}</p>
+                        </div>
+
+                        <!-- Password -->
+                        <div>
+                            <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-password">كلمة المرور</label>
+                            <input id="create-password" v-model="createForm.password" type="password" class="input w-full text-sm" placeholder="••••••••" required />
+                            <p v-if="createForm.errors.password" class="text-red-500 text-xs mt-1">{{ createForm.errors.password }}</p>
+                        </div>
+
+                        <!-- Role -->
+                        <div>
+                            <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-role">نوع الحساب (الدور)</label>
+                            <select id="create-role" v-model="createForm.role" class="input w-full text-sm">
+                                <option value="student">طالب</option>
+                                <option value="teacher">مدرس</option>
+                                <option value="parent">ولي أمر</option>
+                                <option value="admin">مدير</option>
+                            </select>
+                        </div>
+
+                        <!-- Grade Level for Student -->
+                        <div v-if="createForm.role === 'student'" class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-stage">المرحلة الدراسية</label>
+                                <select id="create-stage" v-model="selectedStage" class="input w-full text-sm" @change="onStageChange">
+                                    <option value="primary">المرحلة الابتدائية</option>
+                                    <option value="preparatory">المرحلة الإعدادية</option>
+                                    <option value="secondary">المرحلة الثانوية</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-grade">الصف الدراسي</label>
+                                <select id="create-grade" v-model="createForm.grade_level" class="input w-full text-sm" required>
+                                    <option value="" disabled>اختر الصف...</option>
+                                    <option v-for="gl in filteredGradeLevels" :key="gl.key" :value="gl.key">
+                                        {{ gl.name }}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-surface-50 dark:bg-surface-950 flex justify-end gap-2 border-t border-surface-200 dark:border-surface-800">
+                        <button type="button" @click="createUserModalOpen = false" class="btn-ghost text-sm">إلغاء</button>
+                        <button type="submit" :disabled="createForm.processing" class="btn-primary text-sm">
+                            <span v-if="createForm.processing" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>إضافة المستخدم</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </DashboardLayout>

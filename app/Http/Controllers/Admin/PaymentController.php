@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Application\Payment\Services\PaymentService;
 
 class PaymentController extends Controller
 {
@@ -24,5 +25,29 @@ class PaymentController extends Controller
             'payments' => $payments,
             'filters'  => $request->only('status'),
         ]);
+    }
+
+    public function approve(Payment $payment, PaymentService $paymentService)
+    {
+        if ($payment->status !== Payment::STATUS_PENDING_VERIFICATION) {
+            return back()->with('error', 'هذه العملية غير معلقة للتحقق.');
+        }
+
+        $paymentService->completeSuccessfulPayment($payment);
+
+        return back()->with('success', 'تم تأكيد الدفع وتفعيل الكورس للطالب بنجاح.');
+    }
+
+    public function reject(Payment $payment)
+    {
+        if ($payment->status !== Payment::STATUS_PENDING_VERIFICATION) {
+            return back()->with('error', 'هذه العملية غير معلقة للتحقق.');
+        }
+
+        $payment->update([
+            'status' => Payment::STATUS_FAILED,
+        ]);
+
+        return back()->with('success', 'تم رفض إيصال التحويل بنجاح.');
     }
 }

@@ -1,5 +1,6 @@
 <script setup>
 import { useForm, Link } from '@inertiajs/vue3';
+import Icon from '@/Components/Icon.vue';
 
 defineProps({
     canResetPassword: { type: Boolean },
@@ -7,151 +8,140 @@ defineProps({
 });
 
 const form = useForm({
-    email:    '',
-    password: '',
-    remember: false,
+    login_field: '',
+    password:    '',
+    remember:    false,
 });
 
 const submit = () => form.post(route('login'), { onFinish: () => form.reset('password') });
 </script>
 
 <template>
-    <div class="min-h-screen flex" dir="rtl" lang="ar">
-        <!-- ── Left: Auth Form ──────────────────────────────────── -->
-        <div class="flex-1 flex items-center justify-center px-6 py-12 bg-white dark:bg-surface-950">
-            <div class="w-full max-w-sm">
-
-                <!-- Logo -->
-                <Link :href="route('home')" class="flex items-center gap-2 mb-10 group">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700
-                                flex items-center justify-center shadow-glow-primary
-                                group-hover:scale-110 transition-transform duration-200">
-                        <span class="text-white font-black text-lg">ت</span>
-                    </div>
-                    <span class="text-2xl font-black text-gradient-primary">منصة التفوق</span>
-                </Link>
-
-                <h1 class="text-3xl font-black text-surface-900 dark:text-white mb-2">
-                    أهلاً بعودتك
-                </h1>
-                <p class="text-surface-500 dark:text-surface-400 mb-8">
-                    سجّل دخولك للمتابعة في رحلة التعلم
-                </p>
-
-                <!-- Status Message -->
-                <div v-if="status" class="alert-success mb-6">
-                    {{ status }}
-                </div>
-
-                <form @submit.prevent="submit" class="space-y-5">
-
-                    <!-- Email -->
-                    <div>
-                        <label class="input-label" for="email">البريد الإلكتروني</label>
-                        <input
-                            id="email"
-                            v-model="form.email"
-                            type="email"
-                            class="input"
-                            :class="{ 'border-red-500 focus:ring-red-500': form.errors.email }"
-                            placeholder="example@email.com"
-                            autocomplete="username"
-                            required
-                            autofocus
-                        />
-                        <p v-if="form.errors.email" class="text-red-500 text-xs mt-1">{{ form.errors.email }}</p>
-                    </div>
-
-                    <!-- Password -->
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <label class="input-label mb-0" for="password">كلمة المرور</label>
-                            <Link
-                                v-if="canResetPassword"
-                                :href="route('password.request')"
-                                class="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400"
-                            >
-                                نسيت كلمة المرور؟
-                            </Link>
-                        </div>
-                        <input
-                            id="password"
-                            v-model="form.password"
-                            type="password"
-                            class="input"
-                            :class="{ 'border-red-500 focus:ring-red-500': form.errors.password }"
-                            placeholder="••••••••"
-                            autocomplete="current-password"
-                            required
-                        />
-                        <p v-if="form.errors.password" class="text-red-500 text-xs mt-1">{{ form.errors.password }}</p>
-                    </div>
-
-                    <!-- Remember -->
-                    <div class="flex items-center gap-2">
-                        <input id="remember" v-model="form.remember" type="checkbox"
-                               class="w-4 h-4 text-primary-600 rounded" />
-                        <label for="remember" class="text-sm text-surface-600 dark:text-surface-400 cursor-pointer">
-                            تذكّرني
-                        </label>
-                    </div>
-
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        class="btn-primary w-full btn-lg"
-                        :class="{ 'opacity-60': form.processing }"
-                        id="login-submit-btn"
-                    >
-                        <span v-if="form.processing" class="flex items-center justify-center gap-2">
-                            <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                            <span>جاري تسجيل الدخول...</span>
-                        </span>
-                        <span v-else class="flex items-center justify-center gap-2">
-                            <span>تسجيل الدخول</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                            </svg>
-                        </span>
-                    </button>
-
-                    <p class="text-center text-sm text-surface-500 dark:text-surface-400">
-                        ليس لديك حساب؟
-                        <Link :href="route('register')"
-                              class="text-primary-600 dark:text-primary-400 font-semibold hover:underline">
-                            إنشاء حساب مجاني
-                        </Link>
-                    </p>
-                </form>
+    <div class="min-h-screen flex bg-gradient-to-br from-primary-900 via-primary-850 to-primary-950 text-white" dir="rtl" lang="ar">
+        
+        <!-- ── Left: Decorative Folklore-style Sidebar ── -->
+        <div class="hidden md:flex flex-col items-center justify-between w-24 bg-black/15 border-e border-white/5 py-12 shrink-0 overflow-hidden select-none">
+            <div class="flex flex-col items-center gap-12 text-white/20">
+                <Icon name="courses" class="w-8 h-8" />
+                <Icon name="success" class="w-8 h-8" />
+                <Icon name="clock" class="w-8 h-8" />
+                <Icon name="teacher" class="w-8 h-8" />
+                <Icon name="edit" class="w-8 h-8" />
+                <Icon name="eye" class="w-8 h-8" />
+                <Icon name="plus" class="w-8 h-8" />
+                <Icon name="trash" class="w-8 h-8" />
+                <Icon name="courses" class="w-8 h-8" />
+                <Icon name="success" class="w-8 h-8" />
             </div>
         </div>
 
-        <!-- ── Right: Hero Graphic ──────────────────────────────── -->
-        <div class="hidden lg:flex flex-1 hero-gradient items-center justify-center relative overflow-hidden">
-            <div class="absolute inset-0 opacity-10">
-                <div class="absolute top-20 start-20 w-80 h-80 rounded-full bg-white/30 blur-3xl"></div>
-                <div class="absolute bottom-20 end-20 w-60 h-60 rounded-full bg-accent-400/40 blur-3xl"></div>
-            </div>
-            <div class="relative text-center text-white px-12 flex flex-col items-center">
-                <div class="mb-6 text-white/90">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-20 h-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 019.897 5.837c-.896.3-1.783.57-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M12 13.489v5.526" />
-                    </svg>
+        <!-- ── Right: Main Auth Form ── -->
+        <div class="flex-1 flex flex-col items-center justify-center px-6 py-12 relative">
+            
+            <div class="w-full max-w-md space-y-8">
+                
+                <!-- Logo & Brand Header -->
+                <div class="flex flex-col items-center text-center">
+                    <Link :href="route('home')" class="inline-flex flex-col items-center gap-3 group mb-4">
+                        <div class="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform duration-300">
+                            <span class="text-primary-800 font-black text-3xl">ت</span>
+                        </div>
+                        <span class="text-3xl font-black text-white tracking-wide">منصة التفوق</span>
+                    </Link>
+                    <p class="text-white/70 text-sm">سجّل دخولك للمتابعة في رحلة التعلم</p>
                 </div>
-                <h2 class="text-4xl font-black mb-4">طريقك للتفوق<br>يبدأ من هنا</h2>
-                <p class="text-white/75 text-lg leading-relaxed">
-                    انضم لآلاف الطلاب الذين<br>حققوا نتائج استثنائية
-                </p>
-                <div class="flex justify-center gap-8 mt-10">
-                    <div v-for="stat in [
-                        { value: '+500', label: 'طالب' },
-                        { value: '+50',  label: 'كورس' },
-                        { value: '98%',  label: 'رضا' },
-                    ]" :key="stat.label" class="text-center">
-                        <div class="text-3xl font-black">{{ stat.value }}</div>
-                        <div class="text-white/60 text-sm">{{ stat.label }}</div>
+
+                <!-- Status Message -->
+                <div v-if="status" class="bg-emerald-600/30 border border-emerald-500/50 text-emerald-200 px-4 py-3 rounded-2xl text-xs text-center">
+                    {{ status }}
+                </div>
+
+                <form @submit.prevent="submit" class="space-y-6 bg-white/5 backdrop-blur-md p-8 rounded-3xl border border-white/10 shadow-xl">
+                    
+                    <!-- Login Field Input (Email or Phone) -->
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-white/95 mr-3" for="login_field">
+                            البريد الإلكتروني أو رقم الهاتف <span class="text-red-400">*</span>
+                        </label>
+                        <div class="relative">
+                            <input
+                                id="login_field"
+                                v-model="form.login_field"
+                                type="text"
+                                class="w-full px-6 py-3.5 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-sm font-semibold transition-all"
+                                :class="{ 'ring-2 ring-red-500': form.errors.login_field }"
+                                placeholder="أدخل البريد الإلكتروني أو رقم الهاتف..."
+                                required
+                                autofocus
+                            />
+                        </div>
+                        <p v-if="form.errors.login_field" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.login_field }}</p>
                     </div>
-                </div>
+
+                    <!-- Password Input -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center px-3">
+                            <label class="block text-xs font-bold text-white/95" for="password">
+                                كلمة المرور <span class="text-red-400">*</span>
+                            </label>
+                        </div>
+                        <div class="relative">
+                            <input
+                                id="password"
+                                v-model="form.password"
+                                type="password"
+                                class="w-full px-6 py-3.5 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-sm font-semibold transition-all"
+                                :class="{ 'ring-2 ring-red-500': form.errors.password }"
+                                placeholder="••••••••"
+                                autocomplete="current-password"
+                                required
+                            />
+                        </div>
+                        <p v-if="form.errors.password" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.password }}</p>
+                    </div>
+
+                    <!-- Remember Option -->
+                    <div class="flex items-center gap-2 px-3">
+                        <input id="remember" v-model="form.remember" type="checkbox"
+                               class="w-4 h-4 text-primary-700 bg-white/10 border-white/20 rounded focus:ring-primary-500/40" />
+                        <label for="remember" class="text-xs text-white/80 cursor-pointer">
+                            تذكّرني في هذا المتصفح
+                        </label>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="space-y-3 pt-2">
+                        <!-- Submit: Login Button -->
+                        <button
+                            type="submit"
+                            :disabled="form.processing"
+                            class="w-full py-3.5 bg-surface-950 hover:bg-surface-900 text-white rounded-full font-bold text-sm shadow-lg transition-all duration-200 active:scale-98 flex items-center justify-center gap-2"
+                            :class="{ 'opacity-65 cursor-not-allowed': form.processing }"
+                            id="login-submit-btn"
+                        >
+                            <span v-if="form.processing" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>{{ form.processing ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول' }}</span>
+                        </button>
+
+                        <!-- Register Button -->
+                        <Link
+                            :href="route('register')"
+                            class="w-full py-3.5 bg-white hover:bg-surface-50 text-primary-900 rounded-full font-bold text-sm shadow-md transition-all duration-200 active:scale-98 flex items-center justify-center"
+                        >
+                            إنشاء حساب جديد
+                        </Link>
+                    </div>
+
+                    <!-- Reset Password Link -->
+                    <div v-if="canResetPassword" class="text-center">
+                        <Link
+                            :href="route('password.request')"
+                            class="text-xs text-white/60 hover:text-white transition-colors"
+                        >
+                            نسيت كلمة المرور؟
+                        </Link>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

@@ -122,8 +122,83 @@ function printCertificate() {
 
 <style>
 @media print {
-    body * { visibility: hidden; }
-    #certificate-card, #certificate-card * { visibility: visible; }
-    #certificate-card { position: fixed; top: 0; left: 0; width: 100%; }
+    @page {
+        size: landscape;
+        margin: 0;
+    }
+    
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+        background: #fff !important;
+    }
+
+    /* Hide all elements on body */
+    body * {
+        visibility: hidden !important;
+    }
+
+    /* Make only the certificate card and its children visible */
+    #certificate-card, #certificate-card * {
+        visibility: visible !important;
+    }
+
+    #certificate-card {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        box-sizing: border-box !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        z-index: 9999999 !important;
+        background-color: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    #certificate-card > div.relative {
+        flex-grow: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 3rem 6rem !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    #certificate-card h2 {
+        font-size: 3rem !important;
+        font-weight: 900 !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    #certificate-card h3 {
+        font-size: 2rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    #certificate-card p {
+        font-size: 1.1rem !important;
+    }
+
+    #certificate-card .absolute.bottom-8 {
+        bottom: 2rem !important;
+        right: 4rem !important;
+    }
 }
 </style>

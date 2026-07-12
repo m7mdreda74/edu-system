@@ -150,11 +150,14 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard',              [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/users',                  [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users');
+    Route::post('/users',                 [App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
     Route::patch('/users/{id}/toggle',    [App\Http\Controllers\Admin\UserController::class, 'toggleActive'])->name('users.toggle');
     Route::patch('/users/{id}/role',      [App\Http\Controllers\Admin\UserController::class, 'updateRole'])->name('users.role');
     Route::get('/courses',                [App\Http\Controllers\Admin\CourseController::class, 'index'])->name('courses');
     Route::patch('/courses/{id}/publish', [App\Http\Controllers\Admin\CourseController::class, 'togglePublish'])->name('courses.toggle');
     Route::get('/payments',               [App\Http\Controllers\Admin\PaymentController::class, 'index'])->name('payments');
+    Route::post('/payments/{payment}/approve', [App\Http\Controllers\Admin\PaymentController::class, 'approve'])->name('payments.approve');
+    Route::post('/payments/{payment}/reject',  [App\Http\Controllers\Admin\PaymentController::class, 'reject'])->name('payments.reject');
     Route::get('/settings',               [App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings');
     Route::post('/settings',              [App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
     Route::delete('/settings/{id}',       [App\Http\Controllers\Admin\SettingsController::class, 'destroy'])->name('settings.destroy');

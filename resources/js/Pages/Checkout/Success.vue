@@ -10,6 +10,16 @@ defineProps({ session_id: { type: String, default: null } });
 onMounted(() => {
     const cartStore = useCartStore();
     cartStore.clearCart();
+
+    // If opened in a popup window, redirect the parent window to dashboard and close this popup
+    if (window.opener) {
+        try {
+            window.opener.location.href = route('dashboard');
+        } catch (e) {
+            console.error('Failed to redirect parent window:', e);
+        }
+        window.close();
+    }
 });
 </script>
 

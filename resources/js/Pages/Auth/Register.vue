@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useForm, Link, usePage } from '@inertiajs/vue3';
+import Icon from '@/Components/Icon.vue';
 
 const page = usePage();
 
 const form = useForm({
     name:                  '',
     email:                 '',
+    phone:                 '',
     password:              '',
     password_confirmation: '',
     grade_level:           '',
@@ -39,152 +41,181 @@ const submit = () => form.post(route('register'));
 </script>
 
 <template>
-    <div class="min-h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-950 px-6 py-12" dir="rtl" lang="ar">
-        <div class="w-full max-w-lg">
+    <div class="min-h-screen flex bg-gradient-to-br from-primary-900 via-primary-850 to-primary-950 text-white" dir="rtl" lang="ar">
+        
+        <!-- ── Left: Decorative Folklore-style Sidebar ── -->
+        <div class="hidden md:flex flex-col items-center justify-between w-24 bg-black/15 border-e border-white/5 py-12 shrink-0 overflow-hidden select-none">
+            <div class="flex flex-col items-center gap-12 text-white/20">
+                <Icon name="courses" class="w-8 h-8" />
+                <Icon name="success" class="w-8 h-8" />
+                <Icon name="clock" class="w-8 h-8" />
+                <Icon name="teacher" class="w-8 h-8" />
+                <Icon name="edit" class="w-8 h-8" />
+                <Icon name="eye" class="w-8 h-8" />
+                <Icon name="plus" class="w-8 h-8" />
+                <Icon name="trash" class="w-8 h-8" />
+                <Icon name="courses" class="w-8 h-8" />
+                <Icon name="success" class="w-8 h-8" />
+            </div>
+        </div>
 
-            <!-- Logo -->
-            <Link :href="route('home')" class="flex items-center justify-center gap-2 mb-8 group">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700
-                            flex items-center justify-center shadow-glow-primary
-                            group-hover:scale-110 transition-transform duration-200">
-                    <span class="text-white font-black text-lg">ت</span>
+        <!-- ── Right: Main Auth Form ── -->
+        <div class="flex-1 flex flex-col items-center justify-center px-6 py-12 relative overflow-y-auto">
+            
+            <div class="w-full max-w-lg space-y-6 py-8">
+                
+                <!-- Logo & Brand Header -->
+                <div class="flex flex-col items-center text-center">
+                    <Link :href="route('home')" class="inline-flex flex-col items-center gap-3 group mb-2">
+                        <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform duration-300">
+                            <span class="text-primary-800 font-black text-2xl">ت</span>
+                        </div>
+                        <span class="text-2xl font-black text-white tracking-wide">منصة التفوق</span>
+                    </Link>
+                    <p class="text-white/70 text-sm">ابدأ رحلتك التعليمية معنا مجاناً</p>
                 </div>
-                <span class="text-2xl font-black text-gradient-primary">منصة التفوق</span>
-            </Link>
 
-            <div class="card p-8">
-                <h1 class="text-2xl font-black text-surface-900 dark:text-white mb-2 text-center">
-                    إنشاء حساب جديد
-                </h1>
-                <p class="text-surface-500 dark:text-surface-400 text-center mb-6 text-sm">
-                    ابدأ رحلتك مجاناً — لا بطاقة بنكية مطلوبة
-                </p>
-
-                <form @submit.prevent="submit" class="space-y-4">
-
-                    <!-- Name -->
-                    <div>
-                        <label class="input-label" for="reg-name">الاسم الكامل</label>
+                <form @submit.prevent="submit" class="space-y-4 bg-white/5 backdrop-blur-md p-8 rounded-3xl border border-white/10 shadow-xl">
+                    
+                    <h1 class="text-xl font-bold text-center text-white mb-2">إنشاء حساب جديد</h1>
+                    
+                    <!-- Name Input -->
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-white/95 mr-3" for="reg-name">
+                            الاسم الكامل <span class="text-red-400">*</span>
+                        </label>
                         <input
                             id="reg-name"
                             v-model="form.name"
                             type="text"
-                            class="input"
-                            :class="{ 'border-red-500': form.errors.name }"
-                            placeholder="محمد عبدالله"
+                            class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
+                            :class="{ 'ring-2 ring-red-500': form.errors.name }"
+                            placeholder="مثال: محمد أحمد"
                             autocomplete="name"
                             required
                             autofocus
                         />
-                        <p v-if="form.errors.name" class="text-red-500 text-xs mt-1">{{ form.errors.name }}</p>
+                        <p v-if="form.errors.name" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.name }}</p>
                     </div>
 
-                    <!-- Email -->
-                    <div>
-                        <label class="input-label" for="reg-email">البريد الإلكتروني</label>
+                    <!-- Email Input -->
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-white/95 mr-3" for="reg-email">
+                            البريد الإلكتروني <span class="text-red-400">*</span>
+                        </label>
                         <input
                             id="reg-email"
                             v-model="form.email"
                             type="email"
-                            class="input"
-                            :class="{ 'border-red-500': form.errors.email }"
+                            class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
+                            :class="{ 'ring-2 ring-red-500': form.errors.email }"
                             placeholder="example@email.com"
-                            autocomplete="username"
                             required
                         />
-                        <p v-if="form.errors.email" class="text-red-500 text-xs mt-1">{{ form.errors.email }}</p>
+                        <p v-if="form.errors.email" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.email }}</p>
                     </div>
 
-                    <!-- Role Select -->
-                    <div>
-                        <label class="input-label" for="reg-role">نوع الحساب</label>
-                        <select id="reg-role" v-model="form.role" class="input">
-                            <option value="student">طالب</option>
-                            <option value="teacher">مدرس</option>
-                            <option value="parent">ولي أمر</option>
-                        </select>
-                    </div>
-
-                    <!-- Stage + Grade Level in row (shown only for student) -->
-                    <div v-if="form.role === 'student'" class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="input-label" for="reg-stage">المرحلة الدراسية</label>
-                            <select id="reg-stage" v-model="selectedStage" class="input" @change="onStageChange">
-                                <option value="primary">المرحلة الابتدائية</option>
-                                <option value="preparatory">المرحلة الإعدادية</option>
-                                <option value="secondary">المرحلة الثانوية</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="input-label" for="reg-grade">الصف الدراسي</label>
-                            <select id="reg-grade" v-model="form.grade_level" class="input" required>
-                                <option value="" disabled>اختر الصف...</option>
-                                <option v-for="gl in filteredGradeLevels" :key="gl.key" :value="gl.key">
-                                    {{ gl.name }}
-                                </option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Password -->
-                    <div>
-                        <label class="input-label" for="reg-password">كلمة المرور</label>
+                    <!-- Phone Input -->
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-white/95 mr-3" for="reg-phone">
+                            رقم الهاتف / الجوال <span class="text-red-400">*</span>
+                        </label>
                         <input
-                            id="reg-password"
-                            v-model="form.password"
-                            type="password"
-                            class="input"
-                            :class="{ 'border-red-500': form.errors.password }"
-                            placeholder="8 أحرف على الأقل"
-                            autocomplete="new-password"
+                            id="reg-phone"
+                            v-model="form.phone"
+                            type="text"
+                            class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
+                            :class="{ 'ring-2 ring-red-500': form.errors.phone }"
+                            placeholder="مثال: +97433554858"
                             required
                         />
-                        <p v-if="form.errors.password" class="text-red-500 text-xs mt-1">{{ form.errors.password }}</p>
+                        <p v-if="form.errors.phone" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.phone }}</p>
                     </div>
 
-                    <!-- Confirm Password -->
-                    <div>
-                        <label class="input-label" for="reg-confirm">تأكيد كلمة المرور</label>
-                        <input
-                            id="reg-confirm"
-                            v-model="form.password_confirmation"
-                            type="password"
-                            class="input"
-                            placeholder="••••••••"
-                            autocomplete="new-password"
-                            required
-                        />
+                    <!-- Stage + Grade Level in row -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-white/95 mr-3" for="reg-stage">المرحلة الدراسية</label>
+                            <div class="relative">
+                                <select id="reg-stage" v-model="selectedStage" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" @change="onStageChange">
+                                    <option value="primary">المرحلة الابتدائية</option>
+                                    <option value="preparatory">المرحلة الإعدادية</option>
+                                    <option value="secondary">المرحلة الثانوية</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-white/95 mr-3" for="reg-grade">الصف الدراسي</label>
+                            <div class="relative">
+                                <select id="reg-grade" v-model="form.grade_level" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" required>
+                                    <option value="" disabled>اختر الصف...</option>
+                                    <option v-for="gl in filteredGradeLevels" :key="gl.key" :value="gl.key">
+                                        {{ gl.name }}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        class="btn-primary w-full btn-lg mt-2"
-                        :class="{ 'opacity-60': form.processing }"
-                        id="register-submit-btn"
-                    >
-                        <span v-if="form.processing" class="flex items-center justify-center gap-2">
-                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            جاري إنشاء الحساب...
-                        </span>
-                        <span v-else class="flex items-center justify-center gap-1.5">
-                            إنشاء الحساب مجاناً
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                            </svg>
-                        </span>
-                    </button>
+                    <!-- Password Block -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Password -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-white/95 mr-3" for="reg-password">
+                                كلمة المرور <span class="text-red-400">*</span>
+                            </label>
+                            <input
+                                id="reg-password"
+                                v-model="form.password"
+                                type="password"
+                                class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
+                                :class="{ 'ring-2 ring-red-500': form.errors.password }"
+                                placeholder="8 أحرف على الأقل"
+                                autocomplete="new-password"
+                                required
+                            />
+                            <p v-if="form.errors.password" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.password }}</p>
+                        </div>
 
-                    <p class="text-center text-sm text-surface-500 dark:text-surface-400">
-                        لديك حساب بالفعل؟
-                        <Link :href="route('login')"
-                              class="text-primary-600 dark:text-primary-400 font-semibold hover:underline">
+                        <!-- Confirm Password -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-white/95 mr-3" for="reg-confirm">
+                                تأكيد كلمة المرور <span class="text-red-400">*</span>
+                            </label>
+                            <input
+                                id="reg-confirm"
+                                v-model="form.password_confirmation"
+                                type="password"
+                                class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
+                                placeholder="••••••••"
+                                autocomplete="new-password"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="space-y-3 pt-4">
+                        <!-- Submit Button -->
+                        <button
+                            type="submit"
+                            :disabled="form.processing"
+                            class="w-full py-3.5 bg-surface-950 hover:bg-surface-900 text-white rounded-full font-bold text-sm shadow-lg transition-all duration-200 active:scale-98 flex items-center justify-center gap-2"
+                            :class="{ 'opacity-65 cursor-not-allowed': form.processing }"
+                            id="register-submit-btn"
+                        >
+                            <span v-if="form.processing" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>{{ form.processing ? 'جاري إنشاء الحساب...' : 'إنشاء الحساب مجاناً' }}</span>
+                        </button>
+
+                        <!-- Login Link Button -->
+                        <Link
+                            :href="route('login')"
+                            class="w-full py-3.5 bg-white hover:bg-surface-50 text-primary-900 rounded-full font-bold text-sm shadow-md transition-all duration-200 active:scale-98 flex items-center justify-center"
+                        >
                             تسجيل الدخول
                         </Link>
-                    </p>
+                    </div>
                 </form>
             </div>
         </div>

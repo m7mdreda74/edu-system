@@ -45,7 +45,17 @@ class AppServiceProvider extends ServiceProvider
         // Switch gateway by changing this binding only — controllers unaffected
         $this->app->bind(
             \App\Infrastructure\Payment\PaymentGatewayInterface::class,
-            \App\Infrastructure\Payment\Gateways\FatoraGateway::class,
+            function ($app) {
+                // Read active gateway from DB settings
+                $gatewayName = \App\Domain\Settings\Models\PlatformSetting::where('key', 'active_gateway')->value('value')
+                    ?: config('services.payment.gateway', 'fatora');
+
+                return match (strtolower($gatewayName)) {
+                    'tap'    => $app->make(\App\Infrastructure\Payment\Gateways\TapGateway::class),
+                    'stripe' => $app->make(\App\Infrastructure\Payment\Gateways\StripeGateway::class),
+                    default  => $app->make(\App\Infrastructure\Payment\Gateways\FatoraGateway::class),
+                };
+            }
         );
 
         $this->app->singleton(\App\Application\Payment\Services\PaymentService::class);
