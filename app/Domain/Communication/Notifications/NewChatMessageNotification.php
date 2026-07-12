@@ -25,7 +25,7 @@ class NewChatMessageNotification extends Notification
     {
         return [
             'title'   => 'رسالة جديدة 💬',
-            'message' => "لديك رسالة جديدة من {$this->senderName}: '" . mb_strimwidth($this->chatMessage->message, 0, 50, '...') . "'",
+            'message' => "لديك رسالة جديدة من {$this->senderName}: '" . mb_strimwidth($this->chatMessage->message ?? ($this->chatMessage->attachment_path ? '[ملف مرفق]' : ''), 0, 50, '...') . "'",
             'link'    => route('chat.index', ['conversation' => $this->chatMessage->conversation_id]),
         ];
     }

@@ -57,10 +57,32 @@ class ChatController extends Controller
                 ->update(['is_read' => true]);
         }
 
+        // Fetch enrolled students for teacher to start new conversations
+        $enrolledStudents = [];
+        if ($user->hasRole('teacher')) {
+            $enrolledStudents = \App\Domain\Enrollment\Models\Enrollment::with(['user:id,name,avatar', 'course:id,title'])
+                ->whereHas('course', function ($q) use ($user) {
+                    $q->where('teacher_id', $user->id);
+                })
+                ->get()
+                ->map(function ($enrollment) {
+                    return [
+                        'id'           => $enrollment->user->id,
+                        'name'         => $enrollment->user->name,
+                        'avatar'       => $enrollment->user->avatar,
+                        'course_id'    => $enrollment->course->id,
+                        'course_title' => $enrollment->course->title,
+                    ];
+                })
+                ->values()
+                ->all();
+        }
+
         return Inertia::render('Chat/Index', [
             'conversations'      => $conversations,
             'activeConversation' => $activeConversation,
             'messages'           => $messages,
+            'enrolledStudents'   => $enrolledStudents,
         ]);
     }
 
@@ -69,16 +91,26 @@ class ChatController extends Controller
         $validated = $request->validate([
             'course_id'  => ['required', 'exists:courses,id'],
             'teacher_id' => ['required', 'exists:users,id'],
+            'student_id' => ['nullable', 'exists:users,id'],
         ]);
 
-        $studentId = auth()->id();
+        $user = auth()->user();
+
+        if ($user->hasRole('teacher')) {
+            $teacherId = $user->id;
+            $studentId = $validated['student_id'] ?? null;
+            abort_if(!$studentId, 400, 'يجب تحديد الطالب لبدء المحادثة.');
+        } else {
+            $studentId = $user->id;
+            $teacherId = $validated['teacher_id'];
+        }
 
         // Check if conversation exists
         $conversation = Conversation::firstOrCreate(
             [
                 'course_id'  => $validated['course_id'],
                 'student_id' => $studentId,
-                'teacher_id' => $validated['teacher_id'],
+                'teacher_id' => $teacherId,
             ],
             [
                 'last_message_at' => now(),
@@ -92,7 +124,8 @@ class ChatController extends Controller
     {
         $validated = $request->validate([
             'conversation_id' => ['required', 'exists:conversations,id'],
-            'message'         => ['required', 'string', 'max:2000'],
+            'message'         => ['nullable', 'required_without:attachment', 'string', 'max:2000'],
+            'attachment'      => ['nullable', 'required_without:message', 'file', 'max:10240'],
         ]);
 
         $user = auth()->user();
@@ -100,10 +133,17 @@ class ChatController extends Controller
 
         abort_if($conversation->student_id !== $user->id && $conversation->teacher_id !== $user->id, 403);
 
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $path = $request->file('attachment')->store('chat_attachments', 'public');
+            $attachmentPath = '/storage/' . $path;
+        }
+
         $message = ChatMessage::create([
             'conversation_id' => $conversation->id,
             'sender_id'       => $user->id,
-            'message'         => $validated['message'],
+            'message'         => $validated['message'] ?? null,
+            'attachment_path' => $attachmentPath,
         ]);
 
         $conversation->update(['last_message_at' => now()]);
@@ -115,7 +155,7 @@ class ChatController extends Controller
             $recipient->notify(new NewChatMessageNotification($message, $user->name));
         }
 
-        return back(); // Back to the same conversation via Inertia reload
+        return back();
     }
 
     public function fetchMessages(Request $request): \Illuminate\Http\JsonResponse
