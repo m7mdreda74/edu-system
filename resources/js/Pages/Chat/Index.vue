@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useForm, router, Link, usePage } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 
@@ -21,6 +21,12 @@ const form = useForm({
     conversation_id: props.activeConversation?.id || '',
     message: '',
 });
+
+// Keep local messages in sync with backend page props
+watch(() => props.messages, (newMessages) => {
+    chatMessages.value = [...newMessages];
+    nextTick(scrollToBottom);
+}, { deep: true });
 
 const messagesContainer = ref(null);
 let pollingInterval = null;
@@ -49,7 +55,12 @@ async function fetchNewMessages() {
         if (response.ok) {
             const data = await response.json();
             if (data.messages && data.messages.length > 0) {
-                chatMessages.value.push(...data.messages);
+                // Prevent duplicate messages
+                data.messages.forEach(msg => {
+                    if (!chatMessages.value.some(existing => existing.id === msg.id)) {
+                        chatMessages.value.push(msg);
+                    }
+                });
                 nextTick(scrollToBottom);
             }
         }
