@@ -128,14 +128,26 @@ class CheckoutController extends Controller
 
     public function mockComplete(string $ref): RedirectResponse
     {
-        $payload = json_encode([
-            'type' => 'checkout.session.completed',
-            'data' => [
-                'object' => [
-                    'id' => $ref,
+        $gatewayName = $this->paymentService->getGateway()->getGatewayName();
+
+        if ($gatewayName === 'fatora') {
+            $payload = json_encode([
+                'response_code' => '000',
+                'order_id' => $ref,
+                'event' => 'payment_completed'
+            ]);
+        } else {
+            // Default to Stripe structure
+            $payload = json_encode([
+                'type' => 'checkout.session.completed',
+                'data' => [
+                    'object' => [
+                        'id' => $ref,
+                        'payment_intent' => $ref,
+                    ]
                 ]
-            ]
-        ]);
+            ]);
+        }
 
         $this->paymentService->processWebhookEvent($payload);
 
