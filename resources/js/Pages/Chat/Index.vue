@@ -106,6 +106,11 @@ function getFileName(path) {
     return path.split('/').pop();
 }
 
+// Sync form conversation_id when activeConversation changes
+watch(() => props.activeConversation, (newVal) => {
+    form.conversation_id = newVal?.id || '';
+}, { immediate: true });
+
 // Keep local messages in sync with backend page props
 watch(() => props.messages, (newMessages) => {
     chatMessages.value = [...newMessages];
@@ -316,6 +321,11 @@ onUnmounted(() => {
 
                         <!-- Message Input Panel -->
                         <div class="p-4 bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700 flex flex-col gap-2">
+                            <!-- Validation Errors Banner -->
+                            <div v-if="Object.keys(form.errors).length > 0" class="text-xs text-red-600 dark:text-red-400 font-bold px-3 py-1.5 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-950 rounded-xl self-start">
+                                {{ Object.values(form.errors)[0] }}
+                            </div>
+
                             <!-- Attachment Preview Panel -->
                             <div v-if="selectedFile" class="flex items-center gap-3 p-2 bg-white dark:bg-surface-950 rounded-2xl border border-surface-200 dark:border-surface-800 self-start max-w-sm relative">
                                 <button type="button" @click="clearAttachment" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors shadow-sm">
