@@ -74,7 +74,7 @@ const menuGroups = computed(() => {
                     { label: 'كورساتي',      icon: 'courses',   href: route('teacher.courses'),   name: 'teacher.courses' },
                     { label: 'الحصص المباشرة',icon: 'live',      href: route('teacher.live-sessions'), name: 'teacher.live-sessions' },
                     { label: 'الرسائل',      icon: 'chat',      href: route('chat.index'),       name: 'chat.index' },
-                    { label: 'أرباحي',       icon: 'earnings',  href: '#',                       name: 'teacher.earnings' },
+                    { label: 'أرباحي',       icon: 'earnings',  href: route('teacher.dashboard'), name: 'teacher.earnings' },
                 ]
             }
         ];
