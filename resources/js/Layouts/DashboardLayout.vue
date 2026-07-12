@@ -95,7 +95,7 @@ const menuGroups = computed(() => {
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),         name: 'dashboard' },
                     { label: 'دوراتي',   icon: 'courses',   href: route('courses.index'),     name: 'courses' },
                     { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),        name: 'chat.index' },
-                    { label: 'شهاداتي',  icon: 'student',   href: '#',                        name: 'certificates' },
+                    { label: 'شهاداتي',  icon: 'student',   href: route('dashboard') + '#completed-courses', name: 'certificates' },
                 ]
             }
         ];

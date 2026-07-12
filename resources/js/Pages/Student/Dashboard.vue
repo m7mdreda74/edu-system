@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -19,6 +19,17 @@ function formatDuration(seconds) {
 }
 
 const allEnrollments = computed(() => [...props.inProgress, ...props.completed]);
+
+onMounted(() => {
+    if (window.location.hash === '#completed-courses') {
+        setTimeout(() => {
+            const el = document.getElementById('completed-courses');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+            }
+        }, 300);
+    }
+});
 </script>
 
 <template>
@@ -177,7 +188,7 @@ const allEnrollments = computed(() => [...props.inProgress, ...props.completed])
             </section>
 
             <!-- ── Completed Courses ────────────────────────────── -->
-            <section v-if="completed.length">
+            <section v-if="completed.length" id="completed-courses">
                 <h2 class="text-xl font-bold text-surface-900 dark:text-white mb-5 flex items-center gap-2">
                     <Icon name="success" class="w-6 h-6 text-green-500" />
                     <span>الكورسات المكتملة</span>
