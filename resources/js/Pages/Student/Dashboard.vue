@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
@@ -175,14 +175,21 @@ onMounted(() => {
                             </div>
                         </div>
 
-                        <!-- Continue Button -->
-                        <Link
-                            :href="route('student.learn', { slug: enrollment.course?.slug })"
-                            class="btn-primary w-full text-center transition-all duration-200 transform hover:translate-y-[-2px] hover:shadow-glow-primary"
-                            id="continue-course-btn"
-                        >
-                            متابعة التعلم
-                        </Link>
+                        <!-- Actions -->
+                        <div class="flex gap-2 mt-auto">
+                            <Link
+                                :href="route('student.learn', { slug: enrollment.course?.slug })"
+                                class="btn-primary flex-1 text-center transition-all duration-200"
+                                id="continue-course-btn"
+                            >
+                                متابعة التعلم
+                            </Link>
+                            <form v-if="enrollment.course?.teacher_id" @submit.prevent="router.post(route('chat.start'), { course_id: enrollment.course.id, teacher_id: enrollment.course.teacher_id })" class="shrink-0">
+                                <button type="submit" class="btn-outline px-3.5 hover:bg-surface-100 dark:hover:bg-surface-700 py-2.5 h-full rounded-xl" title="راسل المدرس">
+                                    <Icon name="chat" class="w-5 h-5 text-primary-500" />
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -224,12 +231,19 @@ onMounted(() => {
                             </div>
                         </div>
 
-                        <Link
-                            :href="route('student.certificate', { enrollmentId: enrollment.id })"
-                            class="btn-outline w-full text-center"
-                        >
-                            عرض الشهادة
-                        </Link>
+                        <div class="flex gap-2">
+                            <Link
+                                :href="route('student.certificate', { enrollmentId: enrollment.id })"
+                                class="btn-outline flex-1 text-center"
+                            >
+                                عرض الشهادة
+                            </Link>
+                            <form v-if="enrollment.course?.teacher_id" @submit.prevent="router.post(route('chat.start'), { course_id: enrollment.course.id, teacher_id: enrollment.course.teacher_id })" class="shrink-0">
+                                <button type="submit" class="btn-outline px-3.5 hover:bg-surface-100 dark:hover:bg-surface-700 py-2.5 h-full rounded-xl" title="راسل المدرس">
+                                    <Icon name="chat" class="w-5 h-5 text-primary-500" />
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </section>

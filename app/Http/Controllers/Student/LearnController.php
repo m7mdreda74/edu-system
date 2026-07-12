@@ -24,7 +24,7 @@ class LearnController extends Controller
     public function show(string $slug): Response
     {
         $user   = auth()->user();
-        $course = Course::where('slug', $slug)->where('is_published', true)->firstOrFail();
+        $course = Course::with('teacher')->where('slug', $slug)->where('is_published', true)->firstOrFail();
 
         // Authorization: only enrolled students
         $enrollment = $this->enrollmentService->findEnrollment($user->id, $course->id);
@@ -62,6 +62,10 @@ class LearnController extends Controller
                 'title'        => $course->title,
                 'slug'         => $course->slug,
                 'total_lessons'=> $course->total_lessons,
+                'teacher'      => [
+                    'id'   => $course->teacher_id,
+                    'name' => $course->teacher ? $course->teacher->name : null,
+                ],
             ],
             'lessons'     => $lessons,
             'enrollment'  => [

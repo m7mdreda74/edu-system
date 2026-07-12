@@ -277,9 +277,18 @@ function uploadHomework(id) {
                             </div>
                             <h2 class="text-xl font-bold text-white">{{ activeLesson?.title }}</h2>
                         </div>
-                        <div v-if="localCompleted[activeLesson?.id]"
-                             class="badge-green flex-shrink-0">
-                            ✓ مكتمل
+                        <div class="flex items-center gap-3">
+                            <form v-if="course.teacher" @submit.prevent="router.post(route('chat.start'), { course_id: course.id, teacher_id: course.teacher.id })">
+                                <button type="submit" class="btn-sm bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl flex items-center gap-1.5 transition-colors text-xs py-1.5 px-3">
+                                    <Icon name="chat" class="w-3.5 h-3.5" />
+                                    <span>راسل المدرس</span>
+                                </button>
+                            </form>
+
+                            <div v-if="localCompleted[activeLesson?.id]"
+                                 class="badge-green flex-shrink-0">
+                                ✓ مكتمل
+                            </div>
                         </div>
                     </div>
 
