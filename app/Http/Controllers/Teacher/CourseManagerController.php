@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,7 +23,9 @@ class CourseManagerController extends Controller
 
     public function index(): Response
     {
-        $courses = auth()->user()
+        /** @var \App\Domain\User\Models\User $user */
+        $user = Auth::user();
+        $courses = $user
             ->coursesAsTeacher()
             ->with('subject:id,name')
             ->withCount('enrollments')
@@ -43,7 +46,7 @@ class CourseManagerController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateCourse($request);
-        $validated['teacher_id'] = auth()->id();
+        $validated['teacher_id'] = Auth::id();
         $validated['slug']       = $this->uniqueSlug($validated['title']);
         $validated['is_published'] = false; // Draft by default
 
@@ -92,7 +95,7 @@ class CourseManagerController extends Controller
     private function ownerCourseOrFail(int $id): Course
     {
         return Course::where('id', $id)
-            ->where('teacher_id', auth()->id()) // Ownership check
+            ->where('teacher_id', Auth::id()) // Ownership check
             ->firstOrFail();
     }
 

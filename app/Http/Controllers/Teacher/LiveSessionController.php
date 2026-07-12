@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use App\Domain\Communication\Notifications\LiveSessionStartedNotification;
 use App\Domain\User\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,7 +19,7 @@ class LiveSessionController extends Controller
 {
     public function index(): Response
     {
-        $teacherId = auth()->id();
+        $teacherId = Auth::id();
         
         $courses = Course::where('teacher_id', $teacherId)->get(['id', 'title']);
         $sessions = LiveSession::with('course:id,title')
@@ -44,9 +45,9 @@ class LiveSessionController extends Controller
 
         $course = Course::findOrFail($validated['course_id']);
         
-        abort_if($course->teacher_id !== auth()->id(), 403, 'غير مصرح.');
+        abort_if($course->teacher_id !== Auth::id(), 403, 'غير مصرح.');
 
-        $validated['teacher_id'] = auth()->id();
+        $validated['teacher_id'] = Auth::id();
         $validated['status']     = 'scheduled';
 
         LiveSession::create($validated);
@@ -57,7 +58,7 @@ class LiveSessionController extends Controller
     public function updateStatus(Request $request, int $id): RedirectResponse
     {
         $session = LiveSession::findOrFail($id);
-        abort_if($session->teacher_id !== auth()->id(), 403, 'غير مصرح.');
+        abort_if($session->teacher_id !== Auth::id(), 403, 'غير مصرح.');
 
         $validated = $request->validate([
             'status'        => ['required', 'in:scheduled,live,ended'],
@@ -72,6 +73,7 @@ class LiveSessionController extends Controller
                 ->pluck('user_id');
             $students = User::whereIn('id', $studentIds)->get();
             foreach ($students as $student) {
+                /** @var User $student */
                 $student->notify(new LiveSessionStartedNotification($session));
             }
         } elseif ($validated['status'] === 'ended' && $session->status !== 'ended') {
@@ -91,7 +93,7 @@ class LiveSessionController extends Controller
     public function destroy(int $id): RedirectResponse
     {
         $session = LiveSession::findOrFail($id);
-        abort_if($session->teacher_id !== auth()->id(), 403, 'غير مصرح.');
+        abort_if($session->teacher_id !== Auth::id(), 403, 'غير مصرح.');
 
         $session->delete();
 

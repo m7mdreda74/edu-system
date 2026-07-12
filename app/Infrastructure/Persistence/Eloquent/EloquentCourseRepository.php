@@ -9,6 +9,7 @@ use App\Domain\Course\Models\Course;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Eloquent implementation of CourseRepositoryInterface.
@@ -28,7 +29,8 @@ class EloquentCourseRepository implements CourseRepositoryInterface
         ->where('slug', $slug)
         ->where('is_published', true);
 
-        $user = auth()->user();
+        /** @var \App\Domain\User\Models\User|null $user */
+        $user = Auth::user();
         if ($user && $user->hasRole('student') && $user->grade_level) {
             $query->where(function ($q) use ($user) {
                 $q->where('grade_level', $user->grade_level)
@@ -49,7 +51,8 @@ class EloquentCourseRepository implements CourseRepositoryInterface
                 'grade_level', 'level', 'total_duration', 'total_lessons',
             ]);
 
-        $user = auth()->user();
+        /** @var \App\Domain\User\Models\User|null $user */
+        $user = Auth::user();
         if ($user && $user->hasRole('student') && $user->grade_level) {
             $query->where(function ($q) use ($user) {
                 $q->where('grade_level', $user->grade_level)
@@ -111,7 +114,8 @@ class EloquentCourseRepository implements CourseRepositoryInterface
             ->orderBy('enrollments_count', 'desc')
             ->limit($limit);
 
-        $user = auth()->user();
+        /** @var \App\Domain\User\Models\User|null $user */
+        $user = Auth::user();
         if ($user && $user->hasRole('student') && $user->grade_level) {
             $query->where(function ($q) use ($user) {
                 $q->where('grade_level', $user->grade_level)

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Course;
 use App\Domain\Course\Models\LiveSession;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,7 +16,8 @@ class LiveSessionRoomController extends Controller
     public function show(int $id): Response
     {
         $session = LiveSession::with('course:id,title', 'teacher:id,name')->findOrFail($id);
-        $user = auth()->user();
+        /** @var \App\Domain\User\Models\User $user */
+        $user = Auth::user();
 
         // Check if teacher or enrolled student
         $isTeacher = $session->teacher_id === $user->id;

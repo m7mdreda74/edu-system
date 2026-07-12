@@ -74,6 +74,7 @@ class CourseController extends Controller
                   });
             });
 
+        /** @var User|null $user */
         $user = Auth::user();
         if ($user && $user->hasRole('student') && $user->grade_level) {
             $query->where(function ($q) use ($user) {
