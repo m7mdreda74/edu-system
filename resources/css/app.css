@@ -22,9 +22,9 @@
     body {
         @apply text-surface-900 antialiased;
         @apply dark:text-white;
-        background: radial-gradient(circle at 5% 5%, rgba(212, 175, 55, 0.09) 0%, transparent 40%),
-                    radial-gradient(circle at 95% 95%, rgba(141, 28, 61, 0.05) 0%, transparent 40%),
-                    linear-gradient(135deg, #fdfcf9 0%, #f7f4ee 100%) !important;
+        background: radial-gradient(circle at 10% 10%, rgba(212, 175, 55, 0.15) 0%, transparent 50%),
+                    radial-gradient(circle at 90% 90%, rgba(141, 28, 61, 0.08) 0%, transparent 50%),
+                    linear-gradient(135deg, #fcfaf6 0%, #f4eee2 100%) !important;
         background-attachment: fixed !important;
     }
     
@@ -104,21 +104,23 @@
     /* ── Cards ── */
     .card {
         @apply bg-white dark:bg-surface-800/80
-               rounded-2xl shadow-card
+               rounded-2xl
                transition-all duration-300 ease-in-out
                overflow-hidden;
-        border: 1px solid rgba(141, 28, 61, 0.06);
+        border: 1px solid rgba(212, 175, 55, 0.15); /* Sleek gold border for definition in light mode */
+        box-shadow: 0 10px 30px -15px rgba(141, 28, 61, 0.08), 0 4px 12px rgba(0, 0, 0, 0.01);
     }
 
     html.dark .card,
     .dark .card {
-        border: 1px solid rgba(212, 175, 55, 0.12);
+        border: 1px solid rgba(212, 175, 55, 0.16) !important;
         background-color: rgba(19, 11, 13, 0.6) !important;
         backdrop-filter: blur(12px);
+        box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.5);
     }
 
     .card-hover {
-        @apply card border border-surface-100 dark:border-surface-800/60 hover:border-accent-500/40 hover:shadow-glow-accent hover:-translate-y-1.5 transition-all duration-300 ease-out;
+        @apply card transition-all duration-300 ease-out;
     }
 
     /* ── Inputs ── */
@@ -316,13 +318,16 @@
     .hover-scale-premium {
         @apply transition-all duration-300 ease-out;
     }
-    .hover-scale-premium:hover {
-        transform: translateY(-6px) scale(1.03);
-        box-shadow: 0 20px 40px -15px rgba(141, 28, 61, 0.25);
+    .hover-scale-premium:hover,
+    .card-hover:hover {
+        transform: translateY(-8px) scale(1.03) !important;
+        border-color: rgba(212, 175, 55, 0.75) !important;
+        box-shadow: 0 20px 35px -10px rgba(212, 175, 55, 0.35),
+                    0 0 15px rgba(212, 175, 55, 0.15) !important;
     }
 
     .hover-glow:hover {
-        box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
+        box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
         transition: all 0.3s ease;
     }
 }

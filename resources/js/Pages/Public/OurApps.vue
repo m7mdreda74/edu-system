@@ -22,7 +22,7 @@ const huaweiUrl = computed(() => settings.value.app_huawei_url || '#');
     <AppLayout>
         <Head title="تطبيقاتنا" />
 
-        <div class="bg-surface-50 dark:bg-surface-950 py-16" dir="rtl">
+        <div class="bg-transparent py-16" dir="rtl">
             <div class="container-app px-4 max-w-4xl text-center">
                 <!-- Header -->
                 <div class="text-center mb-12">

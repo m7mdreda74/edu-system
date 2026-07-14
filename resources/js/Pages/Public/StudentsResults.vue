@@ -43,7 +43,7 @@ const filteredResults = computed(() => {
     <AppLayout>
         <Head title="نتائج طلابنا" />
 
-        <div class="bg-surface-50 dark:bg-surface-950 py-16" dir="rtl">
+        <div class="bg-transparent py-16" dir="rtl">
             <div class="container-app px-4 max-w-5xl">
                 <!-- Header -->
                 <div class="text-center mb-12">

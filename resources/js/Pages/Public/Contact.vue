@@ -43,7 +43,7 @@ function handleSubmit() {
     <AppLayout>
         <Head title="تواصل معنا" />
 
-        <div class="bg-surface-50 dark:bg-surface-955 py-16" dir="rtl">
+        <div class="bg-transparent py-16" dir="rtl">
             <div class="container-app px-4 max-w-4xl">
                 <!-- Header -->
                 <div class="text-center mb-12">

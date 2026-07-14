@@ -312,7 +312,7 @@ function selectGrade(glKey) {
                             stage: selectedStageTab !== 'all' ? selectedStageTab : undefined,
                             grade_level: selectedGradeTab !== 'all' ? selectedGradeTab : undefined
                         })"
-                        class="hover-scale-premium card p-6 text-center group flex flex-col items-center justify-center transition-all duration-300 border border-surface-100 dark:border-surface-800/40 hover:border-accent-500/30"
+                        class="hover-scale-premium card p-6 text-center group flex flex-col items-center justify-center transition-all duration-300"
                     >
                         <div class="p-4 rounded-full bg-accent-50/70 dark:bg-accent-950/40 text-primary-600 dark:text-primary-400 mb-4 group-hover:scale-110 group-hover:bg-accent-100 dark:group-hover:bg-accent-900/50 transition-all duration-300 border border-accent-500/10">
                             <Icon :name="subjectIcons[subject.icon] ?? 'courses'" class="w-8 h-8 group-hover:animate-float" />
@@ -344,7 +344,7 @@ function selectGrade(glKey) {
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div v-for="result in studentResults" :key="result.name"
-                        class="card-hover hover-scale-premium p-6 flex flex-col items-center justify-center text-center border border-surface-200 dark:border-surface-800 group"
+                        class="card-hover hover-scale-premium p-6 flex flex-col items-center justify-center text-center group"
                     >
                         <div class="w-16 h-16 rounded-full overflow-hidden bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center text-primary-600 dark:text-primary-400 mb-4 border-2 border-primary-100 dark:border-primary-900 group-hover:scale-110 group-hover:border-primary-500 transition-all duration-300">
                             <span class="text-lg font-black group-hover:animate-float">{{ result.name.charAt(0) }}</span>
