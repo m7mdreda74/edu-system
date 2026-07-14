@@ -15,6 +15,8 @@ function getGradeLabel(key) {
 const props = defineProps({
     course:     { type: Object,  required: true },
     isEnrolled: { type: Boolean, default: false },
+    hasParent:  { type: Boolean, default: false },
+    hasPendingPurchaseRequest: { type: Boolean, default: false },
 });
 
 const cartStore = useCartStore();
@@ -54,9 +56,11 @@ const totalDurationFormatted = computed(() => {
 });
 
 function formatQAR(halala) {
-    return new Intl.NumberFormat('ar-QA', {
-        style: 'currency', currency: 'QAR', minimumFractionDigits: 0,
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
     }).format(halala / 100);
+    return `${formatted} ر.ق.`;
 }
 
 function handleEnroll() {
@@ -67,6 +71,12 @@ function handleEnroll() {
         cartStore.addToCart(props.course);
         router.visit(route('checkout.show', { slug: props.course.slug }));
     }
+}
+
+function requestParentToPay() {
+    router.post(route('student.purchase-requests.store'), {
+        course_id: props.course.id
+    });
 }
 </script>
 
@@ -262,10 +272,23 @@ function handleEnroll() {
                             </form>
                         </template>
                         <template v-else>
-                            <button @click="handleEnroll"
-                                    class="btn-primary w-full" id="enroll-btn">
-                                {{ effectivePrice === 0 ? 'سجّل مجاناً' : 'اشتري الكورس' }}
-                            </button>
+                            <div class="w-full space-y-2">
+                                <button @click="handleEnroll"
+                                        class="btn-primary w-full" id="enroll-btn">
+                                    {{ effectivePrice === 0 ? 'سجّل مجاناً' : 'اشتري الكورس' }}
+                                </button>
+                                
+                                <button v-if="effectivePrice > 0 && hasParent && !hasPendingPurchaseRequest"
+                                        @click="requestParentToPay"
+                                        class="btn-outline w-full text-xs hover:bg-primary-50 dark:hover:bg-primary-950/40">
+                                    طلب سداد من ولي الأمر 💳
+                                </button>
+                                
+                                <div v-if="hasPendingPurchaseRequest" 
+                                     class="text-xs text-center text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                                    تم إرسال طلب دفع لولي الأمر وبانتظار السداد
+                                </div>
+                            </div>
                         </template>
                     </div>
 

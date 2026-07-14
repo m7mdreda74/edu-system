@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onUnmounted, watch } from 'vue';
+import { ref, computed, onUnmounted, watch, onMounted } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import Plyr from 'plyr';
@@ -14,18 +14,19 @@ const props = defineProps({
 });
 
 // ── State ──────────────────────────────────────────────────────
+const localLessons      = ref([...props.lessons]);
 const activeLessonIndex = ref(0);
 const progressPercent   = ref(props.enrollment.progress_percent);
 const sidebarOpen       = ref(true);
 const isCompleted       = ref(props.enrollment.completed_at !== null);
-const activeTab         = ref('description'); // description | worksheets
-const signedVideoUrl   = ref('');
-const isVideoLoading   = ref(false);
+const activeTab         = ref('description'); // description | worksheets | questions
+const signedVideoUrl    = ref('');
+const isVideoLoading    = ref(false);
 
-const activeLesson = computed(() => props.lessons[activeLessonIndex.value] ?? null);
+const activeLesson = computed(() => localLessons.value[activeLessonIndex.value] ?? null);
 
 const completedCount = computed(() =>
-    props.lessons.filter(l => l.is_completed).length
+    localLessons.value.filter(l => l.is_completed).length
 );
 
 // Track local completion state for instant UI feedback
@@ -68,7 +69,6 @@ function onVideoPause() {
 }
 
 async function reportProgress(watchedSeconds) {
-    // Debounce — don't report same position twice
     if (watchedSeconds === lastReportedSeconds) return;
     lastReportedSeconds = watchedSeconds;
 
@@ -87,24 +87,31 @@ async function reportProgress(watchedSeconds) {
         progressPercent.value = res.data.progress_percent;
         isCompleted.value     = res.data.is_completed;
 
-        // Mark lesson as completed locally for instant UI update
+        if (res.data.lessons) {
+            localLessons.value = res.data.lessons;
+        }
+
         if (watchedSeconds >= lesson.duration_seconds * 0.8) {
             localCompleted.value[lesson.id] = true;
         }
     } catch (e) {
-        // Silent fail — progress will sync on next report
         console.warn('Progress update failed, will retry:', e.message);
     }
 }
 
 function selectLesson(index) {
+    const targetLesson = localLessons.value[index];
+    if (targetLesson && targetLesson.is_locked) {
+        alert('هذا الدرس مغلق. يجب مشاهدة الدرس السابق أولاً لفتحه.');
+        return;
+    }
     clearInterval(progressInterval);
     lastReportedSeconds = 0;
     activeLessonIndex.value = index;
 }
 
 function goNextLesson() {
-    if (activeLessonIndex.value < props.lessons.length - 1) {
+    if (activeLessonIndex.value < localLessons.value.length - 1) {
         selectLesson(activeLessonIndex.value + 1);
     }
 }
@@ -114,6 +121,103 @@ function formatDuration(seconds) {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// Watermark Logic
+const watermarkStyle = ref({
+    top: '15%',
+    left: '15%',
+});
+
+let watermarkInterval = null;
+
+function updateWatermarkPosition() {
+    const topVal = Math.floor(Math.random() * 60) + 15;
+    const leftVal = Math.floor(Math.random() * 60) + 15;
+    watermarkStyle.value = {
+        top: `${topVal}%`,
+        left: `${leftVal}%`,
+    };
+}
+
+onMounted(() => {
+    updateWatermarkPosition();
+    watermarkInterval = setInterval(updateWatermarkPosition, 7000);
+});
+
+// Q&A Forum Logic
+const questions = ref([]);
+const newQuestionContent = ref('');
+const includeTimestamp = ref(false);
+const replyContents = ref({});
+
+async function fetchQuestions() {
+    if (!activeLesson.value) return;
+    try {
+        const res = await axios.get(route('lessons.questions.index', { lessonId: activeLesson.value.id }));
+        questions.value = res.data;
+    } catch (e) {
+        console.error('Failed to fetch Q&A questions:', e);
+    }
+}
+
+async function submitQuestion() {
+    if (!newQuestionContent.value.trim() || !activeLesson.value) return;
+    try {
+        let timestamp = null;
+        if (includeTimestamp.value && player) {
+            timestamp = Math.floor(player.currentTime);
+        }
+
+        const res = await axios.post(route('lessons.questions.store', { lessonId: activeLesson.value.id }), {
+            content: newQuestionContent.value,
+            video_timestamp: timestamp,
+        });
+
+        questions.value.unshift({
+            ...res.data,
+            replies: [],
+        });
+        newQuestionContent.value = '';
+        includeTimestamp.value = false;
+    } catch (e) {
+        alert('حدث خطأ أثناء طرح السؤال، يرجى المحاولة لاحقاً.');
+    }
+}
+
+async function submitReply(questionId) {
+    const replyText = replyContents.value[questionId];
+    if (!replyText || !replyText.trim() || !activeLesson.value) return;
+
+    try {
+        const res = await axios.post(route('lessons.questions.store', { lessonId: activeLesson.value.id }), {
+            content: replyText,
+            parent_id: questionId,
+        });
+
+        const q = questions.value.find(item => item.id === questionId);
+        if (q) {
+            if (!q.replies) q.replies = [];
+            q.replies.push(res.data);
+        }
+        replyContents.value[questionId] = '';
+    } catch (e) {
+        alert('حدث خطأ أثناء إضافة الرد، يرجى المحاولة لاحقاً.');
+    }
+}
+
+function seekTo(seconds) {
+    if (player) {
+        player.currentTime = seconds;
+        player.play();
+    }
+}
+
+function formatQuestionTime(seconds) {
+    if (seconds === null || seconds === undefined) return '';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `عند الدقيقة ${m}:${String(s).padStart(2, '0')}`;
 }
 
 watch(activeLesson, async () => {
@@ -139,6 +243,8 @@ watch(activeLesson, async () => {
         isVideoLoading.value = false;
     }
     
+    fetchQuestions();
+
     setTimeout(() => {
         if (videoRef.value) {
             player = new Plyr(videoRef.value, {
@@ -159,6 +265,7 @@ watch(activeLesson, async () => {
 
 onUnmounted(() => {
     clearInterval(progressInterval);
+    clearInterval(watermarkInterval);
     if (player) {
         player.destroy();
     }
@@ -239,13 +346,22 @@ function uploadHomework(id) {
 
                 <!-- Video Player -->
                 <div class="bg-black flex-shrink-0">
-                    <div class="max-w-4xl mx-auto w-full aspect-video relative">
+                    <div class="max-w-4xl mx-auto w-full aspect-video relative overflow-hidden">
                         <!-- Loading spinner -->
                         <div v-if="isVideoLoading" class="absolute inset-0 flex items-center justify-center bg-black/80 z-20">
                             <div class="flex flex-col items-center gap-3">
                                 <div class="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
                                 <div class="text-xs text-surface-400">جاري تحميل تشفير الفيديو الآمن...</div>
                             </div>
+                        </div>
+
+                        <!-- Dynamic Watermark overlay -->
+                        <div v-if="signedVideoUrl"
+                             class="absolute pointer-events-none select-none z-10 transition-all duration-1000 text-[10px] sm:text-xs font-semibold text-white/10 dark:text-white/10 drop-shadow-sm flex flex-col items-center gap-0.5 bg-black/5 px-2 py-0.5 rounded"
+                             :style="watermarkStyle"
+                        >
+                            <span>{{ $page.props.auth.user?.name }}</span>
+                            <span>{{ $page.props.auth.user?.email }}</span>
                         </div>
 
                         <video
@@ -293,7 +409,7 @@ function uploadHomework(id) {
                     </div>
 
                     <!-- Tabs Header -->
-                    <div class="flex border-b border-surface-800 mb-6">
+                    <div class="flex border-b border-surface-800 mb-6 bg-surface-900/10 p-1 rounded-xl">
                         <button @click="activeTab = 'description'"
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all"
                                 :class="activeTab === 'description' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
@@ -306,6 +422,12 @@ function uploadHomework(id) {
                         >
                             الملفات والواجبات ({{ filteredWorksheets.length }})
                         </button>
+                        <button @click="activeTab = 'questions'"
+                                class="px-4 py-2 text-sm font-bold border-b-2 transition-all"
+                                :class="activeTab === 'questions' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
+                        >
+                            الأسئلة والنقاشات ({{ questions.length }})
+                        </button>
                     </div>
 
                     <!-- Tab Content: Description -->
@@ -316,7 +438,7 @@ function uploadHomework(id) {
 
                         <div class="flex gap-3 pt-4">
                             <button
-                                v-if="activeLessonIndex < lessons.length - 1"
+                                v-if="activeLessonIndex < localLessons.length - 1"
                                 @click="goNextLesson"
                                 class="btn-primary"
                                 id="next-lesson-btn"
@@ -385,6 +507,68 @@ function uploadHomework(id) {
                             لا توجد أوراق عمل أو ملفات مرفقة لهذا الدرس.
                         </div>
                     </div>
+
+                    <!-- Tab Content: Q&A -->
+                    <div v-if="activeTab === 'questions'" class="space-y-6">
+                        <!-- Post Question Form -->
+                        <form @submit.prevent="submitQuestion" class="space-y-3 bg-surface-900/40 p-4 rounded-2xl border border-surface-800">
+                            <h4 class="font-bold text-sm text-white">اطرح سؤالاً أو استفساراً حول هذا الدرس:</h4>
+                            <textarea v-model="newQuestionContent" required rows="3" class="input p-3 text-sm bg-surface-950 border-surface-800 text-white rounded-xl focus:ring-primary-500/20" placeholder="اكتب سؤالك هنا..."></textarea>
+                            <div class="flex items-center justify-between gap-3 flex-wrap">
+                                <label v-if="player" class="flex items-center gap-2 text-xs text-surface-400 cursor-pointer">
+                                    <input type="checkbox" v-model="includeTimestamp" class="rounded border-surface-800 text-primary-600 bg-surface-950" />
+                                    <span>ربط السؤال بالتوقيت الحالي للفيديو ({{ formatDuration(Math.floor(player.currentTime)) }})</span>
+                                </label>
+                                <button type="submit" class="btn-primary btn-sm px-4">نشر السؤال 💬</button>
+                            </div>
+                        </form>
+
+                        <!-- Questions List -->
+                        <div class="space-y-4">
+                            <div v-for="q in questions" :key="q.id" class="card p-5 bg-surface-900/20 border-surface-800 space-y-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-950/20 text-primary-600 font-bold flex items-center justify-center text-xs">
+                                            {{ q.user?.name?.charAt(0) }}
+                                        </div>
+                                        <div>
+                                            <div class="font-bold text-xs text-white">{{ q.user?.name }}</div>
+                                            <div class="text-[10px] text-surface-500 mt-0.5">منذ {{ new Date(q.created_at).toLocaleDateString('ar-EG') }}</div>
+                                        </div>
+                                    </div>
+                                    <button v-if="q.video_timestamp !== null" @click="seekTo(q.video_timestamp)" class="text-xs text-primary-400 hover:text-primary-300 font-bold flex items-center gap-1">
+                                        ⏱️ {{ formatQuestionTime(q.video_timestamp) }}
+                                    </button>
+                                </div>
+
+                                <p class="text-sm text-surface-300 leading-relaxed">{{ q.content }}</p>
+
+                                <div v-if="q.replies?.length" class="space-y-3 border-t border-surface-800 pt-3 ms-6">
+                                    <div v-for="reply in q.replies" :key="reply.id" class="flex items-start gap-3 bg-surface-900/10 p-3 rounded-xl">
+                                        <div class="w-7 h-7 rounded-full bg-surface-800 text-surface-400 font-bold flex items-center justify-center text-[10px]">
+                                            {{ reply.user?.name?.charAt(0) }}
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="font-bold text-xs text-white">{{ reply.user?.name }}</span>
+                                                <span class="text-[9px] text-surface-500">منذ {{ new Date(reply.created_at).toLocaleDateString('ar-EG') }}</span>
+                                            </div>
+                                            <p class="text-xs text-surface-300">{{ reply.content }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <form @submit.prevent="submitReply(q.id)" class="flex gap-2 ms-6 border-t border-surface-800/50 pt-3">
+                                    <input v-model="replyContents[q.id]" required class="input py-1 px-3 text-xs bg-surface-950 border-surface-800 text-white rounded-xl flex-1 focus:ring-primary-500/20" placeholder="اكتب رداً أو توضيحاً..." />
+                                    <button type="submit" class="btn-outline btn-sm py-1 px-3 text-xs">رد</button>
+                                </form>
+                            </div>
+
+                            <div v-if="questions.length === 0" class="text-center py-10 text-surface-500">
+                                لا توجد أسئلة حتى الآن للدرس. كن أول من يطرح سؤالاً!
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -402,13 +586,13 @@ function uploadHomework(id) {
                     <div class="p-4 border-b border-surface-800">
                         <h3 class="text-white font-bold text-sm">محتوى الكورس</h3>
                         <p class="text-surface-400 text-xs mt-1">
-                            {{ completedCount }} / {{ lessons.length }} مكتمل
+                            {{ completedCount }} / {{ localLessons.value.length }} مكتمل
                         </p>
                     </div>
 
                     <div class="flex-1">
                         <button
-                            v-for="(lesson, idx) in lessons"
+                            v-for="(lesson, idx) in localLessons"
                             :key="lesson.id"
                             @click="selectLesson(idx)"
                             class="w-full flex items-start gap-3 p-4 text-start transition-colors duration-150"
@@ -419,21 +603,26 @@ function uploadHomework(id) {
                         >
                             <!-- Status icon -->
                             <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-xs"
-                                 :class="localCompleted[lesson.id]
-                                    ? 'bg-green-500 text-white'
-                                    : idx === activeLessonIndex
-                                        ? 'bg-primary-500 text-white'
-                                        : 'bg-surface-700 text-surface-400'"
+                                 :class="lesson.is_locked 
+                                    ? 'bg-surface-800 text-surface-600'
+                                    : localCompleted[lesson.id]
+                                        ? 'bg-green-500 text-white'
+                                        : idx === activeLessonIndex
+                                            ? 'bg-primary-500 text-white'
+                                            : 'bg-surface-700 text-surface-400'"
                             >
-                                <span v-if="localCompleted[lesson.id]">✓</span>
+                                <span v-if="lesson.is_locked">🔒</span>
+                                <span v-else-if="localCompleted[lesson.id]">✓</span>
                                 <span v-else>{{ idx + 1 }}</span>
                             </div>
 
                             <div class="flex-1 min-w-0">
                                 <div class="text-sm font-medium line-clamp-2"
-                                     :class="idx === activeLessonIndex
-                                        ? 'text-white'
-                                        : 'text-surface-300'">
+                                     :class="lesson.is_locked
+                                        ? 'text-surface-500'
+                                        : idx === activeLessonIndex
+                                            ? 'text-white font-bold'
+                                            : 'text-surface-300'">
                                     {{ lesson.title }}
                                 </div>
                                 <div class="text-xs text-surface-500 mt-0.5 flex items-center gap-1">

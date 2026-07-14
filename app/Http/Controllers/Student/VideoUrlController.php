@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * VideoUrlController — serves signed, time-limited video URLs.
@@ -31,11 +32,9 @@ class VideoUrlController extends Controller
         /** @var \App\Domain\User\Models\User $user */
         $user = $request->user();
 
-        abort_unless(
-            $lesson->is_free_preview || $user->isEnrolledIn($lesson->course),
-            403,
-            'يجب أن تكون مسجلاً في الكورس للوصول لهذا المحتوى.'
-        );
+        if (!$lesson->is_free_preview) {
+            Gate::authorize('learn', $lesson->course);
+        }
 
         // Generate a signed URL that expires in 15 minutes
         // In production: replace with Bunny Stream token or CloudFront signed URL
@@ -58,6 +57,16 @@ class VideoUrlController extends Controller
     public function stream(Request $request, int $lessonId): \Illuminate\Http\RedirectResponse
     {
         $lesson = CourseLesson::findOrFail($lessonId);
+
+        // Prevent hotlinking by verifying the Referer header host matches our app domain.
+        $referer = $request->header('referer');
+        if ($referer) {
+            $allowedHost = parse_url(config('app.url'), PHP_URL_HOST);
+            $refererHost = parse_url($referer, PHP_URL_HOST);
+            if ($refererHost && $refererHost !== $allowedHost) {
+                abort(403, 'غير مسموح بالربط المباشر (Hotlinking blocked).');
+            }
+        }
 
         // Redirect to actual video (in dev: direct URL; in prod: CDN signed URL)
         // This redirect is safe because clients see only the signed route, not the origin

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
@@ -13,6 +13,10 @@ const page      = usePage();
 
 const mobileMenuOpen = ref(false);
 const isDark         = ref(false);
+
+onMounted(() => {
+    isDark.value = document.documentElement.classList.contains('dark');
+});
 
 const searchQuery = ref('');
 const searchResults = ref([]);
@@ -41,6 +45,7 @@ function clearSearch() {
 function toggleDark() {
     isDark.value = !isDark.value;
     document.documentElement.classList.toggle('dark', isDark.value);
+    localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
 }
 
 const navLinks = computed(() => {

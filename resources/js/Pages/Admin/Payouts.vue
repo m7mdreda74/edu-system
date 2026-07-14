@@ -25,8 +25,11 @@ const payForm = useForm({
 });
 
 function formatQAR(halala) {
-    return new Intl.NumberFormat('ar-QA', { style: 'currency', currency: 'QAR', minimumFractionDigits: 2 })
-        .format((halala ?? 0) / 100);
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format((halala ?? 0) / 100);
+    return `${formatted} ر.ق.`;
 }
 
 function openAddModal() {

@@ -17,19 +17,25 @@ return new class extends Migration
         // ─── Teacher Payouts ──────────────────────────────────────────
         if (! Schema::hasTable('teacher_payouts')) {
             Schema::create('teacher_payouts', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('teacher_id')->constrained('users')->restrictOnDelete();
-            $table->integer('amount');                  // in halala — no floats
-            $table->integer('platform_commission');     // amount withheld by platform
-            $table->date('period_start');
-            $table->date('period_end');
-            $table->string('status')->default('pending'); // pending | paid
-            $table->timestamp('paid_at')->nullable();
-            $table->text('notes')->nullable();
-            $table->timestamps();
+                $table->id();
+                $table->foreignId('teacher_id')->constrained('users')->restrictOnDelete();
+                $table->integer('amount');                  // in halala — no floats
+                $table->integer('platform_commission');     // amount withheld by platform
+                $table->date('period_start');
+                $table->date('period_end');
+                $table->string('status')->default('pending'); // pending | paid
+                $table->timestamp('paid_at')->nullable();
+                $table->text('notes')->nullable();
+                $table->timestamps();
 
-            $table->index(['teacher_id', 'status']);
-        });
+                $table->index(['teacher_id', 'status']);
+            });
+        } else {
+            Schema::table('teacher_payouts', function (Blueprint $table) {
+                if (! Schema::hasColumn('teacher_payouts', 'platform_commission')) {
+                    $table->integer('platform_commission')->default(0)->after('amount');
+                }
+            });
         }
 
         // ─── Platform Settings ────────────────────────────────────────

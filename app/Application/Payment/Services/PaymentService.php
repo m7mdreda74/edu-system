@@ -41,7 +41,7 @@ class PaymentService
      *
      * @throws LogicException
      */
-    public function initiateCheckout(User $user, Course $course, ?string $couponCode = null): array
+    public function initiateCheckout(User $user, Course $course, ?string $couponCode = null, ?int $purchaseRequestId = null): array
     {
         // Guard: already enrolled
         if ($user->isEnrolledIn($course)) {
@@ -71,7 +71,7 @@ class PaymentService
 
         // Create pending Payment record first (before gateway call)
         // This enables idempotent webhook processing
-        $payment = DB::transaction(function () use ($user, $course, $coupon, $originalAmount, $finalAmount) {
+        $payment = DB::transaction(function () use ($user, $course, $coupon, $originalAmount, $finalAmount, $purchaseRequestId) {
             return Payment::create([
                 'user_id'         => $user->id,
                 'course_id'       => $course->id,
@@ -81,6 +81,7 @@ class PaymentService
                 'currency'        => 'QAR',
                 'gateway'         => $this->gateway->getGatewayName(),
                 'status'          => Payment::STATUS_PENDING,
+                'purchase_request_id' => $purchaseRequestId,
             ]);
         });
 
@@ -217,6 +218,12 @@ class PaymentService
             // Increment coupon usage count
             if ($payment->coupon_id) {
                 Coupon::where('id', $payment->coupon_id)->increment('used_count');
+            }
+
+            // Update purchase request status if linked
+            if ($payment->purchase_request_id) {
+                \App\Domain\Enrollment\Models\PurchaseRequest::where('id', $payment->purchase_request_id)
+                    ->update(['status' => \App\Domain\Enrollment\Models\PurchaseRequest::STATUS_APPROVED]);
             }
         });
 

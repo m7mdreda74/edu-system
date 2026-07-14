@@ -19,8 +19,8 @@ class EnrollmentObserver
             $enrollment->wasChanged('progress_percent')
             && $enrollment->progress_percent === 100
         ) {
-            // Dispatch certificate generation job — Phase 3
-            // \App\Jobs\GenerateCertificate::dispatch($enrollment);
+            // Dispatch certificate generation job
+            \App\Jobs\GenerateCertificateJob::dispatch($enrollment);
         }
     }
 }

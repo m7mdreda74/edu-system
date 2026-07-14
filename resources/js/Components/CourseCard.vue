@@ -38,11 +38,11 @@ const durationFormatted = computed(() => {
 });
 
 function formatQAR(halala) {
-    return new Intl.NumberFormat('ar-QA', {
-        style: 'currency',
-        currency: 'QAR',
+    const formatted = new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
     }).format(halala / 100);
+    return `${formatted} ر.ق.`;
 }
 
 const levelLabels = { beginner: 'مبتدئ', intermediate: 'متوسط', advanced: 'متقدم' };

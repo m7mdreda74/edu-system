@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Observers;
 
 use App\Domain\Payment\Models\Payment;
+use App\Domain\Payment\Models\PaymentAuditLog;
 
 /**
  * Reacts to Payment model events.
@@ -16,15 +17,33 @@ use App\Domain\Payment\Models\Payment;
  */
 class PaymentObserver
 {
+    public function created(Payment $payment): void
+    {
+        PaymentAuditLog::create([
+            'payment_id' => $payment->id,
+            'status'     => $payment->status,
+            'ip_address' => request()->ip(),
+            'payload'    => [
+                'event' => 'created',
+                'gateway' => $payment->gateway,
+                'amount' => $payment->amount,
+            ],
+        ]);
+    }
+
     public function updated(Payment $payment): void
     {
-        // Only react when transitioning TO "paid" status — not on every update
-        if (
-            $payment->wasChanged('status')
-            && $payment->isPaid()
-        ) {
-            // Dispatch via Queue — ensures idempotent processing (ShouldBeUnique)
-            // \App\Jobs\ProcessPaymentPaid::dispatch($payment);  // Phase 4
+        if ($payment->wasChanged('status')) {
+            PaymentAuditLog::create([
+                'payment_id' => $payment->id,
+                'status'     => $payment->status,
+                'ip_address' => request()->ip(),
+                'payload'    => [
+                    'event' => 'status_changed',
+                    'original' => $payment->getOriginal('status'),
+                    'new' => $payment->status,
+                ],
+            ]);
         }
     }
 }

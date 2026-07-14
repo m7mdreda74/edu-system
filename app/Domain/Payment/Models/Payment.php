@@ -40,6 +40,7 @@ class Payment extends Model
         'status',
         'receipt_path',
         'paid_at',
+        'purchase_request_id',
     ];
 
     protected function casts(): array

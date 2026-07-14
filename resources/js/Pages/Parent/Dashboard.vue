@@ -7,6 +7,7 @@ import Icon from '@/Components/Icon.vue';
 const props = defineProps({
     links:           { type: Array, required: true },
     selectedStudent: { type: Object, default: null },
+    pendingRequests: { type: Array, default: () => [] },
 });
 
 const isModalOpen = ref(false);
@@ -41,8 +42,33 @@ function selectStudent(studentId) {
 }
 
 function formatQAR(halala) {
-    return new Intl.NumberFormat('ar-QA', { style: 'currency', currency: 'QAR', minimumFractionDigits: 2 })
-        .format((halala ?? 0) / 100);
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format((halala ?? 0) / 100);
+    return `${formatted} ر.ق.`;
+}
+
+const rejectNotes = ref('');
+const activeRejectRequestId = ref(null);
+const isRejectModalOpen = ref(false);
+
+function openRejectModal(requestId) {
+    activeRejectRequestId.value = requestId;
+    rejectNotes.value = '';
+    isRejectModalOpen.value = true;
+}
+
+function submitReject() {
+    router.post(route('parent.purchase-requests.reject', { id: activeRejectRequestId.value }), {
+        notes: rejectNotes.value
+    }, {
+        onSuccess: () => {
+            isRejectModalOpen.value = false;
+            activeRejectRequestId.value = null;
+            rejectNotes.value = '';
+        }
+    });
 }
 </script>
 
@@ -100,6 +126,54 @@ function formatQAR(halala) {
 
                 <!-- Main Section: Selected Student Reports -->
                 <div class="lg:col-span-3 space-y-6">
+                    <!-- Pending Purchase Requests -->
+                    <div v-if="pendingRequests.length > 0" class="card p-6 border-amber-300 dark:border-amber-900 bg-amber-500/5">
+                        <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Icon name="certificate" class="w-5 h-5 text-amber-500" />
+                            <span>طلبات الدفع المعلقة للأبناء 💳</span>
+                        </h3>
+                        <div class="space-y-4">
+                            <div v-for="req in pendingRequests" :key="req.id"
+                                 class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white dark:bg-surface-850 border border-surface-200 dark:border-surface-700 shadow-sm"
+                            >
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/20 text-amber-600 font-bold flex items-center justify-center">
+                                        {{ req.student?.name?.charAt(0) }}
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-sm text-surface-900 dark:text-white">
+                                            {{ req.student?.name }}
+                                        </div>
+                                        <div class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+                                            يطلب كورس: <span class="font-semibold text-primary-600 dark:text-primary-400">{{ req.course?.title }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between sm:justify-end gap-4">
+                                    <div class="text-start sm:text-end">
+                                        <div class="text-xs text-surface-400">القيمة المطلوبة</div>
+                                        <div class="text-base font-black text-surface-900 dark:text-white">
+                                            {{ req.course?.effective_price === 0 ? 'مجاني' : formatQAR(req.course?.effective_price) }}
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <Link :href="route('checkout.show', { slug: req.course?.slug })"
+                                              :data="{ purchase_request_id: req.id }"
+                                              class="btn-primary btn-sm flex items-center gap-1.5"
+                                        >
+                                            <span>دفع الآن</span>
+                                        </Link>
+                                        <button @click="openRejectModal(req.id)"
+                                                class="btn-outline btn-sm text-xs text-red-500 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/40"
+                                        >
+                                            رفض
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <template v-if="selectedStudent">
                         <!-- Student Profile Header card -->
                         <div class="card p-6 bg-gradient-to-br from-primary-900 to-primary-950 text-white border-none relative overflow-hidden">
@@ -255,6 +329,39 @@ function formatQAR(halala) {
                             <div class="flex gap-3 pt-4">
                                 <button type="submit" :disabled="form.processing" class="btn-primary flex-1">ربط الحساب</button>
                                 <button type="button" @click="isModalOpen = false" class="btn-ghost flex-1">إلغاء</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </Transition>
+
+            <!-- Modal for rejecting -->
+            <Transition
+                enter-active-class="transition duration-200 ease-out"
+                enter-from-class="opacity-0 scale-95"
+                enter-to-class="opacity-100 scale-100"
+                leave-active-class="transition duration-150 ease-in"
+                leave-from-class="opacity-100 scale-100"
+                leave-to-class="opacity-0 scale-95"
+            >
+                <div v-if="isRejectModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
+                    <div class="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl w-full max-w-lg p-6 overflow-hidden shadow-2xl relative" dir="rtl">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-black text-surface-900 dark:text-white">رفض طلب الشراء</h3>
+                            <button @click="isRejectModalOpen = false" class="btn-ghost p-1 rounded-full">
+                                <Icon name="close" class="w-5 h-5 text-surface-500" />
+                            </button>
+                        </div>
+
+                        <form @submit.prevent="submitReject" class="space-y-4">
+                            <div>
+                                <label class="label mb-1">سبب الرفض (اختياري)</label>
+                                <textarea v-model="rejectNotes" class="input h-24 p-3" placeholder="اكتب سبب الرفض هنا..."></textarea>
+                            </div>
+
+                            <div class="flex gap-3 pt-4">
+                                <button type="submit" class="btn-primary flex-1 bg-red-600 hover:bg-red-700 focus:ring-red-500/40">تأكيد الرفض</button>
+                                <button type="button" @click="isRejectModalOpen = false" class="btn-ghost flex-1">إلغاء</button>
                             </div>
                         </form>
                     </div>

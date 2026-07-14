@@ -10,9 +10,11 @@ const props = defineProps({
 });
 
 function formatQAR(halala) {
-    return new Intl.NumberFormat('ar-QA', {
-        style: 'currency', currency: 'QAR', minimumFractionDigits: 0,
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
     }).format((halala ?? 0) / 100);
+    return `${formatted} ر.ق.`;
 }
 
 // Simple bar chart from revenue_chart data
@@ -57,7 +59,7 @@ const maxChartValue = computed(() =>
                         <Icon :name="card.icon" class="w-8 h-8" />
                     </div>
                     <div>
-                        <div class="text-2xl font-black text-surface-900 dark:text-white">{{ card.value?.toLocaleString('ar') }}</div>
+                        <div class="text-2xl font-black text-surface-900 dark:text-white">{{ card.value?.toLocaleString('en') }}</div>
                         <div class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">{{ card.label }}</div>
                     </div>
                 </div>
@@ -80,7 +82,7 @@ const maxChartValue = computed(() =>
                 <div class="card p-6">
                     <div class="text-xs text-surface-400 mb-1">إجمالي التسجيلات</div>
                     <div class="text-3xl font-black text-accent-700 dark:text-accent-400">
-                        {{ stats.total_enrollments?.toLocaleString('ar') }}
+                        {{ stats.total_enrollments?.toLocaleString('en') }}
                     </div>
                 </div>
             </div>

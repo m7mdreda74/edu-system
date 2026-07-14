@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Observers;
 
 use App\Domain\Course\Models\Course;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Reacts to Course events.
@@ -14,14 +15,10 @@ class CourseObserver
 {
     public function updated(Course $course): void
     {
-        // Invalidate course cache when updated — Phase 3/4
-        // Cache::forget("course:{$course->slug}");
-        // Cache::forget('courses.featured');
-    }
-
-    public function deleted(Course $course): void
-    {
-        // Notify enrolled students — Phase 4
-        // \App\Jobs\NotifyStudentsOfCourseRemoval::dispatch($course->id);
+        // Invalidate course cache when updated
+        Cache::forget("courses.featured.guest");
+        if ($course->grade_level) {
+            Cache::forget("courses.featured.{$course->grade_level}");
+        }
     }
 }

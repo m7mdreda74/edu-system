@@ -10,8 +10,11 @@ const props = defineProps({
 });
 
 function formatQAR(halala) {
-    return new Intl.NumberFormat('ar-QA', { style: 'currency', currency: 'QAR', minimumFractionDigits: 0 })
-        .format((halala ?? 0) / 100);
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format((halala ?? 0) / 100);
+    return `${formatted} ر.ق.`;
 }
 </script>
 

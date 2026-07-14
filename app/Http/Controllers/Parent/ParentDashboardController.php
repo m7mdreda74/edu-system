@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Parent;
 
 use App\Domain\Enrollment\Models\Enrollment;
+use App\Domain\Enrollment\Models\PurchaseRequest;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
@@ -59,9 +60,17 @@ class ParentDashboardController extends Controller
             }
         }
 
+        // Fetch pending purchase requests for linked children
+        $pendingRequests = PurchaseRequest::whereIn('student_user_id', $links->pluck('student_user_id'))
+            ->where('status', PurchaseRequest::STATUS_PENDING)
+            ->with(['student:id,name,email', 'course:id,title,price,discount_price,effective_price,slug'])
+            ->latest()
+            ->get();
+
         return Inertia::render('Parent/Dashboard', [
-            'links'          => $links,
-            'selectedStudent'=> $studentData,
+            'links'            => $links,
+            'selectedStudent'  => $studentData,
+            'pendingRequests'  => $pendingRequests,
         ]);
     }
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/authStore';
 import Icon from '@/Components/Icon.vue';
@@ -22,12 +22,17 @@ watch(() => page.props.flash, (newFlash) => {
 }, { deep: true, immediate: true });
 
 const isSidebarOpen = ref(false);
-const isDark        = ref(document.documentElement.classList.contains('dark'));
+const isDark        = ref(false);
 const isSidebarCollapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true');
+
+onMounted(() => {
+    isDark.value = document.documentElement.classList.contains('dark');
+});
 
 function toggleDark() {
     isDark.value = !isDark.value;
     document.documentElement.classList.toggle('dark', isDark.value);
+    localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
 }
 
 function toggleSidebarCollapse() {

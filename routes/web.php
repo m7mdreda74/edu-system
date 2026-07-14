@@ -61,6 +61,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ─── Live Session Room ────────────────────────────────────────────────────
     Route::get('/live-sessions/{id}/room', [App\Http\Controllers\Course\LiveSessionRoomController::class, 'show'])->name('live-sessions.room');
 
+    // ─── Lesson Q&A Forum ─────────────────────────────────────────────────────
+    Route::get('/lessons/{lessonId}/questions',  [App\Http\Controllers\Student\LessonQuestionController::class, 'index'])->name('lessons.questions.index');
+    Route::post('/lessons/{lessonId}/questions', [App\Http\Controllers\Student\LessonQuestionController::class, 'store'])->name('lessons.questions.store');
+
     // ─── Notifications ────────────────────────────────────────────────────────
     Route::get('/notifications',          [App\Http\Controllers\Communication\NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{id}/read', [App\Http\Controllers\Communication\NotificationController::class, 'markAsRead'])->name('notifications.read');
@@ -96,6 +100,9 @@ Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
 
     // Signed Video URL (never expose raw video_url to client)
     Route::get('/lessons/{lessonId}/video', [App\Http\Controllers\Student\VideoUrlController::class, 'getSignedUrl'])->name('student.video.url');
+
+    // Purchase Requests
+    Route::post('/purchase-requests', [App\Http\Controllers\Student\StudentPurchaseRequestController::class, 'store'])->name('student.purchase-requests.store');
 });
 
 // Signed video stream endpoint (validated by Laravel signature)
@@ -108,8 +115,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/checkout/success',        [CheckoutController::class, 'success'])->name('checkout.success');
     Route::get('/checkout/cancel',         [CheckoutController::class, 'cancel'])->name('checkout.cancel');
     Route::get('/checkout/{slug}',         [CheckoutController::class, 'show'])->name('checkout.show');
-    Route::post('/checkout/{slug}',        [CheckoutController::class, 'process'])->name('checkout.process');
-    Route::post('/checkout/coupon/check',  [CheckoutController::class, 'checkCoupon'])->name('checkout.coupon.check');
+    Route::post('/checkout/{slug}',        [CheckoutController::class, 'process'])
+        ->name('checkout.process')
+        ->middleware('throttle:10,1');
+    Route::post('/checkout/coupon/check',  [CheckoutController::class, 'checkCoupon'])
+        ->name('checkout.coupon.check')
+        ->middleware('throttle:15,1');
     Route::get('/checkout/mock-gateway/{ref}',             [CheckoutController::class, 'mockGateway'])->name('checkout.mock_gateway');
     Route::post('/checkout/mock-gateway/{ref}/complete',   [CheckoutController::class, 'mockComplete'])->name('checkout.mock_gateway.complete');
     Route::post('/checkout/mock-gateway/{ref}/cancel',     [CheckoutController::class, 'mockCancel'])->name('checkout.mock_gateway.cancel');
@@ -196,6 +207,7 @@ Route::middleware(['auth', 'role:parent'])->prefix('parent')->name('parent.')->g
     Route::get('/dashboard',              [App\Http\Controllers\Parent\ParentDashboardController::class, 'index'])->name('dashboard');
     Route::post('/link-student',          [App\Http\Controllers\Parent\ParentDashboardController::class, 'linkStudent'])->name('link-student');
     Route::delete('/unlink-student/{id}', [App\Http\Controllers\Parent\ParentDashboardController::class, 'unlinkStudent'])->name('unlink-student');
+    Route::post('/purchase-requests/{id}/reject', [App\Http\Controllers\Parent\ParentPurchaseRequestController::class, 'reject'])->name('purchase-requests.reject');
 });
 
 require __DIR__ . '/auth.php';

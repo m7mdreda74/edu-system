@@ -13,6 +13,9 @@ use Inertia\Inertia;
 use Inertia\Response;
 use App\Domain\Course\Models\Worksheet;
 use App\Domain\Course\Models\WorksheetSubmission;
+use App\Domain\Enrollment\Models\Enrollment;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class LearnController extends Controller
@@ -23,11 +26,23 @@ class LearnController extends Controller
 
     public function show(string $slug): Response
     {
-        $user   = auth()->user();
+        $user   = Auth::user();
         $course = Course::with('teacher')->where('slug', $slug)->where('is_published', true)->firstOrFail();
 
-        // Authorization: only enrolled students
+        // Authorization check using Policies
+        Gate::authorize('learn', $course);
+
         $enrollment = $this->enrollmentService->findEnrollment($user->id, $course->id);
+
+        if (!$enrollment && $course->teacher_id === $user->id) {
+            // Mock a temporary enrollment so the teacher can view/test their course learning page
+            $enrollment = new Enrollment([
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'progress_percent' => 100,
+                'completed_at' => now(),
+            ]);
+        }
 
         if (! $enrollment) {
             abort(403, 'يجب التسجيل في الكورس أولاً.');
@@ -41,9 +56,17 @@ class LearnController extends Controller
                 'watched_seconds' => $p->watched_seconds,
             ]);
 
-        // Attach progress to lessons
-        $lessons = $enrollment->course->lessons->map(function ($lesson) use ($progressMap) {
+        // Attach progress and lock status to lessons
+        $previousLessonCompleted = true;
+        $lessons = $enrollment->course->lessons->sortBy('order')->values()->map(function ($lesson) use ($progressMap, &$previousLessonCompleted) {
             $progress = $progressMap->get($lesson->id);
+            $isCompleted = $progress['is_completed'] ?? false;
+            
+            // Exclude first lesson or free preview lessons from locking
+            $isLocked = !$previousLessonCompleted && !$lesson->is_free_preview && $lesson->order > 1;
+            
+            $previousLessonCompleted = $isCompleted;
+
             return [
                 'id'               => $lesson->id,
                 'title'            => $lesson->title,
@@ -51,8 +74,9 @@ class LearnController extends Controller
                 'duration_seconds' => $lesson->duration_seconds,
                 'order'            => $lesson->order,
                 'is_free_preview'  => $lesson->is_free_preview,
-                'is_completed'     => $progress['is_completed'] ?? false,
+                'is_completed'     => $isCompleted,
                 'watched_seconds'  => $progress['watched_seconds'] ?? 0,
+                'is_locked'        => $isLocked,
             ];
         });
 
@@ -89,7 +113,7 @@ class LearnController extends Controller
             'watched_seconds' => ['required', 'integer', 'min:0', 'max:86400'],
         ]);
 
-        $user   = auth()->user();
+        $user   = Auth::user();
         $course = Course::where('slug', $slug)->firstOrFail();
 
         $enrollment = $this->enrollmentService->findEnrollment($user->id, $course->id);
@@ -107,9 +131,38 @@ class LearnController extends Controller
         // Return updated enrollment progress for UI sync
         $enrollment->refresh();
 
+        // Re-build progress map and lessons list to return to client
+        $progressMap = $enrollment->lessonProgress
+            ->keyBy('lesson_id')
+            ->map(fn($p) => [
+                'is_completed'    => $p->is_completed,
+                'watched_seconds' => $p->watched_seconds,
+            ]);
+
+        $previousLessonCompleted = true;
+        $lessons = $enrollment->course->lessons->sortBy('order')->values()->map(function ($lesson) use ($progressMap, &$previousLessonCompleted) {
+            $progress = $progressMap->get($lesson->id);
+            $isCompleted = $progress['is_completed'] ?? false;
+            $isLocked = !$previousLessonCompleted && !$lesson->is_free_preview && $lesson->order > 1;
+            $previousLessonCompleted = $isCompleted;
+
+            return [
+                'id'               => $lesson->id,
+                'title'            => $lesson->title,
+                'video_url'        => $lesson->video_url,
+                'duration_seconds' => $lesson->duration_seconds,
+                'order'            => $lesson->order,
+                'is_free_preview'  => $lesson->is_free_preview,
+                'is_completed'     => $isCompleted,
+                'watched_seconds'  => $progress['watched_seconds'] ?? 0,
+                'is_locked'        => $isLocked,
+            ];
+        });
+
         return response()->json([
             'progress_percent' => $enrollment->progress_percent,
             'is_completed'     => $enrollment->isCompleted(),
+            'lessons'          => $lessons,
         ]);
     }
 
@@ -119,7 +172,7 @@ class LearnController extends Controller
             'submitted_file' => ['required', 'file', 'mimes:pdf,docx,png,jpg,jpeg', 'max:10240'], // 10MB
         ]);
 
-        $user   = auth()->user();
+        $user   = Auth::user();
         $course = Course::where('slug', $slug)->firstOrFail();
         $worksheet = Worksheet::where('course_id', $course->id)->findOrFail($worksheetId);
 

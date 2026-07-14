@@ -30,11 +30,11 @@ export const useCartStore = defineStore('cart', () => {
     /** Price formatted for display (divide by 100 for QAR) */
     const finalPriceFormatted = computed(() => {
         const qar = finalPrice.value / 100;
-        return new Intl.NumberFormat('ar-QA', {
-            style: 'currency',
-            currency: 'QAR',
+        const formatted = new Intl.NumberFormat('en-US', {
             minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
         }).format(qar);
+        return `${formatted} ر.ق.`;
     });
 
     function addToCart(course) {

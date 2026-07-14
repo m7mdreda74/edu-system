@@ -180,7 +180,7 @@ function submitGrade(subId, maxScore) {
                                     <a :href="sub.submitted_file_path" target="_blank" class="text-xs text-primary-500 hover:underline">عرض حل الطالب 🔗</a>
                                 </td>
                                 <td class="px-6 py-4 text-xs text-surface-500">
-                                    {{ new Date(sub.submitted_at).toLocaleString('ar') }}
+                                    {{ new Date(sub.submitted_at).toLocaleString('en-US') }}
                                 </td>
                                 <td class="px-6 py-4 font-semibold">
                                     <span v-if="sub.score !== null" class="text-green-600 dark:text-green-400">

@@ -76,5 +76,11 @@ class AppServiceProvider extends ServiceProvider
         CourseLesson::observe(CourseLessonObserver::class);
         Enrollment::observe(EnrollmentObserver::class);
         Payment::observe(PaymentObserver::class);
+
+        // Register Gates & Policies explicitly
+        \Illuminate\Support\Facades\Gate::policy(
+            \App\Domain\Course\Models\Course::class,
+            \App\Policies\CoursePolicy::class
+        );
     }
 }

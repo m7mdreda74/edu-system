@@ -7,7 +7,8 @@ import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     course: { type: Object, required: true },
-    manualMethods: { type: Array, default: () => [] }
+    manualMethods: { type: Array, default: () => [] },
+    purchaseRequest: { type: Object, default: null }
 });
 
 const form = useForm({ coupon_code: '' });
@@ -34,9 +35,11 @@ function handleFileChange(event) {
 }
 
 function formatQAR(halala) {
-    return new Intl.NumberFormat('ar-QA', {
-        style: 'currency', currency: 'QAR', minimumFractionDigits: 0,
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
     }).format((halala ?? 0) / 100);
+    return `${formatted} ر.ق.`;
 }
 
 const effectivePrice = computed(() => {
@@ -95,6 +98,9 @@ async function submit() {
         formData.append('coupon_code', form.coupon_code);
         formData.append('selected_method', JSON.stringify(selectedMethod.value));
         formData.append('receipt', receiptFile.value);
+        if (props.purchaseRequest) {
+            formData.append('purchase_request_id', props.purchaseRequest.id);
+        }
 
         try {
             const res = await axios.post(route('checkout.process', { slug: props.course.slug }), formData, {
@@ -116,10 +122,14 @@ async function submit() {
     // Handle Gateway Payment Submission
     form.processing = true;
     try {
-        const res = await axios.post(route('checkout.process', { slug: props.course.slug }), {
+        const payload = {
             coupon_code: form.coupon_code,
             payment_method: 'gateway',
-        });
+        };
+        if (props.purchaseRequest) {
+            payload.purchase_request_id = props.purchaseRequest.id;
+        }
+        const res = await axios.post(route('checkout.process', { slug: props.course.slug }), payload);
 
         if (res.data.redirect_url) {
             const width = 600;
@@ -170,6 +180,19 @@ async function submit() {
 
                 <!-- ── Order Summary ─────────────────────────────── -->
                 <div class="md:col-span-3 space-y-4">
+
+                    <!-- Purchase Request Info -->
+                    <div v-if="purchaseRequest" class="card p-4 border-amber-300 dark:border-amber-900 bg-amber-500/5 flex items-start gap-3">
+                        <div class="p-2 rounded-full bg-amber-100 dark:bg-amber-950/20 text-amber-600">
+                            <Icon name="users" class="w-5 h-5 shrink-0" />
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs text-amber-700 dark:text-amber-350">أنت تدفع بالنيابة عن ابنك</div>
+                            <div class="text-[11px] text-surface-600 dark:text-surface-400 mt-1 leading-relaxed">
+                                سيتم تسجيل الطالب <span class="font-bold text-surface-900 dark:text-white">{{ purchaseRequest.student?.name }}</span> في الكورس فوراً بمجرد نجاح السداد.
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Course Card -->
                     <div class="card p-5 flex gap-4">

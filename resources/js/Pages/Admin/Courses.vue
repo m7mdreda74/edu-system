@@ -22,8 +22,11 @@ function togglePublish(courseId) {
 
 function formatQAR(halala) {
     if (!halala) return 'مجاني';
-    return new Intl.NumberFormat('ar-QA', { style: 'currency', currency: 'QAR', minimumFractionDigits: 0 })
-        .format(halala / 100);
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format(halala / 100);
+    return `${formatted} ر.ق.`;
 }
 </script>
 

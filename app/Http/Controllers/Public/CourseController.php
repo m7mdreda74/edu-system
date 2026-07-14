@@ -52,9 +52,23 @@ class CourseController extends Controller
         $user       = Auth::user();
         $isEnrolled = $user?->isEnrolledIn($course) ?? false;
 
+        $hasParent = false;
+        $hasPendingPurchaseRequest = false;
+        if ($user && $user->isStudent()) {
+            $hasParent = \App\Domain\User\Models\ParentStudentLink::where('student_user_id', $user->id)->exists();
+            if ($hasParent) {
+                $hasPendingPurchaseRequest = \App\Domain\Enrollment\Models\PurchaseRequest::where('student_user_id', $user->id)
+                    ->where('course_id', $course->id)
+                    ->where('status', \App\Domain\Enrollment\Models\PurchaseRequest::STATUS_PENDING)
+                    ->exists();
+            }
+        }
+
         return Inertia::render('Public/CourseShow', [
             'course'     => $course,
             'isEnrolled' => $isEnrolled,
+            'hasParent'  => $hasParent,
+            'hasPendingPurchaseRequest' => $hasPendingPurchaseRequest,
         ]);
     }
 

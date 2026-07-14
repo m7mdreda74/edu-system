@@ -118,7 +118,7 @@ const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: '
                         <span>المستخدمون</span>
                     </h1>
                     <p class="text-surface-500 dark:text-surface-400 mt-1">
-                        {{ users.total?.toLocaleString('ar') }} مستخدم مسجّل
+                        {{ users.total?.toLocaleString('en') }} مستخدم مسجّل
                     </p>
                 </div>
                 <div class="flex items-center gap-3">

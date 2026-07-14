@@ -43,19 +43,35 @@ const submit = () => form.post(route('register'));
 <template>
     <div class="min-h-screen flex bg-gradient-to-br from-primary-900 via-primary-850 to-primary-950 text-white" dir="rtl" lang="ar">
         
-        <!-- ── Left: Decorative Folklore-style Sidebar ── -->
-        <div class="hidden md:flex flex-col items-center justify-between w-24 bg-black/15 border-e border-white/5 py-12 shrink-0 overflow-hidden select-none">
-            <div class="flex flex-col items-center gap-12 text-white/20">
-                <Icon name="courses" class="w-8 h-8" />
-                <Icon name="success" class="w-8 h-8" />
-                <Icon name="clock" class="w-8 h-8" />
-                <Icon name="teacher" class="w-8 h-8" />
-                <Icon name="edit" class="w-8 h-8" />
-                <Icon name="eye" class="w-8 h-8" />
-                <Icon name="plus" class="w-8 h-8" />
-                <Icon name="trash" class="w-8 h-8" />
-                <Icon name="courses" class="w-8 h-8" />
-                <Icon name="success" class="w-8 h-8" />
+        <!-- ── Left: Premium Decorative Panel ── -->
+        <div class="hidden lg:flex flex-col justify-between w-[32%] bg-gradient-to-b from-primary-950 via-primary-900 to-surface-950 border-e border-white/10 p-12 shrink-0 overflow-hidden select-none relative">
+            <!-- Decorative Glowing Orbs -->
+            <div class="absolute -top-12 -left-12 w-64 h-64 rounded-full bg-accent-500/10 blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-primary-500/20 blur-3xl pointer-events-none"></div>
+            
+            <!-- Branding Header -->
+            <div class="relative z-10 flex flex-col items-start gap-4">
+                <div class="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-lg">
+                    <span class="text-primary-800 font-black text-xl">ت</span>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-white leading-tight">منصة التفوق</h2>
+                    <p class="text-white/60 text-xs mt-1">شريكك الأكاديمي للدرجات الكاملة</p>
+                </div>
+            </div>
+
+            <!-- Central Illustration -->
+            <div class="relative z-10 my-auto flex flex-col items-center text-center">
+                <img src="/images/auth-sidebar.png" alt="منصة التفوق" class="w-full max-w-[260px] rounded-2xl shadow-2xl border border-white/10 mb-6 hover:scale-105 transition-transform duration-500" />
+                <blockquote class="text-white/90 text-sm font-medium leading-relaxed max-w-xs">
+                    "طريقك نحو القمة يبدأ بخطوة.. منصة التفوق شريكك للوصول للدرجات الكاملة."
+                </blockquote>
+            </div>
+
+            <!-- Footer Meta -->
+            <div class="relative z-10 flex items-center justify-between text-white/40 text-[10px]">
+                <span>© 2026 منصة التفوق</span>
+                <span>جميع الحقوق محفوظة</span>
             </div>
         </div>
 
@@ -64,8 +80,8 @@ const submit = () => form.post(route('register'));
             
             <div class="w-full max-w-lg space-y-6 py-8">
                 
-                <!-- Logo & Brand Header -->
-                <div class="flex flex-col items-center text-center">
+                <!-- Logo & Brand Header (Mobile/Tablet only) -->
+                <div class="flex lg:hidden flex-col items-center text-center">
                     <Link :href="route('home')" class="inline-flex flex-col items-center gap-3 group mb-2">
                         <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform duration-300">
                             <span class="text-primary-800 font-black text-2xl">ت</span>

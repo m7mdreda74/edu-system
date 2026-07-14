@@ -29,8 +29,24 @@ class CheckoutController extends Controller
             ->where('is_published', true)
             ->firstOrFail();
 
-        if ($user->isEnrolledIn($course)) {
-            return Inertia::render('Checkout/AlreadyEnrolled', ['course' => $course]);
+        $purchaseRequest = null;
+        $purchaseRequestId = request()->query('purchase_request_id');
+        if ($purchaseRequestId) {
+            $purchaseRequest = \App\Domain\Enrollment\Models\PurchaseRequest::with('student')->findOrFail((int) $purchaseRequestId);
+            // Verify link
+            $isLinked = \App\Domain\User\Models\ParentStudentLink::where('parent_user_id', $user->id)
+                ->where('student_user_id', $purchaseRequest->student_user_id)
+                ->exists();
+            if (! $isLinked) {
+                abort(403, 'غير مصرح لك بإجراء عملية الدفع لهذا الطلب.');
+            }
+            if ($purchaseRequest->student->isEnrolledIn($course)) {
+                return Inertia::render('Checkout/AlreadyEnrolled', ['course' => $course, 'student' => $purchaseRequest->student]);
+            }
+        } else {
+            if ($user->isEnrolledIn($course)) {
+                return Inertia::render('Checkout/AlreadyEnrolled', ['course' => $course]);
+            }
         }
 
         $manualMethodsJson = \App\Domain\Settings\Models\PlatformSetting::where('key', 'manual_payment_methods')->value('value');
@@ -39,6 +55,7 @@ class CheckoutController extends Controller
         return Inertia::render('Checkout/Index', [
             'course' => $course,
             'manualMethods' => $manualMethods,
+            'purchaseRequest' => $purchaseRequest,
         ]);
     }
 
@@ -49,6 +66,7 @@ class CheckoutController extends Controller
             'payment_method' => ['nullable', 'string', 'in:gateway,manual'],
             'selected_method' => ['required_if:payment_method,manual', 'array'],
             'receipt' => ['required_if:payment_method,manual', 'file', 'image', 'max:8192'],
+            'purchase_request_id' => ['nullable', 'integer', 'exists:purchase_requests,id'],
         ]);
 
         /** @var \App\Domain\User\Models\User $user */
@@ -56,11 +74,28 @@ class CheckoutController extends Controller
         /** @var Course $course */
         $course = Course::where('slug', $slug)->where('is_published', true)->firstOrFail();
 
+        $purchaseRequest = null;
+        $targetUser = $user;
+
+        if (!empty($validated['purchase_request_id'])) {
+            $purchaseRequest = \App\Domain\Enrollment\Models\PurchaseRequest::findOrFail($validated['purchase_request_id']);
+            
+            // Verify link
+            $isLinked = \App\Domain\User\Models\ParentStudentLink::where('parent_user_id', $user->id)
+                ->where('student_user_id', $purchaseRequest->student_user_id)
+                ->exists();
+            if (! $isLinked) {
+                throw new LogicException('غير مصرح لك بإتمام عملية الدفع لهذا الطلب.');
+            }
+            
+            $targetUser = \App\Domain\User\Models\User::findOrFail($purchaseRequest->student_user_id);
+        }
+
         // 1. Handle Manual Payment Flow
         if (($validated['payment_method'] ?? 'gateway') === 'manual') {
             try {
-                if ($user->isEnrolledIn($course)) {
-                    throw new LogicException('أنت مسجل في هذا الكورس مسبقاً.');
+                if ($targetUser->isEnrolledIn($course)) {
+                    throw new LogicException('الطالب مسجل في هذا الكورس مسبقاً.');
                 }
 
                 // Resolve coupon
@@ -81,7 +116,7 @@ class CheckoutController extends Controller
                 $path = $request->file('receipt')->store('receipts', 'public');
 
                 Payment::create([
-                    'user_id'         => $user->id,
+                    'user_id'         => $targetUser->id,
                     'course_id'       => $course->id,
                     'coupon_id'       => $coupon?->id,
                     'amount'          => $finalAmount,
@@ -91,13 +126,14 @@ class CheckoutController extends Controller
                     'gateway_ref'     => $validated['selected_method']['name'] ?? 'تحويل يدوي',
                     'status'          => Payment::STATUS_PENDING_VERIFICATION,
                     'receipt_path'    => '/storage/' . $path,
+                    'purchase_request_id' => $purchaseRequest?->id,
                 ]);
 
                 if ($request->wantsJson() || $request->ajax()) {
                     return response()->json([
                         'success' => true,
                         'redirect_url' => route('dashboard'),
-                        'message' => 'تم رفع الإيصال بنجاح. سيتم مراجعته وتفعيل الكورس لك خلال لحظات.'
+                        'message' => 'تم رفع الإيصال بنجاح. سيتم مراجعته وتفعيل الكورس للطالب خلال لحظات.'
                     ]);
                 }
 
@@ -113,9 +149,10 @@ class CheckoutController extends Controller
         // 2. Handle Gateway Payment Flow
         try {
             $result = $this->paymentService->initiateCheckout(
-                user:       $user,
-                course:     $course,
-                couponCode: $validated['coupon_code'] ?? null,
+                user:              $targetUser,
+                course:            $course,
+                couponCode:        $validated['coupon_code'] ?? null,
+                purchaseRequestId: $purchaseRequest?->id,
             );
 
             if ($request->wantsJson() || $request->ajax()) {
@@ -139,20 +176,13 @@ class CheckoutController extends Controller
         $paymentId = $request->query('paymentId'); // MyFatoorah
         $localPaymentId = $request->query('payment_id'); // Fatora
 
-        if ($paymentId) {
-            try {
-                $this->paymentService->verifyAndProcessPayment((string) $paymentId);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('MyFatoorah callback verification failed: ' . $e->getMessage());
-            }
-        } elseif ($localPaymentId) {
-            try {
-                $transactionId = $request->query('transaction_id');
-                $this->paymentService->verifyAndProcessPaymentDirect((string) $localPaymentId, $transactionId);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Fatora callback verification failed: ' . $e->getMessage());
-            }
-        }
+        // Final payment processing and enrollment is handled strictly via Gateway Webhooks.
+        // We log the redirect callback for visibility and audit trail tracking.
+        \Illuminate\Support\Facades\Log::info('Payment success redirect callback received.', [
+            'payment_id' => $paymentId ?? $localPaymentId,
+            'ip' => $request->ip(),
+            'user_id' => auth()->id(),
+        ]);
 
         return Inertia::render('Checkout/Success', [
             'session_id' => $paymentId ?? $localPaymentId ?? $request->query('session_id'),

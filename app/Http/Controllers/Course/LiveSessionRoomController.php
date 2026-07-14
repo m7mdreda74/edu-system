@@ -8,6 +8,7 @@ use App\Domain\Course\Models\LiveSession;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,15 +20,9 @@ class LiveSessionRoomController extends Controller
         /** @var \App\Domain\User\Models\User $user */
         $user = Auth::user();
 
-        // Check if teacher or enrolled student
+        // Authorization check using Policies
+        Gate::authorize('joinLive', $session->course);
         $isTeacher = $session->teacher_id === $user->id;
-
-        if (!$isTeacher) {
-            $isEnrolled = \App\Domain\Enrollment\Models\Enrollment::where('course_id', $session->course_id)
-                ->where('user_id', $user->id)
-                ->exists();
-            abort_unless($isEnrolled, 403, 'غير مصرح.');
-        }
 
         // Room name should be unique and safe
         $roomName = "Altafawwuq_Session_{$session->id}_" . md5((string)$session->created_at);
