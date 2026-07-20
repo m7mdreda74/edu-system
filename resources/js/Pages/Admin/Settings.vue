@@ -11,6 +11,7 @@ const props = defineProps({
 // A comprehensive list of default settings (ensures all keys are initialized even if they don't exist in the database)
 const defaultSettings = [
     { key: 'platform_name', value: 'التفوق', type: 'string' },
+    { key: 'site_theme', value: 'royal', type: 'string' },
     { key: 'contact_email', value: 'support@altafawwuq.com', type: 'string' },
     { key: 'whatsapp_url', value: 'https://wa.me/97455555555', type: 'string' },
     { key: 'contact_phone', value: '+974 4444 8888', type: 'string' },
@@ -95,8 +96,44 @@ const form = useForm({
 const isDirty = ref(false);
 const activeTab = ref('general');
 
+const siteThemes = [
+    {
+        id: 'royal',
+        name: 'العنابي الملكي',
+        description: 'هوية فاخرة بالعنابي والذهبي، مناسبة للطابع الرسمي للمنصة.',
+        colors: ['#7A1C37', '#C5A039', '#faf8f6'],
+    },
+    {
+        id: 'ocean',
+        name: 'المحيط الأكاديمي',
+        description: 'أزرق عميق مع سماوي منعش يمنح المحتوى وضوحًا وهدوءًا.',
+        colors: ['#2563eb', '#06b6d4', '#f8fafc'],
+    },
+    {
+        id: 'emerald',
+        name: 'الزمرد الهادئ',
+        description: 'أخضر متزن مع لمسات كهرمانية لتجربة دافئة ومريحة.',
+        colors: ['#10b981', '#f59e0b', '#f8faf9'],
+    },
+    {
+        id: 'violet',
+        name: 'البنفسجي العصري',
+        description: 'بنفسجي أنيق مع وردي هادئ لشكل حديث وحيوي.',
+        colors: ['#8b5cf6', '#f43f5e', '#fafafa'],
+    },
+];
+
 // Helper to locate a setting object by key safely
 const getSetting = (key) => form.settings.find(s => s.key === key);
+
+const selectSiteTheme = (themeId) => {
+    const setting = getSetting('site_theme');
+    if (!setting) return;
+
+    setting.value = themeId;
+    document.documentElement.dataset.siteTheme = themeId;
+    isDirty.value = true;
+};
 
 // Translation helper for friendly labels in Arabic
 const getSettingLabel = (key) => {
@@ -166,6 +203,7 @@ const getSettingLabel = (key) => {
 // Tabs Definition with SVG Icons
 const tabs = [
     { id: 'general',    label: 'الإعدادات العامة',       iconName: 'settings' },
+    { id: 'appearance', label: 'ثيم وشكل المنصة',        iconName: 'edit' },
     { id: 'popup',      label: 'النافذة الترحيبية',     iconName: 'bell' },
     { id: 'hero',       label: 'قسم الواجهة والـ Hero',  iconName: 'dashboard' },
     { id: 'navigation', label: 'روابط القوائم والـ Nav',  iconName: 'globe' },
@@ -362,7 +400,7 @@ const paymentSettings = computed(() => {
 const advancedSettings = computed(() => {
     return form.settings.filter(s => {
         const explicitKeys = [
-            'platform_name', 'contact_email', 'whatsapp_url', 'contact_phone', 'contact_badge', 'contact_title',
+            'platform_name', 'site_theme', 'contact_email', 'whatsapp_url', 'contact_phone', 'contact_badge', 'contact_title',
             'welcome_popup_active', 'welcome_popup_title', 'welcome_popup_bottom_label', 'welcome_popup_bottom_url',
             'welcome_popup_item1_label', 'welcome_popup_item1_url',
             'welcome_popup_item2_label', 'welcome_popup_item2_url',
@@ -470,6 +508,61 @@ function saveSettings() {
                                 <input v-model="setting.value" type="text" class="input w-full text-xs py-2 px-3" @input="isDirty = true" />
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Tab: Site Theme -->
+                    <div v-if="activeTab === 'appearance'" class="card p-6 space-y-6 animate-fade-in-up">
+                        <div class="border-b border-surface-100 dark:border-surface-700 pb-4">
+                            <h3 class="font-bold text-base text-surface-900 dark:text-white flex items-center gap-2">
+                                <Icon name="edit" class="w-5 h-5 text-primary-500" />
+                                <span>اختيار ثيم المنصة</span>
+                            </h3>
+                            <p class="mt-2 text-xs leading-6 text-surface-500 dark:text-surface-400">
+                                الاختيار بيظهر كمعاينة فورًا، وبعد الحفظ بيتطبق على الموقع بالكامل ولوحات التحكم مع الوضع الفاتح والداكن.
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <button
+                                v-for="theme in siteThemes"
+                                :key="theme.id"
+                                type="button"
+                                class="relative overflow-hidden rounded-2xl border-2 p-4 text-start transition-all duration-300 hover:-translate-y-1"
+                                :class="getSetting('site_theme')?.value === theme.id
+                                    ? 'border-accent-500 shadow-glow-accent bg-accent-50/40 dark:bg-accent-950/20'
+                                    : 'border-surface-200 bg-white hover:border-primary-300 dark:border-surface-700 dark:bg-surface-900/60'"
+                                @click="selectSiteTheme(theme.id)"
+                            >
+                                <span
+                                    v-if="getSetting('site_theme')?.value === theme.id"
+                                    class="absolute top-3 left-3 rounded-full bg-accent-500 px-2.5 py-1 text-[10px] font-black text-surface-950"
+                                >مختار</span>
+
+                                <span class="mb-4 flex h-24 overflow-hidden rounded-xl border border-black/5 shadow-inner" dir="ltr">
+                                    <span class="w-2/3 p-3" :style="{ backgroundColor: theme.colors[2] }">
+                                        <span class="mb-2 block h-2 w-3/4 rounded-full" :style="{ backgroundColor: theme.colors[0] }"></span>
+                                        <span class="mb-1.5 block h-1.5 w-full rounded-full bg-black/10"></span>
+                                        <span class="mb-3 block h-1.5 w-2/3 rounded-full bg-black/10"></span>
+                                        <span class="inline-block h-6 w-16 rounded-lg" :style="{ backgroundColor: theme.colors[1] }"></span>
+                                    </span>
+                                    <span class="flex w-1/3 flex-col gap-2 p-3" :style="{ backgroundColor: theme.colors[0] }">
+                                        <span class="block h-2 rounded-full bg-white/80"></span>
+                                        <span class="block h-2 rounded-full bg-white/40"></span>
+                                        <span class="block h-2 w-2/3 rounded-full" :style="{ backgroundColor: theme.colors[1] }"></span>
+                                    </span>
+                                </span>
+
+                                <span class="flex items-center gap-3">
+                                    <span class="flex -space-x-1 space-x-reverse" dir="ltr">
+                                        <span v-for="color in theme.colors" :key="color" class="h-5 w-5 rounded-full border-2 border-white shadow-sm dark:border-surface-800" :style="{ backgroundColor: color }"></span>
+                                    </span>
+                                    <span class="font-black text-surface-900 dark:text-white">{{ theme.name }}</span>
+                                </span>
+                                <span class="mt-2 block text-xs leading-5 text-surface-500 dark:text-surface-400">{{ theme.description }}</span>
+                            </button>
+                        </div>
+
+                        <p v-if="form.errors['settings.1.value']" class="error-msg">{{ form.errors['settings.1.value'] }}</p>
                     </div>
 
                     <!-- Tab: Welcome Popup -->

@@ -8,10 +8,66 @@
 
 /* ─── Base RTL Setup ─────────────────────────────────────────────────────── */
 @layer base {
-    :root {
+    :root,
+    html[data-site-theme="royal"] {
         direction: rtl;
-        --color-primary: 141 28 61; /* Rich burgundy */
-        --color-accent:  212 175 55; /* Rich metallic gold */
+        --primary-50: 250 244 245; --primary-100: 245 226 230; --primary-200: 232 178 191;
+        --primary-300: 213 125 147; --primary-400: 172 58 85; --primary-500: 122 28 55;
+        --primary-600: 104 20 44; --primary-700: 86 13 34; --primary-800: 70 9 27;
+        --primary-900: 58 8 23; --primary-950: 34 3 12;
+        --accent-50: 251 250 243; --accent-100: 250 243 223; --accent-200: 244 229 185;
+        --accent-300: 234 204 128; --accent-400: 223 175 73; --accent-500: 197 160 57;
+        --accent-600: 167 132 44; --accent-700: 130 100 32; --accent-800: 93 70 23;
+        --accent-900: 62 46 15; --accent-950: 38 28 10;
+        --surface-50: 250 248 246; --surface-100: 244 239 234; --surface-200: 232 223 215;
+        --surface-300: 210 196 183; --surface-400: 159 140 127; --surface-500: 119 101 88;
+        --surface-600: 95 78 67; --surface-700: 51 39 44; --surface-800: 28 20 22;
+        --surface-900: 19 11 13; --surface-950: 10 4 5;
+    }
+
+    html[data-site-theme="ocean"] {
+        --primary-50: 239 246 255; --primary-100: 219 234 254; --primary-200: 191 219 254;
+        --primary-300: 147 197 253; --primary-400: 96 165 250; --primary-500: 37 99 235;
+        --primary-600: 29 78 216; --primary-700: 30 64 175; --primary-800: 30 58 138;
+        --primary-900: 23 37 84; --primary-950: 10 20 48;
+        --accent-50: 236 254 255; --accent-100: 207 250 254; --accent-200: 165 243 252;
+        --accent-300: 103 232 249; --accent-400: 34 211 238; --accent-500: 6 182 212;
+        --accent-600: 8 145 178; --accent-700: 14 116 144; --accent-800: 21 94 117;
+        --accent-900: 22 78 99; --accent-950: 8 51 68;
+        --surface-50: 248 250 252; --surface-100: 241 245 249; --surface-200: 226 232 240;
+        --surface-300: 203 213 225; --surface-400: 148 163 184; --surface-500: 100 116 139;
+        --surface-600: 71 85 105; --surface-700: 51 65 85; --surface-800: 30 41 59;
+        --surface-900: 15 23 42; --surface-950: 2 6 23;
+    }
+
+    html[data-site-theme="emerald"] {
+        --primary-50: 236 253 245; --primary-100: 209 250 229; --primary-200: 167 243 208;
+        --primary-300: 110 231 183; --primary-400: 52 211 153; --primary-500: 16 185 129;
+        --primary-600: 5 150 105; --primary-700: 4 120 87; --primary-800: 6 95 70;
+        --primary-900: 6 78 59; --primary-950: 2 44 34;
+        --accent-50: 255 251 235; --accent-100: 254 243 199; --accent-200: 253 230 138;
+        --accent-300: 252 211 77; --accent-400: 251 191 36; --accent-500: 245 158 11;
+        --accent-600: 217 119 6; --accent-700: 180 83 9; --accent-800: 146 64 14;
+        --accent-900: 120 53 15; --accent-950: 69 26 3;
+        --surface-50: 248 250 249; --surface-100: 241 245 243; --surface-200: 226 232 228;
+        --surface-300: 203 213 207; --surface-400: 148 163 154; --surface-500: 100 116 106;
+        --surface-600: 71 85 76; --surface-700: 51 65 57; --surface-800: 30 41 35;
+        --surface-900: 15 23 19; --surface-950: 2 6 4;
+    }
+
+    html[data-site-theme="violet"] {
+        --primary-50: 245 243 255; --primary-100: 237 233 254; --primary-200: 221 214 254;
+        --primary-300: 196 181 253; --primary-400: 167 139 250; --primary-500: 139 92 246;
+        --primary-600: 124 58 237; --primary-700: 109 40 217; --primary-800: 91 33 182;
+        --primary-900: 76 29 149; --primary-950: 46 16 101;
+        --accent-50: 255 241 242; --accent-100: 255 228 230; --accent-200: 254 205 211;
+        --accent-300: 253 164 175; --accent-400: 251 113 133; --accent-500: 244 63 94;
+        --accent-600: 225 29 72; --accent-700: 190 18 60; --accent-800: 159 18 57;
+        --accent-900: 136 19 55; --accent-950: 76 5 25;
+        --surface-50: 250 250 250; --surface-100: 244 244 245; --surface-200: 228 228 231;
+        --surface-300: 212 212 216; --surface-400: 161 161 170; --surface-500: 113 113 122;
+        --surface-600: 82 82 91; --surface-700: 63 63 70; --surface-800: 39 39 42;
+        --surface-900: 24 24 27; --surface-950: 9 9 11;
     }
 
     html {
@@ -22,23 +78,23 @@
     body {
         @apply text-surface-900 antialiased;
         @apply dark:text-white;
-        background: radial-gradient(circle at 10% 10%, rgba(212, 175, 55, 0.15) 0%, transparent 50%),
-                    radial-gradient(circle at 90% 90%, rgba(141, 28, 61, 0.08) 0%, transparent 50%),
-                    linear-gradient(135deg, #fcfaf6 0%, #f4eee2 100%) !important;
+        background: radial-gradient(circle at 10% 10%, rgb(var(--accent-500) / 0.15) 0%, transparent 50%),
+                    radial-gradient(circle at 90% 90%, rgb(var(--primary-500) / 0.08) 0%, transparent 50%),
+                    linear-gradient(135deg, rgb(var(--surface-50)) 0%, rgb(var(--surface-100)) 100%) !important;
         background-attachment: fixed !important;
     }
     
     html.dark body,
     .dark body {
-        background: radial-gradient(circle at 5% 5%, rgba(212, 175, 55, 0.16) 0%, transparent 45%),
-                    radial-gradient(circle at 95% 95%, rgba(141, 28, 61, 0.09) 0%, transparent 45%),
-                    linear-gradient(135deg, #0d090a 0%, #050203 100%) !important;
+        background: radial-gradient(circle at 5% 5%, rgb(var(--accent-500) / 0.16) 0%, transparent 45%),
+                    radial-gradient(circle at 95% 95%, rgb(var(--primary-500) / 0.09) 0%, transparent 45%),
+                    linear-gradient(135deg, rgb(var(--surface-900)) 0%, rgb(var(--surface-950)) 100%) !important;
         background-attachment: fixed !important;
     }
 
     /* Plyr Overrides */
     :root {
-        --plyr-color-main: rgb(212, 175, 55); /* Match platform accent gold color */
+        --plyr-color-main: rgb(var(--accent-500));
         --plyr-video-background: theme('colors.surface.950');
         --plyr-menu-background: theme('colors.surface.800');
         --plyr-menu-color: theme('colors.white');
@@ -107,14 +163,14 @@
                rounded-2xl
                transition-all duration-300 ease-in-out
                overflow-hidden;
-        border: 1px solid rgba(212, 175, 55, 0.15); /* Sleek gold border for definition in light mode */
-        box-shadow: 0 10px 30px -15px rgba(141, 28, 61, 0.08), 0 4px 12px rgba(0, 0, 0, 0.01);
+        border: 1px solid rgb(var(--accent-500) / 0.15);
+        box-shadow: 0 10px 30px -15px rgb(var(--primary-500) / 0.08), 0 4px 12px rgb(0 0 0 / 0.01);
     }
 
     html.dark .card,
     .dark .card {
-        border: 1px solid rgba(212, 175, 55, 0.16) !important;
-        background-color: rgba(19, 11, 13, 0.6) !important;
+        border: 1px solid rgb(var(--accent-500) / 0.16) !important;
+        background-color: rgb(var(--surface-900) / 0.6) !important;
         backdrop-filter: blur(12px);
         box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.5);
     }
@@ -206,9 +262,9 @@
 
     /* ── Gradient Hero ── */
     .hero-gradient {
-        background: radial-gradient(circle at 80% 20%, rgba(122, 28, 55, 0.45) 0%, transparent 60%),
-                    radial-gradient(circle at 15% 50%, rgba(197, 160, 57, 0.35) 0%, transparent 55%),
-                    linear-gradient(135deg, #1c0209 0%, #46091b 50%, #1f1406 100%);
+        background: radial-gradient(circle at 80% 20%, rgb(var(--primary-500) / 0.45) 0%, transparent 60%),
+                    radial-gradient(circle at 15% 50%, rgb(var(--accent-500) / 0.35) 0%, transparent 55%),
+                    linear-gradient(135deg, rgb(var(--surface-950)) 0%, rgb(var(--primary-800)) 50%, rgb(var(--accent-950)) 100%);
     }
 
     /* ── Glass morphism ── */
@@ -295,8 +351,8 @@
     }
 
     @keyframes pulseGlow {
-        0%, 100% { box-shadow: 0 0 5px rgba(141, 28, 61, 0.4); }
-        50% { box-shadow: 0 0 20px rgba(141, 28, 61, 0.8); }
+        0%, 100% { box-shadow: 0 0 5px rgb(var(--primary-500) / 0.4); }
+        50% { box-shadow: 0 0 20px rgb(var(--primary-500) / 0.8); }
     }
 
     .animate-fade-in-up {
@@ -321,13 +377,13 @@
     .hover-scale-premium:hover,
     .card-hover:hover {
         transform: translateY(-8px) scale(1.03) !important;
-        border-color: rgba(212, 175, 55, 0.75) !important;
-        box-shadow: 0 20px 35px -10px rgba(212, 175, 55, 0.35),
-                    0 0 15px rgba(212, 175, 55, 0.15) !important;
+        border-color: rgb(var(--accent-500) / 0.75) !important;
+        box-shadow: 0 20px 35px -10px rgb(var(--accent-500) / 0.35),
+                    0 0 15px rgb(var(--accent-500) / 0.15) !important;
     }
 
     .hover-glow:hover {
-        box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
+        box-shadow: 0 0 30px rgb(var(--accent-500) / 0.5);
         transition: all 0.3s ease;
     }
 }

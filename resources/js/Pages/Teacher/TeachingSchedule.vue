@@ -1,0 +1,26 @@
+<script setup>
+import { ref } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import DashboardLayout from '@/Layouts/DashboardLayout.vue';
+
+const props = defineProps({ assignments: { type: Array, default: () => [] }, subjects: { type: Array, default: () => [] }, gradeLevels: { type: Array, default: () => [] } });
+const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const tab = ref('groups');
+const assignment = useForm({ subject_id: '', grade_level_id: '' });
+const group = useForm({ teaching_assignment_id: '', name: '', capacity: 10, day_of_week: 0, start_time: '', end_time: '', timezone: 'Asia/Qatar' });
+const privateSlot = useForm({ teaching_assignment_id: '', starts_at: '', ends_at: '', timezone: 'Asia/Qatar' });
+function addAssignment() { assignment.post(route('teacher.teaching-schedule.assignments.store'), { onSuccess: () => assignment.reset() }); }
+function addGroup() { group.post(route('teacher.teaching-schedule.groups.store'), { onSuccess: () => group.reset('name', 'start_time', 'end_time') }); }
+function addPrivate() { privateSlot.post(route('teacher.teaching-schedule.private-slots.store'), { onSuccess: () => privateSlot.reset('starts_at', 'ends_at') }); }
+function removeGroup(id) { if (confirm('حذف المجموعة؟')) router.delete(route('teacher.teaching-schedule.groups.destroy', id)); }
+function removeSlot(id) { if (confirm('إلغاء موعد البرايفيت؟')) router.delete(route('teacher.teaching-schedule.private-slots.destroy', id)); }
+</script>
+<template>
+    <DashboardLayout><Head title="جدول التدريس والمجموعات" /><div class="container-app px-4 py-8 space-y-8">
+        <div><h1 class="text-3xl font-black text-surface-900 dark:text-white">جدول التدريس والحجوزات</h1><p class="text-surface-500 mt-2">اربط المادة بالمرحلة، ثم أنشئ مجموعات أو مواعيد برايفيت يختار منها الطلاب.</p></div>
+        <section class="card p-6"><h2 class="font-bold text-lg mb-4">ربط المادة بالسنة الدراسية</h2><form class="grid md:grid-cols-3 gap-3" @submit.prevent="addAssignment"><select v-model="assignment.subject_id" class="input" required><option value="">اختر المادة</option><option v-for="item in subjects" :key="item.id" :value="item.id">{{ item.name }}</option></select><select v-model="assignment.grade_level_id" class="input" required><option value="">اختر السنة</option><option v-for="item in gradeLevels" :key="item.id" :value="item.id">{{ item.name }}</option></select><button class="btn-primary">إضافة الربط</button></form></section>
+        <div class="flex gap-2"><button class="btn-primary" @click="tab = 'groups'">المجموعات</button><button class="btn-outline" @click="tab = 'private'">مواعيد البرايفيت</button></div>
+        <section class="card p-6"><h2 class="font-bold text-lg mb-4">{{ tab === 'groups' ? 'إنشاء مجموعة' : 'إضافة موعد برايفيت' }}</h2><form v-if="tab === 'groups'" class="grid md:grid-cols-4 gap-3" @submit.prevent="addGroup"><select v-model="group.teaching_assignment_id" class="input md:col-span-2" required><option value="">اختر المادة والسنة</option><option v-for="item in assignments" :key="item.id" :value="item.id">{{ item.subject.name }} — {{ item.grade_level.name }}</option></select><input v-model="group.name" class="input" placeholder="المجموعة أ" required><input v-model.number="group.capacity" type="number" min="1" class="input" placeholder="السعة" required><select v-model.number="group.day_of_week" class="input"><option v-for="(day, index) in days" :key="day" :value="index">{{ day }}</option></select><input v-model="group.start_time" type="time" class="input" required><input v-model="group.end_time" type="time" class="input" required><button class="btn-primary">حفظ المجموعة</button></form><form v-else class="grid md:grid-cols-4 gap-3" @submit.prevent="addPrivate"><select v-model="privateSlot.teaching_assignment_id" class="input md:col-span-2" required><option value="">اختر المادة والسنة</option><option v-for="item in assignments" :key="item.id" :value="item.id">{{ item.subject.name }} — {{ item.grade_level.name }}</option></select><input v-model="privateSlot.starts_at" type="datetime-local" class="input" required><input v-model="privateSlot.ends_at" type="datetime-local" class="input" required><button class="btn-primary">إتاحة الموعد</button></form></section>
+        <section v-for="item in assignments" :key="item.id" class="card p-6"><h2 class="font-bold text-lg">{{ item.subject.name }} — {{ item.grade_level.name }}</h2><div class="grid md:grid-cols-2 gap-3 mt-4"><div v-for="entry in item.groups" :key="entry.id" class="border rounded-xl p-4 flex justify-between"><div><b>{{ entry.name }}</b><p class="text-sm text-surface-500">{{ days[entry.day_of_week] }} | {{ entry.start_time }} - {{ entry.end_time }} | {{ entry.duration_minutes }} دقيقة</p><p class="text-xs text-primary-600">{{ entry.active_bookings_count }}/{{ entry.capacity }} محجوز</p></div><button class="text-red-500" @click="removeGroup(entry.id)">حذف</button></div><div v-for="entry in item.private_slots" :key="entry.id" class="border rounded-xl p-4 flex justify-between"><div><b>برايفيت</b><p class="text-sm text-surface-500">{{ new Date(entry.starts_at).toLocaleString('ar-EG') }}</p></div><button class="text-red-500" @click="removeSlot(entry.id)">إلغاء</button></div></div></section>
+    </div></DashboardLayout>
+</template>

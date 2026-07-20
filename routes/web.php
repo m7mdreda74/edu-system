@@ -81,6 +81,12 @@ Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
 Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
 
+    // Teacher schedules and group/private-session bookings
+    Route::get('/session-booking', [App\Http\Controllers\Student\SessionBookingController::class, 'index'])->name('student.session-booking');
+    Route::post('/session-booking/groups/{id}', [App\Http\Controllers\Student\SessionBookingController::class, 'bookGroup'])->name('student.session-booking.group');
+    Route::post('/session-booking/private/{id}', [App\Http\Controllers\Student\SessionBookingController::class, 'bookPrivate'])->name('student.session-booking.private');
+    Route::delete('/session-booking/{id}', [App\Http\Controllers\Student\SessionBookingController::class, 'cancel'])->name('student.session-booking.cancel');
+
     Route::get('/my-courses/{slug}/learn', [App\Http\Controllers\Student\LearnController::class, 'show'])->name('student.learn');
     Route::post('/my-courses/{slug}/lessons/{lessonId}/progress', [App\Http\Controllers\Student\LearnController::class, 'updateProgress'])->name('student.lesson.progress');
     Route::post('/my-courses/{slug}/worksheets/{worksheetId}/submit', [App\Http\Controllers\Student\LearnController::class, 'submitHomework'])->name('student.worksheets.submit');
@@ -149,6 +155,14 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::post('/live-sessions',                    [App\Http\Controllers\Teacher\LiveSessionController::class, 'store'])->name('live-sessions.store');
     Route::patch('/live-sessions/{id}/status',       [App\Http\Controllers\Teacher\LiveSessionController::class, 'updateStatus'])->name('live-sessions.status');
     Route::delete('/live-sessions/{id}',             [App\Http\Controllers\Teacher\LiveSessionController::class, 'destroy'])->name('live-sessions.destroy');
+
+    // Teaching assignments, groups, and private availability
+    Route::get('/teaching-schedule', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'index'])->name('teaching-schedule');
+    Route::post('/teaching-schedule/assignments', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'storeAssignment'])->name('teaching-schedule.assignments.store');
+    Route::post('/teaching-schedule/groups', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'storeGroup'])->name('teaching-schedule.groups.store');
+    Route::delete('/teaching-schedule/groups/{id}', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'destroyGroup'])->name('teaching-schedule.groups.destroy');
+    Route::post('/teaching-schedule/private-slots', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'storePrivateSlot'])->name('teaching-schedule.private-slots.store');
+    Route::delete('/teaching-schedule/private-slots/{id}', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'destroyPrivateSlot'])->name('teaching-schedule.private-slots.destroy');
 
     // Worksheets & Grading
     Route::get('/courses/{id}/worksheets',           [App\Http\Controllers\Teacher\WorksheetController::class, 'index'])->name('worksheets.index');

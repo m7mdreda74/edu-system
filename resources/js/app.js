@@ -1,13 +1,18 @@
 import '../css/app.css';
 import './bootstrap';
 
-import { createInertiaApp } from '@inertiajs/vue3';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { createPinia } from 'pinia';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
 const appName = import.meta.env.VITE_APP_NAME || 'التفوق';
+const siteThemes = ['royal', 'ocean', 'emerald', 'violet'];
+
+const applySiteTheme = (theme) => {
+    document.documentElement.dataset.siteTheme = siteThemes.includes(theme) ? theme : 'royal';
+};
 
 createInertiaApp({
     title: (title) => `${title} — ${appName}`,
@@ -20,6 +25,11 @@ createInertiaApp({
 
     setup({ el, App, props, plugin }) {
         const pinia = createPinia();
+
+        applySiteTheme(props.initialPage.props.settings?.site_theme);
+        router.on('navigate', (event) => {
+            applySiteTheme(event.detail.page.props.settings?.site_theme);
+        });
 
         const app = createApp({ render: () => h(App, props) })
             .use(plugin)

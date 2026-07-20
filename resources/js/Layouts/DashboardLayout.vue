@@ -77,6 +77,7 @@ const menuGroups = computed(() => {
                 links: [
                     { label: 'الرئيسية',     icon: 'dashboard', href: route('teacher.dashboard'), name: 'teacher.dashboard' },
                     { label: 'كورساتي',      icon: 'courses',   href: route('teacher.courses'),   name: 'teacher.courses' },
+                    { label: 'جدول التدريس والمجموعات', icon: 'clock', href: route('teacher.teaching-schedule'), name: 'teacher.teaching-schedule' },
                     { label: 'الحصص المباشرة',icon: 'live',      href: route('teacher.live-sessions'), name: 'teacher.live-sessions' },
                     { label: 'الرسائل',      icon: 'chat',      href: route('chat.index'),       name: 'chat.index' },
                     { label: 'أرباحي',       icon: 'earnings',  href: route('teacher.dashboard'), name: 'teacher.earnings' },
@@ -99,6 +100,7 @@ const menuGroups = computed(() => {
                 links: [
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),         name: 'dashboard' },
                     { label: 'دوراتي',   icon: 'courses',   href: route('courses.index'),     name: 'courses' },
+                    { label: 'حجز المدرس والموعد', icon: 'clock', href: route('student.session-booking'), name: 'student.session-booking' },
                     { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),        name: 'chat.index' },
                     { label: 'شهاداتي',  icon: 'student',   href: route('dashboard') + '#completed-courses', name: 'certificates' },
                 ]

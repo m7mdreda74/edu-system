@@ -8,6 +8,7 @@ use App\Domain\Settings\Models\PlatformSetting;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,6 +33,14 @@ class SettingsController extends Controller
             'settings.*.value' => ['nullable', 'string'],
             'settings.*.type' => ['required', 'string', 'in:string,integer,boolean'],
         ]);
+
+        foreach ($validated['settings'] as $index => $settingData) {
+            if ($settingData['key'] === 'site_theme' && ! in_array($settingData['value'], ['royal', 'ocean', 'emerald', 'violet'], true)) {
+                throw ValidationException::withMessages([
+                    "settings.{$index}.value" => 'الثيم المختار غير متاح.',
+                ]);
+            }
+        }
 
         foreach ($validated['settings'] as $settingData) {
             if (isset($settingData['id'])) {
