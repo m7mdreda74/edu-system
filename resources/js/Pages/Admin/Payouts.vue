@@ -15,14 +15,18 @@ const createOpen = ref(false);
 const payOpen = ref(false);
 const selectedPayout = ref(null);
 const selectedReceipt = ref(null);
-const form = useForm({ teacher_id: '', period_start: '', period_end: '', notes: '' });
+const form = useForm({ teacher_id: '', period_start: '', period_end: '', notes: '', receipt: null });
 const payForm = useForm({ receipt: null, notes: '' });
 
 const selectedBalance = computed(() => props.balances[String(form.teacher_id)] ?? props.balances[form.teacher_id] ?? null);
 const formatQAR = value => `${new Intl.NumberFormat('ar-QA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((value ?? 0) / 100)} ر.ق.`;
 
 function submitPayout() {
-    form.post(route('admin.payouts.store'), { onSuccess: () => { createOpen.value = false; form.reset(); } });
+    form.post(route('admin.payouts.store'), { forceFormData: true, onSuccess: () => { createOpen.value = false; form.reset(); } });
+}
+
+function setReceipt(event) {
+    form.receipt = event.target.files[0] || null;
 }
 
 function openPay(payout) {
@@ -100,10 +104,11 @@ const statusLabel = payout => payout.teacher_acknowledged_at ? 'تم الاست�
                 <h3 class="text-xl font-black">إنشاء تصفية من المعاملات المعتمدة</h3>
                 <select v-model="form.teacher_id" class="input" required><option value="" disabled>اختر المدرس</option><option v-for="teacher in teachers" :key="teacher.id" :value="teacher.id">{{ teacher.name }}</option></select>
                 <div v-if="selectedBalance" class="rounded-xl bg-surface-50 dark:bg-surface-800 p-3 text-sm">الرصيد المتاح حاليًا: <b class="text-green-600">{{ formatQAR(selectedBalance.teacher_earnings) }}</b></div>
-                <div class="grid grid-cols-2 gap-3"><input v-model="form.period_start" type="date" class="input" required /><input v-model="form.period_end" type="date" class="input" required /></div>
+                <div class="grid grid-cols-2 gap-3"><div><label class="input-label">من تاريخ</label><input v-model="form.period_start" type="date" dir="ltr" class="input" required /></div><div><label class="input-label">إلى تاريخ</label><input v-model="form.period_end" type="date" dir="ltr" class="input" required /></div></div>
+                <div class="rounded-2xl border-2 border-dashed border-accent-400/60 bg-accent-50/30 dark:bg-accent-950/20 p-4"><label class="input-label">صورة إثبات تحويل مستحقات المدرس <span class="text-red-500">(اختياري هنا، ومطلوب قبل اعتبارها مدفوعة)</span></label><input type="file" accept="image/*" class="input" @change="setReceipt" /><p class="text-[11px] text-surface-500 mt-2">لو رفعت الصورة الآن سيتم تسجيل التصفية كـ «تم التحويل» مباشرة، وإلا ستظهر في الجدول بزر «رفع إثبات الدفع».</p></div>
                 <textarea v-model="form.notes" class="input" placeholder="ملاحظات اختيارية"></textarea>
                 <p v-if="Object.keys(form.errors).length" class="error-msg">{{ Object.values(form.errors)[0] }}</p>
-                <div class="flex justify-end gap-2"><button type="button" @click="createOpen = false" class="btn-ghost">إلغاء</button><button class="btn-primary" :disabled="form.processing">إنشاء التصفية</button></div>
+                <div class="flex justify-end gap-2"><button type="button" @click="createOpen = false" class="btn-ghost">إلغاء</button><button class="btn-primary" :disabled="form.processing">إنشاء التصفية وتسجيل التحويل</button></div>
             </form>
         </div>
 

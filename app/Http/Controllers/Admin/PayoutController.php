@@ -48,12 +48,15 @@ class PayoutController extends Controller
             'period_start'        => ['required', 'date'],
             'period_end'          => ['required', 'date'],
             'notes'               => ['nullable', 'string'],
+            'receipt'             => ['nullable', 'file', 'image', 'max:8192'],
         ]);
 
         abort_if($validated['period_end'] < $validated['period_start'], 422, 'نهاية الفترة يجب أن تكون بعد بدايتها.');
         abort_unless(User::findOrFail($validated['teacher_id'])->hasRole('teacher'), 422, 'المستخدم المختار ليس مدرسًا.');
 
-        DB::transaction(function () use ($validated): void {
+        $receiptPath = $request->file('receipt')?->store('payout-receipts', 'local');
+
+        DB::transaction(function () use ($validated, $receiptPath): void {
             $payments = Payment::query()
                 ->join('courses', 'courses.id', '=', 'payments.course_id')
                 ->where('courses.teacher_id', $validated['teacher_id'])
@@ -78,12 +81,23 @@ class PayoutController extends Controller
                 'platform_commission' => $gross > 0 ? (int) round(($platformAmount / $gross) * 100) : 0,
                 'period_start' => $validated['period_start'],
                 'period_end' => $validated['period_end'],
-                'status' => 'pending',
+                'status' => $receiptPath ? 'paid' : 'pending',
+                'paid_at' => $receiptPath ? now() : null,
+                'receipt_path' => $receiptPath,
+                'paid_by' => $receiptPath ? auth()->id() : null,
                 'notes' => $validated['notes'] ?? null,
             ]);
 
             Payment::whereIn('id', $payments->pluck('id'))->update(['teacher_payout_id' => $payout->id]);
         });
+
+        if ($receiptPath) {
+            TeacherPayout::where('teacher_id', $validated['teacher_id'])
+                ->where('receipt_path', $receiptPath)
+                ->first()?->teacher?->notify(new \App\Domain\Communication\Notifications\PayoutStatusNotification(
+                    TeacherPayout::where('teacher_id', $validated['teacher_id'])->where('receipt_path', $receiptPath)->first()
+                ));
+        }
 
         return back()->with('success', 'تم تسجيل طلب تسوية الأرباح بنجاح.');
     }
