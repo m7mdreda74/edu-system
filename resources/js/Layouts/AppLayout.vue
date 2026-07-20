@@ -4,6 +4,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import Icon from '@/Components/Icon.vue';
+import BrandLogo from '@/Components/BrandLogo.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
 import axios from 'axios';
 
@@ -129,12 +130,15 @@ const isActive = (link) => {
 
                     <!-- Logo -->
                     <Link :href="route('home')" class="flex items-center gap-2 group">
+                        <BrandLogo compact />
+                        <div class="hidden">
                         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700
                                     flex items-center justify-center shadow-glow-primary
                                     group-hover:scale-110 transition-transform duration-200">
                             <span class="text-white font-bold text-sm">{{ ($page.props.settings?.platform_name ?? 'تفوّق').charAt(0) }}</span>
                         </div>
                         <span class="text-xl font-bold text-gradient-primary hidden sm:block">{{ $page.props.settings?.platform_name ?? 'التفوق' }}</span>
+                        </div>
                     </Link>
 
                     <!-- Desktop Search Bar -->
@@ -292,11 +296,14 @@ const isActive = (link) => {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                     <div>
                         <div class="flex items-center gap-2 mb-4">
+                            <BrandLogo :show-text="false" compact />
+                            <div class="hidden">
                             <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700
                                         flex items-center justify-center">
                                 <span class="text-white font-bold text-xs">{{ ($page.props.settings?.platform_name ?? 'تفوّق').charAt(0) }}</span>
                             </div>
                             <span class="text-white font-bold text-lg">{{ $page.props.settings?.platform_name ?? 'منصة التفوق' }}</span>
+                            </div>
                         </div>
                         <p class="text-sm text-surface-400 leading-relaxed">
                             {{ $page.props.settings?.footer_desc ?? 'منصة تعليمية متخصصة في مواد المرحلة الثانوية، نحو مستقبل أفضل لكل طالب.' }}

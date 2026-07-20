@@ -25,6 +25,8 @@ class TeachingGroup extends Model
 
     public function assignment(): BelongsTo { return $this->belongsTo(TeachingAssignment::class, 'teaching_assignment_id'); }
     public function bookings(): HasMany { return $this->hasMany(SessionBooking::class); }
+    public function schedules(): HasMany { return $this->hasMany(TeachingGroupSchedule::class)->orderBy('day_of_week')->orderBy('start_time'); }
+    public function lessons(): HasMany { return $this->hasMany(TeachingGroupLesson::class)->orderBy('position'); }
     public function activeBookings(): HasMany { return $this->bookings()->where('status', 'confirmed'); }
     public function hasCapacity(): bool { return $this->activeBookings()->count() < $this->capacity; }
 }

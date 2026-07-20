@@ -24,11 +24,11 @@ class SessionBookingController extends Controller
     {
         $assignments = TeachingAssignment::with([
             'teacher:id,name,avatar', 'subject:id,name,name_en', 'gradeLevel:id,key,name,name_en',
-            'groups' => fn ($query) => $query->where('is_active', true)->withCount('activeBookings')->orderBy('day_of_week')->orderBy('start_time'),
+            'groups' => fn ($query) => $query->where('is_active', true)->with('schedules')->withCount('activeBookings')->orderBy('day_of_week')->orderBy('start_time'),
             'privateSlots' => fn ($query) => $query->where('status', 'available')->where('starts_at', '>=', now())->orderBy('starts_at'),
         ])->where('is_active', true)->get();
 
-        $bookings = SessionBooking::with(['group.assignment.subject', 'group.assignment.gradeLevel', 'privateSlot.assignment.subject', 'privateSlot.assignment.gradeLevel'])
+        $bookings = SessionBooking::with(['group.schedules', 'group.assignment.subject', 'group.assignment.gradeLevel', 'privateSlot.assignment.subject', 'privateSlot.assignment.gradeLevel'])
             ->where('student_id', Auth::id())->where('status', 'confirmed')->latest('booked_at')->get();
 
         return Inertia::render('Student/SessionBooking', ['assignments' => $assignments, 'bookings' => $bookings]);

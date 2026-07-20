@@ -310,7 +310,7 @@ onBeforeUnmount(() => {
                 <div class="h-8 w-px bg-surface-700"></div>
                 <div>
                     <h1 class="font-bold text-lg leading-tight">{{ session.title }}</h1>
-                    <div class="text-xs text-primary-400">{{ session.course.title }}</div>
+                    <div class="text-xs text-primary-400">{{ session.course?.title || session.teaching_group?.name || 'حصة مباشرة' }}</div>
                 </div>
             </div>
             <div class="flex items-center gap-4">

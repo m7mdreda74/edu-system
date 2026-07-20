@@ -45,6 +45,20 @@ class SessionBookingService
                 throw new LogicException('الموعد يتعارض مع مجموعة أخرى محجوزة لك.');
             }
 
+            $group->loadMissing('schedules');
+            foreach ($group->schedules as $schedule) {
+                $scheduleOverlap = SessionBooking::where('student_id', $student->id)
+                    ->where('status', 'confirmed')
+                    ->whereHas('group.schedules', function ($query) use ($schedule) {
+                        $query->where('day_of_week', $schedule->day_of_week)
+                            ->where('start_time', '<', $schedule->end_time)
+                            ->where('end_time', '>', $schedule->start_time);
+                    })->exists();
+                if ($scheduleOverlap) {
+                    throw new LogicException('أحد مواعيد المجموعة يتعارض مع مجموعة أخرى محجوزة لك.');
+                }
+            }
+
             return SessionBooking::create([
                 'student_id' => $student->id,
                 'teaching_group_id' => $group->id,

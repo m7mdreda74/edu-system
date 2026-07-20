@@ -75,7 +75,7 @@ class LiveSessionController extends Controller
             $this->assertAssignmentMatchesCourse($group->assignment, $course);
             $date = Carbon::parse($validated['scheduled_date'], $group->timezone);
             abort_if($date->dayOfWeek !== (int) $group->day_of_week, 422, 'التاريخ لا يوافق يوم المجموعة المحدد.');
-            $scheduledAt = $date->setTimeFromTimeString($group->start_time);
+            $scheduledAt = $date->setTimeFromTimeString($group->start_time)->utc();
         } else {
             abort_if(empty($validated['private_session_slot_id']), 422, 'اختر موعد البرايفيت.');
             $privateSlot = PrivateSessionSlot::with(['assignment.gradeLevel', 'booking'])->findOrFail($validated['private_session_slot_id']);

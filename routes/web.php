@@ -164,6 +164,9 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::post('/teaching-schedule/assignments', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'storeAssignment'])->name('teaching-schedule.assignments.store');
     Route::post('/teaching-schedule/groups', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'storeGroup'])->name('teaching-schedule.groups.store');
     Route::delete('/teaching-schedule/groups/{id}', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'destroyGroup'])->name('teaching-schedule.groups.destroy');
+    Route::post('/teaching-schedule/groups/{id}/lessons', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'storeGroupLesson'])->name('teaching-schedule.groups.lessons.store');
+    Route::post('/teaching-schedule/group-lessons/{id}/schedule', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'scheduleGroupLesson'])->name('teaching-schedule.group-lessons.schedule');
+    Route::get('/teaching-schedule/group-lessons/{id}/schedule', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'redirectGroupLessonSchedule'])->name('teaching-schedule.group-lessons.schedule-link');
     Route::post('/teaching-schedule/private-slots', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'storePrivateSlot'])->name('teaching-schedule.private-slots.store');
     Route::delete('/teaching-schedule/private-slots/{id}', [App\Http\Controllers\Teacher\TeachingScheduleController::class, 'destroyPrivateSlot'])->name('teaching-schedule.private-slots.destroy');
 
