@@ -104,7 +104,7 @@ describe('QuizService — Server-side Grading', function () {
         $service = app(QuizService::class);
         $student = User::factory()->create();
 
-        $quiz    = Quiz::factory()->create(['is_active' => true]);
+        $quiz    = Quiz::factory()->withQuestions(1)->create(['is_active' => true]);
         $attempt = $service->startAttempt($student, $quiz);
 
         // Submit once

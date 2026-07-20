@@ -55,7 +55,7 @@ describe('Free Course Enrollment', function () {
         $teacher = User::factory()->create();
         $teacher->assignRole('teacher');
 
-        $course = Course::factory()->create(['price' => 0, 'is_published', true]);
+        $course = Course::factory()->create(['price' => 0, 'is_published' => true]);
 
         $response = $this->actingAs($teacher)
             ->post(route('student.enroll', ['slug' => $course->slug]));

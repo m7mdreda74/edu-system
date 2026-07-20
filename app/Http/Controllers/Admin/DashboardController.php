@@ -26,11 +26,15 @@ class DashboardController extends Controller
                 ->sum('amount');
 
             // Revenue last 6 months for chart
+            $dateExpressions = DB::connection()->getDriverName() === 'sqlite'
+                ? ["strftime('%Y', paid_at) as year", "strftime('%m', paid_at) as month"]
+                : ['YEAR(paid_at) as year', 'MONTH(paid_at) as month'];
+
             $revenueChart = Payment::where('status', Payment::STATUS_PAID)
                 ->where('paid_at', '>=', now()->subMonths(6))
                 ->select(
-                    DB::raw('YEAR(paid_at) as year'),
-                    DB::raw('MONTH(paid_at) as month'),
+                    DB::raw($dateExpressions[0]),
+                    DB::raw($dateExpressions[1]),
                     DB::raw('SUM(amount) as total')
                 )
                 ->groupBy('year', 'month')

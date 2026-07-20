@@ -73,7 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // ─── Student Routes ────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
     // Enrollment
     Route::post('/courses/{slug}/enroll', [App\Http\Controllers\Student\EnrollController::class, 'store'])->name('student.enroll');
 });

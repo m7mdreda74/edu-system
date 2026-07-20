@@ -26,6 +26,11 @@ class User extends Authenticatable
 {
     use HasFactory, HasRoles, Notifiable, SoftDeletes;
 
+    protected static function newFactory(): \Database\Factories\Domain\User\UserFactory
+    {
+        return new \Database\Factories\Domain\User\UserFactory();
+    }
+
     // IDE Helper: hasRole()/syncRoles() come from Spatie\Permission\Traits\HasRoles.
     // The @mixin above ensures static analysis resolves them correctly.
 
