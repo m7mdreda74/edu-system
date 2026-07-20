@@ -8,6 +8,7 @@ import Icon from '@/Components/Icon.vue';
 const props = defineProps({
     users:   { type: Object, required: true },  // paginated
     filters: { type: Object, default: () => ({}) },
+    defaultCommission: { type: Number, default: 20 },
 });
 
 const page = usePage();
@@ -102,7 +103,24 @@ function updateRole() {
 }
 
 const roleLabel  = { admin: 'مدير', teacher: 'مدرس', student: 'طالب', parent: 'ولي أمر' };
-const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: 'badge-gray', parent: 'badge-green' };</script>
+const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: 'badge-gray', parent: 'badge-green' };
+const commissionModalOpen = ref(false);
+const commissionUser = ref(null);
+const commissionForm = useForm({ commission_percent: 20 });
+
+function openCommissionModal(user) {
+    commissionUser.value = user;
+    commissionForm.commission_percent = user.commission_percent ?? props.defaultCommission;
+    commissionModalOpen.value = true;
+}
+
+function updateCommission() {
+    commissionForm.patch(route('admin.users.commission', { id: commissionUser.value.id }), {
+        preserveScroll: true,
+        onSuccess: () => { commissionModalOpen.value = false; },
+    });
+}
+</script>
 
 <template>
     <DashboardLayout>
@@ -157,6 +175,7 @@ const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: '
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">المستخدم</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الدور</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التسجيلات</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">عمولة المنصة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">إجراء</th>
                             </tr>
@@ -187,6 +206,12 @@ const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: '
                                 </td>
                                 <td class="p-4 text-surface-600 dark:text-surface-300">
                                     {{ user.enrollments_count }}
+                                </td>
+                                <td class="p-4">
+                                    <button v-if="user.roles?.some(r => r.name === 'teacher')" @click="openCommissionModal(user)" class="btn-outline btn-sm">
+                                        {{ user.commission_percent ?? defaultCommission }}%
+                                    </button>
+                                    <span v-else class="text-surface-300">—</span>
                                 </td>
                                 <td class="p-4">
                                     <span :class="user.is_active
@@ -243,6 +268,26 @@ const roleColors = { admin: 'badge-accent', teacher: 'badge-primary', student: '
                     </Link>
                 </div>
             </div>
+        </div>
+
+        <!-- Role Modal -->
+        <div v-if="commissionModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="commissionModalOpen = false"></div>
+            <form @submit.prevent="updateCommission" class="relative card p-6 w-full max-w-sm space-y-4">
+                <div>
+                    <h3 class="text-xl font-black text-surface-900 dark:text-white">نسبة عمولة المنصة</h3>
+                    <p class="text-xs text-surface-500 mt-1">للمدرس: {{ commissionUser?.name }} — تُثبت النسبة وقت كل اشتراك.</p>
+                </div>
+                <div>
+                    <label class="input-label">النسبة من 0 إلى 100%</label>
+                    <input v-model="commissionForm.commission_percent" type="number" min="0" max="100" class="input" required />
+                    <p v-if="commissionForm.errors.commission_percent" class="error-msg">{{ commissionForm.errors.commission_percent }}</p>
+                </div>
+                <div class="flex gap-2 justify-end">
+                    <button type="button" @click="commissionModalOpen = false" class="btn-ghost">إلغاء</button>
+                    <button type="submit" class="btn-primary" :disabled="commissionForm.processing">حفظ النسبة</button>
+                </div>
+            </form>
         </div>
 
         <!-- Role Modal -->

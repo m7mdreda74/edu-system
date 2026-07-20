@@ -6,6 +6,7 @@ namespace App\Infrastructure\Observers;
 
 use App\Domain\Payment\Models\Payment;
 use App\Domain\Payment\Models\PaymentAuditLog;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Reacts to Payment model events.
@@ -44,6 +45,12 @@ class PaymentObserver
                     'new' => $payment->status,
                 ],
             ]);
+
+            $teacherId = $payment->course()->value('teacher_id');
+            if ($teacherId) {
+                Cache::forget("teacher_stats:{$teacherId}");
+            }
+            Cache::forget('admin_platform_stats');
         }
     }
 }

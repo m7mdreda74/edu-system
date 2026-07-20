@@ -10,6 +10,7 @@ use App\Domain\Payment\Models\Coupon;
 use App\Domain\Payment\Models\Invoice;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\User\Models\User;
+use App\Domain\Settings\Models\PlatformSetting;
 use App\Infrastructure\Payment\PaymentGatewayInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -203,9 +204,19 @@ class PaymentService
         }
 
         DB::transaction(function () use ($payment) {
+            $payment->loadMissing(['course.teacher']);
+            $teacher = $payment->course?->teacher;
+            $defaultCommission = (int) (PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20);
+            $commissionPercent = $teacher?->commission_percent ?? $defaultCommission;
+            $commissionPercent = max(0, min(100, $commissionPercent));
+            $platformCommission = (int) floor(($payment->amount * $commissionPercent) / 100);
+
             $payment->update([
                 'status'  => Payment::STATUS_PAID,
                 'paid_at' => now(),
+                'commission_percent' => $commissionPercent,
+                'platform_commission_amount' => $platformCommission,
+                'teacher_earnings' => $payment->amount - $platformCommission,
             ]);
 
             // Generate invoice

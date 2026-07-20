@@ -25,7 +25,7 @@ class DashboardController extends Controller
             $totalStudents = Enrollment::whereIn('course_id', $courseIds)->count();
             $totalRevenue  = Payment::whereIn('course_id', $courseIds)
                 ->where('status', Payment::STATUS_PAID)
-                ->sum('amount');
+                ->sum('teacher_earnings');
 
             $completedStudents = Enrollment::whereIn('course_id', $courseIds)
                 ->where('progress_percent', 100)

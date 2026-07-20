@@ -372,7 +372,8 @@ const syncListsBeforeSubmit = () => {
 
 const addManualPayment = () => {
     manualPaymentsList.value.push({
-        name: '',
+        type: 'wallet',
+        name: 'محفظة إلكترونية',
         account_name: '',
         account_number: '',
         instructions: ''
@@ -1059,7 +1060,11 @@ function saveSettings() {
                                             <span>حذف</span>
                                         </button>
 
-                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                            <div class="space-y-1">
+                                                <label class="block text-[10px] font-bold text-surface-500">نوع الوسيلة</label>
+                                                <select v-model="method.type" class="input w-full text-xs" @change="isDirty = true"><option value="wallet">محفظة إلكترونية</option><option value="bank">تحويل بنكي</option></select>
+                                            </div>
                                             <div class="space-y-1">
                                                 <label class="block text-[10px] font-bold text-surface-500">اسم وسيلة الدفع</label>
                                                 <input v-model="method.name" type="text" class="input w-full text-xs" placeholder="مثال: فودافون كاش / بنك قطر الوطني" @input="isDirty = true" />

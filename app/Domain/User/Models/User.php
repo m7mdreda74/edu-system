@@ -44,6 +44,7 @@ class User extends Authenticatable
         'grade_level',
         'bio',
         'is_active',
+        'commission_percent',
     ];
 
     protected $hidden = [
@@ -57,6 +58,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'is_active'         => 'boolean',
+            'commission_percent' => 'integer',
         ];
     }
 

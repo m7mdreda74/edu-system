@@ -141,6 +141,9 @@ Route::withoutMiddleware(['web'])->group(function () {
 // ─── Teacher Routes ────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('/dashboard',             [App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/payouts',               [App\Http\Controllers\Teacher\PayoutController::class, 'index'])->name('payouts');
+    Route::post('/payouts/{id}/acknowledge', [App\Http\Controllers\Teacher\PayoutController::class, 'acknowledge'])->name('payouts.acknowledge');
+    Route::get('/payouts/{id}/receipt', [App\Http\Controllers\Teacher\PayoutController::class, 'receipt'])->name('payouts.receipt');
     Route::get('/courses',               [App\Http\Controllers\Teacher\CourseManagerController::class, 'index'])->name('courses');
     Route::get('/courses/create',        [App\Http\Controllers\Teacher\CourseManagerController::class, 'create'])->name('courses.create');
     Route::post('/courses',              [App\Http\Controllers\Teacher\CourseManagerController::class, 'store'])->name('courses.store');
@@ -178,11 +181,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/users',                 [App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
     Route::patch('/users/{id}/toggle',    [App\Http\Controllers\Admin\UserController::class, 'toggleActive'])->name('users.toggle');
     Route::patch('/users/{id}/role',      [App\Http\Controllers\Admin\UserController::class, 'updateRole'])->name('users.role');
+    Route::patch('/users/{id}/commission', [App\Http\Controllers\Admin\UserController::class, 'updateCommission'])->name('users.commission');
     Route::get('/courses',                [App\Http\Controllers\Admin\CourseController::class, 'index'])->name('courses');
     Route::patch('/courses/{id}/publish', [App\Http\Controllers\Admin\CourseController::class, 'togglePublish'])->name('courses.toggle');
     Route::get('/payments',               [App\Http\Controllers\Admin\PaymentController::class, 'index'])->name('payments');
     Route::post('/payments/{payment}/approve', [App\Http\Controllers\Admin\PaymentController::class, 'approve'])->name('payments.approve');
     Route::post('/payments/{payment}/reject',  [App\Http\Controllers\Admin\PaymentController::class, 'reject'])->name('payments.reject');
+    Route::get('/payments/{payment}/receipt', [App\Http\Controllers\Admin\PaymentController::class, 'receipt'])->name('payments.receipt');
     Route::get('/settings',               [App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings');
     Route::post('/settings',              [App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
     Route::delete('/settings/{id}',       [App\Http\Controllers\Admin\SettingsController::class, 'destroy'])->name('settings.destroy');
@@ -200,6 +205,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/payouts',                [App\Http\Controllers\Admin\PayoutController::class, 'index'])->name('payouts');
     Route::post('/payouts',               [App\Http\Controllers\Admin\PayoutController::class, 'store'])->name('payouts.store');
     Route::post('/payouts/{id}/pay',      [App\Http\Controllers\Admin\PayoutController::class, 'markAsPaid'])->name('payouts.pay');
+    Route::get('/payouts/{id}/receipt',   [App\Http\Controllers\Admin\PayoutController::class, 'receipt'])->name('payouts.receipt');
     Route::delete('/payouts/{id}',        [App\Http\Controllers\Admin\PayoutController::class, 'destroy'])->name('payouts.destroy');
 
     // Coupons

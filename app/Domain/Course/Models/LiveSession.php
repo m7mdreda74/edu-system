@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Course\Models;
 
 use App\Domain\User\Models\User;
+use App\Domain\Scheduling\Models\PrivateSessionSlot;
+use App\Domain\Scheduling\Models\TeachingGroup;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -13,6 +15,8 @@ class LiveSession extends Model
     protected $fillable = [
         'course_id',
         'teacher_id',
+        'teaching_group_id',
+        'private_session_slot_id',
         'title',
         'description',
         'scheduled_at',
@@ -40,6 +44,16 @@ class LiveSession extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(User::class, 'teacher_id');
+    }
+
+    public function teachingGroup(): BelongsTo
+    {
+        return $this->belongsTo(TeachingGroup::class, 'teaching_group_id');
+    }
+
+    public function privateSessionSlot(): BelongsTo
+    {
+        return $this->belongsTo(PrivateSessionSlot::class, 'private_session_slot_id');
     }
 
     public function lesson(): BelongsTo

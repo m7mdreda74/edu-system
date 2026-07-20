@@ -64,13 +64,17 @@ class CheckoutController extends Controller
         $validated = $request->validate([
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'payment_method' => ['nullable', 'string', 'in:gateway,manual'],
-            'selected_method' => ['required_if:payment_method,manual', 'array'],
+            'selected_method' => ['required_if:payment_method,manual'],
             'receipt' => ['required_if:payment_method,manual', 'file', 'image', 'max:8192'],
             'purchase_request_id' => ['nullable', 'integer', 'exists:purchase_requests,id'],
         ]);
 
         /** @var \App\Domain\User\Models\User $user */
         $user   = Auth::user();
+
+        if (isset($validated['selected_method']) && is_string($validated['selected_method'])) {
+            $validated['selected_method'] = json_decode($validated['selected_method'], true) ?: [];
+        }
         /** @var Course $course */
         $course = Course::where('slug', $slug)->where('is_published', true)->firstOrFail();
 
@@ -98,6 +102,15 @@ class CheckoutController extends Controller
                     throw new LogicException('الطالب مسجل في هذا الكورس مسبقاً.');
                 }
 
+                $configuredMethods = json_decode(\App\Domain\Settings\Models\PlatformSetting::where('key', 'manual_payment_methods')->value('value') ?: '[]', true);
+                $selectedMethod = collect($configuredMethods)->first(function ($method) use ($validated) {
+                    return ($method['name'] ?? null) === ($validated['selected_method']['name'] ?? null)
+                        && ($method['account_number'] ?? null) === ($validated['selected_method']['account_number'] ?? null);
+                });
+                if (! $selectedMethod) {
+                    throw new LogicException('وسيلة التحويل المختارة غير متاحة. حدّث الصفحة وحاول مرة أخرى.');
+                }
+
                 // Resolve coupon
                 $coupon         = null;
                 $originalAmount = $course->getEffectivePrice();
@@ -113,9 +126,9 @@ class CheckoutController extends Controller
                 }
 
                 // Upload receipt screenshot
-                $path = $request->file('receipt')->store('receipts', 'public');
+                $path = $request->file('receipt')->store('receipts', 'local');
 
-                Payment::create([
+                $payment = Payment::create([
                     'user_id'         => $targetUser->id,
                     'course_id'       => $course->id,
                     'coupon_id'       => $coupon?->id,
@@ -123,11 +136,16 @@ class CheckoutController extends Controller
                     'original_amount' => $originalAmount,
                     'currency'        => 'QAR',
                     'gateway'         => 'manual',
-                    'gateway_ref'     => $validated['selected_method']['name'] ?? 'تحويل يدوي',
+                    'gateway_ref'     => ($selectedMethod['type'] ?? 'wallet') . ': ' . ($selectedMethod['name'] ?? 'تحويل يدوي'),
                     'status'          => Payment::STATUS_PENDING_VERIFICATION,
-                    'receipt_path'    => '/storage/' . $path,
+                    'receipt_path'    => $path,
                     'purchase_request_id' => $purchaseRequest?->id,
                 ]);
+
+                $payment->load(['user', 'course']);
+                foreach (\App\Domain\User\Models\User::role('admin')->get() as $admin) {
+                    $admin->notify(new \App\Domain\Communication\Notifications\ManualPaymentSubmittedNotification($payment));
+                }
 
                 if ($request->wantsJson() || $request->ajax()) {
                     return response()->json([

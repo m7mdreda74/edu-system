@@ -33,6 +33,9 @@ class Payment extends Model
         'course_id',
         'coupon_id',
         'amount',
+        'commission_percent',
+        'platform_commission_amount',
+        'teacher_earnings',
         'original_amount',
         'currency',
         'gateway',
@@ -41,6 +44,10 @@ class Payment extends Model
         'receipt_path',
         'paid_at',
         'purchase_request_id',
+        'teacher_payout_id',
+        'reviewed_by',
+        'reviewed_at',
+        'review_notes',
     ];
 
     protected function casts(): array
@@ -48,7 +55,11 @@ class Payment extends Model
         return [
             'amount'          => 'integer', // in smallest unit (halala/cent) — no floats!
             'original_amount' => 'integer',
+            'commission_percent' => 'integer',
+            'platform_commission_amount' => 'integer',
+            'teacher_earnings' => 'integer',
             'paid_at'         => 'datetime',
+            'reviewed_at'     => 'datetime',
         ];
     }
 

@@ -16,17 +16,25 @@ class TeacherPayout extends Model
         'teacher_id',
         'amount',
         'platform_commission',
+        'gross_amount',
+        'teacher_earnings',
+        'platform_commission_amount',
         'period_start',
         'period_end',
         'status',
         'paid_at',
         'notes',
+        'receipt_path',
+        'paid_by',
+        'teacher_acknowledged_at',
+        'teacher_acknowledgment_note',
     ];
 
     protected $casts = [
         'period_start' => 'date',
         'period_end'   => 'date',
         'paid_at'      => 'datetime',
+        'teacher_acknowledged_at' => 'datetime',
     ];
 
     public function teacher(): BelongsTo

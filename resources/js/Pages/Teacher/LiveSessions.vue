@@ -1,22 +1,36 @@
 <script setup>
-import { useForm, router, Link } from '@inertiajs/vue3';
+import { useForm, router, Head } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
-import { ref } from 'vue';
+import Icon from '@/Components/Icon.vue';
+import { ref, computed } from 'vue';
 
 const props = defineProps({
     sessions: { type: Array, required: true },
     courses:  { type: Array, required: true },
+    assignments: { type: Array, required: true },
 });
 
 const form = useForm({
     course_id:    '',
     title:        '',
     description:  '',
-    scheduled_at: '',
+    source_type: 'group',
+    teaching_group_id: '',
+    private_session_slot_id: '',
+    scheduled_date: '',
     room_id:      '', // Zoom link
 });
 
 const isModalOpen = ref(false);
+
+const selectedCourse = computed(() => props.courses.find(course => String(course.id) === String(form.course_id)));
+const matchingAssignments = computed(() => props.assignments.filter(assignment =>
+    selectedCourse.value && assignment.subject_id === selectedCourse.value.subject_id && assignment.grade_level_id === selectedCourse.value.grade_level?.id
+));
+const groupOptions = computed(() => matchingAssignments.value.flatMap(assignment => assignment.groups.map(group => ({ ...group, subject: assignment.subject?.name, grade: assignment.grade_level?.name }))));
+const privateOptions = computed(() => matchingAssignments.value.flatMap(assignment => assignment.private_slots.map(slot => ({ ...slot, subject: assignment.subject?.name, grade: assignment.grade_level?.name }))));
+
+const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 function submit() {
     form.post(route('teacher.live-sessions.store'), {
@@ -25,6 +39,12 @@ function submit() {
             isModalOpen.value = false;
         }
     });
+}
+
+function resetScheduleSelection() {
+    form.teaching_group_id = '';
+    form.private_session_slot_id = '';
+    form.scheduled_date = '';
 }
 
 function deleteSession(id) {
@@ -93,6 +113,8 @@ const statusLabels = {
                                 <td class="p-4">
                                     <div class="font-bold text-surface-900 dark:text-white text-base">{{ session.title }}</div>
                                     <div class="text-xs text-surface-500 mt-1">{{ session.course.title }}</div>
+                                    <div v-if="session.teaching_group" class="text-[11px] text-primary-500 mt-1">مجموعة: {{ session.teaching_group.name }}</div>
+                                    <div v-else-if="session.private_session_slot" class="text-[11px] text-accent-500 mt-1">جلسة برايفيت محجوزة</div>
                                 </td>
                                 <td class="p-4 text-surface-600 dark:text-surface-300 font-mono text-xs">
                                     {{ new Date(session.scheduled_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
@@ -156,8 +178,34 @@ const statusLabels = {
                             </div>
 
                             <div>
-                                <label class="input-label">موعد وتاريخ الحصة</label>
-                                <input v-model="form.scheduled_at" type="datetime-local" class="input" required>
+                                <label class="input-label">نوع الحجز والموعد</label>
+                                <select v-model="form.source_type" class="input" @change="resetScheduleSelection" required>
+                                    <option value="group">حصة مجموعة</option>
+                                    <option value="private">حصة برايفيت</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="input-label">{{ form.source_type === 'group' ? 'اختر المجموعة' : 'اختر موعد البرايفيت المحجوز' }}</label>
+                                <select v-if="form.source_type === 'group'" v-model="form.teaching_group_id" class="input" required>
+                                    <option value="" disabled>-- المجموعة --</option>
+                                    <option v-for="group in groupOptions" :key="group.id" :value="group.id">
+                                        {{ group.name }} — {{ days[group.day_of_week] }} — {{ group.start_time }} إلى {{ group.end_time }}
+                                    </option>
+                                </select>
+                                <select v-else v-model="form.private_session_slot_id" class="input" required>
+                                    <option value="" disabled>-- الموعد المحجوز --</option>
+                                    <option v-for="slot in privateOptions" :key="slot.id" :value="slot.id">
+                                        {{ new Date(slot.starts_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                    </option>
+                                </select>
+                                <p v-if="!matchingAssignments.length" class="text-xs text-red-500 mt-1">لا يوجد جدول مرتبط بهذا الكورس. أنشئ ربط المادة والسنة من جدول التدريس أولًا.</p>
+                            </div>
+
+                            <div v-if="form.source_type === 'group'">
+                                <label class="input-label">تاريخ تنفيذ حصة المجموعة</label>
+                                <input v-model="form.scheduled_date" type="date" class="input" required>
+                                <p class="text-[11px] text-surface-400 mt-1">اختار نفس يوم المجموعة، والساعة هتتحدد تلقائيًا من الجدول.</p>
                             </div>
 
                             <div>

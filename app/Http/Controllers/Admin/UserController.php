@@ -37,6 +37,7 @@ class UserController extends Controller
         return Inertia::render('Admin/Users', [
             'users'   => $users,
             'filters' => $filters,
+            'defaultCommission' => (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20),
         ]);
     }
 
@@ -58,6 +59,9 @@ class UserController extends Controller
             'password'    => $validated['password'], // hashed by cast
             'grade_level' => ($validated['role'] === 'student') ? ($validated['grade_level'] ?? null) : null,
             'is_active'   => true,
+            'commission_percent' => $validated['role'] === 'teacher'
+                ? (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20)
+                : null,
         ]);
 
         $user->assignRole($validated['role']);
@@ -91,7 +95,22 @@ class UserController extends Controller
         abort_if($user->id === Auth::id(), 403, 'لا يمكنك تغيير دورك الخاص.');
 
         $user->syncRoles([$validated['role']]);
+        if ($validated['role'] === 'teacher' && $user->commission_percent === null) {
+            $user->update(['commission_percent' => (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20)]);
+        }
 
         return back()->with('success', "تم تحديث دور {$user->name} بنجاح.");
+    }
+
+    public function updateCommission(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'commission_percent' => ['required', 'integer', 'min:0', 'max:100'],
+        ]);
+        $user = User::findOrFail($id);
+        abort_unless($user->hasRole('teacher'), 422, 'نسبة العمولة تُحدد للمدرسين فقط.');
+        $user->update(['commission_percent' => $validated['commission_percent']]);
+
+        return back()->with('success', "تم تحديث نسبة عمولة المدرس {$user->name}.");
     }
 }

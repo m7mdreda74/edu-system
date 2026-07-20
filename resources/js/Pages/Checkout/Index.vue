@@ -247,7 +247,7 @@ async function submit() {
                             <label class="block text-[11px] font-bold text-surface-500">اختر حساب التحويل</label>
                             <select v-model="selectedMethodIdx" class="input w-full text-xs">
                                 <option v-for="(m, i) in manualMethods" :key="i" :value="i">
-                                    {{ m.name }}
+                                    {{ m.type === 'bank' ? 'تحويل بنكي' : 'محفظة إلكترونية' }} — {{ m.name }}
                                 </option>
                             </select>
                         </div>

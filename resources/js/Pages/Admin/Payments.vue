@@ -43,14 +43,13 @@ const statusLabels = {
 
 function approvePayment(p) {
     if (confirm('هل أنت متأكد من صحة إيصال الدفع وتفعيل الكورس للطالب؟')) {
-        router.post(route('admin.payments.approve', { payment: p.id }));
+        router.post(route('admin.payments.approve', { payment: p.id }), { note: 'تمت مطابقة إيصال التحويل واعتماده.' });
     }
 }
 
 function rejectPayment(p) {
-    if (confirm('هل أنت متأكد من رفض إيصال التحويل وإلغاء هذه المعاملة؟')) {
-        router.post(route('admin.payments.reject', { payment: p.id }));
-    }
+    const reason = prompt('اكتب سبب رفض إيصال التحويل:');
+    if (reason?.trim()) router.post(route('admin.payments.reject', { payment: p.id }), { reason: reason.trim() });
 }
 
 </script>
@@ -92,6 +91,7 @@ function rejectPayment(p) {
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الطالب</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الكورس</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">المبلغ</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التوزيع المالي</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">البوابة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التاريخ</th>
@@ -113,6 +113,7 @@ function rejectPayment(p) {
                                 <td class="p-4 font-bold text-primary-700 dark:text-primary-400">
                                     {{ formatQAR(p.amount) }}
                                 </td>
+                                <td class="p-4 text-xs"><div class="text-green-600">المدرس: {{ formatQAR(p.teacher_earnings) }}</div><div class="text-primary-600">المنصة: {{ formatQAR(p.platform_commission_amount) }} <span v-if="p.commission_percent !== null">({{ p.commission_percent }}%)</span></div></td>
                                 <td class="p-4">
                                     <span class="badge-gray text-xs" :title="p.gateway_ref">{{ p.gateway }}</span>
                                 </td>
@@ -124,7 +125,7 @@ function rejectPayment(p) {
                                 <td class="p-4 text-xs text-surface-400">{{ p.paid_at || p.created_at || '—' }}</td>
                                 <td class="p-4">
                                     <div class="flex items-center gap-2">
-                                        <button v-if="p.receipt_path" @click="selectedReceipt = p.receipt_path" class="btn-outline text-xs py-1 px-2.5 flex items-center gap-1">
+                                        <button v-if="p.receipt_path" @click="selectedReceipt = route('admin.payments.receipt', p.id)" class="btn-outline text-xs py-1 px-2.5 flex items-center gap-1">
                                             <Icon name="eye" class="w-3.5 h-3.5 shrink-0" />
                                             <span>عرض الإيصال</span>
                                         </button>

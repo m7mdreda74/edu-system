@@ -34,10 +34,21 @@ class DashboardController extends Controller
             return $enrollment;
         });
 
-        // Fetch upcoming live sessions for enrolled courses
+        // Legacy course sessions follow course enrollment. Scheduled group/private
+        // sessions are stricter: only the confirmed booking holder may see them.
         $enrolledCourseIds = $enrollments->pluck('course_id')->toArray();
         $upcomingSessions = LiveSession::with('course:id,title', 'teacher:id,name')
-            ->whereIn('course_id', $enrolledCourseIds)
+            ->where(function ($query) use ($enrolledCourseIds, $user) {
+                $query->where(function ($legacy) use ($enrolledCourseIds) {
+                    $legacy->whereNull('teaching_group_id')
+                        ->whereNull('private_session_slot_id')
+                        ->whereIn('course_id', $enrolledCourseIds);
+                })->orWhereHas('teachingGroup.activeBookings', function ($booking) use ($user) {
+                    $booking->where('student_id', $user->id);
+                })->orWhereHas('privateSessionSlot.booking', function ($booking) use ($user) {
+                    $booking->where('student_id', $user->id)->where('status', 'confirmed');
+                });
+            })
             ->whereIn('status', ['scheduled', 'live'])
             ->orderBy('scheduled_at', 'asc')
             ->get();

@@ -80,7 +80,7 @@ const menuGroups = computed(() => {
                     { label: 'جدول التدريس والمجموعات', icon: 'clock', href: route('teacher.teaching-schedule'), name: 'teacher.teaching-schedule' },
                     { label: 'الحصص المباشرة',icon: 'live',      href: route('teacher.live-sessions'), name: 'teacher.live-sessions' },
                     { label: 'الرسائل',      icon: 'chat',      href: route('chat.index'),       name: 'chat.index' },
-                    { label: 'أرباحي',       icon: 'earnings',  href: route('teacher.dashboard'), name: 'teacher.earnings' },
+                    { label: 'أرباحي وتصفية الحساب', icon: 'earnings', href: route('teacher.payouts'), name: 'teacher.payouts' },
                 ]
             }
         ];
