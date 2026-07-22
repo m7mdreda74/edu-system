@@ -7,7 +7,7 @@ import { createApp, h } from 'vue';
 import { createPinia } from 'pinia';
 import { ZiggyVue } from 'ziggy-js';
 
-const appName = import.meta.env.VITE_APP_NAME || 'التفوق';
+const appName = 'منصة التفوق';
 const siteThemes = ['royal', 'ocean', 'emerald', 'violet'];
 
 const applySiteTheme = (theme) => {
