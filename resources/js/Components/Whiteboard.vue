@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue';
 
 const emit = defineEmits(['close']);
 
@@ -83,19 +83,38 @@ function initCanvas() {
     const canvas = canvasRef.value;
     if (!canvas) return;
     ctx = canvas.getContext('2d');
-    resizeCanvas();
-    fillBackground();
-    saveHistory();
+    // Use requestAnimationFrame to ensure parent has its final CSS dimensions
+    requestAnimationFrame(() => {
+        resizeCanvas();
+        fillBackground();
+        saveHistory();
+    });
 }
 
 function resizeCanvas() {
     const canvas = canvasRef.value;
+    if (!canvas || !ctx) return;
     const parent = canvas.parentElement;
-    const imageData = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
-    canvas.width  = parent.clientWidth;
-    canvas.height = parent.clientHeight;
-    if (imageData) ctx.putImageData(imageData, 0, 0);
-    else fillBackground();
+    if (!parent) return;
+
+    // Only snapshot if canvas has valid dimensions
+    let imageData = null;
+    if (canvas.width > 0 && canvas.height > 0) {
+        try { imageData = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch (e) { /* ignore */ }
+    }
+
+    const newW = parent.clientWidth  || parent.offsetWidth  || window.innerWidth;
+    const newH = parent.clientHeight || parent.offsetHeight || window.innerHeight;
+    if (newW <= 0 || newH <= 0) return;
+
+    canvas.width  = newW;
+    canvas.height = newH;
+
+    if (imageData instanceof ImageData) {
+        ctx.putImageData(imageData, 0, 0);
+    } else {
+        fillBackground();
+    }
 }
 
 function fillBackground() {
@@ -121,26 +140,31 @@ function drawGrid() {
 // ─── History ──────────────────────────────────────────────────────────────────
 function saveHistory() {
     const canvas = canvasRef.value;
-    if (!canvas) return;
-    history.value.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-    if (history.value.length > MAX_HISTORY) history.value.shift();
-    redoStack.value = [];
+    if (!canvas || !ctx) return;
+    if (canvas.width <= 0 || canvas.height <= 0) return;
+    try {
+        const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        history.value.push(snap);
+        if (history.value.length > MAX_HISTORY) history.value.shift();
+        redoStack.value = [];
+    } catch (e) { /* ignore if canvas not ready */ }
 }
 
 function undo() {
     if (history.value.length <= 1) return;
     const last = history.value.pop();
-    redoStack.value.push(last);
-    const canvas = canvasRef.value;
+    if (last instanceof ImageData) redoStack.value.push(last);
     const prev = history.value[history.value.length - 1];
-    if (prev) ctx.putImageData(prev, 0, 0);
+    if (prev instanceof ImageData) ctx.putImageData(prev, 0, 0);
 }
 
 function redo() {
     if (!redoStack.value.length) return;
     const next = redoStack.value.pop();
-    ctx.putImageData(next, 0, 0);
-    history.value.push(next);
+    if (next instanceof ImageData) {
+        ctx.putImageData(next, 0, 0);
+        history.value.push(next);
+    }
 }
 
 // ─── Drawing Context Setup ────────────────────────────────────────────────────
@@ -398,12 +422,20 @@ function onKeyDown(e) {
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
-onMounted(() => {
+onMounted(async () => {
+    // Wait for Vue to fully render the DOM, then initialize canvas
+    await nextTick();
     initCanvas();
     window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', () => {
+        // Debounce resize to avoid rapid resize flicker
+        clearTimeout(window._wbResizeTimer);
+        window._wbResizeTimer = setTimeout(resizeCanvas, 100);
+    });
     document.addEventListener('fullscreenchange', () => {
         isFullscreen.value = !!document.fullscreenElement;
+        // Re-init canvas after fullscreen transition settles
+        setTimeout(resizeCanvas, 300);
     });
 });
 
