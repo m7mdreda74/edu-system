@@ -172,26 +172,97 @@ function initJitsi() {
     const options = {
         roomName: props.roomName,
         parentNode: jitsiContainer.value,
-        userInfo: { email: props.user.email, displayName: props.user.name },
+        width: '100%',
+        height: '100%',
+        userInfo: {
+            email: props.user.email,
+            displayName: props.user.name,
+        },
         configOverwrite: {
+            // ── Startup ──────────────────────────────────────────────────
             startWithAudioMuted: !props.user.isTeacher,
             startWithVideoMuted: !props.user.isTeacher,
-            prejoinPageEnabled: false,
+            prejoinPageEnabled: false,         // no prejoin screen
+            requireDisplayName: false,         // don't prompt for name
+            enableWelcomePage: false,          // no welcome page
+            enableClosePage: false,            // no close page
+
+            // ── Branding / Identity ───────────────────────────────────
+            disableDeepLinking: true,          // no "open in app" prompts
+            disableThirdPartyRequests: false,
+            doNotStoreRoom: true,              // no local storage of room
+            hideParticipantsStats: true,
+
+            // ── Authentication ────────────────────────────────────────
+            enableUserRolesBasedOnToken: false,
+            enableAuthDomain: false,
+
+            // ── Toolbox / UI ──────────────────────────────────────────
+            toolbarConfig: {
+                initialTimeout: 20000,
+                timeout: 4000,
+                alwaysVisible: false,
+            },
+            disableInviteFunctions: true,      // hide invite button
+            disableRemoteMute: false,
+
+            // ── Notifications ─────────────────────────────────────────
+            disableJoinLeaveSounds: false,
+
+            // ── Subject (set after join via executeCommand) ───────────
+            subject: props.session.title,
         },
         interfaceConfigOverwrite: {
+            // ── Hide all Jitsi/8x8 branding ──────────────────────────
             SHOW_JITSI_WATERMARK: false,
             SHOW_WATERMARK_FOR_GUESTS: false,
+            SHOW_BRAND_WATERMARK: false,
+            SHOW_POWERED_BY: false,
+            GENERATE_ROOMNAMES_ON_WELCOME_PAGE: false,
+            DISPLAY_WELCOME_PAGE_CONTENT: false,
+            DISPLAY_WELCOME_PAGE_TOOLBAR_ADDITIONAL_CONTENT: false,
+
+            // ── App name override (so it shows منصة التفوق) ──────────
+            APP_NAME: 'منصة التفوق',
+            NATIVE_APP_NAME: 'منصة التفوق',
+            PROVIDER_NAME: 'التفوق',
+
+            // ── Language ──────────────────────────────────────────────
+            LANG_DETECTION: false,
+            DEFAULT_LANGUAGE: 'ar',
+
+            // ── Participants defaults ─────────────────────────────────
+            DEFAULT_REMOTE_DISPLAY_NAME: 'طالب',
+            DEFAULT_LOCAL_DISPLAY_NAME: props.user.name,
+            HIDE_INVITE_MORE_HEADER: true,
+
+            // ── Chrome/mobile extensions ─────────────────────────────
+            SHOW_CHROME_EXTENSION_BANNER: false,
+            MOBILE_APP_PROMO: false,
+
+            // ── Misc ──────────────────────────────────────────────────
+            RECENT_LIST_ENABLED: false,
+            AUTHENTICATION_ENABLE: false,
+            CLOSE_PAGE_GUEST_HINT: false,
+            VIDEO_QUALITY_LABEL_DISABLED: false,
+            DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
+
+            // ── Toolbar buttons (remove branding/external links) ──────
             TOOLBAR_BUTTONS: [
-                'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-                'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
-                'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
-                'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
-                'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone'
+                'microphone', 'camera', 'desktop', 'fullscreen',
+                'fodeviceselection', 'hangup', 'chat',
+                'raisehand', 'videoquality', 'filmstrip',
+                'tileview', 'videobackgroundblur', 'settings',
+                'mute-everyone', 'shortcuts',
             ],
+
+            // ── Settings sections (no profile/feedback external links)
+            SETTINGS_SECTIONS: ['devices', 'language', 'moderator'],
         },
     };
 
     jitsiApi = new window.JitsiMeetExternalAPI('meet.jit.si', options);
+
     isRoomLoading.value = false;
 
     if (props.user.isTeacher) {
