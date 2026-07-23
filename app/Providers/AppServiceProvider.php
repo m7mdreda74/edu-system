@@ -82,5 +82,45 @@ class AppServiceProvider extends ServiceProvider
             \App\Domain\Course\Models\Course::class,
             \App\Policies\CoursePolicy::class
         );
+
+        // ─── Auto-migrate WebRTC tables if missing (Vercel serverless safe) ──
+        // Runs only once per cold start; negligible overhead after first check.
+        $this->bootWebRtcTables();
+    }
+
+    /**
+     * Ensure WebRTC signaling tables exist (safe for serverless / Vercel).
+     * Uses Schema::hasTable() guard so it only creates if missing.
+     */
+    private function bootWebRtcTables(): void
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('webrtc_signals')) {
+                \Illuminate\Support\Facades\Schema::create('webrtc_signals', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('live_session_id');
+                    $table->unsignedBigInteger('from_user_id');
+                    $table->unsignedBigInteger('to_user_id')->nullable();
+                    $table->string('type', 30);
+                    $table->json('payload');
+                    $table->timestamp('created_at')->useCurrent()->index();
+                });
+            }
+
+            if (!\Illuminate\Support\Facades\Schema::hasTable('webrtc_participants')) {
+                \Illuminate\Support\Facades\Schema::create('webrtc_participants', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('live_session_id');
+                    $table->unsignedBigInteger('user_id');
+                    $table->string('name');
+                    $table->boolean('is_teacher')->default(false);
+                    $table->timestamp('last_seen_at')->index();
+                    $table->timestamps();
+                    $table->unique(['live_session_id', 'user_id']);
+                });
+            }
+        } catch (\Throwable $e) {
+            // Fail silently — DB might not be available during build phase
+        }
     }
 }

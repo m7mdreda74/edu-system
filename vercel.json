@@ -2,6 +2,8 @@
     "version": 2,
     "framework": null,
     "outputDirectory": "public",
+    "installCommand": "composer install --no-dev --optimize-autoloader && npm install",
+    "buildCommand": "npm run build && php artisan migrate --force",
     "functions": {
         "api/index.php": {
             "runtime": "vercel-php@0.9.0"
