@@ -61,6 +61,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ─── Live Session Room ────────────────────────────────────────────────────
     Route::get('/live-sessions/{id}/room', [App\Http\Controllers\Course\LiveSessionRoomController::class, 'show'])->name('live-sessions.room');
 
+    // ─── WebRTC Signaling (HTTP Polling) ──────────────────────────────────────
+    Route::prefix('live-sessions/{id}/webrtc')->name('webrtc.')->group(function () {
+        Route::post('heartbeat', [App\Http\Controllers\Course\WebRtcSignalingController::class, 'heartbeat'])->name('heartbeat');
+        Route::post('signal',    [App\Http\Controllers\Course\WebRtcSignalingController::class, 'signal'])->name('signal');
+        Route::get('poll',       [App\Http\Controllers\Course\WebRtcSignalingController::class, 'poll'])->name('poll');
+        Route::post('leave',     [App\Http\Controllers\Course\WebRtcSignalingController::class, 'leave'])->name('leave');
+    });
+
+
     // ─── Lesson Q&A Forum ─────────────────────────────────────────────────────
     Route::get('/lessons/{lessonId}/questions',  [App\Http\Controllers\Student\LessonQuestionController::class, 'index'])->name('lessons.questions.index');
     Route::post('/lessons/{lessonId}/questions', [App\Http\Controllers\Student\LessonQuestionController::class, 'store'])->name('lessons.questions.store');

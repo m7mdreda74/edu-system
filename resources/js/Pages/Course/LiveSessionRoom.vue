@@ -1,7 +1,8 @@
 <script setup>
-import { onMounted, ref, onBeforeUnmount, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import Whiteboard from '@/Components/Whiteboard.vue';
+import VideoRoom from '@/Components/VideoRoom.vue';
 
 const props = defineProps({
     session: { type: Object, required: true },
@@ -9,14 +10,7 @@ const props = defineProps({
     user: { type: Object, required: true },
 });
 
-const jitsiContainer = ref(null);
-let jitsiApi = null;
-const isRoomLoading = ref(true);
-
-// Moderation & security panel state
-const activeParticipants = ref([]);
-const lobbyParticipants = ref([]);
-const lobbyEnabled = ref(true);
+const videoParticipantCount = ref(1);
 
 // Screen Recording state & logic
 const isRecording = ref(false);
@@ -26,21 +20,14 @@ let recordedChunks = [];
 let durationInterval = null;
 const audioContext = ref(null);
 
-// ─── Whiteboard State ─────────────────────────────────────────────────────────
-// viewMode: 'jitsi' | 'split' | 'whiteboard'
-const viewMode = ref('jitsi');
+// ─── View Mode ────────────────────────────────────────────────────────────────
+// viewMode: 'video' | 'split' | 'whiteboard'
+const viewMode = ref('video');
 const whiteboardVisible = computed(() => viewMode.value === 'split' || viewMode.value === 'whiteboard');
-const jitsiVisible = computed(() => viewMode.value === 'split' || viewMode.value === 'jitsi');
+const videoVisible = computed(() => viewMode.value === 'split' || viewMode.value === 'video');
 
-function openWhiteboard() {
-    viewMode.value = props.user.isTeacher ? 'split' : 'whiteboard';
-}
-function closeWhiteboard() {
-    viewMode.value = 'jitsi';
-}
-function setViewMode(mode) {
-    viewMode.value = mode;
-}
+function closeWhiteboard() { viewMode.value = 'video'; }
+function setViewMode(mode) { viewMode.value = mode; }
 
 const formattedDuration = computed(() => {
     const mins = Math.floor(recordingDuration.value / 60);
@@ -158,15 +145,10 @@ function muteAllStudents() {
     if (jitsiApi && confirm('هل تريد كتم صوت الجميع؟')) jitsiApi.executeCommand('muteEveryone');
 }
 
-onMounted(() => {
-    const script = document.createElement('script');
-    script.src = 'https://meet.jit.si/external_api.js';
-    script.async = true;
-    script.onload = () => initJitsi();
-    document.head.appendChild(script);
-});
+// No external video SDK needed — VideoRoom.vue handles everything
 
-function initJitsi() {
+// Removed Jitsi — replaced by VideoRoom.vue (native WebRTC)
+function _unused() {
     if (!window.JitsiMeetExternalAPI) return;
 
     const options = {
@@ -322,9 +304,9 @@ onBeforeUnmount(() => {
                 <!-- View Mode Toggle (Teacher only) -->
                 <div v-if="user.isTeacher" class="view-mode-group">
                     <button
-                        @click="setViewMode('jitsi')"
+                        @click="setViewMode('video')"
                         class="view-mode-btn"
-                        :class="{ active: viewMode === 'jitsi' }"
+                        :class="{ active: viewMode === 'video' }"
                         title="عرض الفيديو فقط"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M15 10l4.553-2.069A1 1 0 0121 8.871v6.258a1 1 0 01-1.447.894L15 14M4 8h9a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2z"/></svg>
@@ -377,21 +359,22 @@ onBeforeUnmount(() => {
         <!-- ═══ MAIN CONTENT ═════════════════════════════════════════════════ -->
         <div class="room-body">
 
-            <!-- ── Jitsi Container ──────────────────────────────────────────── -->
+            <!-- ── VideoRoom (Native WebRTC) ──────────────────────────────── -->
             <div
                 class="jitsi-panel"
                 :class="{
                     'hidden':      viewMode === 'whiteboard',
                     'split-panel': viewMode === 'split',
-                    'full-panel':  viewMode === 'jitsi',
+                    'full-panel':  viewMode === 'video',
                 }"
             >
-                <div class="relative h-full" ref="jitsiContainer">
-                    <div v-if="isRoomLoading" class="loading-overlay">
-                        <div class="loading-spinner"></div>
-                        <div class="text-surface-400 text-sm">جاري الاتصال بقاعة البث...</div>
-                    </div>
-                </div>
+                <VideoRoom
+                    :session-id="session.id"
+                    :user="user"
+                    :session-title="session.title"
+                    @participant-count="(n) => videoParticipantCount = n"
+                    @leave="() => $inertia?.visit('/dashboard')"
+                />
             </div>
 
             <!-- ── Whiteboard Panel ─────────────────────────────────────────── -->
@@ -410,8 +393,8 @@ onBeforeUnmount(() => {
                         <span class="wb-panel-title">السبورة التفاعلية</span>
                     </div>
                     <div class="flex items-center gap-2 text-xs text-surface-400">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4 text-amber-400"><path stroke-linecap="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-                        <span>شارك شاشتك في Jitsi لتظهر السبورة للطلاب</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4 text-emerald-400"><path stroke-linecap="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>استخدم زر "الشاشة" في الفيديو لمشاركة السبورة مع الطلاب</span>
                     </div>
                 </div>
 
@@ -422,7 +405,7 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- ── Teacher Moderation Sidebar ──────────────────────────────── -->
-            <div v-if="user.isTeacher && viewMode === 'jitsi'" class="moderation-sidebar">
+            <div v-if="user.isTeacher && viewMode === 'video'" class="moderation-sidebar" style="display:none">
                 <!-- Header -->
                 <div class="mod-header">
                     <span>🛡️ لوحة الإشراف</span>
