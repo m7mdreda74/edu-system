@@ -39,4 +39,19 @@ return [
         'api_key' => env('FATORA_API_KEY'),
     ],
 
+    'stripe' => [
+        'key'            => env('STRIPE_KEY'),
+        'secret'         => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
+    'tap' => [
+        'secret_key'      => env('TAP_SECRET_KEY'),
+        'publishable_key' => env('TAP_PUBLISHABLE_KEY'),
+    ],
+
+    'payment' => [
+        'gateway' => env('PAYMENT_GATEWAY', 'fatora'), // fatora | stripe | tap
+    ],
+
 ];
