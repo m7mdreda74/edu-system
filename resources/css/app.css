@@ -23,6 +23,7 @@
         --surface-300: 210 196 183; --surface-400: 159 140 127; --surface-500: 119 101 88;
         --surface-600: 95 78 67; --surface-700: 51 39 44; --surface-800: 28 20 22;
         --surface-900: 19 11 13; --surface-950: 10 4 5;
+        --surface-450: 139 120 107; --surface-550: 107 89 77; --surface-850: 23 15 17;
     }
 
     html[data-site-theme="ocean"] {
@@ -38,6 +39,7 @@
         --surface-300: 203 213 225; --surface-400: 148 163 184; --surface-500: 100 116 139;
         --surface-600: 71 85 105; --surface-700: 51 65 85; --surface-800: 30 41 59;
         --surface-900: 15 23 42; --surface-950: 2 6 23;
+        --surface-450: 124 139 161; --surface-550: 85 100 122; --surface-850: 22 32 50;
     }
 
     html[data-site-theme="emerald"] {
@@ -53,6 +55,7 @@
         --surface-300: 203 213 207; --surface-400: 148 163 154; --surface-500: 100 116 106;
         --surface-600: 71 85 76; --surface-700: 51 65 57; --surface-800: 30 41 35;
         --surface-900: 15 23 19; --surface-950: 2 6 4;
+        --surface-450: 124 139 130; --surface-550: 85 100 91; --surface-850: 22 32 27;
     }
 
     html[data-site-theme="violet"] {
@@ -68,6 +71,7 @@
         --surface-300: 212 212 216; --surface-400: 161 161 170; --surface-500: 113 113 122;
         --surface-600: 82 82 91; --surface-700: 63 63 70; --surface-800: 39 39 42;
         --surface-900: 24 24 27; --surface-950: 9 9 11;
+        --surface-450: 137 137 146; --surface-550: 97 97 106; --surface-850: 31 31 34;
     }
 
     html {
@@ -238,16 +242,16 @@
     .star-filled { @apply text-accent-400; }
     .star-empty  { @apply text-surface-300; }
 
-    /* ── Course Card ── */
-    .course-card {
+    /* ── Entity Card (teacher / subject / group) ── */
+    .entity-card {
         @apply card-hover cursor-pointer;
     }
 
-    .course-card-img {
+    .entity-card-img {
         @apply w-full aspect-video object-cover bg-surface-200;
     }
 
-    .course-card-body {
+    .entity-card-body {
         @apply p-4 flex flex-col gap-2;
     }
 

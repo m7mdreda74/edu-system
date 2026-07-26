@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Domain\Quiz;
 
-use App\Domain\Course\Models\Course;
+use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\Quiz\Models\QuizOption;
 use App\Domain\Quiz\Models\QuizQuestion;
@@ -17,7 +17,7 @@ class QuizFactory extends Factory
     public function definition(): array
     {
         return [
-            'course_id'          => Course::factory(),
+            'teaching_group_id'  => TeachingGroup::factory(),
             'title'              => 'اختبار ' . $this->faker->word(),
             'passing_score'      => 70,
             'time_limit_minutes' => null,

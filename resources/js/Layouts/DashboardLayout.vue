@@ -5,10 +5,8 @@ import { useAuthStore } from '@/stores/authStore';
 import Icon from '@/Components/Icon.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
 
-import { useCartStore } from '@/stores/cartStore';
 
 const authStore = useAuthStore();
-const cartStore = useCartStore();
 const page      = usePage();
 
 // Auto-hide flash messages after 3 seconds
@@ -56,8 +54,8 @@ const menuGroups = computed(() => {
                 title: 'المحتوى التعليمي',
                 links: [
                     { label: 'المراحل الدراسية',icon: 'courses',   href: route('admin.grade-levels'),name: 'admin.grade-levels' },
-                    { label: 'الكورسات',     icon: 'courses',   href: route('admin.courses'),   name: 'admin.courses' },
                     { label: 'المواد الدراسية',icon: 'globe',     href: route('admin.subjects'),  name: 'admin.subjects' },
+                    { label: 'الاشتراكات',    icon: 'student',   href: route('admin.subscriptions'), name: 'admin.subscriptions' },
                 ]
             },
             {
@@ -76,7 +74,6 @@ const menuGroups = computed(() => {
                 title: 'لوحة المعلم',
                 links: [
                     { label: 'الرئيسية',     icon: 'dashboard', href: route('teacher.dashboard'), name: 'teacher.dashboard' },
-                    { label: 'كورساتي',      icon: 'courses',   href: route('teacher.courses'),   name: 'teacher.courses' },
                     { label: 'جدول التدريس والمجموعات', icon: 'clock', href: route('teacher.teaching-schedule'), name: 'teacher.teaching-schedule' },
                     { label: 'الحصص المباشرة',icon: 'live',      href: route('teacher.live-sessions'), name: 'teacher.live-sessions' },
                     { label: 'الرسائل',      icon: 'chat',      href: route('chat.index'),       name: 'chat.index' },
@@ -98,11 +95,10 @@ const menuGroups = computed(() => {
             {
                 title: 'لوحة الطالب',
                 links: [
-                    { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),         name: 'dashboard' },
-                    { label: 'دوراتي',   icon: 'courses',   href: route('courses.index'),     name: 'courses' },
+                    { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
+                    { label: 'حصصي',     icon: 'courses',   href: route('student.my-classes'), name: 'student.my-classes' },
                     { label: 'حجز المدرس والموعد', icon: 'clock', href: route('student.session-booking'), name: 'student.session-booking' },
-                    { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),        name: 'chat.index' },
-                    { label: 'شهاداتي',  icon: 'student',   href: route('dashboard') + '#completed-courses', name: 'certificates' },
+                    { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),         name: 'chat.index' },
                 ]
             }
         ];
@@ -236,17 +232,6 @@ const isActive = (name) => {
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <!-- Cart -->
-                    <Link v-if="cartStore.hasItem && cartStore.item?.slug" :href="route('checkout.show', { slug: cartStore.item.slug })"
-                        class="relative btn-ghost p-2 rounded-lg"
-                    >
-                        <Icon name="cart" class="w-5 h-5 text-surface-600 dark:text-surface-300" />
-                        <span class="absolute -top-1 -start-1 w-4 h-4 bg-accent-500 text-white
-                                     rounded-full text-xs flex items-center justify-center font-bold">
-                            1
-                        </span>
-                    </Link>
-
                     <!-- Notification Bell -->
                     <NotificationBell />
 

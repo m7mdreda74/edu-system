@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Domain\Payment;
 
-use App\Domain\Course\Models\Course;
+use App\Domain\Subscription\Models\Subscription;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -17,7 +17,7 @@ class PaymentFactory extends Factory
     {
         return [
             'user_id'         => User::factory(),
-            'course_id'       => Course::factory(),
+            'subscription_id' => Subscription::factory(),
             'coupon_id'       => null,
             'amount'          => 50_000,
             'original_amount' => 50_000,

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Scheduling\Models;
 
-use App\Domain\Course\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSession;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

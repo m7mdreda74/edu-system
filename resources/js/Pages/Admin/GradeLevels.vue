@@ -151,8 +151,8 @@ function deleteGradeLevel(id) {
                                 <span class="text-[10px] text-surface-500">المواد الدراسية</span>
                             </div>
                             <div class="bg-surface-50 dark:bg-surface-900/50 p-2.5 rounded-xl text-center border border-surface-100 dark:border-surface-800/40">
-                                <span class="block text-lg font-black text-accent-600 dark:text-accent-400">{{ gl.courses_count }}</span>
-                                <span class="text-[10px] text-surface-500">الكورسات</span>
+                                <span class="block text-lg font-black text-accent-600 dark:text-accent-400">{{ gl.groups_count }}</span>
+                                <span class="text-[10px] text-surface-500">المجموعات</span>
                             </div>
                             <div class="bg-surface-50 dark:bg-surface-900/50 p-2.5 rounded-xl text-center border border-surface-100 dark:border-surface-800/40">
                                 <span class="block text-lg font-black text-accent-600 dark:text-accent-400">{{ gl.students_count }}</span>

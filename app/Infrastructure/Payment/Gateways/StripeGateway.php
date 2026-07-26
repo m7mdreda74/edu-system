@@ -68,7 +68,7 @@ class StripeGateway implements PaymentGatewayInterface
                         'currency'     => strtolower($currency),
                         'unit_amount'  => $amountInSmallestUnit,
                         'product_data' => [
-                            'name' => 'منصة التفوق — كورس تعليمي',
+                            'name' => 'منصة التفوق — اشتراك شهري',
                         ],
                     ],
                     'quantity' => 1,
@@ -77,7 +77,7 @@ class StripeGateway implements PaymentGatewayInterface
             'metadata' => [
                 'payment_id' => $paymentId,
                 'user_id'    => (string) ($metadata['user_id'] ?? ''),
-                'course_id'  => (string) ($metadata['course_id'] ?? ''),
+                'subscription_id' => (string) ($metadata['subscription_id'] ?? ''),
             ],
             'success_url' => route('checkout.success', ['payment_id' => $paymentId]),
             'cancel_url'  => route('checkout.cancel'),

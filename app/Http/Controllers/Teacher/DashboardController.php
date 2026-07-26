@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
-use App\Domain\Course\Models\Course;
-use App\Domain\Enrollment\Models\Enrollment;
 use App\Domain\Payment\Models\Payment;
+use App\Domain\Scheduling\Models\TeachingAssignment;
+use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\Subscription\Models\Subscription;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,55 +18,54 @@ class DashboardController extends Controller
 {
     public function index(): Response
     {
-        $teacher = auth()->user();
+        $teacher       = Auth::user();
+        $assignmentIds = TeachingAssignment::where('teacher_id', $teacher->id)->pluck('id');
 
-        // Cache per-teacher dashboard data (5 min)
-        $stats = Cache::remember("teacher_stats:{$teacher->id}", 300, function () use ($teacher) {
-            $courseIds = $teacher->coursesAsTeacher()->pluck('id');
-
-            $totalStudents = Enrollment::whereIn('course_id', $courseIds)->count();
-            $totalRevenue  = Payment::whereIn('course_id', $courseIds)
-                ->where('status', Payment::STATUS_PAID)
-                ->sum('teacher_earnings');
-
-            $completedStudents = Enrollment::whereIn('course_id', $courseIds)
-                ->where('progress_percent', 100)
-                ->count();
+        $stats = Cache::remember("teacher_stats:{$teacher->id}", 300, function () use ($assignmentIds) {
+            $activeSubscriptions = Subscription::active()->whereIn('teaching_assignment_id', $assignmentIds);
 
             return [
-                'total_courses'    => $courseIds->count(),
-                'total_students'   => $totalStudents,
-                'completed_students' => $completedStudents,
-                'total_revenue'    => $totalRevenue, // in halala
+                'total_groups'         => TeachingGroup::whereIn('teaching_assignment_id', $assignmentIds)->count(),
+                'active_students'      => (clone $activeSubscriptions)->distinct('student_id')->count('student_id'),
+                'private_students'     => (clone $activeSubscriptions)->where('type', Subscription::TYPE_PRIVATE)->count(),
+                'total_revenue'        => Payment::whereHas('subscription', fn ($q) => $q->whereIn('teaching_assignment_id', $assignmentIds))
+                    ->where('status', Payment::STATUS_PAID)
+                    ->sum('teacher_earnings'), // in the smallest currency unit
             ];
         });
 
-        // Recent enrollments (last 10) — N+1 safe
-        $recentEnrollments = Enrollment::with([
-            'user:id,name,avatar',
-            'course:id,title,slug',
+        $recentSubscriptions = Subscription::with([
+            'student:id,name,avatar',
+            'assignment.subject:id,name',
+            'group:id,name',
         ])
-        ->whereIn('course_id', $teacher->coursesAsTeacher()->pluck('id'))
-        ->latest()
-        ->limit(10)
-        ->get();
-
-        // Course performance
-        $courses = $teacher->coursesAsTeacher()
-            ->with('subject:id,name')
-            ->withCount('enrollments')
-            ->withAvg('reviews as avg_rating', 'rating')
+            ->whereIn('teaching_assignment_id', $assignmentIds)
             ->latest()
-            ->get([
-                'id', 'subject_id', 'title', 'slug', 'thumbnail',
-                'price', 'discount_price', 'is_published',
-                'total_lessons', 'created_at',
+            ->limit(10)
+            ->get();
+
+        $groups = TeachingGroup::with(['assignment.subject:id,name', 'assignment.gradeLevel:id,key,name'])
+            ->whereIn('teaching_assignment_id', $assignmentIds)
+            ->withCount(['activeBookings', 'materials'])
+            ->latest()
+            ->get()
+            ->map(fn (TeachingGroup $group) => [
+                'id'              => $group->id,
+                'name'            => $group->name,
+                'subject'         => $group->assignment?->subject?->only(['id', 'name']),
+                'grade'           => $group->assignment?->gradeLevel?->only(['key', 'name']),
+                'monthly_price'   => $group->monthly_price,
+                'currency'        => $group->currency,
+                'capacity'        => $group->capacity,
+                'students_count'  => $group->active_bookings_count,
+                'materials_count' => $group->materials_count,
+                'is_active'       => $group->is_active,
             ]);
 
         return Inertia::render('Teacher/Dashboard', [
-            'stats'             => $stats,
-            'recentEnrollments' => $recentEnrollments,
-            'courses'           => $courses,
+            'stats'               => $stats,
+            'recentSubscriptions' => $recentSubscriptions,
+            'groups'              => $groups,
         ]);
     }
 }

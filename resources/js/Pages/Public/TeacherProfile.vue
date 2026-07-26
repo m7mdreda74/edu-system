@@ -1,72 +1,309 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import CourseCard from '@/Components/CourseCard.vue';
+import Icon from '@/Components/Icon.vue';
+import { formatMonthly, formatSchedule } from '@/lib/money';
 
 const props = defineProps({
-    teacher:           { type: Object, required: true },
-    courses:           { type: Array,  default: () => [] },
-    totalStudents:     { type: Number, default: 0 },
-    totalCourses:      { type: Number, default: 0 },
-    averageRating:     { type: Number, default: 0 },
+    teacher:     { type: Object, required: true },
+    assignments: { type: Array, default: () => [] },
+    reviews:     { type: Array, default: () => [] },
+    focus:       { type: Object, default: () => ({ grade: null, subject: null }) },
 });
 
-function formatRating(r) {
-    return Number(r).toFixed(1);
+const page      = usePage();
+const authUser  = computed(() => page.props.auth?.user ?? null);
+const isStudent = computed(() => authUser.value?.roles?.includes('student') ?? false);
+
+// Land on the assignment the student navigated in from, when there is one.
+const initialAssignment = props.assignments.find(
+    (a) => a.subject?.id === props.focus.subject && a.grade?.key === props.focus.grade,
+) ?? props.assignments[0] ?? null;
+
+const activeAssignmentId = ref(initialAssignment?.id ?? null);
+
+const activeAssignment = computed(
+    () => props.assignments.find((a) => a.id === activeAssignmentId.value) ?? null,
+);
+
+const playingVideo = ref(false);
+
+const embedUrl = computed(() => {
+    const url = props.teacher.intro_video_url;
+    if (!url) return null;
+
+    const youtube = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+    if (youtube) return `https://www.youtube.com/embed/${youtube[1]}?rel=0`;
+
+    const vimeo = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+
+    return url;
+});
+
+const subscribing = ref(null);
+
+function subscribeToGroup(groupId) {
+    if (!authUser.value) {
+        router.visit(route('login'));
+        return;
+    }
+
+    subscribing.value = `group-${groupId}`;
+    router.post(route('student.subscribe.group', { groupId }), {}, {
+        onFinish: () => (subscribing.value = null),
+    });
+}
+
+function subscribeToPrivate(assignmentId) {
+    if (!authUser.value) {
+        router.visit(route('login'));
+        return;
+    }
+
+    subscribing.value = `private-${assignmentId}`;
+    router.post(route('student.subscribe.private', { assignmentId }), {}, {
+        onFinish: () => (subscribing.value = null),
+    });
+}
+
+function askParentToPay(groupId) {
+    router.post(route('student.purchase-requests.store'), { teaching_group_id: groupId });
 }
 </script>
 
 <template>
+    <Head :title="teacher.name" />
+
     <AppLayout>
-        <Head :title="`${teacher.name} — المدرس`" />
+        <!-- ── Hero: who they are + intro video ─────────────────────── -->
+        <section class="hero-gradient text-white py-14">
+            <div class="container-app px-4">
+                <div class="grid lg:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <div class="flex items-center gap-4 mb-5">
+                            <div class="avatar-xl bg-white/10 border-2 border-white/20">
+                                <img v-if="teacher.avatar" :src="teacher.avatar" :alt="teacher.name" class="w-full h-full object-cover" />
+                                <span v-else class="text-white font-black">{{ teacher.name?.charAt(0) }}</span>
+                            </div>
 
-        <!-- Hero Banner -->
-        <div class="hero-gradient py-16 px-4">
-            <div class="container-app">
-                <div class="flex flex-col sm:flex-row items-center gap-8">
+                            <div>
+                                <h1 class="text-2xl sm:text-3xl font-black">{{ teacher.name }}</h1>
+                                <p v-if="teacher.headline" class="text-accent-300 text-sm font-semibold mt-1">
+                                    {{ teacher.headline }}
+                                </p>
+                            </div>
+                        </div>
 
-                    <!-- Avatar -->
-                    <div class="w-32 h-32 rounded-2xl overflow-hidden border-4 border-white/30 shadow-xl flex-shrink-0 bg-white/10">
-                        <img v-if="teacher.avatar" :src="teacher.avatar" :alt="teacher.name"
-                             class="w-full h-full object-cover" />
-                        <div v-else class="w-full h-full flex items-center justify-center text-5xl">👨‍🏫</div>
-                    </div>
-
-                    <!-- Info -->
-                    <div class="text-center sm:text-start text-white">
-                        <h1 class="text-3xl font-black mb-2">{{ teacher.name }}</h1>
-                        <p v-if="teacher.bio" class="text-white/75 max-w-xl leading-relaxed mb-4">
+                        <p v-if="teacher.bio" class="text-white/75 text-sm leading-relaxed mb-6">
                             {{ teacher.bio }}
                         </p>
-                        <div class="flex flex-wrap gap-6 justify-center sm:justify-start">
-                            <div v-for="stat in [
-                                { value: totalCourses,            label: 'كورس' },
-                                { value: totalStudents,           label: 'طالب' },
-                                { value: formatRating(averageRating) + '★', label: 'تقييم' },
-                            ]" :key="stat.label" class="text-center">
-                                <div class="text-2xl font-black">{{ stat.value }}</div>
-                                <div class="text-white/60 text-xs">{{ stat.label }}</div>
+
+                        <div class="flex flex-wrap gap-3">
+                            <div v-if="teacher.rating" class="glass rounded-xl px-4 py-2.5">
+                                <div class="text-lg font-black text-accent-300">★ {{ teacher.rating }}</div>
+                                <div class="text-[11px] text-white/60">التقييم</div>
+                            </div>
+                            <div v-if="teacher.years_experience" class="glass rounded-xl px-4 py-2.5">
+                                <div class="text-lg font-black">{{ teacher.years_experience }}</div>
+                                <div class="text-[11px] text-white/60">سنوات الخبرة</div>
+                            </div>
+                            <div class="glass rounded-xl px-4 py-2.5">
+                                <div class="text-lg font-black">{{ teacher.students_count }}</div>
+                                <div class="text-[11px] text-white/60">طالب حالياً</div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Intro video -->
+                    <div class="rounded-2xl overflow-hidden bg-black/40 border border-white/15 aspect-video relative">
+                        <iframe
+                            v-if="playingVideo && embedUrl"
+                            :src="`${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`"
+                            class="w-full h-full"
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen
+                        ></iframe>
+
+                        <template v-else>
+                            <img
+                                v-if="teacher.intro_video_thumbnail"
+                                :src="teacher.intro_video_thumbnail"
+                                :alt="teacher.name"
+                                class="w-full h-full object-cover opacity-70"
+                            />
+                            <button
+                                v-if="embedUrl"
+                                type="button"
+                                class="absolute inset-0 flex flex-col items-center justify-center gap-3 hover:bg-black/20 transition-colors"
+                                @click="playingVideo = true"
+                            >
+                                <span class="w-16 h-16 rounded-full bg-accent-500 flex items-center justify-center shadow-glow-accent">
+                                    <Icon name="video" class="w-7 h-7 text-white" />
+                                </span>
+                                <span class="text-sm font-bold">شاهد طريقة الشرح</span>
+                            </button>
+                            <div v-else class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/50">
+                                <Icon name="video" class="w-10 h-10" />
+                                <span class="text-xs">لم يضف المعلم فيديو تعريفي بعد</span>
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Courses -->
-        <div class="container-app px-4 py-12">
-            <h2 class="text-2xl font-black text-surface-900 dark:text-white mb-6">
-                كورسات المدرس ({{ courses.length }})
-            </h2>
+        <!-- ── Subjects and booking ─────────────────────────────────── -->
+        <section class="section">
+            <div class="container-app">
+                <div v-if="assignments.length">
+                    <h2 class="text-xl font-black text-surface-900 dark:text-white mb-4">المواد والمجموعات</h2>
 
-            <div v-if="!courses.length" class="card p-16 text-center text-surface-400">
-                <div class="text-5xl mb-4">📭</div>
-                <p>لا توجد كورسات منشورة حتى الآن.</p>
+                    <!-- Subject tabs -->
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <button
+                            v-for="assignment in assignments"
+                            :key="assignment.id"
+                            type="button"
+                            class="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                            :class="assignment.id === activeAssignmentId
+                                ? 'bg-primary-600 text-white shadow-glow-primary'
+                                : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'"
+                            @click="activeAssignmentId = assignment.id"
+                        >
+                            {{ assignment.subject?.name }}
+                            <span class="opacity-60"> — {{ assignment.grade?.name }}</span>
+                        </button>
+                    </div>
+
+                    <div v-if="activeAssignment" class="grid lg:grid-cols-3 gap-5">
+                        <!-- Group list -->
+                        <div class="lg:col-span-2 space-y-3">
+                            <article
+                                v-for="group in activeAssignment.groups"
+                                :key="group.id"
+                                class="card p-5"
+                            >
+                                <div class="flex items-start justify-between gap-4 flex-wrap">
+                                    <div class="flex-1 min-w-[200px]">
+                                        <h3 class="font-bold text-surface-900 dark:text-white text-sm mb-1">
+                                            {{ group.name }}
+                                        </h3>
+                                        <p class="text-xs text-surface-500 dark:text-surface-400 flex items-center gap-1.5">
+                                            <Icon name="calendar" class="w-3.5 h-3.5" />
+                                            {{ formatSchedule(group.schedules) || 'الموعد غير محدد' }}
+                                        </p>
+                                        <p class="text-[11px] text-surface-400 mt-1">
+                                            {{ group.seats_left }} مقعد متبقٍ من {{ group.capacity }}
+                                        </p>
+                                    </div>
+
+                                    <div class="text-end">
+                                        <div class="text-lg font-black text-primary-700 dark:text-primary-400">
+                                            {{ formatMonthly(group.monthly_price) }}
+                                        </div>
+
+                                        <div class="flex flex-col gap-1.5 mt-2">
+                                            <span v-if="group.is_subscribed" class="badge-green text-[10px]">مشترك بالفعل</span>
+
+                                            <template v-else-if="group.seats_left > 0">
+                                                <button
+                                                    type="button"
+                                                    class="btn-primary btn-sm"
+                                                    :disabled="subscribing === `group-${group.id}`"
+                                                    @click="subscribeToGroup(group.id)"
+                                                >
+                                                    {{ subscribing === `group-${group.id}` ? '...' : 'اشترك شهرياً' }}
+                                                </button>
+
+                                                <button
+                                                    v-if="isStudent"
+                                                    type="button"
+                                                    class="btn-ghost btn-sm text-[10px]"
+                                                    @click="askParentToPay(group.id)"
+                                                >
+                                                    اطلب من ولي الأمر
+                                                </button>
+                                            </template>
+
+                                            <span v-else class="badge-red text-[10px]">اكتمل العدد</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <div v-if="!activeAssignment.groups.length" class="card p-8 text-center">
+                                <p class="text-sm text-surface-400">لا توجد مجموعات متاحة لهذه المادة حالياً.</p>
+                            </div>
+                        </div>
+
+                        <!-- Private tuition -->
+                        <aside class="card p-5 h-fit">
+                            <h3 class="font-bold text-surface-900 dark:text-white text-sm mb-2">حصص خاصة</h3>
+
+                            <template v-if="activeAssignment.accepts_private">
+                                <p class="text-xs text-surface-500 dark:text-surface-400 mb-4 leading-relaxed">
+                                    حصص فردية مع المعلم بمواعيد تتفق عليها معه، باشتراك شهري.
+                                </p>
+
+                                <div class="text-xl font-black text-primary-700 dark:text-primary-400 mb-4">
+                                    {{ formatMonthly(activeAssignment.private_monthly_price) }}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="btn-accent btn-sm w-full justify-center"
+                                    :disabled="subscribing === `private-${activeAssignment.id}`"
+                                    @click="subscribeToPrivate(activeAssignment.id)"
+                                >
+                                    {{ subscribing === `private-${activeAssignment.id}` ? '...' : 'اشترك في الحصص الخاصة' }}
+                                </button>
+                            </template>
+
+                            <p v-else class="text-xs text-surface-400">
+                                هذا المعلم لا يقدّم حصصاً خاصة في هذه المادة حالياً.
+                            </p>
+                        </aside>
+                    </div>
+                </div>
+
+                <div v-else class="card p-12 text-center">
+                    <Icon name="calendar" class="w-10 h-10 text-surface-300 mx-auto mb-3" />
+                    <p class="text-sm text-surface-400">لم يضف هذا المعلم أي مواد أو مجموعات بعد.</p>
+                </div>
             </div>
+        </section>
 
-            <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <CourseCard v-for="course in courses" :key="course.id" :course="course" />
+        <!-- ── Reviews ──────────────────────────────────────────────── -->
+        <section v-if="reviews.length" class="section pt-0">
+            <div class="container-app">
+                <h2 class="text-xl font-black text-surface-900 dark:text-white mb-4">آراء الطلاب</h2>
+
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <article v-for="review in reviews" :key="review.id" class="card p-5">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="avatar-sm">
+                                <img v-if="review.author?.avatar" :src="review.author.avatar" :alt="review.author.name" class="w-full h-full object-cover" />
+                                <span v-else class="text-primary-700 dark:text-primary-300 font-bold text-xs">
+                                    {{ review.author?.name?.charAt(0) }}
+                                </span>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-xs font-bold text-surface-800 dark:text-surface-100 truncate">
+                                    {{ review.author?.name }}
+                                </div>
+                                <div class="text-[10px] text-accent-500">{{ '★'.repeat(review.rating) }}</div>
+                            </div>
+                        </div>
+
+                        <p v-if="review.comment" class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
+                            {{ review.comment }}
+                        </p>
+                    </article>
+                </div>
             </div>
-        </div>
+        </section>
     </AppLayout>
 </template>

@@ -205,7 +205,7 @@ function updateCommission() {
                                     >{{ roleLabel[r.name] }}</span>
                                 </td>
                                 <td class="p-4 text-surface-600 dark:text-surface-300">
-                                    {{ user.enrollments_count }}
+                                    {{ user.subscriptions_count }}
                                 </td>
                                 <td class="p-4">
                                     <button v-if="user.roles?.some(r => r.name === 'teacher')" @click="openCommissionModal(user)" class="btn-outline btn-sm">
@@ -303,7 +303,7 @@ function updateCommission() {
                             <input type="radio" v-model="selectedRole" value="student" class="text-primary-600 focus:ring-primary-500">
                             <div>
                                 <div class="font-bold text-surface-800 dark:text-white">طالب</div>
-                                <div class="text-xs text-surface-500">مستخدم عادي يدرس الكورسات</div>
+                                <div class="text-xs text-surface-500">طالب يشترك مع المعلمين</div>
                             </div>
                         </label>
                         
@@ -311,7 +311,7 @@ function updateCommission() {
                             <input type="radio" v-model="selectedRole" value="teacher" class="text-primary-600 focus:ring-primary-500">
                             <div>
                                 <div class="font-bold text-surface-800 dark:text-white">مدرس</div>
-                                <div class="text-xs text-surface-500">يمكنه إنشاء وإدارة كورساته</div>
+                                <div class="text-xs text-surface-500">يمكنه إنشاء وإدارة مجموعاته</div>
                             </div>
                         </label>
                         

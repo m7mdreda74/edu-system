@@ -145,7 +145,7 @@ function submitReject() {
                                             {{ req.student?.name }}
                                         </div>
                                         <div class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-                                            يطلب كورس: <span class="font-semibold text-primary-600 dark:text-primary-400">{{ req.course?.title }}</span>
+                                            يطلب الاشتراك في: <span class="font-semibold text-primary-600 dark:text-primary-400">{{ req.group?.assignment?.subject?.name }} — {{ req.group?.name }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -153,7 +153,7 @@ function submitReject() {
                                     <div class="text-start sm:text-end">
                                         <div class="text-xs text-surface-400">القيمة المطلوبة</div>
                                         <div class="text-base font-black text-surface-900 dark:text-white">
-                                            {{ req.course?.effective_price === 0 ? 'مجاني' : formatQAR(req.course?.effective_price) }}
+                                            {{ req.group?.monthly_price === 0 ? 'مجاني' : formatQAR(req.group?.monthly_price) }}
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
@@ -187,15 +187,15 @@ function submitReject() {
                         <div class="card p-6">
                             <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4 flex items-center gap-2">
                                 <Icon name="courses" class="w-5 h-5 text-primary-500" />
-                                <span>التقدم في الكورسات</span>
+                                <span>الاشتراكات الحالية</span>
                             </h3>
 
                             <div class="space-y-4">
                                 <div v-for="enroll in selectedStudent.enrollments" :key="enroll.id" class="border border-surface-100 dark:border-surface-800 p-4 rounded-2xl">
                                     <div class="flex items-center justify-between gap-4 mb-2">
                                         <div>
-                                            <h4 class="font-bold text-surface-900 dark:text-white text-base">{{ enroll.course?.title }}</h4>
-                                            <p class="text-xs text-surface-400">المدرس: {{ enroll.course?.teacher?.name }}</p>
+                                            <h4 class="font-bold text-surface-900 dark:text-white text-base">{{ enroll.subject?.name }}</h4>
+                                            <p class="text-xs text-surface-400">المدرس: {{ enroll.teacher?.name }}</p>
                                         </div>
                                         <div class="text-sm font-bold text-primary-500">{{ enroll.progress_percent }}%</div>
                                     </div>
@@ -205,7 +205,7 @@ function submitReject() {
                                 </div>
 
                                 <div v-if="selectedStudent.enrollments.length === 0" class="text-center py-6 text-surface-400">
-                                    الطالب غير مسجل في أي كورس بعد.
+                                    الطالب غير مشترك مع أي معلم بعد.
                                 </div>
                             </div>
                         </div>
@@ -262,7 +262,7 @@ function submitReject() {
                                 <table class="w-full text-sm">
                                     <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                                         <tr>
-                                            <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">الكورس</th>
+                                            <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">الاشتراك</th>
                                             <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">المبلغ</th>
                                             <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">بوابة الدفع</th>
                                             <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">التاريخ</th>
@@ -270,7 +270,7 @@ function submitReject() {
                                     </thead>
                                     <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
                                         <tr v-for="pay in selectedStudent.payments" :key="pay.id">
-                                            <td class="px-6 py-4 font-bold text-surface-900 dark:text-white">{{ pay.course?.title }}</td>
+                                            <td class="px-6 py-4 font-bold text-surface-900 dark:text-white">{{ pay.subscription?.assignment?.subject?.name ?? "اشتراك" }}</td>
                                             <td class="px-6 py-4 font-semibold text-green-600 dark:text-green-400">{{ formatQAR(pay.amount) }}</td>
                                             <td class="px-6 py-4 text-surface-500 uppercase">{{ pay.gateway }}</td>
                                             <td class="px-6 py-4 text-xs text-surface-400">{{ new Date(pay.created_at).toLocaleDateString('ar') }}</td>

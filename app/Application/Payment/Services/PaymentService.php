@@ -4,31 +4,31 @@ declare(strict_types=1);
 
 namespace App\Application\Payment\Services;
 
-use App\Domain\Course\Models\Course;
-use App\Domain\Enrollment\Contracts\EnrollmentServiceInterface;
+use App\Application\Subscription\Services\SubscriptionService;
 use App\Domain\Payment\Models\Coupon;
 use App\Domain\Payment\Models\Invoice;
 use App\Domain\Payment\Models\Payment;
-use App\Domain\User\Models\User;
 use App\Domain\Settings\Models\PlatformSetting;
+use App\Domain\Subscription\Models\Subscription;
+use App\Domain\User\Models\User;
 use App\Infrastructure\Payment\PaymentGatewayInterface;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use LogicException;
-use App\Notifications\CourseEnrolledNotification;
-use App\Domain\Communication\Notifications\StudentEnrolledNotification;
+use App\Notifications\SubscriptionActivatedNotification;
 use App\Domain\Communication\Notifications\PaymentReceivedNotification;
+use App\Domain\Communication\Notifications\StudentSubscribedNotification;
+use Illuminate\Support\Facades\DB;
+use LogicException;
 
 /**
  * PaymentService — Application Layer
- * Orchestrates the full checkout flow.
- * Does NOT know about HTTP/Controllers — pure business logic.
+ *
+ * Orchestrates paying for one month of a subscription. Does NOT know about
+ * HTTP/Controllers — pure business logic.
  */
 class PaymentService
 {
     public function __construct(
-        private readonly PaymentGatewayInterface     $gateway,
-        private readonly EnrollmentServiceInterface  $enrollmentService,
+        private readonly PaymentGatewayInterface $gateway,
+        private readonly SubscriptionService     $subscriptions,
     ) {}
 
     public function getGateway(): PaymentGatewayInterface
@@ -37,67 +37,48 @@ class PaymentService
     }
 
     /**
-     * Initiate checkout for a paid course.
-     * Returns redirect URL to gateway payment page.
+     * Start checkout for a pending subscription.
+     * Returns the gateway URL the student should be sent to.
+     *
+     * @return array{payment_id: int, redirect_url: string}
      *
      * @throws LogicException
      */
-    public function initiateCheckout(User $user, Course $course, ?string $couponCode = null, ?int $purchaseRequestId = null): array
+    public function initiateCheckout(User $user, Subscription $subscription, ?string $couponCode = null): array
     {
-        // Guard: already enrolled
-        if ($user->isEnrolledIn($course)) {
-            throw new LogicException('أنت مسجل في هذا الكورس مسبقاً.');
+        if ($subscription->status === Subscription::STATUS_ACTIVE) {
+            throw new LogicException('هذا الاشتراك مفعّل بالفعل.');
         }
 
-        // Guard: free course should use enrollFree()
-        if ($course->isFree()) {
-            throw new LogicException('هذا الكورس مجاني. استخدم التسجيل المباشر.');
+        if ($subscription->monthly_price <= 0) {
+            throw new LogicException('هذا الاشتراك مجاني — لا يحتاج إلى دفع.');
         }
 
-        // Resolve coupon
-        $coupon         = null;
-        $originalAmount = $course->getEffectivePrice();
-        $finalAmount    = $originalAmount;
+        [$coupon, $originalAmount, $finalAmount] = $this->resolveAmount($subscription, $couponCode);
 
-        if ($couponCode) {
-            /** @var Coupon|null $coupon */
-            $coupon = Coupon::where('code', strtoupper(trim($couponCode)))->first();
+        // Create the pending Payment before calling the gateway so the webhook
+        // has a record to match against — this is what makes it idempotent.
+        $payment = DB::transaction(fn () => Payment::create([
+            'user_id'         => $user->id,
+            'subscription_id' => $subscription->id,
+            'coupon_id'       => $coupon?->id,
+            'amount'          => $finalAmount,
+            'original_amount' => $originalAmount,
+            'currency'        => $subscription->currency ?? 'QAR',
+            'gateway'         => $this->gateway->getGatewayName(),
+            'status'          => Payment::STATUS_PENDING,
+        ]));
 
-            if (! $coupon || ! $coupon->isUsable()) {
-                throw new LogicException('كود الخصم غير صحيح أو منتهي الصلاحية.');
-            }
-
-            $finalAmount = $coupon->applyDiscount($originalAmount);
-        }
-
-        // Create pending Payment record first (before gateway call)
-        // This enables idempotent webhook processing
-        $payment = DB::transaction(function () use ($user, $course, $coupon, $originalAmount, $finalAmount, $purchaseRequestId) {
-            return Payment::create([
-                'user_id'         => $user->id,
-                'course_id'       => $course->id,
-                'coupon_id'       => $coupon?->id,
-                'amount'          => $finalAmount,
-                'original_amount' => $originalAmount,
-                'currency'        => 'QAR',
-                'gateway'         => $this->gateway->getGatewayName(),
-                'status'          => Payment::STATUS_PENDING,
-                'purchase_request_id' => $purchaseRequestId,
-            ]);
-        });
-
-        // Call gateway to get payment URL
         $gatewayResponse = $this->gateway->createPaymentIntent(
             amountInSmallestUnit: $finalAmount,
-            currency: 'QAR',
+            currency: $subscription->currency ?? 'QAR',
             metadata: [
-                'payment_id' => $payment->id,
-                'user_id'    => $user->id,
-                'course_id'  => $course->id,
-            ]
+                'payment_id'      => $payment->id,
+                'user_id'         => $user->id,
+                'subscription_id' => $subscription->id,
+            ],
         );
 
-        // Update payment with gateway reference
         $payment->update(['gateway_ref' => $gatewayResponse['gateway_ref']]);
 
         return [
@@ -115,155 +96,155 @@ class PaymentService
         $event = $this->gateway->parseWebhookEvent($payload);
 
         if ($event['status'] !== 'paid') {
-            return; // Only process successful payments
+            return; // Only successful payments matter here.
         }
 
         $payment = Payment::where('gateway_ref', $event['gateway_ref'])->first();
 
         if (! $payment) {
-            return; // Unknown payment — ignore (log in production)
+            return; // Unknown payment — nothing to reconcile.
         }
 
         $this->completeSuccessfulPayment($payment);
     }
 
     /**
-     * Verify payment status directly with the gateway and process it.
-     * Useful for redirect callbacks.
+     * Verify a payment straight with the gateway, then process it.
+     * Used by redirect callbacks where no webhook has arrived yet.
      */
-    public function verifyAndProcessPayment(string $paymentId): void
+    public function verifyAndProcessPayment(string $gatewayReference): void
     {
         $gateway = $this->gateway;
-        if (method_exists($gateway, 'getPaymentStatus')) {
-            /** @var \App\Infrastructure\Payment\Gateways\MyFatoorahGateway $gateway */
-            $statusData = $gateway->getPaymentStatus($paymentId);
 
-            if (($statusData['status'] ?? '') === 'paid') {
-                $localPaymentId = $statusData['payment_id'] ?? null;
-                $payment = null;
-
-                if ($localPaymentId) {
-                    $payment = Payment::find($localPaymentId);
-                }
-
-                if (! $payment) {
-                    $payment = Payment::where('gateway_ref', $statusData['invoice_id'] ?? '')
-                        ->orWhere('gateway_ref', $paymentId)
-                        ->first();
-                }
-
-                if ($payment) {
-                    // Update to the final Transaction PaymentId if not set
-                    if ($payment->gateway_ref !== $paymentId) {
-                        $payment->update(['gateway_ref' => $paymentId]);
-                    }
-                    $this->completeSuccessfulPayment($payment);
-                }
-            }
+        if (! method_exists($gateway, 'getPaymentStatus')) {
+            return;
         }
+
+        $statusData = $gateway->getPaymentStatus($gatewayReference);
+
+        if (($statusData['status'] ?? '') !== 'paid') {
+            return;
+        }
+
+        $payment = null;
+
+        if (! empty($statusData['payment_id'])) {
+            $payment = Payment::find($statusData['payment_id']);
+        }
+
+        $payment ??= Payment::where('gateway_ref', $statusData['invoice_id'] ?? '')
+            ->orWhere('gateway_ref', $gatewayReference)
+            ->first();
+
+        if (! $payment) {
+            return;
+        }
+
+        if ($payment->gateway_ref !== $gatewayReference) {
+            $payment->update(['gateway_ref' => $gatewayReference]);
+        }
+
+        $this->completeSuccessfulPayment($payment);
     }
 
     /**
-     * Verify payment status directly with the gateway and process it using local payment ID.
-     */
-    public function verifyAndProcessPaymentDirect(string $paymentId, ?string $transactionId = null): void
-    {
-        $payment = Payment::find($paymentId);
-        if ($payment && !$payment->isPaid()) {
-            $gatewayRef = $transactionId ?? $payment->gateway_ref;
-            if ($gatewayRef) {
-                $gateway = $this->gateway;
-                if (method_exists($gateway, 'getPaymentStatus')) {
-                    /** @var \App\Infrastructure\Payment\Gateways\FatoraGateway $gateway */
-                    $statusData = $gateway->getPaymentStatus($gatewayRef);
-                    
-                    $isPaid = ($statusData['status'] ?? '') === 'paid';
-                    if (!$isPaid && app()->environment('local') && request()->query('response_code') === '000') {
-                        $isPaid = true;
-                    }
-
-                    if ($isPaid) {
-                        if ($transactionId && $payment->gateway_ref !== $transactionId) {
-                            $payment->update(['gateway_ref' => $transactionId]);
-                        }
-                        $this->completeSuccessfulPayment($payment);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Complete the payment process and enroll the student.
+     * Mark the payment paid, split the commission, invoice it, and switch the
+     * subscription on. Idempotent — a repeated webhook is a no-op.
      */
     public function completeSuccessfulPayment(Payment $payment): void
     {
-        // Idempotency check: skip if already processed
         if ($payment->isPaid()) {
             return;
         }
 
-        DB::transaction(function () use ($payment) {
-            $payment->loadMissing(['course.teacher']);
-            $teacher = $payment->course?->teacher;
-            $defaultCommission = (int) (PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20);
-            $commissionPercent = $teacher?->commission_percent ?? $defaultCommission;
-            $commissionPercent = max(0, min(100, $commissionPercent));
+        DB::transaction(function () use ($payment): void {
+            $payment->loadMissing('subscription.assignment.teacher');
+
+            $teacher            = $payment->subscription?->assignment?->teacher;
+            $defaultCommission  = (int) (PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20);
+            $commissionPercent  = max(0, min(100, $teacher?->commission_percent ?? $defaultCommission));
             $platformCommission = (int) floor(($payment->amount * $commissionPercent) / 100);
 
             $payment->update([
-                'status'  => Payment::STATUS_PAID,
-                'paid_at' => now(),
-                'commission_percent' => $commissionPercent,
+                'status'                     => Payment::STATUS_PAID,
+                'paid_at'                    => now(),
+                'commission_percent'         => $commissionPercent,
                 'platform_commission_amount' => $platformCommission,
-                'teacher_earnings' => $payment->amount - $platformCommission,
+                'teacher_earnings'           => $payment->amount - $platformCommission,
             ]);
 
-            // Generate invoice
             Invoice::create([
                 'payment_id'     => $payment->id,
                 'invoice_number' => $this->generateInvoiceNumber($payment->id),
                 'issued_at'      => now(),
             ]);
 
-            // Increment coupon usage count
             if ($payment->coupon_id) {
                 Coupon::where('id', $payment->coupon_id)->increment('used_count');
             }
 
-            // Update purchase request status if linked
             if ($payment->purchase_request_id) {
-                \App\Domain\Enrollment\Models\PurchaseRequest::where('id', $payment->purchase_request_id)
-                    ->update(['status' => \App\Domain\Enrollment\Models\PurchaseRequest::STATUS_APPROVED]);
+                \App\Domain\Subscription\Models\PurchaseRequest::where('id', $payment->purchase_request_id)
+                    ->update(['status' => \App\Domain\Subscription\Models\PurchaseRequest::STATUS_APPROVED]);
             }
         });
 
-        // Enroll student after successful payment
-        $course = $payment->course;
-        $user   = $payment->user;
+        $this->activateAndNotify($payment);
+    }
 
-        if (! $user->isEnrolledIn($course)) {
-            \App\Domain\Enrollment\Models\Enrollment::firstOrCreate(
-                ['user_id' => $user->id, 'course_id' => $course->id],
-                ['enrolled_at' => now(), 'progress_percent' => 0]
-            );
+    /**
+     * Coupon resolution and the amount actually charged.
+     *
+     * @return array{0: ?Coupon, 1: int, 2: int}
+     *
+     * @throws LogicException
+     */
+    private function resolveAmount(Subscription $subscription, ?string $couponCode): array
+    {
+        $originalAmount = $subscription->monthly_price;
 
-            // Eager load teacher
-            $course->load('teacher');
+        if (! $couponCode) {
+            return [null, $originalAmount, $originalAmount];
+        }
 
-            // Notify Student
-            $user->notify(new CourseEnrolledNotification($course));
+        /** @var Coupon|null $coupon */
+        $coupon = Coupon::where('code', strtoupper(trim($couponCode)))->first();
 
-            // Notify Teacher
-            if ($course->teacher) {
-                $course->teacher->notify(new StudentEnrolledNotification($course, $user));
-            }
+        if (! $coupon || ! $coupon->isUsable()) {
+            throw new LogicException('كود الخصم غير صحيح أو منتهي الصلاحية.');
+        }
 
-            // Notify Admins
-            $admins = User::role('admin')->get();
-            foreach ($admins as $admin) {
-                $admin->notify(new PaymentReceivedNotification($course, $user, $payment->amount));
-            }
+        return [$coupon, $originalAmount, $coupon->applyDiscount($originalAmount)];
+    }
+
+    /** Switch the subscription on and let everyone who cares know. */
+    private function activateAndNotify(Payment $payment): void
+    {
+        $subscription = $payment->subscription;
+
+        if (! $subscription) {
+            return;
+        }
+
+        $wasAlreadyActive = $subscription->status === Subscription::STATUS_ACTIVE;
+
+        $this->subscriptions->activate($subscription);
+
+        if ($wasAlreadyActive) {
+            return; // Renewal of a live subscription — no need to re-announce.
+        }
+
+        $subscription->loadMissing(['student', 'assignment.teacher']);
+        $student = $subscription->student;
+
+        $student?->notify(new SubscriptionActivatedNotification($subscription));
+
+        $subscription->assignment?->teacher?->notify(
+            new StudentSubscribedNotification($subscription, $student)
+        );
+
+        foreach (User::role('admin')->get() as $admin) {
+            $admin->notify(new PaymentReceivedNotification($subscription, $student, $payment->amount));
         }
     }
 
@@ -271,6 +252,7 @@ class PaymentService
     {
         $year = now()->year;
         $seq  = str_pad((string) $paymentId, 6, '0', STR_PAD_LEFT);
+
         return "INV-{$year}-{$seq}";
     }
 }

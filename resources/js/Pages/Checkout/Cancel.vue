@@ -17,7 +17,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
                 لم تُكمل عملية الدفع. يمكنك المحاولة مرة أخرى في أي وقت.
             </p>
             <div class="flex gap-3 justify-center">
-                <Link :href="route('courses.index')" class="btn-primary btn-lg">تصفح الكورسات</Link>
+                <Link :href="route('home') + '#grades'" class="btn-primary btn-lg">تصفح المعلمين</Link>
                 <Link :href="route('dashboard')" class="btn-ghost">الداشبورد</Link>
             </div>
         </div>

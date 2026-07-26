@@ -16,7 +16,7 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => [
                 'required',
@@ -28,5 +28,19 @@ class ProfileUpdateRequest extends FormRequest
             ],
             'avatar' => ['nullable', 'image', 'max:2048'], // Max 2MB
         ];
+
+        // A teacher's public profile is the platform's shop window: students
+        // pick who to study with from the intro video and background.
+        if ($this->user()?->hasRole('teacher')) {
+            $rules += [
+                'headline'              => ['nullable', 'string', 'max:255'],
+                'bio'                   => ['nullable', 'string', 'max:2000'],
+                'intro_video_url'       => ['nullable', 'url', 'max:2048'],
+                'intro_video_thumbnail' => ['nullable', 'url', 'max:2048'],
+                'years_experience'      => ['nullable', 'integer', 'min:0', 'max:70'],
+            ];
+        }
+
+        return $rules;
     }
 }

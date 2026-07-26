@@ -40,7 +40,7 @@ const maxChartValue = computed(() =>
                 </div>
                 <div class="flex gap-2">
                     <Link :href="route('admin.users')"    class="btn-outline btn-sm">المستخدمون</Link>
-                    <Link :href="route('admin.courses')"  class="btn-outline btn-sm">الكورسات</Link>
+                    <Link :href="route('admin.subscriptions')" class="btn-outline btn-sm">الاشتراكات</Link>
                     <Link :href="route('admin.payments')" class="btn-outline btn-sm">المدفوعات</Link>
                 </div>
             </div>
@@ -51,7 +51,7 @@ const maxChartValue = computed(() =>
                     { label: 'إجمالي المستخدمين', value: stats.total_users,       icon: 'users', bg: 'bg-primary-50 text-primary-600 dark:bg-primary-950/40 dark:text-primary-400' },
                     { label: 'الطلاب',             value: stats.total_students,    icon: 'student', bg: 'bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-400' },
                     { label: 'المدرسين',            value: stats.total_teachers,   icon: 'teacher', bg: 'bg-accent-50 text-accent-600 dark:bg-accent-950/40 dark:text-accent-400' },
-                    { label: 'الكورسات المنشورة',  value: stats.total_courses,    icon: 'courses', bg: 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400' },
+                    { label: 'مجموعات التدريس',  value: stats.total_groups,    icon: 'courses', bg: 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400' },
                 ]" :key="card.label"
                     class="card p-5 flex items-center gap-4 transition-all duration-300 transform hover:scale-102 hover:shadow-card-hover"
                 >
@@ -82,7 +82,7 @@ const maxChartValue = computed(() =>
                 <div class="card p-6">
                     <div class="text-xs text-surface-400 mb-1">إجمالي التسجيلات</div>
                     <div class="text-3xl font-black text-accent-700 dark:text-accent-400">
-                        {{ stats.total_enrollments?.toLocaleString('en') }}
+                        {{ stats.active_subscriptions?.toLocaleString('en') }}
                     </div>
                 </div>
             </div>
@@ -143,7 +143,7 @@ const maxChartValue = computed(() =>
                                 <div class="text-sm font-semibold text-surface-800 dark:text-surface-100 line-clamp-1">
                                     {{ payment.user?.name }}
                                 </div>
-                                <div class="text-xs text-surface-400 line-clamp-1">{{ payment.course?.title }}</div>
+                                <div class="text-xs text-surface-400 line-clamp-1">{{ payment.subscription?.assignment?.subject?.name }}</div>
                             </div>
                             <div class="text-sm font-bold text-primary-700 dark:text-primary-400 flex-shrink-0">
                                 {{ formatQAR(payment.amount) }}

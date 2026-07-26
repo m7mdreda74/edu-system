@@ -4,7 +4,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
     certificate: { type: Object, required: true },
-    enrollment:  { type: Object, required: true },
+    group: { type: Object, required: true },
 });
 
 function printCertificate() {
@@ -14,7 +14,7 @@ function printCertificate() {
 
 <template>
     <AppLayout>
-        <Head :title="`شهادة — ${certificate.course_title}`" />
+        <Head :title="`شهادة — ${certificate.subject_title}`" />
 
         <div class="container-app px-4 py-10 max-w-4xl">
 
@@ -68,9 +68,9 @@ function printCertificate() {
                         {{ certificate.student_name }}
                     </h2>
 
-                    <p class="text-surface-500 text-sm mb-3">قد أتمّ/أتمّت بنجاح كورس</p>
+                    <p class="text-surface-500 text-sm mb-3">قد أتمّ/أتمّت بنجاح مجموعة</p>
                     <h3 class="text-2xl font-bold text-primary-800 mb-3 leading-snug">
-                        {{ certificate.course_title }}
+                        {{ certificate.subject_title }}
                     </h3>
                     <p class="text-surface-500 text-sm mb-10">
                         بإشراف المدرس/ة: <strong class="text-surface-700">{{ certificate.teacher_name }}</strong>

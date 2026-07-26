@@ -25,11 +25,12 @@ class PayoutController extends Controller
 
         $teachers = User::role('teacher')->get(['id', 'name', 'email', 'commission_percent']);
         $balances = Payment::query()
-            ->join('courses', 'courses.id', '=', 'payments.course_id')
+            ->join('subscriptions', 'subscriptions.id', '=', 'payments.subscription_id')
+            ->join('teaching_assignments', 'teaching_assignments.id', '=', 'subscriptions.teaching_assignment_id')
             ->where('payments.status', Payment::STATUS_PAID)
             ->whereNull('payments.teacher_payout_id')
-            ->groupBy('courses.teacher_id')
-            ->select('courses.teacher_id', DB::raw('SUM(payments.amount) as gross_amount'), DB::raw('SUM(COALESCE(payments.teacher_earnings, 0)) as teacher_earnings'), DB::raw('SUM(COALESCE(payments.platform_commission_amount, 0)) as platform_commission_amount'))
+            ->groupBy('teaching_assignments.teacher_id')
+            ->select('teaching_assignments.teacher_id', DB::raw('SUM(payments.amount) as gross_amount'), DB::raw('SUM(COALESCE(payments.teacher_earnings, 0)) as teacher_earnings'), DB::raw('SUM(COALESCE(payments.platform_commission_amount, 0)) as platform_commission_amount'))
             ->get()
             ->keyBy('teacher_id');
 
@@ -58,8 +59,9 @@ class PayoutController extends Controller
 
         DB::transaction(function () use ($validated, $receiptPath): void {
             $payments = Payment::query()
-                ->join('courses', 'courses.id', '=', 'payments.course_id')
-                ->where('courses.teacher_id', $validated['teacher_id'])
+                ->join('subscriptions', 'subscriptions.id', '=', 'payments.subscription_id')
+            ->join('teaching_assignments', 'teaching_assignments.id', '=', 'subscriptions.teaching_assignment_id')
+                ->where('teaching_assignments.teacher_id', $validated['teacher_id'])
                 ->where('payments.status', Payment::STATUS_PAID)
                 ->whereNull('payments.teacher_payout_id')
                 ->whereBetween('payments.paid_at', [$validated['period_start'] . ' 00:00:00', $validated['period_end'] . ' 23:59:59'])

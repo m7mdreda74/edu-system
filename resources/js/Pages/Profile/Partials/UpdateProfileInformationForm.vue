@@ -15,11 +15,18 @@ defineProps({
 });
 
 const user = usePage().props.auth.user;
+const isTeacher = (user.roles ?? []).includes('teacher');
 
 const form = useForm({
     name: user.name,
     email: user.email,
     avatar: null,
+    // Teacher-only public profile fields; the server ignores them otherwise.
+    headline: user.headline ?? '',
+    bio: user.bio ?? '',
+    intro_video_url: user.intro_video_url ?? '',
+    intro_video_thumbnail: user.intro_video_thumbnail ?? '',
+    years_experience: user.years_experience ?? null,
     _method: 'PATCH',
 });
 </script>
@@ -89,6 +96,80 @@ const form = useForm({
 
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
+
+            <!-- ── Teacher public profile ─────────────────────────── -->
+            <template v-if="isTeacher">
+                <div class="pt-6 border-t border-surface-200 dark:border-surface-700">
+                    <h3 class="font-bold text-surface-900 dark:text-white text-sm mb-1">ملفك العام للطلاب</h3>
+                    <p class="text-xs text-surface-500 dark:text-surface-400">
+                        الطالب يشوف الفيديو التعريفي ونبذتك قبل ما يقرر يحجز معك — كمّلهم عشان تظهر بشكل أفضل.
+                    </p>
+                </div>
+
+                <div>
+                    <InputLabel for="headline" value="العنوان المختصر" />
+                    <TextInput
+                        id="headline"
+                        type="text"
+                        class="mt-1 block w-full"
+                        v-model="form.headline"
+                        placeholder="معلم رياضيات — 12 سنة خبرة"
+                    />
+                    <InputError class="mt-2" :message="form.errors.headline" />
+                </div>
+
+                <div>
+                    <InputLabel for="bio" value="نبذة تعريفية" />
+                    <textarea
+                        id="bio"
+                        v-model="form.bio"
+                        rows="4"
+                        class="input mt-1 block w-full"
+                        placeholder="اكتب عن أسلوبك في الشرح وخبرتك مع المنهج."
+                    ></textarea>
+                    <InputError class="mt-2" :message="form.errors.bio" />
+                </div>
+
+                <div>
+                    <InputLabel for="intro_video_url" value="رابط الفيديو التعريفي" />
+                    <TextInput
+                        id="intro_video_url"
+                        type="url"
+                        dir="ltr"
+                        class="mt-1 block w-full"
+                        v-model="form.intro_video_url"
+                        placeholder="https://www.youtube.com/watch?v=..."
+                    />
+                    <p class="text-xs text-surface-400 mt-1">يدعم روابط يوتيوب وفيميو.</p>
+                    <InputError class="mt-2" :message="form.errors.intro_video_url" />
+                </div>
+
+                <div>
+                    <InputLabel for="intro_video_thumbnail" value="صورة مصغّرة للفيديو" />
+                    <TextInput
+                        id="intro_video_thumbnail"
+                        type="url"
+                        dir="ltr"
+                        class="mt-1 block w-full"
+                        v-model="form.intro_video_thumbnail"
+                        placeholder="https://..."
+                    />
+                    <InputError class="mt-2" :message="form.errors.intro_video_thumbnail" />
+                </div>
+
+                <div>
+                    <InputLabel for="years_experience" value="سنوات الخبرة" />
+                    <TextInput
+                        id="years_experience"
+                        type="number"
+                        min="0"
+                        max="70"
+                        class="mt-1 block w-full"
+                        v-model="form.years_experience"
+                    />
+                    <InputError class="mt-2" :message="form.errors.years_experience" />
+                </div>
+            </template>
 
             <div v-if="mustVerifyEmail && user.email_verified_at === null">
                 <p class="mt-2 text-sm text-gray-800">

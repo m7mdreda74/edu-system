@@ -6,12 +6,10 @@ import { ref, computed } from 'vue';
 
 const props = defineProps({
     sessions: { type: Array, required: true },
-    courses:  { type: Array, required: true },
     assignments: { type: Array, required: true },
 });
 
 const form = useForm({
-    course_id:    '',
     title:        '',
     description:  '',
     source_type: 'group',
@@ -25,9 +23,10 @@ const isModalOpen = ref(false);
 const actionModal = ref(null);
 const statusForm = useForm({ status: 'ended', recording_url: '' });
 
-const selectedCourse = computed(() => props.courses.find(course => String(course.id) === String(form.course_id)));
-const matchingAssignments = computed(() => props.assignments.filter(assignment =>
-    selectedCourse.value && assignment.subject_id === selectedCourse.value.subject_id && assignment.grade_level_id === selectedCourse.value.grade_level?.id
+// A session hangs off a teaching assignment now — pick the subject first.
+const selectedAssignmentId = ref('');
+const matchingAssignments = computed(() => props.assignments.filter(
+    assignment => String(assignment.id) === String(selectedAssignmentId.value),
 ));
 const groupOptions = computed(() => matchingAssignments.value.flatMap(assignment => assignment.groups.map(group => ({ ...group, subject: assignment.subject?.name, grade: assignment.grade_level?.name }))));
 const privateOptions = computed(() => matchingAssignments.value.flatMap(assignment => assignment.private_slots.map(slot => ({ ...slot, subject: assignment.subject?.name, grade: assignment.grade_level?.name }))));
@@ -125,7 +124,7 @@ const statusLabels = {
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
-                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">عنوان الحصة / الكورس</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">عنوان الحصة / المجموعة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الموعد</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الرابط/التسجيل</th>
@@ -136,7 +135,7 @@ const statusLabels = {
                             <tr v-for="session in sessions" :key="session.id" class="hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
                                 <td class="p-4">
                                     <div class="font-bold text-surface-900 dark:text-white text-base">{{ session.title }}</div>
-                                    <div class="text-xs text-surface-500 mt-1">{{ session.course?.title || 'حصة المجموعة' }}</div>
+                                    <div class="text-xs text-surface-500 mt-1">{{ session.teaching_group?.name || 'حصة خاصة' }}</div>
                                     <div v-if="session.teaching_group" class="text-[11px] text-primary-500 mt-1">مجموعة: {{ session.teaching_group.name }}</div>
                                     <div v-else-if="session.private_session_slot" class="text-[11px] text-accent-500 mt-1">جلسة برايفيت محجوزة</div>
                                 </td>
@@ -223,11 +222,11 @@ const statusLabels = {
                         
                         <div class="space-y-4">
                             <div>
-                                <label class="input-label">اختر الكورس</label>
-                                <select v-model="form.course_id" class="input" required>
-                                    <option value="" disabled>-- الكورس --</option>
-                                    <option v-for="course in courses" :key="course.id" :value="course.id">
-                                        {{ course.title }}
+                                <label class="input-label">اختر المادة والصف</label>
+                                <select v-model="selectedAssignmentId" class="input" required @change="resetScheduleSelection">
+                                    <option value="" disabled>-- المادة --</option>
+                                    <option v-for="assignment in assignments" :key="assignment.id" :value="assignment.id">
+                                        {{ assignment.subject?.name }} — {{ assignment.grade_level?.name }}
                                     </option>
                                 </select>
                             </div>
@@ -259,7 +258,7 @@ const statusLabels = {
                                         {{ new Date(slot.starts_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
                                     </option>
                                 </select>
-                                <p v-if="!matchingAssignments.length" class="text-xs text-red-500 mt-1">لا يوجد جدول مرتبط بهذا الكورس. أنشئ ربط المادة والسنة من جدول التدريس أولًا.</p>
+                                <p v-if="!matchingAssignments.length" class="text-xs text-red-500 mt-1">لا يوجد جدول لهذه المادة. أنشئ ربط المادة والصف من جدول التدريس أولاً.</p>
                             </div>
 
                             <div v-if="form.source_type === 'group'">

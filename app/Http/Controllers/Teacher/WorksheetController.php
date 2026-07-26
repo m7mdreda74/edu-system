@@ -4,62 +4,62 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
-use App\Domain\Course\Models\Course;
-use App\Domain\Course\Models\Worksheet;
-use App\Domain\Course\Models\WorksheetSubmission;
+use App\Domain\Learning\Models\Worksheet;
+use App\Domain\Learning\Models\WorksheetSubmission;
+use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Http\Controllers\Controller;
+use App\Notifications\GenericDatabaseNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * Study sheets and homework, published per teaching group and graded here.
+ */
 class WorksheetController extends Controller
 {
-    public function index(int $courseId): Response
+    public function index(int $groupId): Response
     {
-        $course = Course::findOrFail($courseId);
-        abort_if($course->teacher_id !== auth()->id(), 403, 'غير مصرح.');
+        $group = $this->ownedGroupOrFail($groupId);
 
-        $worksheets = Worksheet::where('course_id', $courseId)
-            ->with(['lesson:id,title'])
+        $worksheets = Worksheet::where('teaching_group_id', $group->id)
+            ->with(['material:id,title'])
             ->withCount('submissions')
             ->get();
 
-        $lessons = $course->lessons()->get(['id', 'title']);
-
-        // Load submissions needing grading
-        $submissions = WorksheetSubmission::whereIn('worksheet_id', $worksheets->pluck('id'))
-            ->with(['worksheet:id,title,max_score', 'student:id,name,email'])
-            ->latest('submitted_at')
-            ->get();
-
         return Inertia::render('Teacher/Worksheets', [
-            'course'      => $course,
+            'group' => [
+                'id'      => $group->id,
+                'name'    => $group->name,
+                'subject' => $group->assignment?->subject?->only(['id', 'name']),
+            ],
             'worksheets'  => $worksheets,
-            'lessons'     => $lessons,
-            'submissions' => $submissions,
+            'materials'   => $group->materials()->get(['id', 'title']),
+            'submissions' => WorksheetSubmission::whereIn('worksheet_id', $worksheets->pluck('id'))
+                ->with(['worksheet:id,title,max_score', 'student:id,name,email'])
+                ->latest('submitted_at')
+                ->get(),
         ]);
     }
 
-    public function store(Request $request, int $courseId): RedirectResponse
+    public function store(Request $request, int $groupId): RedirectResponse
     {
-        $course = Course::findOrFail($courseId);
-        abort_if($course->teacher_id !== auth()->id(), 403, 'غير مصرح.');
+        $group = $this->ownedGroupOrFail($groupId);
 
         $validated = $request->validate([
-            'lesson_id'           => ['nullable', 'exists:course_lessons,id'],
+            'lesson_id'           => ['nullable', 'exists:group_materials,id'],
             'title'               => ['required', 'string', 'max:255'],
-            'file'                => ['required', 'file', 'mimes:pdf,docx,png,jpg,jpeg', 'max:10240'], // 10MB
+            'file'                => ['required', 'file', 'mimes:pdf,docx,png,jpg,jpeg', 'max:10240'],
             'type'                => ['required', 'string', 'in:study,homework'],
             'requires_submission' => ['required', 'boolean'],
             'due_date'            => ['nullable', 'date'],
             'max_score'           => ['nullable', 'integer', 'min:1'],
         ]);
 
-        // Upload file
-        $path = $request->file('file')->store('worksheets', 'public');
-        $validated['file_path'] = '/storage/' . $path;
-        $validated['course_id'] = $course->id;
+        $validated['file_path']         = '/storage/' . $request->file('file')->store('worksheets', 'public');
+        $validated['teaching_group_id'] = $group->id;
 
         unset($validated['file']);
 
@@ -70,8 +70,9 @@ class WorksheetController extends Controller
 
     public function gradeSubmission(Request $request, int $submissionId): RedirectResponse
     {
-        $submission = WorksheetSubmission::with('worksheet.course')->findOrFail($submissionId);
-        abort_if($submission->worksheet->course->teacher_id !== auth()->id(), 403, 'غير مصرح.');
+        $submission = WorksheetSubmission::with('worksheet.group.assignment')->findOrFail($submissionId);
+
+        $this->assertOwns($submission->worksheet?->group);
 
         $validated = $request->validate([
             'score'            => ['required', 'integer', 'min:0', 'max:' . ($submission->worksheet->max_score ?? 100)],
@@ -80,30 +81,47 @@ class WorksheetController extends Controller
 
         $submission->update([
             'score'            => $validated['score'],
-            'teacher_feedback' => $validated['teacher_feedback'],
+            'teacher_feedback' => $validated['teacher_feedback'] ?? null,
             'graded_at'        => now(),
         ]);
 
-        // Send notification to student
-        $student = $submission->student;
-        if ($student) {
-            $student->notify(new \App\Notifications\GenericDatabaseNotification([
-                'title'   => 'تم تصحيح الواجب 📝',
-                'message' => "تم تصحيح واجبك في '{$submission->worksheet->title}' وحصلت على درجة {$validated['score']}/{$submission->worksheet->max_score}.",
-                'link'    => route('student.learn', ['slug' => $submission->worksheet->course->slug]),
-            ]));
-        }
+        $submission->student?->notify(new GenericDatabaseNotification([
+            'title'   => 'تم تصحيح الواجب 📝',
+            'message' => "تم تصحيح واجبك في '{$submission->worksheet->title}' وحصلت على درجة {$validated['score']}/{$submission->worksheet->max_score}.",
+            'link'    => route('student.learn', $submission->worksheet->teaching_group_id),
+        ]));
 
         return back()->with('success', 'تم حفظ الدرجة والتقييم بنجاح.');
     }
 
     public function destroy(int $id): RedirectResponse
     {
-        $worksheet = Worksheet::with('course')->findOrFail($id);
-        abort_if($worksheet->course->teacher_id !== auth()->id(), 403, 'غير مصرح.');
+        $worksheet = Worksheet::with('group.assignment')->findOrFail($id);
+
+        $this->assertOwns($worksheet->group);
 
         $worksheet->delete();
 
         return back()->with('success', 'تم حذف ملف الشيت/الواجب بنجاح.');
+    }
+
+    // ─── Internals ────────────────────────────────────────────────
+
+    private function ownedGroupOrFail(int $groupId): TeachingGroup
+    {
+        $group = TeachingGroup::with('assignment.subject:id,name')->findOrFail($groupId);
+
+        $this->assertOwns($group);
+
+        return $group;
+    }
+
+    private function assertOwns(?TeachingGroup $group): void
+    {
+        abort_unless(
+            $group && $group->assignment?->teacher_id === Auth::id(),
+            403,
+            'هذه المجموعة ليست ضمن جدولك.',
+        );
     }
 }

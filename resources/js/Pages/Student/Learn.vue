@@ -7,18 +7,18 @@ import 'plyr/dist/plyr.css';
 import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
-    course:     { type: Object, required: true },
-    lessons:    { type: Array,  required: true },
-    enrollment: { type: Object, required: true },
+    group:      { type: Object, required: true },
+    materials:  { type: Array,  required: true },
+    progress:   { type: Object, required: true },
     worksheets: { type: Array,  default: () => [] },
 });
 
 // ── State ──────────────────────────────────────────────────────
-const localLessons      = ref([...props.lessons]);
+const localLessons      = ref([...props.materials]);
 const activeLessonIndex = ref(0);
-const progressPercent   = ref(props.enrollment.progress_percent);
+const progressPercent   = ref(props.progress.percent);
 const sidebarOpen       = ref(true);
-const isCompleted       = ref(props.enrollment.completed_at !== null);
+const certificateReady  = ref(props.progress.certificate_ready);
 const activeTab         = ref('description'); // description | worksheets | questions
 const signedVideoUrl    = ref('');
 const isVideoLoading    = ref(false);
@@ -31,7 +31,7 @@ const completedCount = computed(() =>
 
 // Track local completion state for instant UI feedback
 const localCompleted = ref(
-    Object.fromEntries(props.lessons.map(l => [l.id, l.is_completed]))
+    Object.fromEntries(props.materials.map(m => [m.id, m.is_completed]))
 );
 
 // Worksheets associated with current lesson or general course
@@ -77,18 +77,18 @@ async function reportProgress(watchedSeconds) {
 
     try {
         const res = await axios.post(
-            route('student.lesson.progress', {
-                slug:     props.course.slug,
-                lessonId: lesson.id,
+            route('student.material.progress', {
+                groupId:    props.group.id,
+                materialId: lesson.id,
             }),
             { watched_seconds: watchedSeconds }
         );
 
-        progressPercent.value = res.data.progress_percent;
-        isCompleted.value     = res.data.is_completed;
+        progressPercent.value  = res.data.progress_percent;
+        certificateReady.value = res.data.certificate_ready;
 
-        if (res.data.lessons) {
-            localLessons.value = res.data.lessons;
+        if (res.data.materials) {
+            localLessons.value = res.data.materials;
         }
 
         if (watchedSeconds >= lesson.duration_seconds * 0.8) {
@@ -154,7 +154,7 @@ const replyContents = ref({});
 async function fetchQuestions() {
     if (!activeLesson.value) return;
     try {
-        const res = await axios.get(route('lessons.questions.index', { lessonId: activeLesson.value.id }));
+        const res = await axios.get(route('materials.questions.index', { materialId: activeLesson.value.id }));
         questions.value = res.data;
     } catch (e) {
         console.error('Failed to fetch Q&A questions:', e);
@@ -169,7 +169,7 @@ async function submitQuestion() {
             timestamp = Math.floor(player.currentTime);
         }
 
-        const res = await axios.post(route('lessons.questions.store', { lessonId: activeLesson.value.id }), {
+        const res = await axios.post(route('materials.questions.store', { materialId: activeLesson.value.id }), {
             content: newQuestionContent.value,
             video_timestamp: timestamp,
         });
@@ -190,7 +190,7 @@ async function submitReply(questionId) {
     if (!replyText || !replyText.trim() || !activeLesson.value) return;
 
     try {
-        const res = await axios.post(route('lessons.questions.store', { lessonId: activeLesson.value.id }), {
+        const res = await axios.post(route('materials.questions.store', { materialId: activeLesson.value.id }), {
             content: replyText,
             parent_id: questionId,
         });
@@ -235,7 +235,7 @@ watch(activeLesson, async () => {
     signedVideoUrl.value = '';
     
     try {
-        const response = await axios.get(route('student.video.url', { lessonId: activeLesson.value.id }));
+        const response = await axios.get(route('student.video.url', { materialId: activeLesson.value.id }));
         signedVideoUrl.value = response.data.signed_url;
     } catch (e) {
         console.error('Failed to get signed URL:', e.message);
@@ -287,7 +287,7 @@ function uploadHomework(id) {
     const formData = new FormData();
     formData.append('submitted_file', file);
 
-    router.post(route('student.worksheets.submit', { slug: props.course.slug, worksheetId: id }), formData, {
+    router.post(route('student.worksheets.submit', { groupId: props.group.id, worksheetId: id }), formData, {
         onSuccess: () => {
             alert('تم تسليم الواجب بنجاح!');
         }
@@ -305,9 +305,9 @@ function uploadHomework(id) {
                     ←
                 </Link>
                 <div>
-                    <div class="text-white font-bold text-sm line-clamp-1">{{ course.title }}</div>
+                    <div class="text-white font-bold text-sm line-clamp-1">{{ group.subject?.name }} — {{ group.name }}</div>
                     <div class="text-xs text-surface-400">
-                        {{ completedCount }} / {{ lessons.length }} درس مكتمل
+                        {{ completedCount }} / {{ materials.length }} مادة مكتملة
                     </div>
                 </div>
             </div>
@@ -328,10 +328,10 @@ function uploadHomework(id) {
 
         <!-- Completion Banner -->
         <Transition enter-active-class="animate-fade-up">
-            <div v-if="isCompleted"
+            <div v-if="certificateReady"
                  class="bg-green-600 text-white text-center py-3 px-4 font-bold text-sm flex items-center justify-center gap-3">
-                تهانينا! أكملت الكورس بنجاح
-                <Link :href="route('student.certificate', { enrollmentId: enrollment.id })"
+                تهانينا! أكملت محتوى المجموعة بنجاح
+                <Link :href="route('student.certificate', { groupId: group.id })"
                       class="underline hover:no-underline">
                     احصل على شهادتك
                 </Link>
@@ -389,12 +389,12 @@ function uploadHomework(id) {
                     <div class="flex items-start justify-between gap-4 mb-6">
                         <div>
                             <div class="text-xs text-surface-400 mb-1">
-                                الدرس {{ activeLessonIndex + 1 }} من {{ lessons.length }}
+                                المادة {{ activeLessonIndex + 1 }} من {{ materials.length }}
                             </div>
                             <h2 class="text-xl font-bold text-white">{{ activeLesson?.title }}</h2>
                         </div>
                         <div class="flex items-center gap-3">
-                            <form v-if="course.teacher" @submit.prevent="router.post(route('chat.start'), { course_id: course.id, teacher_id: course.teacher.id })">
+                            <form v-if="group.teacher" @submit.prevent="router.post(route('chat.start'), { teaching_assignment_id: group.teaching_assignment_id, teacher_id: group.teacher.id })">
                                 <button type="submit" class="btn-sm bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl flex items-center gap-1.5 transition-colors text-xs py-1.5 px-3">
                                     <Icon name="chat" class="w-3.5 h-3.5" />
                                     <span>راسل المدرس</span>
@@ -584,7 +584,7 @@ function uploadHomework(id) {
                 <aside v-if="sidebarOpen"
                        class="w-80 flex-shrink-0 bg-surface-900 border-s border-surface-800 overflow-y-auto hidden md:flex flex-col">
                     <div class="p-4 border-b border-surface-800">
-                        <h3 class="text-white font-bold text-sm">محتوى الكورس</h3>
+                        <h3 class="text-white font-bold text-sm">محتوى المجموعة</h3>
                         <p class="text-surface-400 text-xs mt-1">
                             {{ completedCount }} / {{ localLessons.value.length }} مكتمل
                         </p>

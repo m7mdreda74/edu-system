@@ -30,14 +30,15 @@ class PaymentSuccessNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $amountQAR = number_format($this->payment->getAmountInMainUnit(), 2);
+        $label     = $this->subscriptionLabel();
 
         return (new MailMessage)
             ->subject('✅ تأكيد الدفع — منصة التفوق')
             ->greeting("شكرًا {$notifiable->name}!")
             ->line("تمت عملية الدفع بنجاح بمبلغ **{$amountQAR} ريال قطري**.")
-            ->line("الكورس: **{$this->payment->course->title}**")
+            ->line("الاشتراك: **{$label}**")
             ->line("رقم المرجع: `{$this->payment->gateway_ref}`")
-            ->action('مشاهدة الكورس', route('student.learn', ['slug' => $this->payment->course->slug]))
+            ->action('حصصي', route('student.my-classes'))
             ->salutation('فريق منصة التفوق');
     }
 
@@ -46,10 +47,17 @@ class PaymentSuccessNotification extends Notification implements ShouldQueue
         return [
             'type'       => 'payment_success',
             'title'      => '✅ تم الدفع بنجاح',
-            'message'    => "دفعت بنجاح لكورس: {$this->payment->course->title}",
+            'message'    => "دفعت بنجاح لاشتراك: {$this->subscriptionLabel()}",
             'payment_id' => $this->payment->id,
             'amount'     => $this->payment->amount,
             'icon'       => '💳',
         ];
+    }
+
+    private function subscriptionLabel(): string
+    {
+        $this->payment->loadMissing('subscription');
+
+        return $this->payment->subscription?->label() ?? 'اشتراك شهري';
     }
 }

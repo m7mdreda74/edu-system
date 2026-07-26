@@ -287,8 +287,8 @@ function addAboutPillar() {
                                 <input v-model="form.home_stats_students" type="text" class="input text-xs w-full" placeholder="+500 طالب">
                             </div>
                             <div>
-                                <label class="label mb-1 block">إحصائية عدد الكورسات</label>
-                                <input v-model="form.home_stats_courses" type="text" class="input text-xs w-full" placeholder="+50 كورس">
+                                <label class="label mb-1 block">إحصائية عدد المواد</label>
+                                <input v-model="form.home_stats_courses" type="text" class="input text-xs w-full" placeholder="+50 مادة">
                             </div>
                             <div>
                                 <label class="label mb-1 block">إحصائية عدد المعلمين</label>

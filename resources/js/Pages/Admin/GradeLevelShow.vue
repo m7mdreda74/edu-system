@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -7,12 +7,22 @@ import Icon from '@/Components/Icon.vue';
 const props = defineProps({
     gradeLevel: { type: Object, required: true },
     subjects:   { type: Array, required: true },
-    courses:    { type: Array, required: true },
+    assignments: { type: Array, required: true },
+    stats:       { type: Object, default: () => ({}) },
     students:   { type: Array, required: true },
     teachers:   { type: Array, required: true },
 });
 
-const activeTab = ref('subjects'); // subjects, courses, teachers, students
+const activeTab = ref('subjects'); // subjects, groups, teachers, students
+
+// Groups live under assignments; flatten once for the table.
+const groups = computed(() => props.assignments.flatMap(assignment =>
+    (assignment.groups ?? []).map(group => ({
+        ...group,
+        subject: assignment.subject?.name,
+        teacher: assignment.teacher?.name,
+    })),
+));
 </script>
 
 <template>
@@ -56,8 +66,8 @@ const activeTab = ref('subjects'); // subjects, courses, teachers, students
                         <Icon name="courses" class="w-6 h-6" />
                     </div>
                     <div>
-                        <span class="block text-2xl font-black text-surface-900 dark:text-white">{{ courses.length }}</span>
-                        <span class="text-xs text-surface-400">الكورسات</span>
+                        <span class="block text-2xl font-black text-surface-900 dark:text-white">{{ groups.length }}</span>
+                        <span class="text-xs text-surface-400">مجموعات التدريس</span>
                     </div>
                 </div>
                 <div class="card p-5 flex items-center gap-4">
@@ -92,15 +102,15 @@ const activeTab = ref('subjects'); // subjects, courses, teachers, students
                 >
                     المواد الدراسية ({{ subjects.length }})
                 </button>
-                <button @click="activeTab = 'courses'" 
+                <button @click="activeTab = 'groups'" 
                         :class="[
                             'px-6 py-3 font-semibold text-sm border-b-2 transition-all duration-200',
-                            activeTab === 'courses' 
+                            activeTab === 'groups' 
                                 ? 'border-primary-500 text-primary-600 dark:text-primary-400 font-bold'
                                 : 'border-transparent text-surface-500 hover:text-surface-800 dark:hover:text-white'
                         ]"
                 >
-                    الكورسات ({{ courses.length }})
+                    المجموعات ({{ groups.length }})
                 </button>
                 <button @click="activeTab = 'teachers'" 
                         :class="[
@@ -135,7 +145,7 @@ const activeTab = ref('subjects'); // subjects, courses, teachers, students
                                 <tr>
                                     <th class="text-start">اسم المادة</th>
                                     <th class="text-start">الاسم بالإنجليزية</th>
-                                    <th class="text-start">عدد الكورسات</th>
+                                    <th class="text-start">عدد المعلمين</th>
                                     <th class="text-start">الحالة</th>
                                 </tr>
                             </thead>
@@ -148,7 +158,7 @@ const activeTab = ref('subjects'); // subjects, courses, teachers, students
                                         </div>
                                     </td>
                                     <td>{{ subj.name_en || '-' }}</td>
-                                    <td>{{ subj.courses_count }} كورس</td>
+                                    <td>{{ assignments.filter(a => a.subject?.id === subj.id).length }} معلم</td>
                                     <td>
                                         <span :class="subj.is_active ? 'badge-green' : 'badge-gray'">
                                             {{ subj.is_active ? 'نشط' : 'غير نشط' }}
@@ -163,33 +173,33 @@ const activeTab = ref('subjects'); // subjects, courses, teachers, students
                     </div>
                 </div>
 
-                <!-- 2. Courses Tab -->
-                <div v-if="activeTab === 'courses'">
-                    <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">الكورسات المتاحة في هذه المرحلة</h3>
-                    <div class="overflow-x-auto" v-if="courses.length > 0">
+                <!-- 2. Groups Tab -->
+                <div v-if="activeTab === 'groups'">
+                    <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">مجموعات التدريس في هذه المرحلة</h3>
+                    <div class="overflow-x-auto" v-if="groups.length > 0">
                         <table class="table-app w-full text-start">
                             <thead>
                                 <tr>
-                                    <th class="text-start">اسم الكورس</th>
+                                    <th class="text-start">اسم المجموعة</th>
                                     <th class="text-start">المادة</th>
                                     <th class="text-start">المعلم</th>
-                                    <th class="text-start">السعر</th>
-                                    <th class="text-start">الطلاب المسجلين</th>
+                                    <th class="text-start">الاشتراك الشهري</th>
+                                    <th class="text-start">الطلاب</th>
                                     <th class="text-start">الحالة</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="course in courses" :key="course.id" class="hover:bg-surface-50/50">
+                                <tr v-for="group in groups" :key="group.id" class="hover:bg-surface-50/50">
                                     <td class="font-bold text-surface-900 dark:text-white">
-                                        {{ course.title }}
+                                        {{ group.name }}
                                     </td>
-                                    <td>{{ course.subject?.name || '-' }}</td>
-                                    <td>{{ course.teacher?.name || '-' }}</td>
-                                    <td>{{ course.price / 100 }} ر.ق</td>
-                                    <td>{{ course.enrollments_count }} طالب</td>
+                                    <td>{{ group.subject || '-' }}</td>
+                                    <td>{{ group.teacher || '-' }}</td>
+                                    <td>{{ group.monthly_price / 100 }} ر.ق</td>
+                                    <td>{{ group.students_count }} / {{ group.capacity }}</td>
                                     <td>
-                                        <span :class="course.is_published ? 'badge-green' : 'badge-gray'">
-                                            {{ course.is_published ? 'منشور' : 'مسودة' }}
+                                        <span :class="group.is_active ? 'badge-green' : 'badge-gray'">
+                                            {{ group.is_active ? 'مفعّلة' : 'متوقفة' }}
                                         </span>
                                     </td>
                                 </tr>
@@ -197,7 +207,7 @@ const activeTab = ref('subjects'); // subjects, courses, teachers, students
                         </table>
                     </div>
                     <div v-else class="text-center py-8 text-surface-500">
-                        لا توجد كورسات مضافة لهذه المرحلة بعد.
+                        لا توجد مجموعات تدريس في هذه المرحلة بعد.
                     </div>
                 </div>
 
@@ -225,7 +235,7 @@ const activeTab = ref('subjects'); // subjects, courses, teachers, students
                         </table>
                     </div>
                     <div v-else class="text-center py-8 text-surface-500">
-                        لا يوجد معلمون لديهم كورسات في هذه المرحلة حالياً.
+                        لا يوجد معلمون مسندون لهذه المرحلة حالياً.
                     </div>
                 </div>
 

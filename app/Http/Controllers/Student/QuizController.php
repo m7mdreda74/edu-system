@@ -26,11 +26,11 @@ class QuizController extends Controller
             ->where('is_active', true)
             ->findOrFail($quizId);
 
-        // Verify student is enrolled in the course
-        $isEnrolled = $user->enrollments()->where('course_id', $quiz->course_id)->exists();
-        if (! $isEnrolled) {
-            abort(403, 'يجب التسجيل في الكورس أولاً.');
-        }
+        // Quizzes belong to a group; only a live subscription unlocks them.
+        $hasAccess = $quiz->teaching_group_id
+            && $user->subscriptions()->active()->where('teaching_group_id', $quiz->teaching_group_id)->exists();
+
+        abort_unless($hasAccess, 403, 'يجب أن يكون لديك اشتراك فعّال في هذه المجموعة.');
 
         $attempts         = $this->quizService->getAttempts($user, $quiz);
         $remainingAttempts = $this->quizService->getRemainingAttempts($user, $quiz);

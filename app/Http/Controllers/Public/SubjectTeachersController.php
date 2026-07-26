@@ -1,0 +1,79 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Public;
+
+use App\Domain\Academic\Models\GradeLevel;
+use App\Domain\Academic\Models\Subject;
+use App\Domain\Scheduling\Models\TeachingAssignment;
+use App\Http\Controllers\Controller;
+use Inertia\Inertia;
+use Inertia\Response;
+
+/**
+ * Step three: a subject opens the teachers who teach it to this grade.
+ *
+ * Each card carries the teacher's intro video and rating so a student can judge
+ * the teaching style before committing to a month — which is the whole point of
+ * the flow.
+ */
+class SubjectTeachersController extends Controller
+{
+    public function show(string $gradeKey, int $subjectId): Response
+    {
+        $grade = GradeLevel::where('key', $gradeKey)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $subject = Subject::where('is_active', true)->findOrFail($subjectId);
+
+        $assignments = TeachingAssignment::with([
+            'teacher:id,name,bio,headline,avatar,intro_video_url,intro_video_thumbnail,years_experience',
+            'groups' => fn ($q) => $q->where('is_active', true)->with('schedules')->withCount('activeBookings'),
+        ])
+            ->where('grade_level_id', $grade->id)
+            ->where('subject_id', $subject->id)
+            ->where('is_active', true)
+            ->whereHas('teacher', fn ($q) => $q->where('is_active', true))
+            ->get();
+
+        $teachers = $assignments->map(function (TeachingAssignment $assignment) {
+            $teacher = $assignment->teacher;
+            $groups  = $assignment->groups;
+
+            return [
+                'assignment_id'         => $assignment->id,
+                'id'                    => $teacher->id,
+                'name'                  => $teacher->name,
+                'headline'              => $teacher->headline,
+                'bio'                   => $teacher->bio,
+                'avatar'                => $teacher->avatar,
+                'intro_video_url'       => $teacher->intro_video_url,
+                'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
+                'years_experience'      => $teacher->years_experience,
+                'rating'                => $teacher->averageRating(),
+                'reviews_count'         => $teacher->reviewsReceived()->where('is_approved', true)->count(),
+                'groups_count'          => $groups->count(),
+                'cheapest_monthly'      => $groups->min('monthly_price'),
+                'accepts_private'       => $assignment->offersPrivate(),
+                'private_monthly_price' => $assignment->private_monthly_price,
+                'has_free_seats'        => $groups->contains(fn ($g) => $g->active_bookings_count < $g->capacity),
+            ];
+        })->values();
+
+        return Inertia::render('Public/SubjectTeachers', [
+            'grade'    => [
+                'key'  => $grade->key,
+                'name' => $grade->name,
+            ],
+            'subject'  => [
+                'id'      => $subject->id,
+                'name'    => $subject->name,
+                'name_en' => $subject->name_en,
+                'icon'    => $subject->icon,
+            ],
+            'teachers' => $teachers,
+        ]);
+    }
+}

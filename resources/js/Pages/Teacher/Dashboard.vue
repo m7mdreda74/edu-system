@@ -1,145 +1,144 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { formatQAR, formatMonthly } from '@/lib/money';
 
-const props = defineProps({
-    stats:             { type: Object, required: true },
-    recentEnrollments: { type: Array,  default: () => [] },
-    courses:           { type: Array,  default: () => [] },
+defineProps({
+    stats:               { type: Object, default: () => ({}) },
+    recentSubscriptions: { type: Array,  default: () => [] },
+    groups:              { type: Array,  default: () => [] },
 });
-
-function formatQAR(halala) {
-    const formatted = new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-    }).format((halala ?? 0) / 100);
-    return `${formatted} ر.ق.`;
-}
 </script>
 
 <template>
+    <Head title="لوحة المعلم" />
+
     <DashboardLayout>
-        <Head title="لوحة المدرس" />
-
-        <div class="container-app px-4 py-10">
-
-            <!-- Header -->
-            <div class="flex items-center justify-between mb-8">
+        <div class="space-y-6">
+            <header class="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                    <h1 class="text-3xl font-black text-surface-900 dark:text-white">
+                    <h1 class="text-2xl font-black text-surface-900 dark:text-white">
                         أهلاً، {{ $page.props.auth.user?.name?.split(' ')[0] }}
                     </h1>
-                    <p class="text-surface-500 dark:text-surface-400 mt-1">لوحة تحكم المدرس</p>
+                    <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
+                        نظرة على مجموعاتك وطلابك
+                    </p>
                 </div>
-                <Link :href="route('teacher.courses.create')" class="btn-primary flex items-center gap-2">
+
+                <Link :href="route('teacher.teaching-schedule')" class="btn-primary btn-sm flex items-center gap-2">
                     <Icon name="plus" class="w-4 h-4" />
-                    <span>كورس جديد</span>
+                    <span>إدارة الجدول والمجموعات</span>
                 </Link>
-            </div>
+            </header>
 
             <!-- Stats -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-                <div v-for="stat in [
-                    { label: 'كورساتك',          value: stats.total_courses,        icon: 'courses', color: 'primary' },
-                    { label: 'إجمالي الطلاب',    value: stats.total_students,       icon: 'student', color: 'accent' },
-                    { label: 'أكملوا الكورسات',  value: stats.completed_students,   icon: 'success', color: 'green' },
-                    { label: 'الإيرادات',         value: formatQAR(stats.total_revenue), icon: 'earnings', color: 'primary' },
-                ]" :key="stat.label"
-                    class="card p-5 text-center flex flex-col items-center justify-center"
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div
+                    v-for="stat in [
+                        { label: 'مجموعاتك',        value: stats.total_groups,               icon: 'courses',  color: 'primary' },
+                        { label: 'طلاب مشتركون',    value: stats.active_students,            icon: 'student',  color: 'accent' },
+                        { label: 'حصص خاصة',        value: stats.private_students,           icon: 'teacher',  color: 'primary' },
+                        { label: 'أرباحك',          value: formatQAR(stats.total_revenue ?? 0), icon: 'earnings', color: 'accent' },
+                    ]"
+                    :key="stat.label"
+                    class="card p-5"
                 >
-                    <div class="p-3 rounded-2xl mb-3" :class="{
-                        'bg-primary-50 text-primary-600 dark:bg-primary-950/50 dark:text-primary-400': stat.color === 'primary',
-                        'bg-accent-50 text-accent-600 dark:bg-accent-950/50 dark:text-accent-400': stat.color === 'accent',
-                        'bg-green-50 text-green-600 dark:bg-green-950/50 dark:text-green-400': stat.color === 'green',
-                    }">
-                        <Icon :name="stat.icon" class="w-8 h-8" />
+                    <div class="flex items-center gap-3">
+                        <div :class="`p-2.5 rounded-xl bg-${stat.color}-50 dark:bg-${stat.color}-950 text-${stat.color}-600 dark:text-${stat.color}-400`">
+                            <Icon :name="stat.icon" class="w-5 h-5" />
+                        </div>
+                        <div class="min-w-0">
+                            <div class="text-xl font-black text-surface-900 dark:text-white truncate">{{ stat.value ?? 0 }}</div>
+                            <div class="text-[11px] text-surface-400">{{ stat.label }}</div>
+                        </div>
                     </div>
-                    <div class="text-2xl font-black text-primary-700 dark:text-primary-400">{{ stat.value }}</div>
-                    <div class="text-xs text-surface-500 dark:text-surface-400 mt-1">{{ stat.label }}</div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-                <!-- Courses Performance -->
-                <div class="card p-6">
-                    <div class="flex items-center justify-between mb-5">
-                        <h2 class="font-bold text-surface-800 dark:text-white">كورساتك</h2>
-                        <Link :href="route('teacher.courses')" class="text-primary-600 text-xs hover:underline">
-                            إدارة الكورسات
+            <div class="grid lg:grid-cols-3 gap-5">
+                <!-- Groups -->
+                <section class="lg:col-span-2 card p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="font-bold text-sm text-surface-900 dark:text-white">مجموعاتي</h2>
+                        <Link :href="route('teacher.teaching-schedule')" class="text-primary-600 text-xs hover:underline">
+                            إدارة الجدول
                         </Link>
                     </div>
 
-                    <div v-if="courses.length" class="space-y-3">
-                        <div v-for="course in courses.slice(0, 5)" :key="course.id"
-                             class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
-                            <div class="w-12 h-10 rounded-lg overflow-hidden bg-surface-200 dark:bg-surface-700 flex-shrink-0">
-                                <img v-if="course.thumbnail" :src="course.thumbnail" :alt="course.title"
-                                     class="w-full h-full object-cover" />
-                                <div v-else class="w-full h-full flex items-center justify-center text-surface-400 bg-surface-100 dark:bg-surface-800">
-                                    <Icon name="courses" class="w-5 h-5" />
-                                </div>
+                    <div v-if="groups.length" class="space-y-3">
+                        <div
+                            v-for="group in groups"
+                            :key="group.id"
+                            class="flex items-center gap-3 p-3 rounded-xl border border-surface-100 dark:border-surface-800"
+                        >
+                            <div class="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950 flex items-center justify-center text-primary-600 shrink-0">
+                                <Icon name="courses" class="w-5 h-5" />
                             </div>
+
                             <div class="flex-1 min-w-0">
-                                <div class="font-semibold text-surface-800 dark:text-white text-sm line-clamp-1">
-                                    {{ course.title }}
-                                </div>
-                                <div class="text-xs text-surface-400 flex items-center gap-2">
-                                    <span>{{ course.enrollments_count }} طالب</span>
-                                    <span v-if="course.avg_rating" class="flex items-center gap-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3 h-3 text-yellow-500">
-                                            <path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clip-rule="evenodd" />
-                                        </svg>
-                                        <span>{{ Number(course.avg_rating).toFixed(1) }}</span>
-                                    </span>
+                                <h3 class="font-bold text-sm text-surface-900 dark:text-white truncate">
+                                    {{ group.name }}
+                                </h3>
+                                <div class="text-[11px] text-surface-400 flex items-center gap-2 flex-wrap">
+                                    <span>{{ group.subject?.name }}</span>
+                                    <span v-if="group.grade">· {{ group.grade.name }}</span>
+                                    <span>· {{ group.students_count }}/{{ group.capacity }} طالب</span>
+                                    <span>· {{ group.materials_count }} مادة</span>
                                 </div>
                             </div>
-                            <div class="flex-shrink-0">
-                                <span :class="course.is_published ? 'badge-green' : 'badge-gray'" class="text-xs">
-                                    {{ course.is_published ? 'منشور' : 'مسودة' }}
+
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="text-xs font-black text-primary-700 dark:text-primary-400 hidden sm:block">
+                                    {{ formatMonthly(group.monthly_price) }}
+                                </span>
+                                <Link :href="route('teacher.materials', { groupId: group.id })" class="btn-outline btn-sm">المواد</Link>
+                                <Link :href="route('teacher.worksheets.index', { groupId: group.id })" class="btn-ghost btn-sm">الواجبات</Link>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="text-center py-10">
+                        <Icon name="courses" class="w-10 h-10 text-surface-300 mx-auto mb-3" />
+                        <p class="text-sm text-surface-400 mb-4">لسه مضفتش أي مجموعة.</p>
+                        <Link :href="route('teacher.teaching-schedule')" class="btn-primary btn-sm">أضف مجموعة</Link>
+                    </div>
+                </section>
+
+                <!-- Recent subscriptions -->
+                <section class="card p-5">
+                    <h2 class="font-bold text-sm text-surface-900 dark:text-white mb-4">أحدث الاشتراكات</h2>
+
+                    <div v-if="recentSubscriptions.length" class="space-y-3">
+                        <div v-for="sub in recentSubscriptions" :key="sub.id" class="flex items-center gap-3">
+                            <div class="avatar-sm">
+                                <img v-if="sub.student?.avatar" :src="sub.student.avatar" :alt="sub.student.name" class="w-full h-full object-cover" />
+                                <span v-else class="text-primary-700 dark:text-primary-300 font-bold text-xs">
+                                    {{ sub.student?.name?.charAt(0) }}
                                 </span>
                             </div>
-                        </div>
-                    </div>
-                    <div v-else class="text-center p-10 text-surface-400 flex flex-col items-center justify-center">
-                        <div class="p-3 bg-surface-100 dark:bg-surface-800 rounded-full text-primary-500 mb-3">
-                            <Icon name="courses" class="w-10 h-10" />
-                        </div>
-                        <p class="text-sm mb-4">لم تنشئ أي كورس بعد</p>
-                        <Link :href="route('teacher.courses.create')" class="btn-primary btn-sm">
-                            ابدأ الآن
-                        </Link>
-                    </div>
-                </div>
 
-                <!-- Recent Enrollments -->
-                <div class="card p-6">
-                    <h2 class="font-bold text-surface-800 dark:text-white mb-5">آخر التسجيلات</h2>
-
-                    <div v-if="recentEnrollments.length" class="space-y-3">
-                        <div v-for="enrollment in recentEnrollments" :key="enrollment.id"
-                             class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
-                            <div class="avatar-md bg-primary-100 dark:bg-primary-900 flex-shrink-0">
-                                <span class="text-primary-700 font-bold text-sm">
-                                    {{ enrollment.user?.name?.charAt(0) }}
-                                </span>
-                            </div>
                             <div class="flex-1 min-w-0">
-                                <div class="font-semibold text-surface-800 dark:text-white text-sm">
-                                    {{ enrollment.user?.name }}
+                                <div class="text-xs font-bold text-surface-800 dark:text-surface-100 truncate">
+                                    {{ sub.student?.name }}
                                 </div>
-                                <div class="text-xs text-surface-400 line-clamp-1">{{ enrollment.course?.title }}</div>
+                                <div class="text-[10px] text-surface-400 truncate">
+                                    {{ sub.assignment?.subject?.name }}
+                                    <span v-if="sub.group"> — {{ sub.group.name }}</span>
+                                </div>
                             </div>
-                            <div class="text-xs text-surface-400 flex-shrink-0">
-                                {{ enrollment.progress_percent }}%
-                            </div>
+
+                            <span
+                                class="text-[10px] shrink-0"
+                                :class="sub.status === 'active' ? 'badge-green' : 'badge-gray'"
+                            >
+                                {{ sub.status === 'active' ? 'فعّال' : sub.status }}
+                            </span>
                         </div>
                     </div>
-                    <div v-else class="text-center p-10 text-surface-400 text-sm">
-                        لا يوجد طلاب مسجلون بعد
-                    </div>
-                </div>
+
+                    <p v-else class="text-sm text-surface-400 text-center py-8">لا توجد اشتراكات بعد.</p>
+                </section>
             </div>
         </div>
     </DashboardLayout>

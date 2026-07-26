@@ -4,197 +4,191 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
-use App\Domain\Course\Models\Course;
-use App\Domain\Enrollment\Contracts\EnrollmentServiceInterface;
+use App\Application\Certificate\Services\CertificateService;
+use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\Learning\Models\LessonProgress;
+use App\Domain\Learning\Models\Worksheet;
+use App\Domain\Learning\Models\WorksheetSubmission;
+use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Domain\Course\Models\Worksheet;
-use App\Domain\Course\Models\WorksheetSubmission;
-use App\Domain\Enrollment\Models\Enrollment;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
+/**
+ * The study room for one teaching group: its materials, the student's progress
+ * through them, and the homework attached to them.
+ */
 class LearnController extends Controller
 {
+    /** A material counts as done once this much of it has been watched. */
+    private const COMPLETION_RATIO = 0.9;
+
     public function __construct(
-        private readonly EnrollmentServiceInterface $enrollmentService,
+        private readonly CertificateService $certificates,
     ) {}
 
-    public function show(string $slug): Response
+    public function show(int $groupId): Response
     {
-        $user   = Auth::user();
-        $course = Course::with('teacher')->where('slug', $slug)->where('is_published', true)->firstOrFail();
+        /** @var User $user */
+        $user  = Auth::user();
+        $group = TeachingGroup::with(['assignment.teacher:id,name', 'assignment.subject:id,name,icon'])
+            ->findOrFail($groupId);
 
-        // Authorization check using Policies
-        Gate::authorize('learn', $course);
-
-        $enrollment = $this->enrollmentService->findEnrollment($user->id, $course->id);
-
-        if (!$enrollment && $course->teacher_id === $user->id) {
-            // Mock a temporary enrollment so the teacher can view/test their course learning page
-            $enrollment = new Enrollment([
-                'user_id' => $user->id,
-                'course_id' => $course->id,
-                'progress_percent' => 100,
-                'completed_at' => now(),
-            ]);
-        }
-
-        if (! $enrollment) {
-            abort(403, 'يجب التسجيل في الكورس أولاً.');
-        }
-
-        // Build progress map: lesson_id => { is_completed, watched_seconds }
-        $progressMap = $enrollment->lessonProgress
-            ->keyBy('lesson_id')
-            ->map(fn($p) => [
-                'is_completed'    => $p->is_completed,
-                'watched_seconds' => $p->watched_seconds,
-            ]);
-
-        // Attach progress and lock status to lessons
-        $previousLessonCompleted = true;
-        $lessons = $enrollment->course->lessons->sortBy('order')->values()->map(function ($lesson) use ($progressMap, &$previousLessonCompleted) {
-            $progress = $progressMap->get($lesson->id);
-            $isCompleted = $progress['is_completed'] ?? false;
-            
-            // Exclude first lesson or free preview lessons from locking
-            $isLocked = !$previousLessonCompleted && !$lesson->is_free_preview && $lesson->order > 1;
-            
-            $previousLessonCompleted = $isCompleted;
-
-            return [
-                'id'               => $lesson->id,
-                'title'            => $lesson->title,
-                'video_url'        => $lesson->video_url,
-                'duration_seconds' => $lesson->duration_seconds,
-                'order'            => $lesson->order,
-                'is_free_preview'  => $lesson->is_free_preview,
-                'is_completed'     => $isCompleted,
-                'watched_seconds'  => $progress['watched_seconds'] ?? 0,
-                'is_locked'        => $isLocked,
-            ];
-        });
+        $this->authorizeAccess($user, $group);
 
         return Inertia::render('Student/Learn', [
-            'course'      => [
-                'id'           => $course->id,
-                'title'        => $course->title,
-                'slug'         => $course->slug,
-                'total_lessons'=> $course->total_lessons,
-                'teacher'      => [
-                    'id'   => $course->teacher_id,
-                    'name' => $course->teacher ? $course->teacher->name : null,
-                ],
+            'group' => [
+                'id'      => $group->id,
+                'name'    => $group->name,
+                'subject' => $group->assignment?->subject?->only(['id', 'name', 'icon']),
+                'teacher' => $group->assignment?->teacher?->only(['id', 'name']),
             ],
-            'lessons'     => $lessons,
-            'enrollment'  => [
-                'id'               => $enrollment->id,
-                'progress_percent' => $enrollment->progress_percent,
-                'completed_at'     => $enrollment->completed_at,
+            'materials'  => $this->presentMaterials($group, $this->progressMap($user, $group)),
+            'progress'   => [
+                'percent'           => $this->certificates->progressPercent($user, $group),
+                'certificate_ready' => $this->certificates->isEligible($user, $group),
             ],
-            'worksheets'  => Worksheet::where('course_id', $course->id)
-                ->with(['submissions' => fn($q) => $q->where('student_id', $user->id)])
+            'worksheets' => Worksheet::where('teaching_group_id', $group->id)
+                ->with(['submissions' => fn ($q) => $q->where('student_id', $user->id)])
                 ->get(),
         ]);
     }
 
     /**
-     * AJAX endpoint: Update lesson progress
-     * Called by the video player every N seconds + on completion.
+     * AJAX endpoint: update how far the student has watched.
+     * Completion is decided server-side from the material's own duration —
+     * the client never sends a "done" flag.
      */
-    public function updateProgress(Request $request, string $slug, int $lessonId): JsonResponse
+    public function updateProgress(Request $request, int $groupId, int $materialId): JsonResponse
     {
         $validated = $request->validate([
             'watched_seconds' => ['required', 'integer', 'min:0', 'max:86400'],
         ]);
 
-        $user   = Auth::user();
-        $course = Course::where('slug', $slug)->firstOrFail();
+        /** @var User $user */
+        $user  = Auth::user();
+        $group = TeachingGroup::findOrFail($groupId);
 
-        $enrollment = $this->enrollmentService->findEnrollment($user->id, $course->id);
-
-        if (! $enrollment) {
-            return response()->json(['error' => 'Not enrolled'], 403);
+        if (! $this->hasAccess($user, $group)) {
+            return response()->json(['error' => 'اشتراكك في هذه المجموعة غير فعّال.'], 403);
         }
 
-        $this->enrollmentService->markLessonWatched(
-            enrollment:     $enrollment,
-            lessonId:       $lessonId,
-            watchedSeconds: $validated['watched_seconds'],
+        $material = GroupMaterial::where('teaching_group_id', $group->id)->findOrFail($materialId);
+
+        $existing    = LessonProgress::where('student_id', $user->id)
+            ->where('lesson_id', $material->id)
+            ->first();
+
+        $isCompleted = $material->duration_seconds > 0
+            && $validated['watched_seconds'] >= (int) floor($material->duration_seconds * self::COMPLETION_RATIO);
+
+        LessonProgress::updateOrCreate(
+            ['student_id' => $user->id, 'lesson_id' => $material->id],
+            [
+                // Never walk progress backwards if a stale ping arrives late.
+                'watched_seconds' => max($validated['watched_seconds'], $existing->watched_seconds ?? 0),
+                'is_completed'    => $isCompleted || (bool) ($existing->is_completed ?? false),
+            ],
         );
 
-        // Return updated enrollment progress for UI sync
-        $enrollment->refresh();
-
-        // Re-build progress map and lessons list to return to client
-        $progressMap = $enrollment->lessonProgress
-            ->keyBy('lesson_id')
-            ->map(fn($p) => [
-                'is_completed'    => $p->is_completed,
-                'watched_seconds' => $p->watched_seconds,
-            ]);
-
-        $previousLessonCompleted = true;
-        $lessons = $enrollment->course->lessons->sortBy('order')->values()->map(function ($lesson) use ($progressMap, &$previousLessonCompleted) {
-            $progress = $progressMap->get($lesson->id);
-            $isCompleted = $progress['is_completed'] ?? false;
-            $isLocked = !$previousLessonCompleted && !$lesson->is_free_preview && $lesson->order > 1;
-            $previousLessonCompleted = $isCompleted;
-
-            return [
-                'id'               => $lesson->id,
-                'title'            => $lesson->title,
-                'video_url'        => $lesson->video_url,
-                'duration_seconds' => $lesson->duration_seconds,
-                'order'            => $lesson->order,
-                'is_free_preview'  => $lesson->is_free_preview,
-                'is_completed'     => $isCompleted,
-                'watched_seconds'  => $progress['watched_seconds'] ?? 0,
-                'is_locked'        => $isLocked,
-            ];
-        });
-
         return response()->json([
-            'progress_percent' => $enrollment->progress_percent,
-            'is_completed'     => $enrollment->isCompleted(),
-            'lessons'          => $lessons,
+            'progress_percent'  => $this->certificates->progressPercent($user, $group),
+            'certificate_ready' => $this->certificates->isEligible($user, $group),
+            'materials'         => $this->presentMaterials($group, $this->progressMap($user, $group)),
         ]);
     }
 
-    public function submitHomework(Request $request, string $slug, int $worksheetId): \Illuminate\Http\RedirectResponse
+    public function submitHomework(Request $request, int $groupId, int $worksheetId): RedirectResponse
     {
         $request->validate([
-            'submitted_file' => ['required', 'file', 'mimes:pdf,docx,png,jpg,jpeg', 'max:10240'], // 10MB
+            'submitted_file' => ['required', 'file', 'mimes:pdf,docx,png,jpg,jpeg', 'max:10240'],
         ]);
 
-        $user   = Auth::user();
-        $course = Course::where('slug', $slug)->firstOrFail();
-        $worksheet = Worksheet::where('course_id', $course->id)->findOrFail($worksheetId);
+        /** @var User $user */
+        $user  = Auth::user();
+        $group = TeachingGroup::findOrFail($groupId);
+
+        $this->authorizeAccess($user, $group);
+
+        $worksheet = Worksheet::where('teaching_group_id', $group->id)->findOrFail($worksheetId);
 
         abort_if(! $worksheet->requires_submission, 403, 'هذا الشيت لا يتطلب تسليماً.');
 
-        // File upload
         $path = $request->file('submitted_file')->store('submissions', 'public');
 
         WorksheetSubmission::updateOrCreate(
-            [
-                'worksheet_id' => $worksheet->id,
-                'student_id'   => $user->id,
-            ],
+            ['worksheet_id' => $worksheet->id, 'student_id' => $user->id],
             [
                 'submitted_file_path' => '/storage/' . $path,
                 'submitted_at'        => now(),
-                'score'               => null, // Reset if resubmitting
+                // Resubmitting clears the previous grade.
+                'score'               => null,
                 'teacher_feedback'    => null,
                 'graded_at'           => null,
-            ]
+            ],
         );
 
         return back()->with('success', 'تم تسليم الواجب بنجاح.');
+    }
+
+    // ─── Internals ────────────────────────────────────────────────
+
+    /** The group's own teacher and admins can always preview the room. */
+    private function hasAccess(User $user, TeachingGroup $group): bool
+    {
+        $group->loadMissing('assignment');
+
+        return $user->isAdmin()
+            || $user->id === $group->assignment?->teacher_id
+            || $user->hasActiveSubscriptionTo($group);
+    }
+
+    private function authorizeAccess(User $user, TeachingGroup $group): void
+    {
+        abort_unless($this->hasAccess($user, $group), 403, 'يجب أن يكون لديك اشتراك فعّال في هذه المجموعة.');
+    }
+
+    private function progressMap(User $user, TeachingGroup $group): Collection
+    {
+        return LessonProgress::where('student_id', $user->id)
+            ->whereIn('lesson_id', $group->materials()->select('group_materials.id'))
+            ->get()
+            ->keyBy('lesson_id');
+    }
+
+    /**
+     * Materials unlock in order: one is locked when its predecessor is not
+     * finished. Free previews are always open.
+     */
+    private function presentMaterials(TeachingGroup $group, Collection $progressMap): Collection
+    {
+        $previousCompleted = true;
+
+        return $group->materials()->get()->map(function (GroupMaterial $material) use ($progressMap, &$previousCompleted) {
+            $progress    = $progressMap->get($material->id);
+            $isCompleted = (bool) ($progress->is_completed ?? false);
+            $isLocked    = ! $previousCompleted && ! $material->is_free_preview && $material->order > 1;
+
+            $previousCompleted = $isCompleted;
+
+            return [
+                'id'               => $material->id,
+                'title'            => $material->title,
+                'description'      => $material->description,
+                'duration_seconds' => $material->duration_seconds,
+                'order'            => $material->order,
+                'is_free_preview'  => $material->is_free_preview,
+                'attachment_path'  => $material->attachment_path,
+                'is_completed'     => $isCompleted,
+                'watched_seconds'  => (int) ($progress->watched_seconds ?? 0),
+                'is_locked'        => $isLocked,
+            ];
+        });
     }
 }

@@ -8,7 +8,7 @@ const props = defineProps({
     conversations: { type: Array, required: true },
     activeConversation: { type: Object, default: null },
     messages: { type: Array, default: () => [] },
-    enrolledStudents: { type: Array, default: () => [] },
+    contacts: { type: Array, default: () => [] },
 });
 
 // Reactivity for messages to append new ones
@@ -37,10 +37,10 @@ const searchStudentQuery = ref('');
 
 const filteredStudents = computed(() => {
     const query = searchStudentQuery.value.trim().toLowerCase();
-    if (!query) return props.enrolledStudents;
-    return props.enrolledStudents.filter(s => 
+    if (!query) return props.contacts;
+    return props.contacts.filter(s => 
         s.name.toLowerCase().includes(query) || 
-        s.course_title.toLowerCase().includes(query)
+        (s.subject ?? "").toLowerCase().includes(query)
     );
 });
 
@@ -83,9 +83,9 @@ function clearAttachment() {
     }
 }
 
-function startTeacherChat(studentId, courseId) {
+function startTeacherChat(studentId, assignmentId) {
     router.post(route('chat.start'), {
-        course_id: courseId,
+        teaching_assignment_id: assignmentId,
         teacher_id: currentUser.id,
         student_id: studentId
     }, {
@@ -233,7 +233,7 @@ onUnmounted(() => {
                                         {{ getOtherUser(conv)?.name }}
                                     </div>
                                     <div class="text-xs text-surface-500 truncate mt-0.5">
-                                        {{ conv.course?.title }}
+                                        {{ conv.assignment?.subject?.name }}
                                     </div>
                                 </div>
                             </div>
@@ -264,7 +264,7 @@ onUnmounted(() => {
                                 </div>
                                 <div>
                                     <div class="font-bold text-surface-900 dark:text-white">{{ getOtherUser(activeConversation)?.name }}</div>
-                                    <div class="text-xs text-surface-500">{{ activeConversation.course?.title }}</div>
+                                    <div class="text-xs text-surface-500">{{ activeConversation.assignment?.subject?.name }}</div>
                                 </div>
                             </div>
                         </div>
@@ -408,14 +408,14 @@ onUnmounted(() => {
                     <!-- Search Input -->
                     <div class="p-4 bg-surface-50 dark:bg-surface-850">
                         <div class="relative">
-                            <input v-model="searchStudentQuery" type="text" class="input w-full pr-10 pl-4 py-2 text-sm bg-white dark:bg-surface-950 rounded-xl" placeholder="البحث باسم الطالب أو اسم الكورس..." />
+                            <input v-model="searchStudentQuery" type="text" class="input w-full pr-10 pl-4 py-2 text-sm bg-white dark:bg-surface-950 rounded-xl" placeholder="البحث باسم الطالب أو المادة..." />
                             <Icon name="search" class="w-4 h-4 text-surface-400 absolute right-3 top-3.5" />
                         </div>
                     </div>
 
                     <!-- Enrolled Students List -->
                     <div class="max-h-80 overflow-y-auto divide-y divide-surface-100 dark:divide-surface-800">
-                        <div v-for="item in filteredStudents" :key="item.id + '-' + item.course_id" class="p-4 flex items-center justify-between hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
+                        <div v-for="item in filteredStudents" :key="item.id + '-' + item.teaching_assignment_id" class="p-4 flex items-center justify-between hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
                             <div class="flex items-center gap-3 overflow-hidden">
                                 <div class="avatar-sm bg-surface-100 dark:bg-surface-800 shrink-0">
                                     <img v-if="item.avatar" :src="item.avatar" class="w-full h-full object-cover">
@@ -428,11 +428,11 @@ onUnmounted(() => {
                                         {{ item.name }}
                                     </div>
                                     <div class="text-xs text-surface-500 truncate mt-0.5">
-                                        كورس: {{ item.course_title }}
+                                        مادة: {{ item.subject }}
                                     </div>
                                 </div>
                             </div>
-                            <button @click="startTeacherChat(item.id, item.course_id)" class="btn-primary text-xs py-1.5 px-3 rounded-lg shrink-0">
+                            <button @click="startTeacherChat(item.id, item.teaching_assignment_id)" class="btn-primary text-xs py-1.5 px-3 rounded-lg shrink-0">
                                 بدء محادثة
                             </button>
                         </div>

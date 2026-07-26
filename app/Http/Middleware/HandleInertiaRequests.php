@@ -37,6 +37,13 @@ class HandleInertiaRequests extends Middleware
                     'avatar'      => $user->avatar,
                     'grade_level' => $user->grade_level,
                     'roles'       => $user->getRoleNames()->toArray(),
+
+                    // Public teacher profile — needed by the profile form.
+                    'headline'              => $user->headline,
+                    'bio'                   => $user->bio,
+                    'intro_video_url'       => $user->intro_video_url,
+                    'intro_video_thumbnail' => $user->intro_video_thumbnail,
+                    'years_experience'      => $user->years_experience,
                 ] : null,
             ],
 
@@ -49,7 +56,7 @@ class HandleInertiaRequests extends Middleware
             // Dynamic platform settings (cached)
             'settings' => PlatformSetting::getAllCached(),
 
-            'grade_levels' => \App\Domain\Course\Models\GradeLevel::where('is_active', true)
+            'grade_levels' => \App\Domain\Academic\Models\GradeLevel::where('is_active', true)
                 ->select('id', 'key', 'name', 'name_en', 'stage')
                 ->get(),
 

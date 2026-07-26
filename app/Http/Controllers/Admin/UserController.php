@@ -29,7 +29,7 @@ class UserController extends Controller
             ->when(! empty($filters['role']), fn ($q) =>
                 $q->role($filters['role'])
             )
-            ->withCount('enrollments')
+            ->withCount('subscriptions')
             ->latest()
             ->paginate(25)
             ->withQueryString();

@@ -2,15 +2,14 @@
 import { computed, ref, watch } from 'vue';
 import { Link, Head, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import CourseCard from '@/Components/CourseCard.vue';
+import TeacherCard from '@/Components/TeacherCard.vue';
 import Icon from '@/Components/Icon.vue';
 import WelcomePopup from '@/Components/WelcomePopup.vue';
 
 // Props from HomeController — validated server-side
 const props = defineProps({
-    featuredCourses: { type: Array, default: () => [] },
-    subjects:        { type: Array, default: () => [] },
-    teachers:        { type: Array, default: () => [] },
+    grades:           { type: Array, default: () => [] },
+    featuredTeachers: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -112,10 +111,10 @@ const parsedFaqs = computed(() => {
     }
     return [
         { q: 'ما هي المراحل الدراسية التي تستهدفها منصة التفوق؟', a: 'تستهدف المنصة بشكل رئيسي طلاب المرحلة الثانوية (الصف العاشر، الحادي عشر، والثاني عشر / التوجيهي) في دولة قطر.' },
-        { q: 'هل المناهج المشروحة مطابقة لخطط وزارة التربية والتعليم القطرية؟', a: 'نعم، جميع الكورسات والملازم والشيتات يتم إعدادها وتحديثها بانتظام لتطابق خطط ومعايير وزارة التربية والتعليم والتعليم العالي في قطر بنسبة 100%.' },
+        { q: 'هل المناهج المشروحة مطابقة لخطط وزارة التربية والتعليم القطرية؟', a: 'نعم، جميع الشروحات والملازم والشيتات يتم إعدادها وتحديثها بانتظام لتطابق خطط ومعايير وزارة التربية والتعليم والتعليم العالي في قطر بنسبة 100%.' },
         { q: 'كيف يمكنني مشاهدة الدروس من خلال الجوال أو الآيباد؟', a: 'يمكنك الدراسة عبر الموقع مباشرة من أي متصفح، أو تنزيل تطبيق المنصة المخصص للأجهزة الذكية (آيفون، آيباد، أندرويد، وهواوي) لضمان أفضل سرعة تشغيل للفيديوهات.' },
-        { q: 'ما هي خطوات الاشتراك وشراء الكورسات؟', a: 'قم بتسجيل حساب مجاني كطالب، ثم اختر المادة أو الكورس المناسب واضغط على زر الاشتراك، حيث يمكنك الدفع بأمان وسهولة عبر بطاقتك الائتمانية أو بطاقة الخصم (Stripe).' },
-        { q: 'هل توفر المنصة اختبارات أو كويزات تقييمية؟', a: 'نعم، يحتوي كل كورس على اختبارات قصيرة وواجبات تقييمية (شيتات) يقوم المعلم بتصحيحها ورصد درجاتها لمتابعة مستوى استيعابك بانتظام.' },
+        { q: 'ما هي خطوات الاشتراك مع معلم؟', a: 'قم بتسجيل حساب مجاني كطالب، ثم اختر صفك فالمادة، شاهد الفيديو التعريفي للمعلمين، واضغط اشتراك مع من يناسبك، حيث يمكنك الدفع بأمان وسهولة عبر بطاقتك الائتمانية أو بطاقة الخصم (Stripe).' },
+        { q: 'هل توفر المنصة اختبارات أو كويزات تقييمية؟', a: 'نعم، تحتوي كل مجموعة على اختبارات قصيرة وواجبات تقييمية (شيتات) يقوم المعلم بتصحيحها ورصد درجاتها لمتابعة مستوى استيعابك بانتظام.' },
         { q: 'كيف يمكنني التواصل مع الدعم الفني في حال واجهتني مشكلة؟', a: 'فريق الدعم متواجد لخدمتك طوال أيام الأسبوع عبر الواتساب على الرقم +974 5555 6666 أو البريد الإلكتروني support@altafawwuq.com.' },
         { q: 'ماذا أفعل إذا نسيت كلمة المرور الخاصة بحسابي؟', a: 'اضغط على زر "نسيت كلمة المرور" في صفحة تسجيل الدخول، وأدخل بريدك الإلكتروني لتصلك رسالة تحتوي على رابط آمن لإعادة تعيين كلمة مرورك الجديدة فوراً.' },
         { q: 'من هم المعلمون في منصة التفوق؟', a: 'تضم المنصة نخبة من أكفأ المعلمين المتخصصين ذوي الخبرة الواسعة في تدريس المناهج القطرية والذين حقق طلابهم أعلى الدرجات في السنوات السابقة.' },
@@ -123,56 +122,13 @@ const parsedFaqs = computed(() => {
 });
 
 const selectedStageTab = ref('all');
-const selectedGradeTab = ref('all');
 
-watch(selectedStageTab, () => {
-    if (selectedStageTab.value !== 'all' && selectedGradeTab.value !== 'all') {
-        const gl = page.props.grade_levels?.find(g => g.key === selectedGradeTab.value);
-        if (!gl || gl.stage !== selectedStageTab.value) {
-            selectedGradeTab.value = 'all';
-        }
-    }
+
+const filteredGrades = computed(() => {
+    if (selectedStageTab.value === 'all') return props.grades;
+    return props.grades.filter(g => g.stage === selectedStageTab.value);
 });
 
-const subGrades = computed(() => {
-    const gls = page.props.grade_levels || [];
-    if (selectedStageTab.value === 'all') {
-        return gls.filter(g => g.key !== 'all');
-    }
-    return gls.filter(g => g.stage === selectedStageTab.value && g.key !== 'all');
-});
-
-const filteredSubjects = computed(() => {
-    let result = props.subjects;
-
-    if (selectedStageTab.value !== 'all') {
-        result = result.filter(s => {
-            if (s.grade_level === 'all') return true;
-            const gl = page.props.grade_levels?.find(g => g.key === s.grade_level);
-            return gl && gl.stage === selectedStageTab.value;
-        });
-    }
-
-    if (selectedGradeTab.value !== 'all') {
-        result = result.filter(s => s.grade_level === selectedGradeTab.value || s.grade_level === 'all');
-    }
-
-    return result;
-});
-
-function getGradeNumber(key) {
-    return key.replace('grade_', '');
-}
-
-function selectGrade(glKey) {
-    selectedGradeTab.value = glKey;
-    if (glKey === 'all') return;
-    
-    const gl = page.props.grade_levels?.find(g => g.key === glKey);
-    if (gl && gl.stage && selectedStageTab.value !== gl.stage) {
-        selectedStageTab.value = gl.stage;
-    }
-}
 </script>
 
 
@@ -202,14 +158,14 @@ function selectGrade(glKey) {
                     </h1>
 
                     <p class="text-lg text-white/80 mb-8 leading-relaxed max-w-lg animate-fade-in-up animation-delay-200">
-                        {{ stripEmojis($page.props.settings?.home_hero_desc) || 'كورسات متخصصة لمواد المرحلة الثانوية — رياضيات، فيزياء، كيمياء، أحياء، وأكثر. تعلّم بالسرعة التي تناسبك، من أي مكان وبجودة استثنائية.' }}
+                        {{ stripEmojis($page.props.settings?.home_hero_desc) || 'اختر صفك، ثم المادة، ثم شاهد المعلمين وطريقة شرح كل واحد فيهم — واحجز مع اللي يناسبك.' }}
                     </p>
 
                     <div class="flex flex-wrap gap-4 items-center animate-fade-in-up animation-delay-300">
-                        <Link :href="route('courses.index')" class="btn-accent btn-lg flex items-center gap-2 transform transition-all duration-300 hover:scale-105 hover:shadow-glow-accent">
+                        <a href="#grades" class="btn-accent btn-lg flex items-center gap-2 transform transition-all duration-300 hover:scale-105 hover:shadow-glow-accent">
                             <Icon name="courses" class="w-5 h-5 text-white" />
                             <span>{{ stripEmojis($page.props.settings?.home_hero_btn1) || 'ابدأ التعلم الآن' }}</span>
-                        </Link>
+                        </a>
                         <Link :href="route('register')" class="btn btn-lg bg-white/10 text-white border border-white/20 hover:bg-white/20 flex items-center gap-2 transition-all duration-300 hover:scale-105">
                             <span>{{ stripEmojis($page.props.settings?.home_hero_btn2) || 'إنشاء حساب مجاني' }}</span>
                         </Link>
@@ -219,7 +175,7 @@ function selectGrade(glKey) {
                     <div class="flex flex-wrap gap-8 mt-12 pt-8 border-t border-white/20 animate-fade-in-up animation-delay-400">
                         <div v-for="stat in [
                             { value: $page.props.settings?.home_stats_students ?? '+500', label: 'طالب مسجّل' },
-                            { value: $page.props.settings?.home_stats_courses ?? '+50',  label: 'كورس متاح' },
+                            { value: $page.props.settings?.home_stats_courses ?? '+50',  label: 'مادة دراسية' },
                             { value: $page.props.settings?.home_stats_teachers ?? '+20',  label: 'مدرس خبير' },
                         ]" :key="stat.label">
                             <div class="text-3xl font-black text-white hover:text-accent-400 transition-colors duration-300">{{ stat.value }}</div>
@@ -245,15 +201,15 @@ function selectGrade(glKey) {
             </div>
         </section>
 
-        <!-- ── Subjects Grid ─────────────────────────────────────── -->
-        <section class="section bg-transparent">
+        <!-- ── Grades Grid — step one of the browse flow ─────────── -->
+        <section id="grades" class="section bg-transparent scroll-mt-20">
             <div class="container-app">
                 <div class="text-center mb-12">
                     <h2 class="text-3xl font-black text-surface-900 dark:text-white mb-3">
-                        تصفّح المواد الدراسية
+                        اختر صفك الدراسي
                     </h2>
                     <p class="text-surface-500 dark:text-surface-400">
-                        كل مادة تجدها هنا بشرح مبسط وممتاز
+                        الصف يفتح لك المواد، والمادة تفتح لك المعلمين
                     </p>
                 </div>
 
@@ -277,55 +233,28 @@ function selectGrade(glKey) {
                     </button>
                 </div>
 
-                <!-- Sub-Grades (Grade Levels) Tabs -->
-                <div class="flex flex-wrap justify-center items-center gap-2 mb-10 animate-fade-in-up animation-delay-150" dir="rtl">
-                    <span class="text-xs font-bold text-surface-450 dark:text-surface-500 ml-2">الصف الدراسي:</span>
-                    <button 
-                        @click="selectGrade('all')" 
-                        class="px-4 py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 transform active:scale-95 border"
-                        :class="selectedGradeTab === 'all' 
-                            ? 'bg-accent-500 border-accent-500 text-white shadow-glow-accent' 
-                            : 'border-surface-200 dark:border-surface-800/60 text-surface-550 dark:text-surface-400 bg-surface-50/50 dark:bg-surface-950/30 hover:bg-surface-100 dark:hover:bg-surface-900'"
-                    >
-                        كل الصفوف
-                    </button>
-                    <button 
-                        v-for="gl in subGrades" 
-                        :key="gl.key"
-                        @click="selectGrade(gl.key)" 
-                        class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 transform active:scale-95 border"
-                        :class="selectedGradeTab === gl.key 
-                            ? 'bg-accent-500 border-accent-500 text-white shadow-glow-accent' 
-                            : 'border-surface-200 dark:border-surface-800/60 text-surface-550 dark:text-surface-400 bg-surface-50/50 dark:bg-surface-950/30 hover:bg-surface-100 dark:hover:bg-surface-900'"
-                        :title="gl.name"
-                    >
-                        {{ getGradeNumber(gl.key) }}
-                    </button>
-                </div>
-
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-fade-in-up animation-delay-200">
                     <Link
-                        v-for="subject in filteredSubjects"
-                        :key="subject.id"
-                        :href="route('courses.index', { 
-                            subject_id: subject.id,
-                            stage: selectedStageTab !== 'all' ? selectedStageTab : undefined,
-                            grade_level: selectedGradeTab !== 'all' ? selectedGradeTab : undefined
-                        })"
+                        v-for="grade in filteredGrades"
+                        :key="grade.key"
+                        :href="route('grades.show', { key: grade.key })"
                         class="hover-scale-premium card p-6 text-center group flex flex-col items-center justify-center transition-all duration-300"
                     >
                         <div class="p-4 rounded-full bg-accent-50/70 dark:bg-accent-950/40 text-primary-600 dark:text-primary-400 mb-4 group-hover:scale-110 group-hover:bg-accent-100 dark:group-hover:bg-accent-900/50 transition-all duration-300 border border-accent-500/10">
-                            <Icon :name="subjectIcons[subject.icon] ?? 'courses'" class="w-8 h-8 group-hover:animate-float" />
+                            <Icon name="student" class="w-8 h-8 group-hover:animate-float" />
                         </div>
                         <div class="font-bold text-surface-800 dark:text-surface-100 text-sm group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                            {{ subject.name }}
+                            {{ grade.name }}
                         </div>
-                        <div v-if="subject.grade_level && subject.grade_level !== 'all'"
-                             class="badge-gray mt-2 text-xs">
-                            {{ getGradeLabel(subject.grade_level) }}
+                        <div class="badge-gray mt-2 text-xs">
+                            {{ grade.subjects_count }} مادة
                         </div>
                     </Link>
                 </div>
+
+                <p v-if="!filteredGrades.length" class="text-center text-sm text-surface-400 py-8">
+                    لا توجد صفوف متاحة في هذه المرحلة حالياً.
+                </p>
             </div>
         </section>
 
@@ -357,61 +286,26 @@ function selectGrade(glKey) {
             </div>
         </section>
 
-        <!-- ── Featured Courses ──────────────────────────────────── -->
-        <section class="section bg-transparent">
-            <div class="container-app">
-                <div class="flex items-center justify-between mb-10">
-                    <div>
-                        <h2 class="text-3xl font-black text-surface-900 dark:text-white mb-2">
-                            الكورسات الأكثر شعبية
-                        </h2>
-                        <p class="text-surface-500 dark:text-surface-400">اختارها آلاف الطلاب</p>
-                    </div>
-                    <Link :href="route('courses.index')" class="btn-outline hidden sm:flex items-center gap-2">
-                        <span>عرض الكل</span>
-                        <Icon name="arrowLeft" class="w-4 h-4 rtl-flip" />
-                    </Link>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <CourseCard
-                        v-for="course in featuredCourses"
-                        :key="course.id"
-                        :course="course"
-                        class="animate-fade-up"
-                    />
-                </div>
-
-                <div class="text-center mt-8 sm:hidden">
-                    <Link :href="route('courses.index')" class="btn-outline">عرض كل الكورسات</Link>
-                </div>
-            </div>
-        </section>
-
-        <!-- ── Instructors Section ──────────────────────────────── -->
-        <section v-if="teachers && teachers.length > 0" class="section bg-transparent">
+        <!-- ── Teachers — each card carries their intro video ────── -->
+        <section v-if="featuredTeachers.length" class="section bg-transparent">
             <div class="container-app">
                 <div class="text-center mb-12">
                     <span class="badge bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 mb-3 inline-block">نخبة كادرنا التعليمي</span>
                     <h2 class="text-3xl font-black text-surface-900 dark:text-white mb-3">
-                        محترفو التميز
+                        تعرّف على معلمينا
                     </h2>
-                    <p class="text-surface-500 dark:text-surface-400 text-sm">أفضل الأساتذة والمعلمين لضمان تفوقك الدراسي</p>
+                    <p class="text-surface-500 dark:text-surface-400 text-sm">
+                        شاهد فيديو تعريفي لكل معلم واحكم بنفسك على طريقة الشرح قبل ما تحجز
+                    </p>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <Link v-for="teacher in teachers" :key="teacher.id" :href="route('teachers.show', teacher.id)"
-                        class="card-hover p-6 flex items-center gap-4 text-start group"
-                    >
-                        <div class="w-16 h-16 rounded-full overflow-hidden bg-surface-100 border-2 border-primary-200 flex-shrink-0 flex items-center justify-center text-primary-600 font-bold text-xl group-hover:scale-105 group-hover:border-primary-500 transition-all duration-300">
-                            <img v-if="teacher.avatar" :src="teacher.avatar" class="w-full h-full object-cover">
-                            <span v-else>{{ teacher.name.charAt(0) }}</span>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-surface-850 dark:text-white text-base mb-1 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{ teacher.name }}</h3>
-                            <p class="text-xs text-surface-500 dark:text-surface-400 line-clamp-2 leading-relaxed font-semibold">{{ teacher.bio }}</p>
-                        </div>
-                    </Link>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <TeacherCard
+                        v-for="teacher in featuredTeachers"
+                        :key="teacher.id"
+                        :teacher="teacher"
+                        class="animate-fade-up"
+                    />
                 </div>
             </div>
         </section>

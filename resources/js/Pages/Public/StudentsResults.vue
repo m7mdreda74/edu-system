@@ -111,7 +111,7 @@ const filteredResults = computed(() => {
                 <div class="card p-8 bg-gradient-to-br from-primary-900 to-primary-950 text-white text-center">
                     <h3 class="font-black text-xl mb-2">هل تريد الانضمام للوحة الشرف؟</h3>
                     <p class="text-xs text-white/70 max-w-md mx-auto mb-6 leading-relaxed">
-                        سجل الآن في كورسات منصة التفوق وابدأ رحلتك التفاعلية مع أفضل معلمي قطر لضمان مستقبلك الدراسي المشرق.
+                        سجل الآن في منصة التفوق وابدأ رحلتك التفاعلية مع أفضل معلمي قطر لضمان مستقبلك الدراسي المشرق.
                     </p>
                     <Link :href="route('register')" class="btn-accent py-2 px-6 text-xs font-bold inline-block rounded-xl transform transition duration-300 hover:scale-105">
                         سجل حساباً مجانياً الآن

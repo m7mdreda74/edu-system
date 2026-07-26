@@ -6,7 +6,7 @@ import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     payment: { type: Object, required: true },
-    course:  { type: Object, required: true },
+    subscription: { type: Object, default: null },
 });
 
 function formatQAR(halala) {
@@ -57,9 +57,9 @@ function handleCancel() {
                 <div class="bg-surface-50 dark:bg-surface-800/40 rounded-2xl p-5 mb-8 border border-surface-100 dark:border-surface-800 text-start">
                     <div class="text-xs font-semibold text-surface-400 mb-2">تفاصيل الطلب</div>
                     <h3 class="font-bold text-surface-900 dark:text-white text-base leading-snug mb-1">
-                        {{ course.title }}
+                        {{ subscription?.label }}
                     </h3>
-                    <p class="text-xs text-surface-500 mb-4">المعلم: {{ course.teacher?.name }}</p>
+                    <p class="text-xs text-surface-500 mb-4">المعلم: {{ subscription?.teacher?.name }}</p>
 
                     <div class="flex justify-between items-center pt-3 border-t border-surface-150 dark:border-surface-800">
                         <span class="text-sm text-surface-600 dark:text-surface-300 font-medium">المبلغ المطلوب سداده</span>

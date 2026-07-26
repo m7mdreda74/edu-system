@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Domain\Course\Models\Course;
-use App\Domain\Course\Models\CourseLesson;
-use App\Domain\Enrollment\Models\Enrollment;
+use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\User\Models\User;
-use App\Infrastructure\Observers\CourseLessonObserver;
-use App\Infrastructure\Observers\CourseObserver;
-use App\Infrastructure\Observers\EnrollmentObserver;
 use App\Infrastructure\Observers\PaymentObserver;
 use App\Infrastructure\Observers\UserObserver;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -25,21 +22,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // ─── Repository Bindings (Dependency Inversion Principle) ─────────────
-        $this->app->bind(
-            \App\Domain\Course\Contracts\CourseRepositoryInterface::class,
-            \App\Infrastructure\Persistence\Eloquent\EloquentCourseRepository::class,
-        );
-
         // ─── Service Bindings ─────────────────────────────────────────────────
-        $this->app->bind(
-            \App\Domain\Enrollment\Contracts\EnrollmentServiceInterface::class,
-            \App\Application\Enrollment\Services\EnrollmentService::class,
-        );
-
         // Singletons — stateless services that can be safely shared
         $this->app->singleton(\App\Application\Quiz\Services\QuizService::class);
         $this->app->singleton(\App\Application\Certificate\Services\CertificateService::class);
+        $this->app->singleton(\App\Application\Scheduling\Services\SessionBookingService::class);
+        $this->app->singleton(\App\Application\Subscription\Services\SubscriptionService::class);
 
         // ─── Payment Gateway (Strategy Pattern) ──────────────────────────────
         // Switch gateway by changing this binding only — controllers unaffected
@@ -72,16 +60,10 @@ class AppServiceProvider extends ServiceProvider
         // ─── Model Observers ─────────────────────────────────────────
         // These separate side-effects from business logic (SRP + Observer Pattern)
         User::observe(UserObserver::class);
-        Course::observe(CourseObserver::class);
-        CourseLesson::observe(CourseLessonObserver::class);
-        Enrollment::observe(EnrollmentObserver::class);
         Payment::observe(PaymentObserver::class);
 
         // Register Gates & Policies explicitly
-        \Illuminate\Support\Facades\Gate::policy(
-            \App\Domain\Course\Models\Course::class,
-            \App\Policies\CoursePolicy::class
-        );
+        Gate::policy(GroupMaterial::class, \App\Policies\MaterialPolicy::class);
 
         // ─── Auto-migrate WebRTC tables if missing (Vercel serverless safe) ──
         // Runs only once per cold start; negligible overhead after first check.
@@ -95,8 +77,8 @@ class AppServiceProvider extends ServiceProvider
     private function bootWebRtcTables(): void
     {
         try {
-            if (!\Illuminate\Support\Facades\Schema::hasTable('webrtc_signals')) {
-                \Illuminate\Support\Facades\Schema::create('webrtc_signals', function (\Illuminate\Database\Schema\Blueprint $table) {
+            if (! Schema::hasTable('webrtc_signals')) {
+                Schema::create('webrtc_signals', function (\Illuminate\Database\Schema\Blueprint $table) {
                     $table->id();
                     $table->unsignedBigInteger('live_session_id');
                     $table->unsignedBigInteger('from_user_id');
@@ -107,8 +89,8 @@ class AppServiceProvider extends ServiceProvider
                 });
             }
 
-            if (!\Illuminate\Support\Facades\Schema::hasTable('webrtc_participants')) {
-                \Illuminate\Support\Facades\Schema::create('webrtc_participants', function (\Illuminate\Database\Schema\Blueprint $table) {
+            if (! Schema::hasTable('webrtc_participants')) {
+                Schema::create('webrtc_participants', function (\Illuminate\Database\Schema\Blueprint $table) {
                     $table->id();
                     $table->unsignedBigInteger('live_session_id');
                     $table->unsignedBigInteger('user_id');

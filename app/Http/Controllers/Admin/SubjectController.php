@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Course\Models\Subject;
+use App\Domain\Academic\Models\Subject;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +15,7 @@ class SubjectController extends Controller
 {
     public function index(Request $request): Response
     {
-        $subjects = Subject::withCount('courses')
+        $subjects = Subject::withCount('teachingAssignments')
             ->orderBy('grade_level')
             ->orderBy('name')
             ->get();
@@ -60,8 +60,8 @@ class SubjectController extends Controller
     {
         $subject = Subject::findOrFail($id);
 
-        if ($subject->courses()->exists()) {
-            return back()->with('error', 'لا يمكن حذف المادة لأنها تحتوي على كورسات مرتبطة.');
+        if ($subject->teachingAssignments()->exists()) {
+            return back()->with('error', 'لا يمكن حذف المادة لأنها مسندة إلى معلمين.');
         }
 
         $subject->delete();

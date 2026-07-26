@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Domain\Communication\Models;
 
-use App\Domain\Course\Models\Course;
+use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * A chat thread between one student and one teacher about one subject —
+ * i.e. scoped to a teaching assignment.
+ */
 class Conversation extends Model
 {
     protected $fillable = [
-        'course_id',
+        'teaching_assignment_id',
         'student_id',
         'teacher_id',
         'last_message_at',
@@ -23,9 +27,9 @@ class Conversation extends Model
         'last_message_at' => 'datetime',
     ];
 
-    public function course(): BelongsTo
+    public function assignment(): BelongsTo
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(TeachingAssignment::class, 'teaching_assignment_id');
     }
 
     public function student(): BelongsTo

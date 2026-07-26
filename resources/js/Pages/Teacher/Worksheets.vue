@@ -5,7 +5,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
-    course:      { type: Object, required: true },
+    group:       { type: Object, required: true },
     worksheets:  { type: Array, required: true },
     lessons:     { type: Array, required: true },
     submissions: { type: Array, required: true },
@@ -40,7 +40,7 @@ function handleFileUpload(e) {
 }
 
 function submitWorksheet() {
-    form.post(route('teacher.worksheets.store', { id: props.course.id }), {
+    form.post(route('teacher.worksheets.store', { groupId: props.group.id }), {
         onSuccess: () => {
             isModalOpen.value = false;
             form.reset();
@@ -76,7 +76,7 @@ function submitGrade(subId, maxScore) {
 
 <template>
     <DashboardLayout>
-        <Head :title="'إدارة أوراق العمل - ' + course.title" />
+        <Head :title="'إدارة أوراق العمل - ' + group.name" />
 
         <div class="container-app px-4 py-10">
             <!-- Header -->
@@ -86,10 +86,10 @@ function submitGrade(subId, maxScore) {
                         <Icon name="courses" class="w-8 h-8 text-primary-500" />
                         <span>أوراق العمل والواجبات</span>
                     </h1>
-                    <p class="text-surface-500 mt-1">كورس: {{ course.title }}</p>
+                    <p class="text-surface-500 mt-1">المجموعة: {{ group.name }} — {{ group.subject?.name }}</p>
                 </div>
                 <div class="flex gap-2">
-                    <Link :href="route('teacher.courses')" class="btn-ghost">← العودة للكورسات</Link>
+                    <Link :href="route('teacher.dashboard')" class="btn-ghost">← العودة للوحة</Link>
                     <button @click="openAddModal" class="btn-primary flex items-center gap-2">
                         <Icon name="plus" class="w-4 h-4" />
                         <span>رفع شيت/واجب جديد</span>
@@ -128,7 +128,7 @@ function submitGrade(subId, maxScore) {
 
                         <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-2">{{ sheet.title }}</h3>
                         <p class="text-xs text-surface-400 mb-4">
-                            الدرس المرتبط: {{ sheet.lesson ? sheet.lesson.title : 'عام للكورس' }}
+                            الدرس المرتبط: {{ sheet.lesson ? sheet.lesson.title : 'عام للمجموعة' }}
                         </p>
 
                         <div class="text-xs text-surface-500 space-y-1 mb-6">
@@ -237,7 +237,7 @@ function submitGrade(subId, maxScore) {
                             <div>
                                 <label class="label mb-1">الدرس المرتبط (اختياري)</label>
                                 <select v-model="form.lesson_id" class="input">
-                                    <option value="">عام للكورس كامل</option>
+                                    <option value="">عام للمجموعة كاملة</option>
                                     <option v-for="les in lessons" :key="les.id" :value="les.id">{{ les.title }}</option>
                                 </select>
                             </div>

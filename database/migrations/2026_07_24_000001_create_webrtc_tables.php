@@ -8,6 +8,16 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // AppServiceProvider::bootWebRtcTables() creates these on a cold start
+        // so serverless deploys work without a shell. On a fresh database it
+        // wins the race against this migration, so both sides guard.
+        if (Schema::hasTable('webrtc_signals') && Schema::hasTable('webrtc_participants')) {
+            return;
+        }
+
+        Schema::dropIfExists('webrtc_participants');
+        Schema::dropIfExists('webrtc_signals');
+
         Schema::create('webrtc_signals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('live_session_id')->constrained('live_sessions')->cascadeOnDelete();

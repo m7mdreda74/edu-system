@@ -7,114 +7,108 @@ namespace App\Http\Controllers\Communication;
 use App\Domain\Communication\Models\ChatMessage;
 use App\Domain\Communication\Models\Conversation;
 use App\Domain\Communication\Notifications\NewChatMessageNotification;
+use App\Domain\Scheduling\Models\TeachingAssignment;
+use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
-use App\Domain\Course\Models\Course;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Http\RedirectResponse;
 
+/**
+ * Threads are scoped to a teaching assignment — one conversation per
+ * student ↔ teacher ↔ subject.
+ */
 class ChatController extends Controller
 {
+    private const THREAD_RELATIONS = [
+        'assignment:id,subject_id,teacher_id',
+        'assignment.subject:id,name',
+    ];
+
     public function index(Request $request): Response
     {
-        $user = auth()->user();
+        $user = Auth::user();
 
-        // Get conversations based on user role
-        if ($user->hasRole('teacher')) {
-            $conversations = Conversation::with(['student:id,name,avatar', 'course:id,title'])
-                ->where('teacher_id', $user->id)
-                ->orderBy('last_message_at', 'desc')
-                ->get();
-        } else {
-            $conversations = Conversation::with(['teacher:id,name,avatar', 'course:id,title'])
-                ->where('student_id', $user->id)
-                ->orderBy('last_message_at', 'desc')
-                ->get();
-        }
+        $conversations = Conversation::with([
+            ...self::THREAD_RELATIONS,
+            $user->hasRole('teacher') ? 'student:id,name,avatar' : 'teacher:id,name,avatar',
+        ])
+            ->where($user->hasRole('teacher') ? 'teacher_id' : 'student_id', $user->id)
+            ->orderByDesc('last_message_at')
+            ->get();
 
         $activeConversation = null;
-        $messages = [];
+        $messages           = [];
 
         if ($request->has('conversation')) {
-            $activeConversation = Conversation::with(['student:id,name,avatar', 'teacher:id,name,avatar', 'course:id,title'])
+            $activeConversation = Conversation::with([
+                ...self::THREAD_RELATIONS,
+                'student:id,name,avatar',
+                'teacher:id,name,avatar',
+            ])
                 ->where('id', $request->query('conversation'))
-                ->where(function ($q) use ($user) {
-                    $q->where('student_id', $user->id)->orWhere('teacher_id', $user->id);
-                })
+                ->where(fn ($q) => $q->where('student_id', $user->id)->orWhere('teacher_id', $user->id))
                 ->firstOrFail();
 
             $messages = ChatMessage::with('sender:id,name,avatar')
                 ->where('conversation_id', $activeConversation->id)
-                ->orderBy('created_at', 'asc')
+                ->orderBy('created_at')
                 ->get();
 
-            // Mark messages as read
             ChatMessage::where('conversation_id', $activeConversation->id)
                 ->where('sender_id', '!=', $user->id)
                 ->where('is_read', false)
                 ->update(['is_read' => true]);
         }
 
-        // Fetch enrolled students for teacher to start new conversations
-        $enrolledStudents = [];
-        if ($user->hasRole('teacher')) {
-            $enrolledStudents = \App\Domain\Enrollment\Models\Enrollment::with(['user:id,name,avatar', 'course:id,title'])
-                ->whereHas('course', function ($q) use ($user) {
-                    $q->where('teacher_id', $user->id);
-                })
-                ->get()
-                ->map(function ($enrollment) {
-                    return [
-                        'id'           => $enrollment->user->id,
-                        'name'         => $enrollment->user->name,
-                        'avatar'       => $enrollment->user->avatar,
-                        'course_id'    => $enrollment->course->id,
-                        'course_title' => $enrollment->course->title,
-                    ];
-                })
-                ->values()
-                ->all();
-        }
-
         return Inertia::render('Chat/Index', [
             'conversations'      => $conversations,
             'activeConversation' => $activeConversation,
             'messages'           => $messages,
-            'enrolledStudents'   => $enrolledStudents,
+            'contacts'           => $this->contactsFor($user),
         ]);
     }
 
     public function startConversation(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'course_id'  => ['required', 'exists:courses,id'],
-            'teacher_id' => ['required', 'exists:users,id'],
-            'student_id' => ['nullable', 'exists:users,id'],
+            'teaching_assignment_id' => ['required', 'exists:teaching_assignments,id'],
+            'student_id'             => ['nullable', 'exists:users,id'],
         ]);
 
-        $user = auth()->user();
+        $user       = Auth::user();
+        $assignment = TeachingAssignment::findOrFail($validated['teaching_assignment_id']);
 
         if ($user->hasRole('teacher')) {
-            $teacherId = $user->id;
+            abort_if($assignment->teacher_id !== $user->id, 403, 'هذه المجموعة ليست ضمن جدولك.');
+
             $studentId = $validated['student_id'] ?? null;
-            abort_if(!$studentId, 400, 'يجب تحديد الطالب لبدء المحادثة.');
+            abort_if(! $studentId, 400, 'يجب تحديد الطالب لبدء المحادثة.');
+
+            $teacherId = $user->id;
         } else {
             $studentId = $user->id;
-            $teacherId = $validated['teacher_id'];
+            $teacherId = $assignment->teacher_id;
+
+            // A student may only message a teacher they actually study with.
+            abort_unless(
+                $user->hasActiveSubscriptionToAssignment($assignment->id),
+                403,
+                'يمكنك مراسلة المعلم بعد الاشتراك معه.',
+            );
         }
 
-        // Check if conversation exists
         $conversation = Conversation::firstOrCreate(
             [
-                'course_id'  => $validated['course_id'],
-                'student_id' => $studentId,
-                'teacher_id' => $teacherId,
+                'teaching_assignment_id' => $assignment->id,
+                'student_id'             => $studentId,
+                'teacher_id'             => $teacherId,
             ],
-            [
-                'last_message_at' => now(),
-            ]
+            ['last_message_at' => now()],
         );
 
         return redirect()->route('chat.index', ['conversation' => $conversation->id]);
@@ -128,16 +122,14 @@ class ChatController extends Controller
             'attachment'      => ['nullable', 'required_without:message', 'file', 'max:10240'],
         ]);
 
-        $user = auth()->user();
+        $user         = Auth::user();
         $conversation = Conversation::findOrFail($validated['conversation_id']);
 
         abort_if($conversation->student_id !== $user->id && $conversation->teacher_id !== $user->id, 403);
 
-        $attachmentPath = null;
-        if ($request->hasFile('attachment')) {
-            $path = $request->file('attachment')->store('chat_attachments', 'public');
-            $attachmentPath = '/storage/' . $path;
-        }
+        $attachmentPath = $request->hasFile('attachment')
+            ? '/storage/' . $request->file('attachment')->store('chat_attachments', 'public')
+            : null;
 
         $message = ChatMessage::create([
             'conversation_id' => $conversation->id,
@@ -148,24 +140,23 @@ class ChatController extends Controller
 
         $conversation->update(['last_message_at' => now()]);
 
-        // Send notification to the other participant
-        $recipientId = ($user->id === $conversation->student_id) ? $conversation->teacher_id : $conversation->student_id;
-        $recipient = User::find($recipientId);
-        if ($recipient) {
-            $recipient->notify(new NewChatMessageNotification($message, $user->name));
-        }
+        $recipientId = $user->id === $conversation->student_id
+            ? $conversation->teacher_id
+            : $conversation->student_id;
+
+        User::find($recipientId)?->notify(new NewChatMessageNotification($message, $user->name));
 
         return back();
     }
 
-    public function fetchMessages(Request $request): \Illuminate\Http\JsonResponse
+    public function fetchMessages(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'conversation_id' => ['required', 'exists:conversations,id'],
             'last_message_id' => ['nullable', 'integer'],
         ]);
 
-        $user = auth()->user();
+        $user         = Auth::user();
         $conversation = Conversation::findOrFail($validated['conversation_id']);
 
         if ($conversation->student_id !== $user->id && $conversation->teacher_id !== $user->id) {
@@ -175,14 +166,13 @@ class ChatController extends Controller
         $query = ChatMessage::with('sender:id,name,avatar')
             ->where('conversation_id', $conversation->id);
 
-        if ($validated['last_message_id']) {
+        if ($validated['last_message_id'] ?? null) {
             $query->where('id', '>', $validated['last_message_id']);
         }
 
-        $messages = $query->orderBy('created_at', 'asc')->get();
+        $messages = $query->orderBy('created_at')->get();
 
         if ($messages->isNotEmpty()) {
-            // Mark new messages as read
             ChatMessage::where('conversation_id', $conversation->id)
                 ->where('sender_id', '!=', $user->id)
                 ->where('is_read', false)
@@ -191,5 +181,48 @@ class ChatController extends Controller
         }
 
         return response()->json(['messages' => $messages]);
+    }
+
+    // ─── Internals ────────────────────────────────────────────────
+
+    /**
+     * Who this user can start a new thread with: for a teacher, their current
+     * subscribers; for a student, the teachers they are subscribed to.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function contactsFor(User $user): array
+    {
+        $subscriptions = Subscription::active()
+            ->with(['student:id,name,avatar', 'assignment.subject:id,name', 'assignment.teacher:id,name,avatar'])
+            ->when(
+                $user->hasRole('teacher'),
+                fn ($q) => $q->whereIn('teaching_assignment_id', TeachingAssignment::where('teacher_id', $user->id)->select('id')),
+                fn ($q) => $q->where('student_id', $user->id),
+            )
+            ->get();
+
+        return $subscriptions
+            ->map(function (Subscription $subscription) use ($user) {
+                $counterpart = $user->hasRole('teacher')
+                    ? $subscription->student
+                    : $subscription->assignment?->teacher;
+
+                if (! $counterpart) {
+                    return null;
+                }
+
+                return [
+                    'id'                     => $counterpart->id,
+                    'name'                   => $counterpart->name,
+                    'avatar'                 => $counterpart->avatar,
+                    'teaching_assignment_id' => $subscription->teaching_assignment_id,
+                    'subject'                => $subscription->assignment?->subject?->name,
+                ];
+            })
+            ->filter()
+            ->unique(fn (array $c) => $c['id'] . '-' . $c['teaching_assignment_id'])
+            ->values()
+            ->all();
     }
 }

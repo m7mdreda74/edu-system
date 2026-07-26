@@ -5,40 +5,41 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Student;
 
 use App\Application\Certificate\Services\CertificateService;
-use App\Domain\Enrollment\Models\Enrollment;
+use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CertificateController extends Controller
 {
     public function __construct(
-        private readonly CertificateService $certificateService,
+        private readonly CertificateService $certificates,
     ) {}
 
-    public function show(int $enrollmentId): Response
+    public function show(int $groupId): Response
     {
-        $user       = auth()->user();
-        $enrollment = Enrollment::with(['user', 'course.teacher'])
-            ->where('id', $enrollmentId)
-            ->where('user_id', $user->id) // Ownership check — can't view others' certs
-            ->firstOrFail();
+        $student = Auth::user();
+        $group   = TeachingGroup::findOrFail($groupId);
 
-        if (! $this->certificateService->isEligible($enrollment)) {
-            abort(403, 'لم تكمل هذا الكورس بعد.');
-        }
+        // You must have studied with the group to hold its certificate.
+        abort_unless(
+            $student->subscriptions()->where('teaching_group_id', $group->id)->exists(),
+            403,
+            'لم تشترك في هذه المجموعة.',
+        );
 
-        $certData = $this->certificateService->getCertificateData($enrollment);
+        abort_unless(
+            $this->certificates->isEligible($student, $group),
+            403,
+            'لم تُكمل محتوى هذه المجموعة بعد.',
+        );
 
         return Inertia::render('Student/Certificate', [
-            'certificate' => $certData,
-            'enrollment'  => [
-                'id'           => $enrollment->id,
-                'completed_at' => $enrollment->completed_at,
-                'course'       => [
-                    'title' => $enrollment->course->title,
-                    'slug'  => $enrollment->course->slug,
-                ],
+            'certificate' => $this->certificates->getCertificateData($student, $group),
+            'group'       => [
+                'id'   => $group->id,
+                'name' => $group->name,
             ],
         ]);
     }

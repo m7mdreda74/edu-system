@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Parent;
 
-use App\Domain\Enrollment\Models\PurchaseRequest;
+use App\Domain\Subscription\Models\PurchaseRequest;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;

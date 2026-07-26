@@ -9,12 +9,10 @@ use App\Domain\Payment\Models\PaymentAuditLog;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Reacts to Payment model events.
- * When a payment is marked as "paid", it triggers enrollment and invoice generation.
- * This separates side-effects from core business logic (SRP, Observer Pattern).
- *
- * NOTE: The actual enrollment happens via a Queue Job to ensure idempotency.
- * We do NOT enroll directly here to avoid duplicate enrollments if the observer fires twice.
+ * Reacts to Payment model events — writes the audit trail and busts the stats
+ * caches. Activating the subscription itself stays in PaymentService, which
+ * guards it for idempotency; doing it here would fire twice on a retried
+ * webhook.
  */
 class PaymentObserver
 {
@@ -46,7 +44,9 @@ class PaymentObserver
                 ],
             ]);
 
-            $teacherId = $payment->course()->value('teacher_id');
+            $payment->loadMissing('subscription.assignment');
+            $teacherId = $payment->subscription?->assignment?->teacher_id;
+
             if ($teacherId) {
                 Cache::forget("teacher_stats:{$teacherId}");
             }

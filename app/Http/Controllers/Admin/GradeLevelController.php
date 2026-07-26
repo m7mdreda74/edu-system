@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Course\Models\GradeLevel;
+use App\Domain\Academic\Models\GradeLevel;
+use App\Domain\Scheduling\Models\TeachingAssignment;
+use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
@@ -16,15 +19,14 @@ class GradeLevelController extends Controller
 {
     public function index(): Response
     {
-        $gradeLevels = GradeLevel::all()->map(function ($gl) {
-            $gl->teachers_count = User::role('teacher')
-                ->whereHas('coursesAsTeacher', function ($q) use ($gl) {
-                    $q->where('grade_level', $gl->key);
-                })
-                ->count();
-            $gl->subjects_count = $gl->subjects()->count();
-            $gl->courses_count = $gl->courses()->count();
+        $gradeLevels = GradeLevel::all()->map(function (GradeLevel $gl) {
+            $assignments = TeachingAssignment::where('grade_level_id', $gl->id);
+
+            $gl->teachers_count = (clone $assignments)->distinct('teacher_id')->count('teacher_id');
+            $gl->subjects_count = (clone $assignments)->distinct('subject_id')->count('subject_id');
+            $gl->groups_count   = TeachingGroup::whereIn('teaching_assignment_id', (clone $assignments)->select('id'))->count();
             $gl->students_count = $gl->students()->count();
+
             return $gl;
         });
 
@@ -54,17 +56,39 @@ class GradeLevelController extends Controller
     {
         $gl = GradeLevel::findOrFail($id);
 
-        $subjects = $gl->subjects()->withCount('courses')->get();
-        $courses  = $gl->courses()->with('teacher:id,name', 'subject:id,name')->withCount('enrollments')->get();
-        $students = $gl->students()->get(['id', 'name', 'email', 'phone', 'is_active']);
-        $teachers = $gl->teachers;
+        $assignments = TeachingAssignment::with([
+            'teacher:id,name,email,avatar',
+            'subject:id,name',
+            'groups' => fn ($q) => $q->withCount('activeBookings'),
+        ])
+            ->where('grade_level_id', $gl->id)
+            ->get();
 
         return Inertia::render('Admin/GradeLevelShow', [
-            'gradeLevel' => $gl,
-            'subjects'   => $subjects,
-            'courses'    => $courses,
-            'students'   => $students,
-            'teachers'   => $teachers,
+            'gradeLevel'  => $gl,
+            'subjects'    => $gl->subjects()->get(['id', 'name', 'name_en', 'icon', 'is_active']),
+            'assignments' => $assignments->map(fn (TeachingAssignment $assignment) => [
+                'id'            => $assignment->id,
+                'teacher'       => $assignment->teacher?->only(['id', 'name', 'email', 'avatar']),
+                'subject'       => $assignment->subject?->only(['id', 'name']),
+                'is_active'     => $assignment->is_active,
+                'groups'        => $assignment->groups->map(fn (TeachingGroup $group) => [
+                    'id'             => $group->id,
+                    'name'           => $group->name,
+                    'monthly_price'  => $group->monthly_price,
+                    'capacity'       => $group->capacity,
+                    'students_count' => $group->active_bookings_count,
+                    'is_active'      => $group->is_active,
+                ])->values(),
+            ])->values(),
+            'students'    => $gl->students()->get(['id', 'name', 'email', 'phone', 'is_active']),
+            'teachers'    => User::whereIn('id', $assignments->pluck('teacher_id')->unique())
+                ->get(['id', 'name', 'email', 'avatar']),
+            'stats'       => [
+                'active_subscriptions' => Subscription::active()
+                    ->whereIn('teaching_assignment_id', $assignments->pluck('id'))
+                    ->count(),
+            ],
         ]);
     }
 
@@ -77,9 +101,7 @@ class GradeLevelController extends Controller
             'name'      => ['required', 'string', 'max:255'],
             'name_en'   => ['nullable', 'string', 'max:255'],
             'stage'     => ['required', 'string', 'in:primary,preparatory,secondary,all'],
-            'is_active' => ['required', 'boolean'],
-        ], [
-            'key.regex' => 'يجب أن يحتوي رمز المرحلة على أحرف إنجليزية وأرقام وعلامة شرطة فقط بدون مسافات.',
+            'is_active' => ['sometimes', 'boolean'],
         ]);
 
         $gl->update($validated);
@@ -91,17 +113,8 @@ class GradeLevelController extends Controller
     {
         $gl = GradeLevel::findOrFail($id);
 
-        // Check if there are related records
-        if ($gl->subjects()->exists()) {
-            return back()->with('error', 'لا يمكن حذف المرحلة الدراسية لوجود مواد مرتبطة بها.');
-        }
-
-        if ($gl->courses()->exists()) {
-            return back()->with('error', 'لا يمكن حذف المرحلة الدراسية لوجود كورسات مرتبطة بها.');
-        }
-
-        if ($gl->students()->exists()) {
-            return back()->with('error', 'لا يمكن حذف المرحلة الدراسية لوجود طلاب مسجلين بها.');
+        if (TeachingAssignment::where('grade_level_id', $gl->id)->exists()) {
+            return back()->with('error', 'لا يمكن حذف المرحلة لأن هناك معلمين مسندين إليها.');
         }
 
         $gl->delete();

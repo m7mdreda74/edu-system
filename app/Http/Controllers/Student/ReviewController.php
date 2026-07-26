@@ -4,58 +4,55 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
-use App\Domain\Course\Models\Course;
-use App\Domain\Course\Models\Review;
+use App\Domain\Learning\Models\TeacherReview;
+use App\Domain\Subscription\Models\Subscription;
+use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 /**
- * ReviewController — Students can rate/review courses they completed.
- * One review per enrollment — enforced at DB level (unique index).
+ * Students rate the teachers they have studied with. One review per student per
+ * teacher — enforced at DB level by a unique index.
  */
 class ReviewController extends Controller
 {
-    public function store(Request $request, string $slug): RedirectResponse
+    public function store(Request $request, int $teacherId): RedirectResponse
     {
-        $user   = auth()->user();
-        $course = Course::where('slug', $slug)->where('is_published', true)->firstOrFail();
-
-        // Guard: must be enrolled
-        $enrollment = $user->enrollments()
-            ->where('course_id', $course->id)
-            ->first();
-
-        abort_unless($enrollment, 403, 'يجب أن تكون مسجلاً في الكورس للتقييم.');
-
-        // Guard: must have completed the course
-        abort_unless($enrollment->isCompleted(), 403, 'أكمل الكورس أولاً قبل التقييم.');
-
         $validated = $request->validate([
             'rating'  => ['required', 'integer', 'min:1', 'max:5'],
             'comment' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // Upsert: update if exists, create if new
-        Review::updateOrCreate(
-            ['user_id' => $user->id, 'course_id' => $course->id],
+        $user    = Auth::user();
+        $teacher = User::whereHas('roles', fn ($q) => $q->where('name', 'teacher'))->findOrFail($teacherId);
+
+        // You can only rate someone you have actually studied with — any
+        // subscription, past or present, counts.
+        $hasStudied = Subscription::where('student_id', $user->id)
+            ->whereIn('status', [Subscription::STATUS_ACTIVE, Subscription::STATUS_EXPIRED, Subscription::STATUS_CANCELLED])
+            ->whereHas('assignment', fn ($q) => $q->where('teacher_id', $teacher->id))
+            ->exists();
+
+        abort_unless($hasStudied, 403, 'يمكنك تقييم المعلم بعد الاشتراك معه فقط.');
+
+        TeacherReview::updateOrCreate(
+            ['user_id' => $user->id, 'teacher_id' => $teacher->id],
             [
                 'rating'      => $validated['rating'],
                 'comment'     => $validated['comment'] ?? null,
-                'is_approved' => false, // Admin must approve
-            ]
+                'is_approved' => false, // Admin must approve before it shows.
+            ],
         );
 
         return back()->with('success', 'شكراً! تم إرسال تقييمك وسيُراجع من قِبل الإدارة.');
     }
 
-    public function destroy(string $slug): RedirectResponse
+    public function destroy(int $teacherId): RedirectResponse
     {
-        $user   = auth()->user();
-        $course = Course::where('slug', $slug)->firstOrFail();
-
-        Review::where('user_id', $user->id)
-            ->where('course_id', $course->id)
+        TeacherReview::where('user_id', Auth::id())
+            ->where('teacher_id', $teacherId)
             ->delete();
 
         return back()->with('success', 'تم حذف تقييمك.');

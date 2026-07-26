@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Payment\Models;
 
-use App\Domain\Course\Models\Course;
+use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use App\Infrastructure\Observers\PaymentObserver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,7 +30,7 @@ class Payment extends Model
 
     protected $fillable = [
         'user_id',
-        'course_id',
+        'subscription_id',
         'coupon_id',
         'amount',
         'commission_percent',
@@ -75,9 +75,9 @@ class Payment extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function course(): BelongsTo
+    public function subscription(): BelongsTo
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(Subscription::class);
     }
 
     public function coupon(): BelongsTo

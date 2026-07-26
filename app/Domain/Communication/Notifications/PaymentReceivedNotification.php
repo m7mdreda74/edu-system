@@ -4,18 +4,21 @@ declare(strict_types=1);
 
 namespace App\Domain\Communication\Notifications;
 
-use App\Domain\Course\Models\Course;
+use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
+/** Tells admins that money landed for a subscription. */
 class PaymentReceivedNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public Course $course, public User $student, public int $amountHalala)
-    {
-    }
+    public function __construct(
+        public Subscription $subscription,
+        public User $student,
+        public int $amountInSmallestUnit,
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -24,10 +27,11 @@ class PaymentReceivedNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
-        $qar = number_format($this->amountHalala / 100, 2);
+        $qar = number_format($this->amountInSmallestUnit / 100, 2);
+
         return [
             'title'   => 'مدفوعات جديدة 💰',
-            'message' => "تم تحصيل مبلغ {$qar} ر.ق. من الطالب '{$this->student->name}' للاشتراك في '{$this->course->title}'.",
+            'message' => "تم تحصيل مبلغ {$qar} ر.ق. من الطالب '{$this->student->name}' لاشتراك {$this->subscription->label()}.",
             'link'    => route('admin.payments'),
         ];
     }

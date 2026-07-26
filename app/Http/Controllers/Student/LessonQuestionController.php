@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
-use App\Domain\Course\Models\LessonQuestion;
+use App\Domain\Learning\Models\LessonQuestion;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

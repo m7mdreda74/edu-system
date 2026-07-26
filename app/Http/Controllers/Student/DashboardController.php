@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
-use App\Application\Certificate\Services\CertificateService;
-use App\Domain\Course\Models\LiveSession;
-use App\Domain\Enrollment\Contracts\EnrollmentServiceInterface;
+use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Payment\Models\Payment;
+use App\Domain\Subscription\Models\Subscription;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -14,63 +14,70 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __construct(
-        private readonly EnrollmentServiceInterface $enrollmentService,
-        private readonly CertificateService $certificateService,
-    ) {}
+    /** Renewal reminders start this many days before a subscription lapses. */
+    private const EXPIRY_WARNING_DAYS = 7;
 
     public function index(): Response
     {
-        $user        = Auth::user();
-        $enrollments = $this->enrollmentService->getStudentEnrollments($user->id);
+        $user = Auth::user();
 
-        // Separate completed from in-progress
-        $completed  = $enrollments->where('progress_percent', 100);
-        $inProgress = $enrollments->where('progress_percent', '<', 100);
-
-        // Add certificate eligibility flag
-        $completedWithCert = $completed->map(function ($enrollment) {
-            $enrollment->cert_number = $this->certificateService->generateCertificateNumber($enrollment);
-            return $enrollment;
-        });
-
-        // Legacy course sessions follow course enrollment. Scheduled group/private
-        // sessions are stricter: only the confirmed booking holder may see them.
-        $enrolledCourseIds = $enrollments->pluck('course_id')->toArray();
-        $upcomingSessions = LiveSession::with('course:id,title', 'teacher:id,name')
-            ->where(function ($query) use ($enrolledCourseIds, $user) {
-                $query->where(function ($legacy) use ($enrolledCourseIds) {
-                    $legacy->whereNull('teaching_group_id')
-                        ->whereNull('private_session_slot_id')
-                        ->whereIn('course_id', $enrolledCourseIds);
-                })->orWhereHas('teachingGroup.activeBookings', function ($booking) use ($user) {
-                    $booking->where('student_id', $user->id);
-                })->orWhereHas('privateSessionSlot.booking', function ($booking) use ($user) {
-                    $booking->where('student_id', $user->id)->where('status', 'confirmed');
-                });
-            })
-            ->whereIn('status', ['scheduled', 'live'])
-            ->orderBy('scheduled_at', 'asc')
+        $subscriptions = Subscription::with([
+            'assignment.subject:id,name,icon',
+            'assignment.teacher:id,name,avatar',
+            'group:id,name',
+        ])
+            ->where('student_id', $user->id)
             ->get();
 
-        // Fetch pending manual payments awaiting verification
-        $pendingPayments = \App\Domain\Payment\Models\Payment::with('course:id,title,thumbnail')
+        $active = $subscriptions->filter(fn (Subscription $s) => $s->isActive());
+
+        // Only sessions the student actually holds a confirmed seat in.
+        $upcomingSessions = LiveSession::with([
+            'teacher:id,name',
+            'teachingGroup:id,name,teaching_assignment_id',
+            'teachingGroup.assignment.subject:id,name',
+        ])
+            ->where(function ($query) use ($user) {
+                $query->whereHas('teachingGroup.activeBookings', fn ($b) => $b->where('student_id', $user->id))
+                    ->orWhereHas('privateSessionSlot.booking', fn ($b) => $b->where('student_id', $user->id)->where('status', 'confirmed'));
+            })
+            ->whereIn('status', [LiveSession::STATUS_SCHEDULED, LiveSession::STATUS_LIVE])
+            ->orderBy('scheduled_at')
+            ->take(10)
+            ->get();
+
+        $pendingPayments = Payment::with('subscription.assignment.subject:id,name')
             ->where('user_id', $user->id)
-            ->where('status', \App\Domain\Payment\Models\Payment::STATUS_PENDING_VERIFICATION)
+            ->where('status', Payment::STATUS_PENDING_VERIFICATION)
             ->get();
 
         return Inertia::render('Student/Dashboard', [
-            'inProgress'       => $inProgress->values(),
-            'completed'        => $completedWithCert->values(),
+            'activeSubscriptions' => $active->map(fn (Subscription $s) => [
+                'id'             => $s->id,
+                'type'           => $s->type,
+                'subject'        => $s->assignment?->subject?->only(['id', 'name', 'icon']),
+                'teacher'        => $s->assignment?->teacher?->only(['id', 'name', 'avatar']),
+                'group'          => $s->group?->only(['id', 'name']),
+                'period_end'     => $s->period_end?->toDateString(),
+                'days_remaining' => $s->daysRemaining(),
+            ])->values(),
+
+            'expiringSoon' => $active
+                ->filter(fn (Subscription $s) => $s->daysRemaining() <= self::EXPIRY_WARNING_DAYS)
+                ->map(fn (Subscription $s) => [
+                    'id'             => $s->id,
+                    'label'          => $s->label(),
+                    'days_remaining' => $s->daysRemaining(),
+                ])->values(),
+
             'upcomingSessions' => $upcomingSessions,
             'pendingPayments'  => $pendingPayments,
-            'stats'      => [
-                'totalEnrolled'  => $enrollments->count(),
-                'completed'      => $completed->count(),
-                'inProgress'     => $inProgress->count(),
-                'avgProgress'    => $enrollments->count() > 0
-                    ? (int) round($enrollments->avg('progress_percent'))
-                    : 0,
+
+            'stats' => [
+                'activeSubscriptions' => $active->count(),
+                'teachers'            => $active->pluck('teaching_assignment_id')->unique()->count(),
+                'subjects'            => $active->map(fn (Subscription $s) => $s->assignment?->subject_id)->filter()->unique()->count(),
+                'upcomingSessions'    => $upcomingSessions->count(),
             ],
         ]);
     }

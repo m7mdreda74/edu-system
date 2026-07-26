@@ -173,7 +173,7 @@ const getSettingLabel = (key) => {
     if (key === 'home_hero_btn1') return 'نص زر الواجهة الأساسي';
     if (key === 'home_hero_btn2') return 'نص زر الواجهة الفرعي';
     if (key === 'home_stats_students') return 'إحصائية الطلاب المسجلين بالواجهة';
-    if (key === 'home_stats_courses') return 'إحصائية الكورسات بالواجهة';
+    if (key === 'home_stats_courses') return 'إحصائية المواد بالواجهة';
     if (key === 'home_stats_teachers') return 'إحصائية المعلمين بالواجهة';
     if (key === 'home_cta_title') return 'عنوان قسم الدعوة للتسجيل (CTA) بالأسفل';
     if (key === 'home_cta_desc') return 'وصف قسم الدعوة للتسجيل (CTA) بالأسفل';

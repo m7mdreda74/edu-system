@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Quiz\Models;
 
-use App\Domain\Course\Models\Course;
-use App\Domain\Course\Models\CourseLesson;
+use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\Scheduling\Models\TeachingGroup;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,7 +23,7 @@ class Quiz extends Model
     const MAX_QUIZ_ATTEMPTS = 3;
 
     protected $fillable = [
-        'course_id',
+        'teaching_group_id',
         'lesson_id',
         'title',
         'passing_score',
@@ -40,14 +40,14 @@ class Quiz extends Model
         ];
     }
 
-    public function course(): BelongsTo
+    public function group(): BelongsTo
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(TeachingGroup::class, 'teaching_group_id');
     }
 
-    public function lesson(): BelongsTo
+    public function material(): BelongsTo
     {
-        return $this->belongsTo(CourseLesson::class);
+        return $this->belongsTo(GroupMaterial::class, 'lesson_id');
     }
 
     public function questions(): HasMany

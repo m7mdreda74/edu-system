@@ -16,7 +16,7 @@ class PaymentController extends Controller
 {
     public function index(Request $request): Response
     {
-        $payments = Payment::with(['user:id,name,email', 'course:id,title'])
+        $payments = Payment::with(['user:id,name,email', 'subscription.assignment.subject:id,name', 'subscription.assignment.teacher:id,name', 'subscription.group:id,name'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->latest()
             ->paginate(25)
@@ -38,7 +38,7 @@ class PaymentController extends Controller
         $payment->update(['reviewed_by' => auth()->id(), 'reviewed_at' => now(), 'review_notes' => $request->input('note')]);
         $paymentService->completeSuccessfulPayment($payment);
 
-        return back()->with('success', 'تم تأكيد الدفع وتفعيل الكورس للطالب بنجاح.');
+        return back()->with('success', 'تم تأكيد الدفع وتفعيل الاشتراك للطالب بنجاح.');
     }
 
     public function reject(Request $request, Payment $payment)

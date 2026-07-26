@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Communication\Notifications;
 
-use App\Domain\Course\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSession;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -12,9 +12,7 @@ class LiveSessionStartedNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public LiveSession $session)
-    {
-    }
+    public function __construct(public LiveSession $session) {}
 
     public function via(object $notifiable): array
     {
@@ -23,9 +21,14 @@ class LiveSessionStartedNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
+        $this->session->loadMissing('teachingGroup.assignment.subject');
+
+        $context = $this->session->teachingGroup?->assignment?->subject?->name
+            ?? ($this->session->isPrivate() ? 'حصة خاصة' : 'حصة مباشرة');
+
         return [
             'title'   => 'بدأت حصة مباشرة الآن 🔴',
-            'message' => "بدأت الحصة المباشرة بعنوان '{$this->session->title}' لكورس '{$this->session->course->title}'.",
+            'message' => "بدأت الحصة '{$this->session->title}' — {$context}.",
             'link'    => route('live-sessions.room', $this->session->id),
         ];
     }

@@ -3,14 +3,10 @@ import { onMounted } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
-import { useCartStore } from '@/stores/cartStore';
 
 defineProps({ session_id: { type: String, default: null } });
 
 onMounted(() => {
-    const cartStore = useCartStore();
-    cartStore.clearCart();
-
     // If opened in a popup window, redirect the parent window to dashboard and close this popup
     if (window.opener) {
         try {
@@ -32,13 +28,13 @@ onMounted(() => {
             </div>
             <h1 class="text-3xl font-black text-surface-900 dark:text-white mb-3">تم الدفع بنجاح!</h1>
             <p class="text-surface-500 dark:text-surface-400 mb-8 leading-relaxed">
-                تمت عملية الشراء بنجاح. سيظهر الكورس في لوحتك خلال لحظات.
+                تم الدفع بنجاح. سيتم تفعيل اشتراكك خلال لحظات.
             </p>
             <div class="flex gap-3 justify-center">
                 <Link :href="route('dashboard')" class="btn-primary btn-lg">
                     انتقل للوحة التحكم
                 </Link>
-                <Link :href="route('courses.index')" class="btn-ghost">
+                <Link :href="route('student.my-classes')" class="btn-ghost">
                     تصفح المزيد
                 </Link>
             </div>

@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
-use App\Domain\Course\Models\GradeLevel;
-use App\Domain\Course\Models\Course;
-use App\Domain\Course\Models\LiveSession;
-use App\Domain\Course\Models\Subject;
+use App\Domain\Academic\Models\GradeLevel;
+use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Academic\Models\Subject;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -36,7 +35,6 @@ class TeachingScheduleController extends Controller
             'assignments' => $assignments,
             'subjects' => Subject::where('is_active', true)->orderBy('name')->get(['id', 'name', 'name_en']),
             'gradeLevels' => GradeLevel::where('is_active', true)->orderBy('id')->get(['id', 'key', 'name', 'name_en']),
-            'courses' => Course::where('teacher_id', Auth::id())->where('is_published', true)->get(['id', 'title', 'subject_id', 'grade_level']),
         ]);
     }
 
@@ -45,13 +43,21 @@ class TeachingScheduleController extends Controller
         $data = $request->validate([
             'subject_id' => ['required', 'integer', 'exists:subjects,id'],
             'grade_level_id' => ['required', 'integer', 'exists:grade_levels,id'],
+            'private_monthly_price' => ['nullable', 'integer', 'min:0'],
+            'accepts_private' => ['nullable', 'boolean'],
         ]);
+
+        $pricing = [
+            'private_monthly_price' => (int) ($data['private_monthly_price'] ?? 0),
+            'accepts_private' => (bool) ($data['accepts_private'] ?? false),
+        ];
+        unset($data['private_monthly_price'], $data['accepts_private']);
 
         if (TeachingAssignment::where('teacher_id', Auth::id())->where($data)->exists()) {
             return back()->with('error', 'هذا الربط موجود بالفعل.');
         }
 
-        TeachingAssignment::create([...$data, 'teacher_id' => Auth::id(), 'is_active' => true]);
+        TeachingAssignment::create([...$data, ...$pricing, 'teacher_id' => Auth::id(), 'currency' => 'QAR', 'is_active' => true]);
 
         return back()->with('success', 'تم ربط المدرس بالمادة والمرحلة الدراسية.');
     }
@@ -62,6 +68,7 @@ class TeachingScheduleController extends Controller
             'teaching_assignment_id' => ['required', 'integer', 'exists:teaching_assignments,id'],
             'name' => ['required', 'string', 'max:100'],
             'capacity' => ['required', 'integer', 'min:1', 'max:1000'],
+            'monthly_price' => ['required', 'integer', 'min:0'],
             'day_of_week' => ['required', 'integer', 'between:0,6'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i'],
@@ -205,15 +212,8 @@ class TeachingScheduleController extends Controller
             abort_if(! $nextLesson || $nextLesson->id !== $lesson->id, 422, 'يجب جدولة الحصة الموجودة عليها الدور أولاً.');
             abort_if($group->schedules->isEmpty(), 422, 'أضف موعدًا واحدًا على الأقل للمجموعة.');
 
-            $assignment = $group->assignment;
-            $course = Course::where('teacher_id', Auth::id())
-                ->where('subject_id', $assignment->subject_id)
-                ->where('grade_level', $assignment->gradeLevel->key)
-                ->where('is_published', true)
-                ->first();
             $scheduledAt = $this->nextGroupOccurrence($group);
             $session = LiveSession::create([
-                'course_id' => $course?->id,
                 'teacher_id' => Auth::id(),
                 'teaching_group_id' => $group->id,
                 'title' => $lesson->title,

@@ -50,7 +50,7 @@ function handleSubmit() {
                     <span class="badge bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 mb-3 inline-block">{{ badge }}</span>
                     <h1 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white mb-4">{{ title }}</h1>
                     <p class="text-surface-500 dark:text-surface-400 text-sm leading-relaxed max-w-2xl mx-auto">
-                        هل لديك أي استفسار حول الكورسات أو تحتاج إلى دعم فني؟ فريق الدعم متواجد لخدمتك طوال أيام الأسبوع.
+                        هل لديك أي استفسار حول الحصص والمعلمين أو تحتاج إلى دعم فني؟ فريق الدعم متواجد لخدمتك طوال أيام الأسبوع.
                     </p>
                 </div>
 

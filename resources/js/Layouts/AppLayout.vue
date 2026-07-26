@@ -2,14 +2,12 @@
 import { ref, computed, onMounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/authStore';
-import { useCartStore } from '@/stores/cartStore';
 import Icon from '@/Components/Icon.vue';
 import BrandLogo from '@/Components/BrandLogo.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
 import axios from 'axios';
 
 const authStore = useAuthStore();
-const cartStore = useCartStore();
 const page      = usePage();
 
 const mobileMenuOpen = ref(false);
@@ -29,7 +27,7 @@ async function onSearchInput() {
     }
 
     try {
-        const res = await axios.get(route('courses.autocomplete'), {
+        const res = await axios.get(route('search.autocomplete'), {
             params: { q: searchQuery.value }
         });
         searchResults.value = res.data;
@@ -61,7 +59,7 @@ const navLinks = computed(() => {
     }
     return [
         { label: 'الرئيسية',     href: route('home'),              name: 'home' },
-        { label: 'الكورسات',     href: route('courses.index'),     name: 'courses.index' },
+        { label: 'المعلمون',     href: route('home') + '#grades',  name: 'grades' },
         { label: 'من نحن',       href: route('about'),             name: 'about' },
         { label: 'نتائج طلابنا',  href: route('students_results'),  name: 'students_results' },
         { label: 'تطبيقاتنا',    href: route('our_apps'),          name: 'our_apps' },
@@ -81,7 +79,7 @@ const footerLinks = computed(() => {
     }
     return [
         { label: 'الرئيسية',     href: route('home'),              name: 'home' },
-        { label: 'الكورسات',     href: route('courses.index'),     name: 'courses.index' },
+        { label: 'المعلمون',     href: route('home') + '#grades',  name: 'grades' },
         { label: 'من نحن',       href: route('about'),             name: 'about' },
         { label: 'نتائج طلابنا',  href: route('students_results'),  name: 'students_results' },
         { label: 'تطبيقاتنا',    href: route('our_apps'),          name: 'our_apps' },
@@ -144,18 +142,18 @@ const isActive = (link) => {
                     <!-- Desktop Search Bar -->
                     <div class="hidden lg:block relative flex-1 max-w-xs mx-4" dir="rtl">
                         <div class="relative">
-                            <input v-model="searchQuery" @input="onSearchInput" type="text" placeholder="البحث عن كورسات أو معلمين..." class="w-full bg-surface-100 dark:bg-black/45 border border-transparent dark:border-surface-700/40 focus:border-primary-500 focus:dark:border-accent-500 rounded-xl px-4 py-2 text-xs text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-white/35 focus:outline-none focus:ring-0" />
+                            <input v-model="searchQuery" @input="onSearchInput" type="text" placeholder="ابحث عن معلم أو مادة..." class="w-full bg-surface-100 dark:bg-black/45 border border-transparent dark:border-surface-700/40 focus:border-primary-500 focus:dark:border-accent-500 rounded-xl px-4 py-2 text-xs text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-white/35 focus:outline-none focus:ring-0" />
                             <Icon name="search" class="w-4 h-4 text-surface-400 dark:text-surface-300 absolute left-3 top-2.5" />
                         </div>
 
                         <!-- Autocomplete Dropdown -->
                         <div v-if="searchResults.length > 0 && searchQuery.length >= 2" class="absolute z-50 left-0 right-0 mt-2 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl shadow-xl overflow-hidden divide-y divide-surface-100 dark:divide-surface-800">
-                            <Link v-for="course in searchResults" :key="course.id" :href="route('courses.show', { slug: course.slug })" @click="clearSearch" class="flex items-center justify-between p-3 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
+                            <Link v-for="result in searchResults" :key="`${result.type}-${result.id}`" :href="result.url" @click="clearSearch" class="flex items-center justify-between p-3 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
                                 <div class="text-start">
-                                    <div class="font-bold text-xs text-surface-900 dark:text-white">{{ course.title }}</div>
-                                    <div class="text-[10px] text-surface-400 mt-0.5">بواسطة: {{ course.teacher?.name }}</div>
+                                    <div class="font-bold text-xs text-surface-900 dark:text-white">{{ result.title }}</div>
+                                    <div class="text-[10px] text-surface-400 mt-0.5">{{ result.subtitle }}</div>
                                 </div>
-                                <span class="text-[10px] font-bold text-primary-500 flex-shrink-0">عرض 🔗</span>
+                                <span class="text-[10px] font-bold text-primary-500 flex-shrink-0">عرض</span>
                             </Link>
                         </div>
                     </div>
@@ -190,16 +188,6 @@ const isActive = (link) => {
                         <!-- Notification Bell -->
                         <NotificationBell v-if="!authStore.isGuest" />
 
-                        <!-- Cart -->
-                        <Link v-if="cartStore.hasItem && cartStore.item?.slug" :href="route('checkout.show', { slug: cartStore.item.slug })"
-                            class="relative btn-ghost p-2 rounded-lg"
-                        >
-                            <Icon name="cart" class="w-5 h-5 text-surface-600 dark:text-surface-300" />
-                            <span class="absolute -top-1 -start-1 w-4 h-4 bg-accent-500 text-white
-                                         rounded-full text-xs flex items-center justify-center font-bold">
-                                1
-                            </span>
-                        </Link>
 
                         <!-- Guest Actions -->
                         <template v-if="authStore.isGuest">

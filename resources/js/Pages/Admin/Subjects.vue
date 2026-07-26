@@ -127,7 +127,7 @@ function deleteSubject(id) {
                                 {{ getGradeLabel(subj.grade_level) }}
                             </span>
                             <span class="bg-surface-100 dark:bg-surface-800 px-2.5 py-1 rounded-lg">
-                                {{ subj.courses_count }} كورس
+                                {{ subj.teaching_assignments_count }} معلم
                             </span>
                         </div>
                     </div>
@@ -149,7 +149,7 @@ function deleteSubject(id) {
             <div v-if="subjects.length === 0" class="card p-16 text-center text-surface-400">
                 <Icon name="courses" class="w-16 h-16 mx-auto text-surface-300 dark:text-surface-700 mb-4" />
                 <h3 class="text-lg font-bold text-surface-800 dark:text-surface-200 mb-2">لا توجد مواد دراسية</h3>
-                <p class="text-sm mb-6">ابدأ بإضافة أول مادة دراسية لتنظيم الكورسات فيها</p>
+                <p class="text-sm mb-6">ابدأ بإضافة أول مادة دراسية ليتم إسناد المعلمين إليها</p>
                 <button @click="openAddModal" class="btn-primary">إضافة مادة</button>
             </div>
 

@@ -42,7 +42,7 @@ const statusLabels = {
 };
 
 function approvePayment(p) {
-    if (confirm('هل أنت متأكد من صحة إيصال الدفع وتفعيل الكورس للطالب؟')) {
+    if (confirm('هل أنت متأكد من صحة إيصال الدفع وتفعيل الاشتراك للطالب؟')) {
         router.post(route('admin.payments.approve', { payment: p.id }), { note: 'تمت مطابقة إيصال التحويل واعتماده.' });
     }
 }
@@ -89,7 +89,7 @@ function rejectPayment(p) {
                             <tr>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">#</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الطالب</th>
-                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الكورس</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الاشتراك</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">المبلغ</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التوزيع المالي</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">البوابة</th>
@@ -108,7 +108,7 @@ function rejectPayment(p) {
                                     <div class="text-xs text-surface-400">{{ p.user?.email }}</div>
                                 </td>
                                 <td class="p-4 text-surface-600 dark:text-surface-300 max-w-[180px]">
-                                    <div class="line-clamp-1">{{ p.course?.title }}</div>
+                                    <div class="line-clamp-1">{{ p.subscription?.assignment?.subject?.name ?? "اشتراك" }}</div>
                                 </td>
                                 <td class="p-4 font-bold text-primary-700 dark:text-primary-400">
                                     {{ formatQAR(p.amount) }}

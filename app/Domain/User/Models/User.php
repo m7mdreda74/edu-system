@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\User\Models;
 
-use App\Domain\Communication\Models\ChatMessage;
-use App\Domain\Communication\Models\Conversation;
-use App\Domain\Course\Models\Course;
-use App\Domain\Course\Models\LiveSession;
-use App\Domain\Enrollment\Models\Enrollment;
+use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Payment\Models\Payment;
-use App\Domain\User\Models\ParentStudentLink;
+use App\Domain\Scheduling\Models\SessionBooking;
+use App\Domain\Scheduling\Models\TeachingAssignment;
+use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\Subscription\Models\Subscription;
 use App\Infrastructure\Observers\UserObserver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -34,7 +33,6 @@ class User extends Authenticatable
     // IDE Helper: hasRole()/syncRoles() come from Spatie\Permission\Traits\HasRoles.
     // The @mixin above ensures static analysis resolves them correctly.
 
-
     protected $fillable = [
         'name',
         'email',
@@ -43,6 +41,11 @@ class User extends Authenticatable
         'avatar',
         'grade_level',
         'bio',
+        'headline',
+        'intro_video_url',
+        'intro_video_thumbnail',
+        'years_experience',
+        'is_featured',
         'is_active',
         'commission_percent',
     ];
@@ -55,9 +58,11 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-            'is_active'         => 'boolean',
+            'email_verified_at'  => 'datetime',
+            'password'           => 'hashed',
+            'is_active'          => 'boolean',
+            'is_featured'        => 'boolean',
+            'years_experience'   => 'integer',
             'commission_percent' => 'integer',
         ];
     }
@@ -69,19 +74,31 @@ class User extends Authenticatable
 
     // ─── Relationships ────────────────────────────────────────────
 
-    public function coursesAsTeacher(): HasMany
+    /** Every teacher/subject/grade combination this teacher covers. */
+    public function teachingAssignments(): HasMany
     {
-        return $this->hasMany(Course::class, 'teacher_id');
+        return $this->hasMany(TeachingAssignment::class, 'teacher_id');
     }
 
-    public function enrollments(): HasMany
+    public function subscriptions(): HasMany
     {
-        return $this->hasMany(Enrollment::class);
+        return $this->hasMany(Subscription::class, 'student_id');
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(SessionBooking::class, 'student_id');
     }
 
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /** Ratings this teacher has received. */
+    public function reviewsReceived(): HasMany
+    {
+        return $this->hasMany(TeacherReview::class, 'teacher_id');
     }
 
     public function studentLinks(): HasMany
@@ -94,7 +111,7 @@ class User extends Authenticatable
         return $this->hasMany(ParentStudentLink::class, 'student_user_id');
     }
 
-    // ─── Domain Helpers ────────────────────────────────────────────
+    // ─── Role Helpers ──────────────────────────────────────────────
 
     public function isStudent(): bool
     {
@@ -116,10 +133,38 @@ class User extends Authenticatable
         return $this->hasRole('parent');
     }
 
-    public function isEnrolledIn(Course $course): bool
+    // ─── Domain Helpers ────────────────────────────────────────────
+
+    /** Does this student have a live subscription to the given group? */
+    public function hasActiveSubscriptionTo(TeachingGroup $group): bool
     {
-        return $this->enrollments()
-            ->where('course_id', $course->id)
+        return $this->subscriptions()
+            ->active()
+            ->where('teaching_group_id', $group->id)
             ->exists();
+    }
+
+    /** Live subscription to any group/private slot under a teacher's subject. */
+    public function hasActiveSubscriptionToAssignment(int $assignmentId): bool
+    {
+        return $this->subscriptions()
+            ->active()
+            ->where('teaching_assignment_id', $assignmentId)
+            ->exists();
+    }
+
+    /** Average approved rating for a teacher, rounded to one decimal. */
+    public function averageRating(): float
+    {
+        return round((float) ($this->reviewsReceived()->where('is_approved', true)->avg('rating') ?? 0), 1);
+    }
+
+    /** Distinct students currently subscribed to any of this teacher's groups. */
+    public function activeStudentsCount(): int
+    {
+        return Subscription::active()
+            ->whereIn('teaching_assignment_id', $this->teachingAssignments()->select('id'))
+            ->distinct('student_id')
+            ->count('student_id');
     }
 }
