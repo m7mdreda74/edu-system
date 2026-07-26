@@ -196,6 +196,8 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard',               [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+    // Polled by the dashboard so its figures stay live without a page reload.
+    Route::get('/dashboard/stats',         [App\Http\Controllers\Admin\DashboardController::class, 'stats'])->name('dashboard.stats');
     Route::get('/users',                   [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users');
     Route::post('/users',                  [App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
     Route::patch('/users/{id}/toggle',     [App\Http\Controllers\Admin\UserController::class, 'toggleActive'])->name('users.toggle');
@@ -205,6 +207,24 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     // Subscriptions replace the old course catalogue
     Route::get('/subscriptions',         [App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions');
     Route::delete('/subscriptions/{id}', [App\Http\Controllers\Admin\SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+
+    // Teaching groups — oversight across every teacher
+    Route::get('/teaching-groups',              [App\Http\Controllers\Admin\TeachingGroupController::class, 'index'])->name('teaching-groups');
+    Route::get('/teaching-groups/{id}',         [App\Http\Controllers\Admin\TeachingGroupController::class, 'show'])->name('teaching-groups.show');
+    Route::patch('/teaching-groups/{id}/toggle', [App\Http\Controllers\Admin\TeachingGroupController::class, 'toggle'])->name('teaching-groups.toggle');
+
+    // Review moderation — nothing reaches a teacher's profile without it
+    Route::get('/reviews',              [App\Http\Controllers\Admin\ReviewController::class, 'index'])->name('reviews');
+    Route::post('/reviews/approve-all', [App\Http\Controllers\Admin\ReviewController::class, 'approveAll'])->name('reviews.approve-all');
+    Route::patch('/reviews/{id}/approve', [App\Http\Controllers\Admin\ReviewController::class, 'approve'])->name('reviews.approve');
+    Route::patch('/reviews/{id}/reject',  [App\Http\Controllers\Admin\ReviewController::class, 'reject'])->name('reviews.reject');
+    Route::delete('/reviews/{id}',        [App\Http\Controllers\Admin\ReviewController::class, 'destroy'])->name('reviews.destroy');
+
+    // Academic calendar
+    Route::get('/academic-terms',         [App\Http\Controllers\Admin\AcademicTermController::class, 'index'])->name('academic-terms');
+    Route::post('/academic-terms',        [App\Http\Controllers\Admin\AcademicTermController::class, 'store'])->name('academic-terms.store');
+    Route::put('/academic-terms/{id}',    [App\Http\Controllers\Admin\AcademicTermController::class, 'update'])->name('academic-terms.update');
+    Route::delete('/academic-terms/{id}', [App\Http\Controllers\Admin\AcademicTermController::class, 'destroy'])->name('academic-terms.destroy');
 
     Route::get('/payments',                    [App\Http\Controllers\Admin\PaymentController::class, 'index'])->name('payments');
     Route::post('/payments/{payment}/approve', [App\Http\Controllers\Admin\PaymentController::class, 'approve'])->name('payments.approve');

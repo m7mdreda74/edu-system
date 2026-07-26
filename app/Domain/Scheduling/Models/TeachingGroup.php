@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Scheduling\Models;
 
+use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\Worksheet;
@@ -59,6 +60,12 @@ class TeachingGroup extends Model
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(TeachingAssignment::class, 'teaching_assignment_id');
+    }
+
+    /** The semester this group runs in; null means it is not tied to one. */
+    public function term(): BelongsTo
+    {
+        return $this->belongsTo(AcademicTerm::class, 'academic_term_id');
     }
 
     public function bookings(): HasMany
