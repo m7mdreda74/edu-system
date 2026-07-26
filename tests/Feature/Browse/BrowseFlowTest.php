@@ -55,7 +55,7 @@ it('shows every stage of the Qatari system on the home page', function () {
         });
 });
 
-it('splits grades eleven and twelve into science and literary tracks', function () {
+it('splits grades eleven and twelve into the three Qatari tracks', function () {
     $this->get(route('home'))
         ->assertOk()
         ->assertInertia(function ($page) {
@@ -65,9 +65,11 @@ it('splits grades eleven and twelve into science and literary tracks', function 
 
             expect($tracked)->toContain(
                 'grade_11_science',
-                'grade_11_literary',
+                'grade_11_arts',
+                'grade_11_technology',
                 'grade_12_science',
-                'grade_12_literary',
+                'grade_12_arts',
+                'grade_12_technology',
             );
         });
 });
@@ -88,7 +90,7 @@ it('lists the whole curriculum for a grade, teachers or not', function () {
 });
 
 it('marks curriculum subjects with no teacher as unstaffed', function () {
-    $this->get(route('grades.show', ['key' => 'grade_12_literary']))
+    $this->get(route('grades.show', ['key' => 'grade_12_arts']))
         ->assertOk()
         ->assertInertia(function ($page) {
             $subjects = collect($page->toArray()['props']['subjects']);
@@ -104,8 +106,8 @@ it('offers the sibling track when viewing a tracked grade', function () {
         ->assertInertia(fn ($page) => $page
             ->where('grade.track', 'science')
             ->where('grade.track_label', 'المسار العلمي')
-            ->has('siblingTracks', 1)
-            ->where('siblingTracks.0.key', 'grade_12_literary'));
+            // Two siblings now: arts and technology.
+            ->has('siblingTracks', 2));
 });
 
 it('lists the teachers who teach a subject with their intro video', function () {

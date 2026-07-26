@@ -115,6 +115,16 @@ class AccountsSeeder extends Seeder
                 'commission'       => 20,
             ],
             [
+                'email'            => 'jassim@altafawwuq.com',
+                'name'             => 'أ. جاسم البوعينين',
+                'phone'            => '+97455000109',
+                'headline'         => 'معلم علوم حاسب وتكنولوجيا — المسار التكنولوجي',
+                'bio'              => 'أدرّس البرمجة وقواعد البيانات وتصميم الشبكات لطلاب المسار التكنولوجي، بمشاريع عملية يبنيها الطالب بنفسه بدل الحفظ.',
+                'years_experience' => 9,
+                'is_featured'      => true,
+                'commission'       => 20,
+            ],
+            [
                 'email'            => 'abdullah@altafawwuq.com',
                 'name'             => 'أ. عبدالله الشمري',
                 'phone'            => '+97455000107',

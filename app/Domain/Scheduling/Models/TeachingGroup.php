@@ -30,6 +30,7 @@ class TeachingGroup extends Model
 
     protected $fillable = [
         'teaching_assignment_id',
+        'academic_term_id',
         'name',
         'capacity',
         'monthly_price',

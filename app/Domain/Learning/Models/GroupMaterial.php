@@ -24,6 +24,7 @@ class GroupMaterial extends Model
 
     protected $fillable = [
         'teaching_group_id',
+        'academic_term_id',
         'title',
         'video_url',
         'duration_seconds',

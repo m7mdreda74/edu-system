@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { Link, Head, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
@@ -10,25 +10,18 @@ import WelcomePopup from '@/Components/WelcomePopup.vue';
 const props = defineProps({
     grades:           { type: Array, default: () => [] },
     featuredTeachers: { type: Array, default: () => [] },
+    term:             { type: Object, default: null },
+});
+
+const termNotice = computed(() => {
+    if (!props.term) return null;
+
+    return props.term.is_current
+        ? `${props.term.name} — جارٍ حتى ${props.term.ends_on}`
+        : `${props.term.name} — يبدأ ${props.term.starts_on}`;
 });
 
 const page = usePage();
-
-function getGradeLabel(key) {
-    const gl = page.props.grade_levels?.find(item => item.key === key);
-    return gl ? gl.name : key;
-}
-
-const subjectIcons = {
-    calculator: 'calculator',
-    atom:       'atom',
-    flask:      'flask',
-    dna:        'dna',
-    book:       'courses',
-    language:   'globe',
-    landmark:   'landmark',
-    globe:      'globe',
-};
 
 // Helper to remove any emojis from settings texts
 function stripEmojis(text) {
@@ -110,7 +103,7 @@ const parsedFaqs = computed(() => {
         console.warn('Failed to parse home_faqs settings JSON:', e);
     }
     return [
-        { q: 'ما هي المراحل الدراسية التي تستهدفها منصة التفوق؟', a: 'تستهدف المنصة بشكل رئيسي طلاب المرحلة الثانوية (الصف العاشر، الحادي عشر، والثاني عشر / التوجيهي) في دولة قطر.' },
+        { q: 'ما هي المراحل الدراسية التي تستهدفها منصة التفوق؟', a: 'تغطي المنصة منهج دولة قطر كاملاً من الصف الأول الابتدائي حتى الثاني عشر، وتشمل مسارات المرحلة الثانوية الثلاثة: العلمي، والآداب والإنسانيات، والتكنولوجي.' },
         { q: 'هل المناهج المشروحة مطابقة لخطط وزارة التربية والتعليم القطرية؟', a: 'نعم، جميع الشروحات والملازم والشيتات يتم إعدادها وتحديثها بانتظام لتطابق خطط ومعايير وزارة التربية والتعليم والتعليم العالي في قطر بنسبة 100%.' },
         { q: 'كيف يمكنني مشاهدة الدروس من خلال الجوال أو الآيباد؟', a: 'يمكنك الدراسة عبر الموقع مباشرة من أي متصفح، أو تنزيل تطبيق المنصة المخصص للأجهزة الذكية (آيفون، آيباد، أندرويد، وهواوي) لضمان أفضل سرعة تشغيل للفيديوهات.' },
         { q: 'ما هي خطوات الاشتراك مع معلم؟', a: 'قم بتسجيل حساب مجاني كطالب، ثم اختر صفك فالمادة، شاهد الفيديو التعريفي للمعلمين، واضغط اشتراك مع من يناسبك، حيث يمكنك الدفع بأمان وسهولة عبر بطاقتك الائتمانية أو بطاقة الخصم (Stripe).' },
@@ -229,6 +222,11 @@ const gradeGroups = computed(() => {
                     </h2>
                     <p class="text-surface-500 dark:text-surface-400">
                         الصف يفتح لك المواد، والمادة تفتح لك المعلمين
+                    </p>
+
+                    <p v-if="termNotice" class="mt-3 inline-flex items-center gap-1.5 badge-accent text-xs">
+                        <Icon name="calendar" class="w-3.5 h-3.5" />
+                        {{ termNotice }}
                     </p>
                 </div>
 

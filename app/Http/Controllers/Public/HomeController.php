@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Public;
 
+use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\User\Models\User;
@@ -83,7 +84,16 @@ class HomeController extends Controller
                 ->values();
         });
 
+        $term = AcademicTerm::currentOrNext();
+
         return Inertia::render('Public/Home', [
+            'term' => $term ? [
+                'name'        => $term->fullName(),
+                'starts_on'   => $term->starts_on?->toDateString(),
+                'ends_on'     => $term->ends_on?->toDateString(),
+                'is_current'  => $term->isCurrent(),
+                'provisional' => $term->is_provisional,
+            ] : null,
             'grades'           => $grades,
             'featuredTeachers' => $featuredTeachers,
         ]);

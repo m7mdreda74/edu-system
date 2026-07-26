@@ -15,16 +15,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * A school grade — the first step of the browse flow: grade → subject → teacher.
  *
- * Secondary grades carry a track: grade 10 is common, and grades 11–12 split
- * into the science and literary tracks that Qatari general secondary schools
- * run. Grades below that have no track.
+ * Secondary grades carry a track: grade 10 is common — students take every
+ * subject — and grades 11–12 split into the three tracks Qatari general
+ * secondary runs: science, arts & humanities, and technology. Grades below
+ * that have no track.
  */
 class GradeLevel extends Model
 {
     use HasFactory;
 
-    public const TRACK_SCIENCE  = 'science';
-    public const TRACK_LITERARY = 'literary';
+    public const TRACK_SCIENCE    = 'science';
+    public const TRACK_ARTS       = 'arts';
+    public const TRACK_TECHNOLOGY = 'technology';
 
     public const STAGE_PRIMARY     = 'primary';
     public const STAGE_PREPARATORY = 'preparatory';
@@ -87,9 +89,10 @@ class GradeLevel extends Model
     public function trackLabel(): ?string
     {
         return match ($this->track) {
-            self::TRACK_SCIENCE  => 'المسار العلمي',
-            self::TRACK_LITERARY => 'المسار الأدبي',
-            default              => null,
+            self::TRACK_SCIENCE    => 'المسار العلمي',
+            self::TRACK_ARTS       => 'مسار الآداب والإنسانيات',
+            self::TRACK_TECHNOLOGY => 'المسار التكنولوجي',
+            default                => null,
         };
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
@@ -33,8 +34,12 @@ class TeachingSeeder extends Seeder
     private const THU = 4;
     private const SAT = 6;
 
+    private ?int $termId = null;
+
     public function run(): void
     {
+        $this->termId = AcademicTerm::currentOrNext()?->id;
+
         foreach ($this->plan() as $teacherEmail => $assignments) {
             $teacher = User::where('email', $teacherEmail)->first();
 
@@ -118,7 +123,7 @@ class TeachingSeeder extends Seeder
             'noura@altafawwuq.com' => [
                 [
                     'subject' => 'اللغة العربية',
-                    'grades'  => ['grade_12_science', 'grade_12_literary', 'grade_11_literary'],
+                    'grades'  => ['grade_12_science', 'grade_12_arts', 'grade_11_arts'],
                     'private' => 90_000,
                     'groups'  => [
                         ['name' => 'مجموعة الأحد',   'price' => 45_000, 'capacity' => 24, 'days' => [[self::SUN, '18:00', '19:30']]],
@@ -138,7 +143,7 @@ class TeachingSeeder extends Seeder
             'yousef@altafawwuq.com' => [
                 [
                     'subject' => 'اللغة الإنجليزية',
-                    'grades'  => ['grade_12_science', 'grade_12_literary', 'grade_10'],
+                    'grades'  => ['grade_12_science', 'grade_12_arts', 'grade_10'],
                     'private' => 100_000,
                     'groups'  => [
                         ['name' => 'مجموعة الثلاثاء والخميس', 'price' => 55_000, 'capacity' => 20, 'days' => [[self::TUE, '17:30', '19:00'], [self::THU, '17:30', '19:00']]],
@@ -154,10 +159,29 @@ class TeachingSeeder extends Seeder
                 ],
             ],
 
+            'jassim@altafawwuq.com' => [
+                [
+                    'subject' => 'علوم الحاسب',
+                    'grades'  => ['grade_12_technology', 'grade_11_technology'],
+                    'private' => 110_000,
+                    'groups'  => [
+                        ['name' => 'مجموعة الأحد والثلاثاء', 'price' => 58_000, 'capacity' => 18, 'days' => [[self::SUN, '17:00', '18:30'], [self::TUE, '17:00', '18:30']]],
+                    ],
+                ],
+                [
+                    'subject' => 'تكنولوجيا المعلومات',
+                    'grades'  => ['grade_11_technology', 'grade_10'],
+                    'private' => 90_000,
+                    'groups'  => [
+                        ['name' => 'مجموعة الخميس', 'price' => 48_000, 'capacity' => 20, 'days' => [[self::THU, '18:00', '19:30']]],
+                    ],
+                ],
+            ],
+
             'maryam@altafawwuq.com' => [
                 [
                     'subject' => 'التاريخ',
-                    'grades'  => ['grade_12_literary', 'grade_11_literary'],
+                    'grades'  => ['grade_12_arts', 'grade_11_arts'],
                     'private' => 85_000,
                     'groups'  => [
                         ['name' => 'مجموعة السبت', 'price' => 45_000, 'capacity' => 20, 'days' => [[self::SAT, '16:00', '17:30']]],
@@ -165,7 +189,7 @@ class TeachingSeeder extends Seeder
                 ],
                 [
                     'subject' => 'الجغرافيا',
-                    'grades'  => ['grade_12_literary', 'grade_11_literary'],
+                    'grades'  => ['grade_12_arts', 'grade_11_arts'],
                     'private' => 85_000,
                     'groups'  => [
                         ['name' => 'مجموعة الإثنين', 'price' => 45_000, 'capacity' => 20, 'days' => [[self::MON, '19:30', '21:00']]],
@@ -270,6 +294,7 @@ class TeachingSeeder extends Seeder
 
         $group = TeachingGroup::create([
             'teaching_assignment_id' => $assignmentId,
+            'academic_term_id'       => $this->termId,
             'name'                   => $name,
             'capacity'               => $spec['capacity'],
             'monthly_price'          => $spec['price'],
