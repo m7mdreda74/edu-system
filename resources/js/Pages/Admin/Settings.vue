@@ -623,7 +623,7 @@ function saveSettings() {
                                         </div>
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">العنوان أو المسار (URL / Path)</label>
-                                            <input v-model="link.href" type="text" dir="ltr" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="/courses, https://..." @input="isDirty = true" />
+                                            <input v-model="link.href" type="text" dir="ltr" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="/grades/grade_12, https://..." @input="isDirty = true" />
                                         </div>
                                     </div>
                                 </div>
@@ -653,7 +653,7 @@ function saveSettings() {
                                         </div>
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">العنوان أو المسار (URL / Path)</label>
-                                            <input v-model="link.href" type="text" dir="ltr" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="/courses, https://..." @input="isDirty = true" />
+                                            <input v-model="link.href" type="text" dir="ltr" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="/grades/grade_12, https://..." @input="isDirty = true" />
                                         </div>
                                     </div>
                                 </div>
