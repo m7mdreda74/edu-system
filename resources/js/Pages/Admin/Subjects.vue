@@ -1,224 +1,229 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
-    subjects: { type: Array, required: true },
+    subjects:    { type: Array, default: () => [] },
+    gradeLevels: { type: Array, default: () => [] },
 });
 
-const isModalOpen = ref(false);
-const editingSubject = ref(null);
+const ICONS = ['book', 'language', 'globe', 'calculator', 'atom', 'flask', 'dna', 'landmark', 'student', 'users', 'chart', 'settings', 'video'];
+
+const showForm = ref(false);
+const editingId = ref(null);
 
 const form = useForm({
     name: '',
     name_en: '',
-    grade_level: 'all',
     icon: 'book',
     is_active: true,
+    grade_level_ids: [],
 });
 
-import { usePage } from '@inertiajs/vue3';
+// Grades grouped by stage so ticking "the whole preparatory stage" is one move.
+const stageGroups = computed(() => {
+    const labels = { primary: 'المرحلة الابتدائية', preparatory: 'المرحلة الإعدادية', secondary: 'المرحلة الثانوية' };
+    const order = ['primary', 'preparatory', 'secondary'];
+    const map = new Map();
 
-const page = usePage();
-
-function getGradeLabel(key) {
-    const gl = page.props.grade_levels?.find(item => item.key === key);
-    return gl ? gl.name : key;
-}
-
-const iconOptions = [
-    { value: 'calculator', label: 'رياضيات' },
-    { value: 'atom', label: 'فيزياء' },
-    { value: 'flask', label: 'كيمياء' },
-    { value: 'dna', label: 'أحياء' },
-    { value: 'landmark', label: 'تاريخ/اجتماعيات' },
-    { value: 'globe', label: 'جغرافيا' },
-    { value: 'book', label: 'كتاب عام' },
-    { value: 'language', label: 'لغات' },
-];
-
-function openAddModal() {
-    editingSubject.value = null;
-    form.reset();
-    form.is_active = true;
-    isModalOpen.value = true;
-}
-
-function openEditModal(subject) {
-    editingSubject.value = subject;
-    form.name = subject.name;
-    form.name_en = subject.name_en || '';
-    form.grade_level = subject.grade_level;
-    form.icon = subject.icon || 'book';
-    form.is_active = subject.is_active ? true : false;
-    isModalOpen.value = true;
-}
-
-function submitForm() {
-    if (editingSubject.value) {
-        form.put(route('admin.subjects.update', { id: editingSubject.value.id }), {
-            onSuccess: () => {
-                isModalOpen.value = false;
-                form.reset();
-            }
-        });
-    } else {
-        form.post(route('admin.subjects.store'), {
-            onSuccess: () => {
-                isModalOpen.value = false;
-                form.reset();
-            }
-        });
+    for (const grade of props.gradeLevels) {
+        if (!map.has(grade.stage)) {
+            map.set(grade.stage, { stage: grade.stage, label: labels[grade.stage] ?? grade.stage, grades: [] });
+        }
+        map.get(grade.stage).grades.push(grade);
     }
+
+    return [...map.values()].sort((a, b) => order.indexOf(a.stage) - order.indexOf(b.stage));
+});
+
+function isStageFullySelected(group) {
+    return group.grades.every((g) => form.grade_level_ids.includes(g.id));
 }
 
-function deleteSubject(id) {
-    if (confirm('هل أنت متأكد من حذف هذه المادة الدراسية؟')) {
+function toggleStage(group) {
+    const ids = group.grades.map((g) => g.id);
+
+    form.grade_level_ids = isStageFullySelected(group)
+        ? form.grade_level_ids.filter((id) => !ids.includes(id))
+        : [...new Set([...form.grade_level_ids, ...ids])];
+}
+
+function startCreate() {
+    editingId.value = null;
+    form.reset();
+    form.clearErrors();
+    showForm.value = true;
+}
+
+function startEdit(subject) {
+    editingId.value = subject.id;
+    form.clearErrors();
+    form.name = subject.name;
+    form.name_en = subject.name_en ?? '';
+    form.icon = subject.icon ?? 'book';
+    form.is_active = subject.is_active;
+    form.grade_level_ids = (subject.grade_levels ?? []).map((g) => g.id);
+    showForm.value = true;
+}
+
+function submit() {
+    const options = {
+        onSuccess: () => {
+            showForm.value = false;
+            form.reset();
+        },
+    };
+
+    editingId.value
+        ? form.put(route('admin.subjects.update', { id: editingId.value }), options)
+        : form.post(route('admin.subjects.store'), options);
+}
+
+function destroy(id) {
+    if (confirm('حذف هذه المادة؟')) {
         router.delete(route('admin.subjects.destroy', { id }));
     }
 }
 </script>
 
 <template>
+    <Head title="المواد الدراسية" />
+
     <DashboardLayout>
-        <Head title="إدارة المواد الدراسية" />
-
-        <div class="container-app px-4 py-10">
-            <!-- Header -->
-            <div class="flex items-center justify-between gap-4 mb-8">
+        <div class="space-y-6">
+            <header class="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                    <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2">
-                        <Icon name="courses" class="w-8 h-8 text-primary-500" />
-                        <span>المواد الدراسية</span>
-                    </h1>
-                    <p class="text-surface-500 mt-1">تحديد وتنظيم المواد الدراسية والصفوف المتاحة</p>
+                    <h1 class="text-2xl font-black text-surface-900 dark:text-white">المواد الدراسية</h1>
+                    <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
+                        منهج دولة قطر — كل مادة مربوطة بالصفوف التي تُدرّس فيها
+                    </p>
                 </div>
-                <button @click="openAddModal" class="btn-primary flex items-center gap-2">
+
+                <button type="button" class="btn-primary btn-sm" @click="startCreate">
                     <Icon name="plus" class="w-4 h-4" />
-                    <span>إضافة مادة جديدة</span>
+                    <span class="ms-1">إضافة مادة</span>
                 </button>
-            </div>
+            </header>
 
-            <!-- Subject Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div v-for="subj in subjects" :key="subj.id" 
-                     class="card p-6 flex flex-col justify-between hover:shadow-lg transition-all duration-300"
-                >
+            <!-- Form -->
+            <form v-if="showForm" class="card p-5 space-y-4" @submit.prevent="submit">
+                <h2 class="font-bold text-sm text-surface-900 dark:text-white">
+                    {{ editingId ? 'تعديل المادة' : 'مادة جديدة' }}
+                </h2>
+
+                <div class="grid sm:grid-cols-3 gap-4">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <!-- Icon and Status -->
-                            <div class="w-12 h-12 rounded-2xl bg-primary-500/10 dark:bg-primary-950/20 flex items-center justify-center">
-                                <Icon :name="subj.icon || 'book'" class="w-6 h-6 text-primary-500" />
+                        <label for="name" class="input-label">الاسم بالعربية</label>
+                        <input id="name" v-model="form.name" type="text" class="input" required />
+                        <p v-if="form.errors.name" class="text-xs text-red-500 mt-1">{{ form.errors.name }}</p>
+                    </div>
+
+                    <div>
+                        <label for="name_en" class="input-label">الاسم بالإنجليزية</label>
+                        <input id="name_en" v-model="form.name_en" type="text" dir="ltr" class="input" />
+                    </div>
+
+                    <div>
+                        <label for="icon" class="input-label">الأيقونة</label>
+                        <select id="icon" v-model="form.icon" class="input">
+                            <option v-for="icon in ICONS" :key="icon" :value="icon">{{ icon }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Curriculum picker -->
+                <div>
+                    <span class="input-label">الصفوف التي تُدرّس فيها</span>
+                    <p v-if="form.errors.grade_level_ids" class="text-xs text-red-500 mb-2">{{ form.errors.grade_level_ids }}</p>
+
+                    <div class="space-y-3">
+                        <div v-for="group in stageGroups" :key="group.stage" class="rounded-xl border border-surface-200 dark:border-surface-700 p-3">
+                            <label class="flex items-center gap-2 mb-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    class="rounded"
+                                    :checked="isStageFullySelected(group)"
+                                    @change="toggleStage(group)"
+                                />
+                                <span class="text-xs font-bold text-surface-800 dark:text-surface-100">{{ group.label }}</span>
+                            </label>
+
+                            <div class="flex flex-wrap gap-2">
+                                <label
+                                    v-for="grade in group.grades"
+                                    :key="grade.id"
+                                    class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] cursor-pointer transition-colors"
+                                    :class="form.grade_level_ids.includes(grade.id)
+                                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300'
+                                        : 'border-surface-200 dark:border-surface-700 text-surface-500'"
+                                >
+                                    <input v-model="form.grade_level_ids" type="checkbox" :value="grade.id" class="hidden" />
+                                    <span>{{ grade.name }}</span>
+                                </label>
                             </div>
-                            <span :class="subj.is_active ? 'badge-green' : 'badge-gray'">
-                                {{ subj.is_active ? 'نشط' : 'غير نشط' }}
-                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <label class="flex items-center gap-2 text-sm text-surface-600 dark:text-surface-300">
+                    <input v-model="form.is_active" type="checkbox" class="rounded" />
+                    <span>مفعّلة</span>
+                </label>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="btn-ghost btn-sm" @click="showForm = false">إلغاء</button>
+                    <button type="submit" class="btn-primary btn-sm" :disabled="form.processing">
+                        {{ form.processing ? 'جارٍ الحفظ...' : 'حفظ' }}
+                    </button>
+                </div>
+            </form>
+
+            <!-- List -->
+            <div v-if="subjects.length" class="card divide-y divide-surface-100 dark:divide-surface-800">
+                <div v-for="subject in subjects" :key="subject.id" class="p-4 flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950 flex items-center justify-center text-primary-600 shrink-0">
+                        <Icon :name="subject.icon || 'book'" class="w-5 h-5" />
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="font-bold text-sm text-surface-900 dark:text-white">{{ subject.name }}</h3>
+                            <span v-if="!subject.is_active" class="badge-gray text-[10px]">معطّلة</span>
+                            <span class="badge-primary text-[10px]">{{ subject.teaching_assignments_count }} معلم</span>
                         </div>
 
-                        <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-1">
-                            {{ subj.name }}
-                        </h3>
-                        <p class="text-sm text-surface-400 mb-4">{{ subj.name_en || 'لا يوجد اسم إنجليزي' }}</p>
+                        <p v-if="subject.name_en" class="text-[11px] text-surface-400 font-latin">{{ subject.name_en }}</p>
 
-                        <div class="flex flex-wrap gap-2 text-xs text-surface-500 mb-6">
-                            <span class="bg-surface-100 dark:bg-surface-800 px-2.5 py-1 rounded-lg">
-                                {{ getGradeLabel(subj.grade_level) }}
-                            </span>
-                            <span class="bg-surface-100 dark:bg-surface-800 px-2.5 py-1 rounded-lg">
-                                {{ subj.teaching_assignments_count }} معلم
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            <span
+                                v-for="grade in subject.grade_levels"
+                                :key="grade.id"
+                                class="badge-gray text-[10px]"
+                            >{{ grade.name }}</span>
+                            <span v-if="!subject.grade_levels?.length" class="text-[11px] text-red-500">
+                                غير مربوطة بأي صف
                             </span>
                         </div>
                     </div>
 
-                    <div class="flex gap-2 border-t border-surface-100 dark:border-surface-800 pt-4">
-                        <button @click="openEditModal(subj)" class="btn-outline btn-sm flex-1 flex items-center justify-center gap-1">
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" class="btn-ghost btn-sm" @click="startEdit(subject)">
                             <Icon name="edit" class="w-4 h-4" />
-                            <span>تعديل</span>
                         </button>
-                        <button @click="deleteSubject(subj.id)" class="btn-ghost btn-sm text-red-500 hover:bg-red-500/10 flex-1 flex items-center justify-center gap-1">
-                            <Icon name="close" class="w-4 h-4" />
-                            <span>حذف</span>
+                        <button type="button" class="btn-ghost btn-sm text-red-500" @click="destroy(subject.id)">
+                            <Icon name="trash" class="w-4 h-4" />
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Empty State -->
-            <div v-if="subjects.length === 0" class="card p-16 text-center text-surface-400">
-                <Icon name="courses" class="w-16 h-16 mx-auto text-surface-300 dark:text-surface-700 mb-4" />
-                <h3 class="text-lg font-bold text-surface-800 dark:text-surface-200 mb-2">لا توجد مواد دراسية</h3>
-                <p class="text-sm mb-6">ابدأ بإضافة أول مادة دراسية ليتم إسناد المعلمين إليها</p>
-                <button @click="openAddModal" class="btn-primary">إضافة مادة</button>
+            <div v-else class="card p-12 text-center">
+                <Icon name="globe" class="w-10 h-10 text-surface-300 mx-auto mb-3" />
+                <h3 class="font-bold text-surface-700 dark:text-surface-200 mb-1">لا توجد مواد بعد</h3>
+                <p class="text-sm text-surface-400">ابدأ بإضافة أول مادة دراسية ليتم إسناد المعلمين إليها.</p>
             </div>
-
-            <!-- Modal for Add/Edit -->
-            <Transition
-                enter-active-class="transition duration-200 ease-out"
-                enter-from-class="opacity-0 scale-95"
-                enter-to-class="opacity-100 scale-100"
-                leave-active-class="transition duration-150 ease-in"
-                leave-from-class="opacity-100 scale-100"
-                leave-to-class="opacity-0 scale-95"
-            >
-                <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
-                    <div class="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl w-full max-w-lg p-6 overflow-hidden shadow-2xl relative" dir="rtl">
-                        <div class="flex items-center justify-between mb-6">
-                            <h3 class="text-xl font-black text-surface-900 dark:text-white">
-                                {{ editingSubject ? 'تعديل المادة الدراسية' : 'إضافة مادة دراسية جديدة' }}
-                            </h3>
-                            <button @click="isModalOpen = false" class="btn-ghost p-1 rounded-full">
-                                <Icon name="close" class="w-5 h-5 text-surface-500" />
-                            </button>
-                        </div>
-
-                        <form @submit.prevent="submitForm" class="space-y-4">
-                            <div>
-                                <label class="label mb-1">اسم المادة (عربي)</label>
-                                <input v-model="form.name" type="text" required class="input" placeholder="مثال: فيزياء" />
-                            </div>
-
-                            <div>
-                                <label class="label mb-1">اسم المادة (إنجليزي)</label>
-                                <input v-model="form.name_en" type="text" class="input" placeholder="مثال: Physics" />
-                            </div>
-
-                            <div>
-                                <label class="label mb-1">الصف الدراسي</label>
-                                <select v-model="form.grade_level" required class="input">
-                                    <option v-for="gl in $page.props.grade_levels" :key="gl.key" :value="gl.key">
-                                        {{ gl.name }}
-                                    </option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="label mb-1">الأيقونة المناسبة</label>
-                                <select v-model="form.icon" required class="input">
-                                    <option v-for="opt in iconOptions" :key="opt.value" :value="opt.value">
-                                        {{ opt.label }}
-                                    </option>
-                                </select>
-                            </div>
-
-                            <div v-if="editingSubject" class="flex items-center gap-2 pt-2">
-                                <input v-model="form.is_active" type="checkbox" id="subject-active" class="rounded border-surface-300 text-primary-600 focus:ring-primary-500" />
-                                <label for="subject-active" class="text-sm font-semibold text-surface-700 dark:text-surface-300">مادة نشطة ومتاحة للاختيار</label>
-                            </div>
-
-                            <div class="flex gap-3 pt-4">
-                                <button type="submit" :disabled="form.processing" class="btn-primary flex-1">
-                                    {{ form.processing ? 'جاري الحفظ...' : 'حفظ' }}
-                                </button>
-                                <button type="button" @click="isModalOpen = false" class="btn-ghost flex-1">
-                                    إلغاء
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </Transition>
         </div>
     </DashboardLayout>
 </template>

@@ -20,7 +20,7 @@ beforeEach(function () {
         Role::findOrCreate($role, 'web');
     }
 
-    $grade   = GradeLevel::where('key', 'grade_12')->firstOrFail();
+    $grade   = GradeLevel::where('key', 'grade_12_science')->firstOrFail();
     $subject = Subject::factory()->create();
 
     $teacher = User::factory()->create(['is_active' => true]);

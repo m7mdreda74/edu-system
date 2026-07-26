@@ -25,7 +25,6 @@ class SubjectFactory extends Factory
         return [
             'name'        => $name,
             'name_en'     => $nameEn,
-            'grade_level' => 'all',
             'icon'        => $icon,
             'is_active'   => true,
         ];

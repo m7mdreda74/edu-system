@@ -66,7 +66,7 @@ class GradeLevelController extends Controller
 
         return Inertia::render('Admin/GradeLevelShow', [
             'gradeLevel'  => $gl,
-            'subjects'    => $gl->subjects()->get(['id', 'name', 'name_en', 'icon', 'is_active']),
+            'subjects'    => $gl->subjects()->get(['subjects.id', 'name', 'name_en', 'icon', 'is_active']),
             'assignments' => $assignments->map(fn (TeachingAssignment $assignment) => [
                 'id'            => $assignment->id,
                 'teacher'       => $assignment->teacher?->only(['id', 'name', 'email', 'avatar']),

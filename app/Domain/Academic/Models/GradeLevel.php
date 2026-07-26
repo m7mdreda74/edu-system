@@ -6,16 +6,29 @@ namespace App\Domain\Academic\Models;
 
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\User\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A school grade — the first step of the browse flow: grade → subject → teacher.
+ *
+ * Secondary grades carry a track: grade 10 is common, and grades 11–12 split
+ * into the science and literary tracks that Qatari general secondary schools
+ * run. Grades below that have no track.
  */
 class GradeLevel extends Model
 {
     use HasFactory;
+
+    public const TRACK_SCIENCE  = 'science';
+    public const TRACK_LITERARY = 'literary';
+
+    public const STAGE_PRIMARY     = 'primary';
+    public const STAGE_PREPARATORY = 'preparatory';
+    public const STAGE_SECONDARY   = 'secondary';
 
     protected $table = 'grade_levels';
 
@@ -29,6 +42,7 @@ class GradeLevel extends Model
         'name',
         'name_en',
         'stage',
+        'track',
         'is_active',
     ];
 
@@ -41,10 +55,10 @@ class GradeLevel extends Model
 
     // ─── Relationships ────────────────────────────────────────────
 
-    /** Subjects are matched by the grade key ("grade_12"), not the row id. */
-    public function subjects(): HasMany
+    /** The curriculum: which subjects are taught at this grade. */
+    public function subjects(): BelongsToMany
     {
-        return $this->hasMany(Subject::class, 'grade_level', 'key');
+        return $this->belongsToMany(Subject::class, 'grade_level_subject')->withTimestamps();
     }
 
     public function teachingAssignments(): HasMany
@@ -61,12 +75,31 @@ class GradeLevel extends Model
     // ─── Domain Helpers ────────────────────────────────────────────
 
     /** Subjects that actually have an active teacher assigned to this grade. */
-    public function subjectsWithTeachers()
+    public function subjectsWithTeachers(): Collection
     {
         return Subject::where('is_active', true)
             ->whereIn('id', TeachingAssignment::where('grade_level_id', $this->id)
                 ->where('is_active', true)
                 ->select('subject_id'))
             ->get();
+    }
+
+    public function trackLabel(): ?string
+    {
+        return match ($this->track) {
+            self::TRACK_SCIENCE  => 'المسار العلمي',
+            self::TRACK_LITERARY => 'المسار الأدبي',
+            default              => null,
+        };
+    }
+
+    public function stageLabel(): string
+    {
+        return match ($this->stage) {
+            self::STAGE_PRIMARY     => 'المرحلة الابتدائية',
+            self::STAGE_PREPARATORY => 'المرحلة الإعدادية',
+            self::STAGE_SECONDARY   => 'المرحلة الثانوية',
+            default                 => 'عام',
+        };
     }
 }

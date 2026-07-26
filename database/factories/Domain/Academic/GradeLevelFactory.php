@@ -20,6 +20,7 @@ class GradeLevelFactory extends Factory
             'name'      => "الصف {$number}",
             'name_en'   => "Grade {$number}",
             'stage'     => 'secondary',
+            'track'     => null,
             'is_active' => true,
         ];
     }

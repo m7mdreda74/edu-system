@@ -129,6 +129,25 @@ const filteredGrades = computed(() => {
     return props.grades.filter(g => g.stage === selectedStageTab.value);
 });
 
+// Grouped by stage so the secondary tracks sit under one heading instead of
+// looking like extra, unrelated grades.
+const STAGE_ORDER = ['primary', 'preparatory', 'secondary'];
+
+const gradeGroups = computed(() => {
+    const byStage = new Map();
+
+    for (const grade of filteredGrades.value) {
+        if (!byStage.has(grade.stage)) {
+            byStage.set(grade.stage, { stage: grade.stage, label: grade.stage_label, grades: [] });
+        }
+        byStage.get(grade.stage).grades.push(grade);
+    }
+
+    return [...byStage.values()].sort(
+        (a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage),
+    );
+});
+
 </script>
 
 
@@ -233,23 +252,39 @@ const filteredGrades = computed(() => {
                     </button>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-fade-in-up animation-delay-200">
-                    <Link
-                        v-for="grade in filteredGrades"
-                        :key="grade.key"
-                        :href="route('grades.show', { key: grade.key })"
-                        class="hover-scale-premium card p-6 text-center group flex flex-col items-center justify-center transition-all duration-300"
-                    >
-                        <div class="p-4 rounded-full bg-accent-50/70 dark:bg-accent-950/40 text-primary-600 dark:text-primary-400 mb-4 group-hover:scale-110 group-hover:bg-accent-100 dark:group-hover:bg-accent-900/50 transition-all duration-300 border border-accent-500/10">
-                            <Icon name="student" class="w-8 h-8 group-hover:animate-float" />
-                        </div>
-                        <div class="font-bold text-surface-800 dark:text-surface-100 text-sm group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                            {{ grade.name }}
-                        </div>
-                        <div class="badge-gray mt-2 text-xs">
-                            {{ grade.subjects_count }} مادة
-                        </div>
-                    </Link>
+                <!-- One block per stage, so the secondary tracks read clearly -->
+                <div v-for="group in gradeGroups" :key="group.stage" class="mb-10 last:mb-0 animate-fade-in-up animation-delay-200">
+                    <h3 v-if="gradeGroups.length > 1" class="text-sm font-black text-surface-700 dark:text-surface-300 mb-4 text-center">
+                        {{ group.label }}
+                    </h3>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        <Link
+                            v-for="grade in group.grades"
+                            :key="grade.key"
+                            :href="route('grades.show', { key: grade.key })"
+                            class="hover-scale-premium card p-6 text-center group flex flex-col items-center justify-center transition-all duration-300"
+                        >
+                            <div class="p-4 rounded-full bg-accent-50/70 dark:bg-accent-950/40 text-primary-600 dark:text-primary-400 mb-4 group-hover:scale-110 group-hover:bg-accent-100 dark:group-hover:bg-accent-900/50 transition-all duration-300 border border-accent-500/10">
+                                <Icon name="student" class="w-8 h-8 group-hover:animate-float" />
+                            </div>
+
+                            <div class="font-bold text-surface-800 dark:text-surface-100 text-sm group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                {{ grade.name }}
+                            </div>
+
+                            <span v-if="grade.track_label" class="badge-primary mt-2 text-[10px]">
+                                {{ grade.track_label }}
+                            </span>
+
+                            <div class="flex items-center gap-1.5 mt-2 flex-wrap justify-center">
+                                <span class="badge-gray text-[10px]">{{ grade.subjects_count }} مادة</span>
+                                <span v-if="grade.teachers_count" class="badge-green text-[10px]">
+                                    {{ grade.teachers_count }} معلم
+                                </span>
+                            </div>
+                        </Link>
+                    </div>
                 </div>
 
                 <p v-if="!filteredGrades.length" class="text-center text-sm text-surface-400 py-8">

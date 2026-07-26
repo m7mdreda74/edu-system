@@ -91,7 +91,7 @@ class DatabaseSeeder extends Seeder
         Schema::disableForeignKeyConstraints();
 
         $tables = [
-            'users', 'grade_levels', 'subjects',
+            'users',
             'teaching_assignments', 'teaching_groups', 'teaching_group_schedules', 'teaching_group_lessons',
             'private_session_slots', 'session_bookings', 'subscriptions',
             'group_materials', 'lesson_progress', 'lesson_questions',
@@ -120,41 +120,23 @@ class DatabaseSeeder extends Seeder
         }
     }
 
-    /** @return array{0: array<string, GradeLevel>, 1: array<string, Subject>} */
+    /**
+     * Grades, subjects and the curriculum linking them are seeded by the
+     * migration that lays in the Qatari plan — this only reads them, so
+     * re-seeding demo data never wipes the curriculum.
+     *
+     * @return array{0: array<string, GradeLevel>, 1: array<string, Subject>}
+     */
     private function seedAcademics(): array
     {
-        $gradeDefinitions = [
-            ['key' => 'grade_10', 'name' => 'الصف العاشر',      'name_en' => 'Grade 10', 'stage' => 'secondary'],
-            ['key' => 'grade_11', 'name' => 'الصف الحادي عشر',  'name_en' => 'Grade 11', 'stage' => 'secondary'],
-            ['key' => 'grade_12', 'name' => 'الصف الثاني عشر',  'name_en' => 'Grade 12', 'stage' => 'secondary'],
-        ];
+        $grades   = GradeLevel::where('is_active', true)->get()->keyBy('key');
+        $subjects = Subject::where('is_active', true)->get()->keyBy('name');
 
-        $grades = [];
-
-        foreach ($gradeDefinitions as $definition) {
-            $grades[$definition['key']] = GradeLevel::create([...$definition, 'is_active' => true]);
+        if ($grades->isEmpty() || $subjects->isEmpty()) {
+            throw new RuntimeException('المنهج غير موجود — شغّل `php artisan migrate` أولاً.');
         }
 
-        $subjectDefinitions = [
-            ['name' => 'الرياضيات',      'name_en' => 'Mathematics', 'icon' => 'calculator'],
-            ['name' => 'الفيزياء',       'name_en' => 'Physics',     'icon' => 'atom'],
-            ['name' => 'الكيمياء',       'name_en' => 'Chemistry',   'icon' => 'flask'],
-            ['name' => 'الأحياء',        'name_en' => 'Biology',     'icon' => 'dna'],
-            ['name' => 'اللغة العربية',  'name_en' => 'Arabic',      'icon' => 'book'],
-            ['name' => 'اللغة الإنجليزية', 'name_en' => 'English',   'icon' => 'language'],
-        ];
-
-        $subjects = [];
-
-        foreach ($subjectDefinitions as $definition) {
-            $subjects[$definition['name_en']] = Subject::create([
-                ...$definition,
-                'grade_level' => 'all',
-                'is_active'   => true,
-            ]);
-        }
-
-        return [$grades, $subjects];
+        return [$grades->all(), $subjects->all()];
     }
 
     /** @return array{0: array<string, User>, 1: array<int, User>, 2: User} */
@@ -208,9 +190,9 @@ class DatabaseSeeder extends Seeder
         }
 
         $studentDefinitions = [
-            ['name' => 'محمد رضا',   'email' => 'student@altafawwuq.com', 'phone' => '+97455000201', 'grade_level' => 'grade_12'],
-            ['name' => 'نورة العلي', 'email' => 'noura@altafawwuq.com',   'phone' => '+97455000202', 'grade_level' => 'grade_11'],
-            ['name' => 'عبدالله سعد', 'email' => 'abdullah@altafawwuq.com', 'phone' => '+97455000203', 'grade_level' => 'grade_12'],
+            ['name' => 'محمد رضا',   'email' => 'student@altafawwuq.com', 'phone' => '+97455000201', 'grade_level' => 'grade_12_science'],
+            ['name' => 'نورة العلي', 'email' => 'noura@altafawwuq.com',   'phone' => '+97455000202', 'grade_level' => 'grade_11_science'],
+            ['name' => 'عبدالله سعد', 'email' => 'abdullah@altafawwuq.com', 'phone' => '+97455000203', 'grade_level' => 'grade_12_science'],
             ['name' => 'مريم الباكر', 'email' => 'maryam@altafawwuq.com',  'phone' => '+97455000204', 'grade_level' => 'grade_10'],
         ];
 
@@ -235,27 +217,27 @@ class DatabaseSeeder extends Seeder
         // teacher email => [[subject key, grade key, private monthly, group specs], ...]
         $plan = [
             'ahmed@altafawwuq.com' => [
-                ['Mathematics', 'grade_12', 90000, [
+                ['الرياضيات', 'grade_12_science', 90000, [
                     ['name' => 'مجموعة الأحد والثلاثاء',  'price' => 45000, 'capacity' => 20, 'days' => [[0, '16:00', '17:30'], [2, '16:00', '17:30']]],
                     ['name' => 'مجموعة السبت المكثفة',    'price' => 55000, 'capacity' => 15, 'days' => [[6, '10:00', '12:00']]],
                 ]],
-                ['Mathematics', 'grade_11', 80000, [
+                ['الرياضيات', 'grade_11_literary', 80000, [
                     ['name' => 'مجموعة الاثنين',          'price' => 40000, 'capacity' => 25, 'days' => [[1, '18:00', '19:30']]],
                 ]],
             ],
             'sara@altafawwuq.com' => [
-                ['Physics', 'grade_12', 95000, [
+                ['الفيزياء', 'grade_12_science', 95000, [
                     ['name' => 'مجموعة الأربعاء',         'price' => 50000, 'capacity' => 18, 'days' => [[3, '17:00', '18:30']]],
                 ]],
-                ['Chemistry', 'grade_11', 85000, [
+                ['الكيمياء', 'grade_11_science', 85000, [
                     ['name' => 'مجموعة الخميس',           'price' => 42000, 'capacity' => 20, 'days' => [[4, '16:00', '17:30']]],
                 ]],
             ],
             'khaled@altafawwuq.com' => [
-                ['Biology', 'grade_12', 75000, [
+                ['الأحياء', 'grade_12_science', 75000, [
                     ['name' => 'مجموعة الثلاثاء',         'price' => 38000, 'capacity' => 22, 'days' => [[2, '19:00', '20:30']]],
                 ]],
-                ['Arabic', 'grade_10', 60000, [
+                ['اللغة العربية', 'grade_10', 60000, [
                     ['name' => 'مجموعة السبت',            'price' => 30000, 'capacity' => 30, 'days' => [[6, '14:00', '15:30']]],
                 ]],
             ],

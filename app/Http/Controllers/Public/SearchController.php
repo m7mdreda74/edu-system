@@ -46,7 +46,7 @@ class SearchController extends Controller
         $subjects = Subject::where('is_active', true)
             ->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('name_en', 'like', $like))
             ->take(self::LIMIT)
-            ->get(['id', 'name', 'grade_level'])
+            ->get(['id', 'name'])
             ->map(function (Subject $subject) {
                 $assignment = TeachingAssignment::with('gradeLevel:id,key')
                     ->where('subject_id', $subject->id)

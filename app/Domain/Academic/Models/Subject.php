@@ -7,12 +7,15 @@ namespace App\Domain\Academic\Models;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A subject taught at one or more grades. Opening a subject shows the teachers
  * who teach it, which is where a student picks who to study with.
+ *
+ * Arabic and maths run the length of the curriculum, so the grades a subject
+ * belongs to are a many-to-many relationship, not a column.
  */
 class Subject extends Model
 {
@@ -26,7 +29,6 @@ class Subject extends Model
     protected $fillable = [
         'name',
         'name_en',
-        'grade_level',
         'icon',
         'is_active',
     ];
@@ -40,9 +42,10 @@ class Subject extends Model
 
     // ─── Relationships ────────────────────────────────────────────
 
-    public function gradeLevel(): BelongsTo
+    /** The grades this subject is on the curriculum for. */
+    public function gradeLevels(): BelongsToMany
     {
-        return $this->belongsTo(GradeLevel::class, 'grade_level', 'key');
+        return $this->belongsToMany(GradeLevel::class, 'grade_level_subject')->withTimestamps();
     }
 
     public function teachingAssignments(): HasMany

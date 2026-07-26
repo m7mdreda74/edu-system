@@ -27,23 +27,30 @@ class HomeController extends Controller
 {
     public function index(): Response
     {
-        // Only grades a student can actually do something with — a grade with
-        // no assigned teacher is a dead end.
         $grades = Cache::remember('home.grades', 1800, function () {
+            $subjectCounts = GradeLevel::where('is_active', true)
+                ->withCount('subjects')
+                ->pluck('subjects_count', 'id');
+
+            $teacherCounts = TeachingAssignment::where('is_active', true)
+                ->get(['grade_level_id', 'teacher_id'])
+                ->groupBy('grade_level_id')
+                ->map(fn ($assignments) => $assignments->pluck('teacher_id')->unique()->count());
+
             return GradeLevel::where('is_active', true)
-                ->whereIn('id', TeachingAssignment::where('is_active', true)->select('grade_level_id'))
                 ->orderBy('id')
-                ->get(['id', 'key', 'name', 'name_en', 'stage'])
+                ->get(['id', 'key', 'name', 'name_en', 'stage', 'track'])
                 ->map(fn (GradeLevel $grade) => [
                     'id'             => $grade->id,
                     'key'            => $grade->key,
                     'name'           => $grade->name,
                     'name_en'        => $grade->name_en,
                     'stage'          => $grade->stage,
-                    'subjects_count' => TeachingAssignment::where('grade_level_id', $grade->id)
-                        ->where('is_active', true)
-                        ->distinct('subject_id')
-                        ->count('subject_id'),
+                    'stage_label'    => $grade->stageLabel(),
+                    'track'          => $grade->track,
+                    'track_label'    => $grade->trackLabel(),
+                    'subjects_count' => (int) ($subjectCounts[$grade->id] ?? 0),
+                    'teachers_count' => (int) ($teacherCounts->get($grade->id, 0)),
                 ])
                 ->values();
         });

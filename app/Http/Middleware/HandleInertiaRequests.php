@@ -57,7 +57,7 @@ class HandleInertiaRequests extends Middleware
             'settings' => PlatformSetting::getAllCached(),
 
             'grade_levels' => \App\Domain\Academic\Models\GradeLevel::where('is_active', true)
-                ->select('id', 'key', 'name', 'name_en', 'stage')
+                ->select('id', 'key', 'name', 'name_en', 'stage', 'track')
                 ->get(),
 
             // Environment info for admin panel

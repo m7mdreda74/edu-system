@@ -17,8 +17,8 @@ beforeEach(function () {
     }
 
     // The grade_levels migration ships grade_10/11/12, so reuse rather than insert.
-    $this->grade   = GradeLevel::where('key', 'grade_12')->firstOrFail();
-    $this->subject = Subject::factory()->create(['name' => 'الرياضيات', 'is_active' => true]);
+    $this->grade   = GradeLevel::where('key', 'grade_12_science')->firstOrFail();
+    $this->subject = Subject::where('name', 'الرياضيات')->firstOrFail();
 
     $this->teacher = User::factory()->create([
         'name'             => 'أ. أحمد',
@@ -43,34 +43,73 @@ beforeEach(function () {
     ]);
 });
 
-it('shows active grades on the home page', function () {
+it('shows every stage of the Qatari system on the home page', function () {
     $this->get(route('home'))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('Public/Home')
-            ->has('grades', 1)
-            ->where('grades.0.key', 'grade_12'));
+        ->assertInertia(function ($page) {
+            $page->component('Public/Home');
+
+            $stages = collect($page->toArray()['props']['grades'])->pluck('stage')->unique();
+
+            expect($stages)->toContain('primary', 'preparatory', 'secondary');
+        });
 });
 
-it('opens the subjects of a grade', function () {
-    $this->get(route('grades.show', ['key' => 'grade_12']))
+it('splits grades eleven and twelve into science and literary tracks', function () {
+    $this->get(route('home'))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('Public/GradeSubjects')
-            ->has('subjects', 1)
-            ->where('subjects.0.teachers_count', 1));
+        ->assertInertia(function ($page) {
+            $tracked = collect($page->toArray()['props']['grades'])
+                ->whereNotNull('track')
+                ->pluck('key');
+
+            expect($tracked)->toContain(
+                'grade_11_science',
+                'grade_11_literary',
+                'grade_12_science',
+                'grade_12_literary',
+            );
+        });
 });
 
-it('hides subjects that have no teacher assigned', function () {
-    Subject::factory()->create(['name' => 'مادة بلا معلم', 'is_active' => true]);
-
-    $this->get(route('grades.show', ['key' => 'grade_12']))
+it('lists the whole curriculum for a grade, teachers or not', function () {
+    $this->get(route('grades.show', ['key' => 'grade_12_science']))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->has('subjects', 1));
+        ->assertInertia(function ($page) {
+            $subjects = collect($page->toArray()['props']['subjects']);
+
+            // The science track carries physics whether or not it is staffed.
+            expect($subjects->pluck('name'))->toContain('الفيزياء')
+                // And the test's own subject, which has a teacher.
+                ->toContain('الرياضيات');
+
+            expect($subjects->firstWhere('name', 'الرياضيات')['teachers_count'])->toBe(1);
+        });
+});
+
+it('marks curriculum subjects with no teacher as unstaffed', function () {
+    $this->get(route('grades.show', ['key' => 'grade_12_literary']))
+        ->assertOk()
+        ->assertInertia(function ($page) {
+            $subjects = collect($page->toArray()['props']['subjects']);
+
+            expect($subjects)->not->toBeEmpty()
+                ->and($subjects->every(fn ($s) => $s['teachers_count'] === 0))->toBeTrue();
+        });
+});
+
+it('offers the sibling track when viewing a tracked grade', function () {
+    $this->get(route('grades.show', ['key' => 'grade_12_science']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('grade.track', 'science')
+            ->where('grade.track_label', 'المسار العلمي')
+            ->has('siblingTracks', 1)
+            ->where('siblingTracks.0.key', 'grade_12_literary'));
 });
 
 it('lists the teachers who teach a subject with their intro video', function () {
-    $this->get(route('subjects.teachers', ['gradeKey' => 'grade_12', 'subject' => $this->subject->id]))
+    $this->get(route('subjects.teachers', ['gradeKey' => 'grade_12_science', 'subject' => $this->subject->id]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Public/SubjectTeachers')
