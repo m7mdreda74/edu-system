@@ -11,9 +11,13 @@
 
 ## 📖 نبذة عن المشروع / Project Overview
 
-**منصة التفوق** هي نظام إدارة تعليمي متكامل (LMS) وتفاعلي فخم مصمم بهوية عنابية قطرية فاخرة. تتيح المنصة للمعلمين والطلاب إدارة وتلقي المحتوى التعليمي والدروس المباشرة والاختبارات بسلاسة تامة، مع لوحة تحكم إدارية خارقة تُمكّن المسؤول من تخصيص وتعديل كل محتويات وعناصر المنصة والصفحات الرئيسية دون الحاجة للمس الأكواد البرمجية.
+**منصة التفوق** هي منصة تعليمية قطرية تربط الطالب بالمعلم المناسب له. الطالب يختار صفه، فتفتح له مواد المنهج، فيشاهد المعلمين الذين يدرّسون المادة وفيديو تعريفي لكل واحد منهم — ويحجز مع من تناسبه طريقة شرحه، باشتراك شهري في مجموعة أسبوعية أو حصص خاصة.
 
-**Al-Tafawwuq** is a premium, interactive Learning Management System (LMS) built with a luxurious Qatari Maroon identity. It offers students and teachers a seamless environment for courses, live lectures, and quizzes. It includes a powerful administrative control panel that enables total dynamic page configuration without touching a line of code.
+المنصة مبنية على منهج وزارة التربية والتعليم القطرية: الصفوف من الأول الابتدائي إلى الثاني عشر، مع انقسام المرحلة الثانوية إلى المسارين العلمي والأدبي.
+
+**Al-Tafawwuq** connects students in Qatar with the right teacher. A student picks their grade, which opens the curriculum, which opens the teachers who teach each subject — each with an intro video, so the student can judge the teaching style before committing. Booking is a monthly subscription, either to a weekly group or to private tuition.
+
+Built around the Qatari MOEHE curriculum, grades 1–12, with the secondary stage split into its science and literary tracks.
 
 ---
 
@@ -28,10 +32,20 @@
 * **دعم كامل للوضعين الداكن والفاتح** لراحة عين المستخدم مع ألوان مخصصة ومريحة.
 * **سايدبار متجاوب كلياً (Dynamic Sidebar):** يتحول تلقائياً إلى اللون الأبيض الأنيق في المظهر الفاتح وإلى الأزرق الداكن الفخم في المظهر المظلم مع تأثيرات هوفر (Hover) واضحة.
 
+### 🧭 رحلة الطالب (Browse & Book)
+* **الصف ← المادة ← المعلم:** تصفّح يبدأ من صف الطالب وينتهي ببروفايل المعلم، مع عرض المنهج كاملاً وتمييز المواد التي لم يُسنَد لها معلم بعد.
+* **الفيديو التعريفي:** لكل معلم فيديو يعرض طريقة شرحه، وهو ما يبني عليه الطالب قراره قبل الحجز.
+* **الاشتراك الشهري:** حجز في مجموعة أسبوعية بسعة محددة، أو حصص خاصة بمواعيد يتفق عليها. الوصول نافذة زمنية تتجدد شهرياً.
+
 ### 📚 إدارة المحتوى التعليمي (Educational Content Management)
-* **الكورسات والمواد:** تصنيف مرن للمواد الدراسية، والفصول، والكورسات مع نظام الكوبونات وخصومات الاشتراكات.
-* **نظام الحصص والدروس المباشرة (Live Sessions):** دعم غرف البث والدروس التفاعلية المباشرة عبر الإنترنت.
-* **الاختبارات التفاعلية (Interactive Quizzes):** بنك أسئلة واختبارات لتقييم مستويات الطلاب مع إظهار النتائج والتقارير.
+* **محتوى المجموعة:** فيديوهات وملفات وملازم مرتبطة بكل مجموعة، يشاهدها المشتركون فقط مع إتاحة معاينة مجانية.
+* **نظام الحصص والدروس المباشرة (Live Sessions):** غرف بث مباشر بتقنية WebRTC مع سبورة تفاعلية.
+* **الاختبارات التفاعلية (Interactive Quizzes):** بنك أسئلة وتصحيح تلقائي على الخادم مع رصد المخالفات، وواجبات يصححها المعلم.
+
+### 💰 المدفوعات والعمولات (Payments & Payouts)
+* **بوابات دفع متعددة:** Stripe و Fatora و Tap، بالإضافة إلى التحويل البنكي برفع إيصال يراجعه الأدمن.
+* **عمولة لكل معلم:** نسبة قابلة للتخصيص لكل معلم مع تسوية أرباح دورية وإيصالات وإقرار استلام.
+* **ولي الأمر:** ربط الأبناء، ومتابعة اشتراكاتهم ودرجاتهم، والدفع نيابة عنهم.
 
 ### 🔍 نظام نتائج الطلاب (Student Results Portal)
 * محرك بحث سريع للنتائج يتيح للطلاب وأولياء الأمور الاستعلام الفوري عن الدرجات والشهادات بموجب رقم الجلوس أو الرقم القومي.
@@ -40,11 +54,27 @@
 
 ## 🛠️ التقنيات المستخدمة / Tech Stack
 
-* **Back-End:** [Laravel 11](https://laravel.com)
+* **Back-End:** [Laravel 12](https://laravel.com)
 * **Front-End:** [Vue 3](https://vuejs.org) (Composition API) & [InertiaJS](https://inertiajs.com)
 * **Styles:** [Tailwind CSS 3](https://tailwindcss.com) (Frosted glassmorphism, responsive elements)
-* **Database:** MySQL / PostgreSQL
-* **Tooling:** Vite, NPM
+* **Database:** MySQL
+* **Live classes:** WebRTC (HTTP-polling signalling — no realtime server needed)
+* **Tooling:** Vite, NPM, Pest
+
+### بنية الكود / Code Layout
+
+```
+app/Domain/        النماذج والقواعد — Academic · Learning · Scheduling ·
+                   Subscription · Payment · Quiz · Communication · User
+app/Application/   الخدمات — SubscriptionService · PaymentService · ...
+app/Infrastructure/ بوابات الدفع والمراقبون
+app/Http/          الكونترولرز فقط
+```
+
+> **ملاحظة على النشر:** بيئة البناء على Vercel هي صورة Node ولا تحتوي على `php` أو
+> `composer` — الـ runtime هو من يثبّت حزم PHP. لذلك لا تُشغَّل المايجريشن أثناء
+> البناء؛ شغّلها مقابل قاعدة بيانات الإنتاج مباشرة:
+> `php artisan migrate --force`
 
 ---
 
