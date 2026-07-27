@@ -19,7 +19,7 @@ const props = defineProps({
 // Polled rather than pushed: Vercel runs this serverless, so there is no
 // socket to hold open. Twenty seconds is frequent enough to feel live without
 // hammering the database.
-const POLL_MS = 20_000;
+const POLL_MS = 60_000;
 
 const live = ref({ ...props.stats });
 const lastSync = ref(new Date());

@@ -61,6 +61,14 @@ class HomeController extends Controller
                 ->where('is_active', true)
                 ->orderByDesc('is_featured')
                 ->take(8)
+                ->withAvg([
+                    'reviewsReceived as approved_rating' => fn ($query) => $query->where('is_approved', true),
+                ], 'rating')
+                ->with([
+                    'teachingAssignments' => fn ($query) => $query
+                        ->where('is_active', true)
+                        ->with('subject:id,name'),
+                ])
                 ->get(['id', 'name', 'bio', 'headline', 'avatar', 'intro_video_url', 'intro_video_thumbnail', 'years_experience'])
                 ->map(fn (User $teacher) => [
                     'id'                    => $teacher->id,
@@ -71,11 +79,8 @@ class HomeController extends Controller
                     'intro_video_url'       => $teacher->intro_video_url,
                     'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
                     'years_experience'      => $teacher->years_experience,
-                    'rating'                => $teacher->averageRating(),
-                    'subjects'              => $teacher->teachingAssignments()
-                        ->where('is_active', true)
-                        ->with('subject:id,name')
-                        ->get()
+                    'rating'                => round((float) ($teacher->approved_rating ?? 0), 1),
+                    'subjects'              => $teacher->teachingAssignments
                         ->pluck('subject.name')
                         ->filter()
                         ->unique()

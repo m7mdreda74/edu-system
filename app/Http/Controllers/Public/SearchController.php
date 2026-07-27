@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Public;
 
 use App\Domain\Academic\Models\Subject;
-use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -45,13 +44,20 @@ class SearchController extends Controller
         // A subject is only useful to a visitor when a teacher covers it.
         $subjects = Subject::where('is_active', true)
             ->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('name_en', 'like', $like))
+            ->whereHas('teachingAssignments', fn ($q) => $q
+                ->where('is_active', true)
+                ->whereHas('gradeLevel', fn ($grade) => $grade->where('is_active', true)))
+            ->with([
+                'teachingAssignments' => fn ($q) => $q
+                    ->where('is_active', true)
+                    ->whereHas('gradeLevel', fn ($grade) => $grade->where('is_active', true))
+                    ->with('gradeLevel:id,key')
+                    ->orderBy('id'),
+            ])
             ->take(self::LIMIT)
             ->get(['id', 'name'])
             ->map(function (Subject $subject) {
-                $assignment = TeachingAssignment::with('gradeLevel:id,key')
-                    ->where('subject_id', $subject->id)
-                    ->where('is_active', true)
-                    ->first();
+                $assignment = $subject->teachingAssignments->first();
 
                 if (! $assignment?->gradeLevel) {
                     return null;

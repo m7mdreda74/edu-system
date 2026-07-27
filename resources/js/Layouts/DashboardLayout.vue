@@ -146,7 +146,7 @@ const isActive = (name) => {
                 <!-- Logo area -->
                 <div class="h-16 flex items-center border-b border-surface-200 dark:border-surface-800 transition-all duration-300"
                      :class="isSidebarCollapsed ? 'px-0 justify-center' : 'px-6 justify-between'">
-                    <Link :href="route('home')" class="flex items-center group" :class="isSidebarCollapsed ? 'gap-0' : 'gap-3'">
+                    <Link :href="route('home')" prefetch cache-for="30s" class="flex items-center group" :class="isSidebarCollapsed ? 'gap-0' : 'gap-3'">
                         <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700
                                     flex items-center justify-center shadow-glow-primary shrink-0">
                                 <span class="text-white font-bold text-xs">ت</span>
@@ -159,7 +159,7 @@ const isActive = (name) => {
                 </div>
 
                 <!-- User Info Small -->
-                <Link :href="route('profile.edit')" class="flex items-center border-b border-surface-200 dark:border-surface-800 hover:bg-surface-50 dark:hover:bg-surface-900 transition-all duration-300 group"
+                <Link :href="route('profile.edit')" prefetch cache-for="30s" class="flex items-center border-b border-surface-200 dark:border-surface-800 hover:bg-surface-50 dark:hover:bg-surface-900 transition-all duration-300 group"
                       :class="isSidebarCollapsed ? 'p-4 justify-center' : 'p-6 gap-3'">
                     <div class="avatar-md bg-surface-100 dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 group-hover:border-primary-500 transition-colors shrink-0">
                         <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" class="w-full h-full object-cover">
@@ -186,6 +186,8 @@ const isActive = (name) => {
                                 v-for="link in group.links"
                                 :key="link.name"
                                 :href="link.href"
+                                prefetch
+                                cache-for="30s"
                                 class="flex items-center rounded-xl text-sm font-semibold transition-all duration-300 transform"
                                 :class="[
                                     isActive(link.name)
@@ -229,7 +231,7 @@ const isActive = (name) => {
                         <Icon name="menu" class="w-5 h-5" />
                     </button>
                     <!-- View Live Site -->
-                    <Link :href="route('home')" class="hidden sm:flex items-center gap-2 text-sm font-medium text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
+                    <Link :href="route('home')" prefetch cache-for="30s" class="hidden sm:flex items-center gap-2 text-sm font-medium text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors">
                         <Icon name="globe" class="w-4 h-4" />
                         <span>عرض المنصة</span>
                     </Link>

@@ -32,7 +32,14 @@ class SubjectTeachersController extends Controller
         $subject = Subject::where('is_active', true)->findOrFail($subjectId);
 
         $assignments = TeachingAssignment::with([
-            'teacher:id,name,bio,headline,avatar,intro_video_url,intro_video_thumbnail,years_experience',
+            'teacher' => fn ($query) => $query
+                ->select(['id', 'name', 'bio', 'headline', 'avatar', 'intro_video_url', 'intro_video_thumbnail', 'years_experience'])
+                ->withAvg([
+                    'reviewsReceived as approved_rating' => fn ($reviews) => $reviews->where('is_approved', true),
+                ], 'rating')
+                ->withCount([
+                    'reviewsReceived as approved_reviews_count' => fn ($reviews) => $reviews->where('is_approved', true),
+                ]),
             'groups' => fn ($q) => $q->where('is_active', true)->with('schedules')->withCount('activeBookings'),
         ])
             ->where('grade_level_id', $grade->id)
@@ -63,8 +70,8 @@ class SubjectTeachersController extends Controller
                 'intro_video_url'       => $teacher->intro_video_url,
                 'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
                 'years_experience'      => $teacher->years_experience,
-                'rating'                => $teacher->averageRating(),
-                'reviews_count'         => $teacher->reviewsReceived()->where('is_approved', true)->count(),
+                'rating'                => round((float) ($teacher->approved_rating ?? 0), 1),
+                'reviews_count'         => (int) ($teacher->approved_reviews_count ?? 0),
                 'groups_count'          => $groups->count(),
                 'cheapest_monthly'      => $groups->min('monthly_price'),
                 'accepts_private'       => $assignment->offersPrivate(),

@@ -89,3 +89,19 @@ it('saves a full settings screen in a constant number of database queries', func
         ->and(PlatformSetting::where('key', 'bulk_setting_1')->value('value'))
         ->toStartWith('new_');
 });
+
+it('saves settings as json without reloading the inertia page', function () {
+    $this->actingAs(themeAdmin())
+        ->postJson(route('admin.settings.update'), [
+            'settings' => [[
+                'key' => 'platform_name',
+                'value' => 'التفوق السريع',
+                'type' => 'string',
+            ]],
+        ])
+        ->assertOk()
+        ->assertJson(['message' => 'تم حفظ الإعدادات بنجاح.']);
+
+    expect(PlatformSetting::where('key', 'platform_name')->value('value'))
+        ->toBe('التفوق السريع');
+});

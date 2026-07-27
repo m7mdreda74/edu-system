@@ -7,6 +7,7 @@ use App\Domain\Academic\Models\Subject;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
 // ─── Public browse flow: grade → subject → teachers → profile ────────────────
@@ -120,6 +121,32 @@ it('lists the teachers who teach a subject with their intro video', function () 
             ->where('teachers.0.intro_video_url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
             ->where('teachers.0.cheapest_monthly', 45_000)
             ->where('teachers.0.has_free_seats', true));
+});
+
+it('loads teacher ratings in one query regardless of teacher count', function () {
+    User::factory()->count(7)->create(['is_active' => true])->each(function (User $teacher): void {
+        $teacher->assignRole('teacher');
+        TeachingAssignment::factory()->create([
+            'teacher_id' => $teacher->id,
+            'subject_id' => $this->subject->id,
+            'grade_level_id' => $this->grade->id,
+            'is_active' => true,
+        ]);
+    });
+
+    $reviewQueries = [];
+    DB::listen(function ($query) use (&$reviewQueries): void {
+        if (str_contains($query->sql, 'reviews')) {
+            $reviewQueries[] = $query->sql;
+        }
+    });
+
+    $this->get(route('subjects.teachers', [
+        'gradeKey' => $this->grade->key,
+        'subject' => $this->subject->id,
+    ]))->assertOk();
+
+    expect($reviewQueries)->toHaveCount(1);
 });
 
 it('shows a teacher profile with their groups and prices', function () {

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import axios from 'axios';
 
 const props = defineProps({
     dbSettings: { type: Object, required: true },
@@ -10,6 +11,8 @@ const props = defineProps({
 
 // Current active editor page: 'home', 'about', 'apps', 'contact', 'popup' or null (for dashboard cards view)
 const activePage = ref(null);
+const isSaving = ref(false);
+const wasSaved = ref(false);
 
 // Parse JSON fields safely helper
 function parseJson(str, defaultValue) {
@@ -91,7 +94,7 @@ const form = useForm({
 });
 
 // Save settings for a specific page
-function submitPageSettings(pageKey) {
+async function submitPageSettings(pageKey) {
     const payload = {};
     
     // Filter payload keys depending on the current active page
@@ -132,8 +135,31 @@ function submitPageSettings(pageKey) {
         payload['welcome_popup_active'] = form.welcome_popup_active ? 'true' : 'false';
     }
 
-    // Post to settings router
-    useForm({ settings: payload }).post(route('admin.site-pages.update'));
+    isSaving.value = true;
+    wasSaved.value = false;
+    form.clearErrors();
+
+    try {
+        await axios.post(route('admin.site-pages.update'), {
+            settings: payload,
+        }, {
+            headers: { Accept: 'application/json' },
+        });
+        form.defaults();
+        form.reset();
+        wasSaved.value = true;
+        window.setTimeout(() => {
+            wasSaved.value = false;
+        }, 2500);
+    } catch (error) {
+        if (error.response?.status === 422) {
+            Object.entries(error.response.data.errors ?? {}).forEach(([key, messages]) => {
+                form.setError(key, Array.isArray(messages) ? messages[0] : messages);
+            });
+        }
+    } finally {
+        isSaving.value = false;
+    }
 }
 
 // ── Array Item Managers helpers ───────────────────────────────────────
@@ -778,11 +804,11 @@ function addAboutPillar() {
                 <div class="fixed bottom-6 z-40 p-3.5 rounded-2xl shadow-glow-primary flex items-center gap-3"
                      style="left: 50% !important; transform: translateX(-50%) !important; background-color: rgba(15, 23, 42, 0.4) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important;">
                     <button @click="activePage = null" class="btn-ghost text-xs px-4 py-2 text-white/80 hover:text-white rounded-xl">إلغاء</button>
-                    <button @click="submitPageSettings(activePage)" class="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 transition-transform hover:scale-102">
+                    <button @click="submitPageSettings(activePage)" :disabled="isSaving" class="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 transition-transform hover:scale-102">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6A2.25 2.25 0 016 3.75h1.5m9 0h-9" />
                         </svg>
-                        <span>حفظ التغييرات</span>
+                        <span>{{ isSaving ? 'جاري الحفظ...' : (wasSaved ? 'تم الحفظ' : 'حفظ التغييرات') }}</span>
                     </button>
                 </div>
             </div>

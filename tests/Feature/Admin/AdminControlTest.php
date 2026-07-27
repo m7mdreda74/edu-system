@@ -9,6 +9,7 @@ use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
 // ─── Everything the admin must be able to reach and change ───────────────────
@@ -181,6 +182,21 @@ it('serves dashboard figures as json for polling', function () {
             ],
             'fetchedAt',
         ]);
+});
+
+it('loads every live dashboard figure in one database round trip', function () {
+    $statsQueries = [];
+    DB::listen(function ($query) use (&$statsQueries): void {
+        if (str_contains($query->sql, 'groups_count')) {
+            $statsQueries[] = $query->sql;
+        }
+    });
+
+    $this->actingAs($this->admin)
+        ->getJson(route('admin.dashboard.stats'))
+        ->assertOk();
+
+    expect($statsQueries)->toHaveCount(1);
 });
 
 it('counts a pending review in the action queue', function () {

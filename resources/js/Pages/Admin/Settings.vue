@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useForm, router, Link, Head } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import axios from 'axios';
 
 const props = defineProps({
     dbSettings: { type: Array, required: true },
@@ -94,6 +95,8 @@ const form = useForm({
 });
 
 const isDirty = ref(false);
+const isSaving = ref(false);
+const wasSaved = ref(false);
 const activeTab = ref('general');
 
 const siteThemes = [
@@ -446,15 +449,32 @@ function removeRawSetting(setting) {
 }
 
 // Global Submit
-function saveSettings() {
+async function saveSettings() {
     syncListsBeforeSubmit();
-    form.post(route('admin.settings.update'), {
-        preserveScroll: true,
-        only: ['dbSettings', 'flash', 'settings'],
-        onSuccess: () => {
-            isDirty.value = false;
+    isSaving.value = true;
+    wasSaved.value = false;
+    form.clearErrors();
+
+    try {
+        await axios.post(route('admin.settings.update'), {
+            settings: form.settings,
+        }, {
+            headers: { Accept: 'application/json' },
+        });
+        isDirty.value = false;
+        wasSaved.value = true;
+        window.setTimeout(() => {
+            wasSaved.value = false;
+        }, 2500);
+    } catch (error) {
+        if (error.response?.status === 422) {
+            Object.entries(error.response.data.errors ?? {}).forEach(([key, messages]) => {
+                form.setError(key, Array.isArray(messages) ? messages[0] : messages);
+            });
         }
-    });
+    } finally {
+        isSaving.value = false;
+    }
 }
 </script>
 
@@ -1145,10 +1165,10 @@ function saveSettings() {
             <div class="fixed bottom-6 z-40 p-3.5 rounded-2xl shadow-glow-primary flex items-center gap-3"
                  style="left: 50% !important; transform: translateX(-50%) !important; background-color: rgba(28, 20, 22, 0.65) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;">
                 <Link :href="route('admin.dashboard')" class="btn-ghost text-xs px-4 py-2 text-white/80 hover:text-white rounded-xl">إلغاء</Link>
-                <button @click="saveSettings" :disabled="form.processing" class="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 transition-transform hover:scale-102">
-                    <Icon v-if="form.processing" name="clock" class="w-4 h-4 text-white animate-spin shrink-0" />
+                <button @click="saveSettings" :disabled="isSaving" class="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 transition-transform hover:scale-102">
+                    <Icon v-if="isSaving" name="clock" class="w-4 h-4 text-white animate-spin shrink-0" />
                     <Icon v-else name="success" class="w-4 h-4 text-white shrink-0" />
-                    <span>{{ form.processing ? 'جاري الحفظ...' : 'حفظ التغييرات' }}</span>
+                    <span>{{ isSaving ? 'جاري الحفظ...' : (wasSaved ? 'تم الحفظ' : 'حفظ التغييرات') }}</span>
                 </button>
             </div>
         </div>

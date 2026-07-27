@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/authStore';
 import Icon from '@/Components/Icon.vue';
@@ -19,27 +19,52 @@ onMounted(() => {
 
 const searchQuery = ref('');
 const searchResults = ref([]);
+let searchTimer = null;
+let searchController = null;
 
-async function onSearchInput() {
+function onSearchInput() {
+    clearTimeout(searchTimer);
+
     if (searchQuery.value.length < 2) {
+        searchController?.abort();
         searchResults.value = [];
         return;
     }
 
+    searchTimer = window.setTimeout(runSearch, 250);
+}
+
+async function runSearch() {
+    const query = searchQuery.value;
+    searchController?.abort();
+    searchController = new AbortController();
+
     try {
         const res = await axios.get(route('search.autocomplete'), {
-            params: { q: searchQuery.value }
+            params: { q: query },
+            signal: searchController.signal,
         });
-        searchResults.value = res.data;
+        if (query === searchQuery.value) {
+            searchResults.value = res.data;
+        }
     } catch (e) {
-        console.warn('Autocomplete search failed:', e.message);
+        if (e.code !== 'ERR_CANCELED') {
+            console.warn('Autocomplete search failed:', e.message);
+        }
     }
 }
 
 function clearSearch() {
+    clearTimeout(searchTimer);
+    searchController?.abort();
     searchQuery.value = '';
     searchResults.value = [];
 }
+
+onBeforeUnmount(() => {
+    clearTimeout(searchTimer);
+    searchController?.abort();
+});
 
 function toggleDark() {
     isDark.value = !isDark.value;
@@ -127,7 +152,7 @@ const isActive = (link) => {
                 <div class="flex items-center justify-between h-16">
 
                     <!-- Logo -->
-                    <Link :href="route('home')" class="flex items-center gap-2 group">
+                    <Link :href="route('home')" prefetch cache-for="30s" class="flex items-center gap-2 group">
                         <BrandLogo compact />
                         <div class="hidden">
                         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700
@@ -148,7 +173,7 @@ const isActive = (link) => {
 
                         <!-- Autocomplete Dropdown -->
                         <div v-if="searchResults.length > 0 && searchQuery.length >= 2" class="absolute z-50 left-0 right-0 mt-2 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl shadow-xl overflow-hidden divide-y divide-surface-100 dark:divide-surface-800">
-                            <Link v-for="result in searchResults" :key="`${result.type}-${result.id}`" :href="result.url" @click="clearSearch" class="flex items-center justify-between p-3 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
+                            <Link v-for="result in searchResults" :key="`${result.type}-${result.id}`" :href="result.url" prefetch cache-for="30s" @click="clearSearch" class="flex items-center justify-between p-3 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
                                 <div class="text-start">
                                     <div class="font-bold text-xs text-surface-900 dark:text-white">{{ result.title }}</div>
                                     <div class="text-[10px] text-surface-400 mt-0.5">{{ result.subtitle }}</div>
@@ -164,6 +189,8 @@ const isActive = (link) => {
                             v-for="link in navLinks"
                             :key="link.label"
                             :href="link.href"
+                            prefetch
+                            cache-for="30s"
                             class="px-4 py-2 text-sm font-semibold transition-all duration-200"
                             :class="isActive(link)
                                 ? 'text-primary-600 dark:text-primary-300 border-b-2 border-accent-500 font-bold rounded-t-xl bg-primary-500/5'
@@ -191,8 +218,8 @@ const isActive = (link) => {
 
                         <!-- Guest Actions -->
                         <template v-if="authStore.isGuest">
-                            <Link :href="route('login')"    class="btn-ghost btn-sm">تسجيل الدخول</Link>
-                            <Link :href="route('register')" class="btn-primary btn-sm">إنشاء حساب</Link>
+                            <Link :href="route('login')" prefetch cache-for="30s" class="btn-ghost btn-sm">تسجيل الدخول</Link>
+                            <Link :href="route('register')" prefetch cache-for="30s" class="btn-primary btn-sm">إنشاء حساب</Link>
                         </template>
 
                         <!-- User Menu -->
@@ -200,15 +227,19 @@ const isActive = (link) => {
                             <Link
                                 v-if="authStore.isTeacher"
                                 :href="route('teacher.dashboard')"
+                                prefetch
+                                cache-for="30s"
                                 class="btn-outline btn-sm hidden sm:flex"
                             >لوحة المعلم</Link>
                             <Link
                                 v-if="authStore.isAdmin"
                                 :href="route('admin.dashboard')"
+                                prefetch
+                                cache-for="30s"
                                 class="btn-outline btn-sm hidden sm:flex"
                             >الإدارة</Link>
 
-                            <Link :href="route('dashboard')" class="flex items-center gap-2 btn-ghost rounded-xl px-3 py-2">
+                            <Link :href="route('dashboard')" prefetch cache-for="30s" class="flex items-center gap-2 btn-ghost rounded-xl px-3 py-2">
                                 <div class="avatar-sm bg-primary-100 dark:bg-primary-900">
                                     <img v-if="authStore.user?.avatar"
                                          :src="authStore.user.avatar"
@@ -246,6 +277,8 @@ const isActive = (link) => {
                             v-for="link in navLinks"
                             :key="link.label"
                             :href="link.href"
+                            prefetch
+                            cache-for="30s"
                             class="block px-4 py-2.5 rounded-lg text-sm font-semibold mb-1"
                             :class="isActive(link)
                                 ? 'bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300'

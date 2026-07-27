@@ -20,6 +20,19 @@ async function fetchNotifications() {
     }
 }
 
+async function fetchUnreadCount() {
+    if (document.hidden) return;
+
+    try {
+        const res = await axios.get(route('notifications.index'), {
+            params: { summary: 1 },
+        });
+        unreadCount.value = res.data.count;
+    } catch (err) {
+        console.error('Failed to fetch notification count:', err);
+    }
+}
+
 async function markAsRead(notification) {
     try {
         await axios.post(route('notifications.read', notification.id));
@@ -77,15 +90,21 @@ function clickOutside(e) {
     }
 }
 
+function onVisibilityChange() {
+    if (!document.hidden) fetchUnreadCount();
+}
+
 onMounted(() => {
-    fetchNotifications();
-    pollingInterval = setInterval(fetchNotifications, 15000); // Poll every 15 seconds
+    fetchUnreadCount();
+    pollingInterval = setInterval(fetchUnreadCount, 60000);
     window.addEventListener('click', clickOutside);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onUnmounted(() => {
     if (pollingInterval) clearInterval(pollingInterval);
     window.removeEventListener('click', clickOutside);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
 });
 </script>
 

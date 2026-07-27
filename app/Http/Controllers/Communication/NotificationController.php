@@ -14,8 +14,15 @@ class NotificationController extends Controller
     {
         $user = auth()->user();
 
+        if ($request->boolean('summary')) {
+            return response()->json([
+                'count' => $user->unreadNotifications()->count(),
+            ]);
+        }
+
         $unread = $user->unreadNotifications()
             ->orderBy('created_at', 'desc')
+            ->limit(20)
             ->get();
 
         $read = $user->readNotifications()
@@ -26,7 +33,7 @@ class NotificationController extends Controller
         return response()->json([
             'unread' => $unread,
             'read'   => $read,
-            'count'  => $unread->count(),
+            'count'  => $user->unreadNotifications()->count(),
         ]);
     }
 
@@ -40,7 +47,7 @@ class NotificationController extends Controller
 
     public function markAllAsRead(Request $request): JsonResponse
     {
-        auth()->user()->unreadNotifications->markAsRead();
+        auth()->user()->unreadNotifications()->update(['read_at' => now()]);
 
         return response()->json(['success' => true]);
     }

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Settings\Models\PlatformSetting;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -23,7 +24,7 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'settings' => ['required', 'array'],
@@ -105,6 +106,10 @@ class SettingsController extends Controller
 
         Cache::forget('platform_settings');
 
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'تم حفظ الإعدادات بنجاح.']);
+        }
+
         return back()->with('success', 'تم حفظ الإعدادات بنجاح.');
     }
 
@@ -115,7 +120,7 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function updateSitePages(Request $request): RedirectResponse
+    public function updateSitePages(Request $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'settings' => ['required', 'array'],
@@ -146,6 +151,10 @@ class SettingsController extends Controller
         );
 
         Cache::forget('platform_settings');
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'تم حفظ التغييرات بنجاح.']);
+        }
 
         return back()->with('success', 'تم حفظ التغييرات بنجاح.');
     }
