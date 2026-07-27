@@ -65,7 +65,8 @@
         ],
         "vercel": [
             "@php artisan package:discover --ansi",
-            "@php artisan optimize --ansi"
+            "@php artisan event:cache --ansi",
+            "@php artisan route:cache --ansi"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"

@@ -33,6 +33,7 @@
         "CACHE_PATH": "/tmp/framework/cache/data",
         "CACHE_LOCK_PATH": "/tmp/framework/cache/data",
         "SESSION_DRIVER": "cookie",
-        "SESSION_SECURE_COOKIE": "true"
+        "SESSION_SECURE_COOKIE": "true",
+        "VIEW_COMPILED_PATH": "/tmp/views"
     }
 }
