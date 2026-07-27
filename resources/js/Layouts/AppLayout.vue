@@ -72,19 +72,27 @@ function toggleDark() {
     localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
 }
 
+function normalizeNavigationLink(link) {
+    if (link?.label?.includes('معلم')) {
+        return { ...link, href: route('teachers.index'), name: 'teachers' };
+    }
+
+    return link;
+}
+
 const navLinks = computed(() => {
     const raw = page.props.settings?.navbar_links;
     if (raw) {
         try {
             const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
             if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed;
+                return parsed.map(normalizeNavigationLink);
             }
         } catch (e) {}
     }
     return [
         { label: 'الرئيسية',     href: route('home'),              name: 'home' },
-        { label: 'المعلمون',     href: route('home') + '#grades',  name: 'grades' },
+                { label: 'المعلمون',     href: route('teachers.index'),    name: 'teachers' },
         { label: 'من نحن',       href: route('about'),             name: 'about' },
         { label: 'نتائج طلابنا',  href: route('students_results'),  name: 'students_results' },
         { label: 'تطبيقاتنا',    href: route('our_apps'),          name: 'our_apps' },
@@ -98,13 +106,13 @@ const footerLinks = computed(() => {
         try {
             const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
             if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed;
+                return parsed.map(normalizeNavigationLink);
             }
         } catch (e) {}
     }
     return [
         { label: 'الرئيسية',     href: route('home'),              name: 'home' },
-        { label: 'المعلمون',     href: route('home') + '#grades',  name: 'grades' },
+        { label: 'المعلمون',     href: route('teachers.index'),    name: 'teachers' },
         { label: 'من نحن',       href: route('about'),             name: 'about' },
         { label: 'نتائج طلابنا',  href: route('students_results'),  name: 'students_results' },
         { label: 'تطبيقاتنا',    href: route('our_apps'),          name: 'our_apps' },

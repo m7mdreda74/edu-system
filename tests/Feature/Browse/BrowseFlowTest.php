@@ -56,6 +56,16 @@ it('shows every stage of the Qatari system on the home page', function () {
         });
 });
 
+it('provides a dedicated teacher directory from the public navigation', function () {
+    $this->get(route('teachers.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Public/Teachers')
+            ->has('teachers', 1)
+            ->where('teachers.0.id', $this->teacher->id)
+            ->where('teachers.0.subjects.0', $this->subject->name));
+});
+
 it('splits grades eleven and twelve into the three Qatari tracks', function () {
     $this->get(route('home'))
         ->assertOk()

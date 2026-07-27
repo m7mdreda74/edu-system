@@ -8,6 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Public\GradeLevelBrowseController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\SubjectTeachersController;
+use App\Http\Controllers\Public\TeacherDirectoryController;
 use App\Http\Controllers\Public\TeacherProfileController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +20,7 @@ Route::get('/health', HealthController::class)->name('health');
 Route::get('/',                                     [HomeController::class,             'index'])->name('home');
 Route::get('/grades/{key}',                         [GradeLevelBrowseController::class, 'show'])->name('grades.show');
 Route::get('/grades/{gradeKey}/subjects/{subject}', [SubjectTeachersController::class,  'show'])->name('subjects.teachers');
+Route::get('/teachers',                             [TeacherDirectoryController::class, 'index'])->name('teachers.index');
 Route::get('/teachers/{id}',                        [TeacherProfileController::class,   'show'])->name('teachers.show');
 
 Route::get('/api/search-autocomplete', [App\Http\Controllers\Public\SearchController::class, 'autocomplete'])->name('search.autocomplete');
