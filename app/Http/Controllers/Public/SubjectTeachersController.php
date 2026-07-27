@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Public;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Scheduling\Models\TeachingAssignment;
+use App\Domain\Subscription\Models\Subscription;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
 use Inertia\Response;
 
 /**
@@ -20,8 +22,9 @@ use Inertia\Response;
  */
 class SubjectTeachersController extends Controller
 {
-    public function show(string $gradeKey, int $subjectId): Response
+    public function show(Request $request, string $gradeKey, int $subjectId): Response
     {
+        $student = $request->user();
         $grade = GradeLevel::where('key', $gradeKey)
             ->where('is_active', true)
             ->firstOrFail();
@@ -38,7 +41,15 @@ class SubjectTeachersController extends Controller
             ->whereHas('teacher', fn ($q) => $q->where('is_active', true))
             ->get();
 
-        $teachers = $assignments->map(function (TeachingAssignment $assignment) {
+        // Which teacher of this subject the student already studies with, if any.
+        $subscribedTeacherId = $student
+            ? Subscription::active()->where("student_id", $student->id)
+                ->whereHas("assignment", fn ($q) => $q->where("subject_id", $subject->id))
+                ->with("assignment:id,teacher_id")
+                ->first()?->assignment?->teacher_id
+            : null;
+
+        $teachers = $assignments->map(function (TeachingAssignment $assignment) use ($subscribedTeacherId) {
             $teacher = $assignment->teacher;
             $groups  = $assignment->groups;
 
@@ -59,6 +70,8 @@ class SubjectTeachersController extends Controller
                 'accepts_private'       => $assignment->offersPrivate(),
                 'private_monthly_price' => $assignment->private_monthly_price,
                 'has_free_seats'        => $groups->contains(fn ($g) => $g->active_bookings_count < $g->capacity),
+                'is_subscribed'         => $subscribedTeacherId === $teacher->id,
+                'first_group_id'        => $groups->first(fn ($g) => $g->active_bookings_count < $g->capacity)?->id,
             ];
         })->values();
 
@@ -74,6 +87,8 @@ class SubjectTeachersController extends Controller
                 'icon'    => $subject->icon,
             ],
             'teachers' => $teachers,
+            'subscribedTeacherId' => $subscribedTeacherId,
+            'isStudent' => $student?->hasRole("student") ?? false,
         ]);
     }
 }

@@ -99,6 +99,7 @@ const menuGroups = computed(() => {
                 title: 'لوحة الطالب',
                 links: [
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
+                    { label: 'مواد صفي', icon: 'book',      href: route('student.my-grade'),   name: 'student.my-grade' },
                     { label: 'حصصي',     icon: 'courses',   href: route('student.my-classes'), name: 'student.my-classes' },
                     { label: 'حجز المدرس والموعد', icon: 'clock', href: route('student.session-booking'), name: 'student.session-booking' },
                     { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),         name: 'chat.index' },

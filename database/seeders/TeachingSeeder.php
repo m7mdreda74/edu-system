@@ -91,9 +91,12 @@ class TeachingSeeder extends Seeder
                         ['name' => 'مجموعة الخميس المسائية', 'price' => 65_000, 'capacity' => 16, 'days' => [[self::THU, '19:00', '20:30']]],
                     ],
                 ],
+            ],
+
+            'hessa@altafawwuq.com' => [
                 [
                     'subject' => 'الكيمياء',
-                    'grades'  => ['grade_11_science', 'grade_10'],
+                    'grades'  => ['grade_12_science', 'grade_11_science', 'grade_10'],
                     'private' => 110_000,
                     'groups'  => [
                         ['name' => 'مجموعة الاثنين', 'price' => 55_000, 'capacity' => 20, 'days' => [[self::MON, '16:30', '18:00']]],
@@ -110,9 +113,12 @@ class TeachingSeeder extends Seeder
                         ['name' => 'مجموعة الثلاثاء', 'price' => 52_000, 'capacity' => 20, 'days' => [[self::TUE, '19:00', '20:30']]],
                     ],
                 ],
+            ],
+
+            'salem@altafawwuq.com' => [
                 [
                     'subject' => 'العلوم',
-                    'grades'  => ['grade_9', 'grade_8'],
+                    'grades'  => ['grade_9', 'grade_8', 'grade_7', 'grade_6', 'grade_5'],
                     'private' => 70_000,
                     'groups'  => [
                         ['name' => 'مجموعة السبت', 'price' => 38_000, 'capacity' => 25, 'days' => [[self::SAT, '11:00', '12:30']]],
@@ -168,9 +174,12 @@ class TeachingSeeder extends Seeder
                         ['name' => 'مجموعة الأحد والثلاثاء', 'price' => 58_000, 'capacity' => 18, 'days' => [[self::SUN, '17:00', '18:30'], [self::TUE, '17:00', '18:30']]],
                     ],
                 ],
+            ],
+
+            'rashid@altafawwuq.com' => [
                 [
                     'subject' => 'تكنولوجيا المعلومات',
-                    'grades'  => ['grade_11_technology', 'grade_10'],
+                    'grades'  => ['grade_12_technology', 'grade_11_technology', 'grade_10', 'grade_9'],
                     'private' => 90_000,
                     'groups'  => [
                         ['name' => 'مجموعة الخميس', 'price' => 48_000, 'capacity' => 20, 'days' => [[self::THU, '18:00', '19:30']]],
@@ -187,6 +196,9 @@ class TeachingSeeder extends Seeder
                         ['name' => 'مجموعة السبت', 'price' => 45_000, 'capacity' => 20, 'days' => [[self::SAT, '16:00', '17:30']]],
                     ],
                 ],
+            ],
+
+            'latifa@altafawwuq.com' => [
                 [
                     'subject' => 'الجغرافيا',
                     'grades'  => ['grade_12_arts', 'grade_11_arts'],
@@ -226,14 +238,6 @@ class TeachingSeeder extends Seeder
                     ],
                 ],
                 [
-                    'subject' => 'العلوم',
-                    'grades'  => ['grade_6', 'grade_5'],
-                    'private' => 55_000,
-                    'groups'  => [
-                        ['name' => 'مجموعة الخميس', 'price' => 26_000, 'capacity' => 25, 'days' => [[self::THU, '16:00', '17:00']]],
-                    ],
-                ],
-                [
                     'subject' => 'الرياضيات',
                     'grades'  => ['grade_3', 'grade_2', 'grade_1'],
                     'private' => 45_000,
@@ -250,6 +254,12 @@ class TeachingSeeder extends Seeder
 
         if (! $subject) {
             return;
+        }
+
+        // A teacher specialises in one subject — record it on them, since that
+        // is where the rule lives rather than in their timetable.
+        if ($teacher->subject_id === null) {
+            $teacher->update(['subject_id' => $subject->id]);
         }
 
         foreach ($definition['grades'] as $gradeKey) {

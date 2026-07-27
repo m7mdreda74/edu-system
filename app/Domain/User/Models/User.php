@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\User\Models;
 
+use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\Scheduling\Models\SessionBooking;
@@ -12,6 +13,7 @@ use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Infrastructure\Observers\UserObserver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -40,6 +42,7 @@ class User extends Authenticatable
         'password',
         'avatar',
         'grade_level',
+        'subject_id',
         'bio',
         'headline',
         'intro_video_url',
@@ -74,7 +77,16 @@ class User extends Authenticatable
 
     // ─── Relationships ────────────────────────────────────────────
 
-    /** Every teacher/subject/grade combination this teacher covers. */
+    /**
+     * The one subject this teacher specialises in. A subject has many
+     * teachers; a teacher has one subject.
+     */
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class);
+    }
+
+    /** The grades this teacher covers, all within their one subject. */
     public function teachingAssignments(): HasMany
     {
         return $this->hasMany(TeachingAssignment::class, 'teacher_id');

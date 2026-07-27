@@ -6,10 +6,16 @@ import TeacherCard from '@/Components/TeacherCard.vue';
 import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
-    grade:    { type: Object, required: true },
-    subject:  { type: Object, required: true },
-    teachers: { type: Array, default: () => [] },
+    grade:               { type: Object, required: true },
+    subject:             { type: Object, required: true },
+    teachers:            { type: Array, default: () => [] },
+    subscribedTeacherId: { type: Number, default: null },
+    isStudent:           { type: Boolean, default: false },
 });
+
+const subscribedTeacher = computed(
+    () => props.teachers.find((t) => t.id === props.subscribedTeacherId) ?? null,
+);
 
 const sortBy = ref('rating');
 
@@ -47,6 +53,18 @@ const sortedTeachers = computed(() => {
                 <p class="text-white/70 text-sm">
                     شاهد الفيديو التعريفي لكل معلم، ولو عجبتك طريقة الشرح احجز معه مباشرة.
                 </p>
+
+                <!-- Where this student stands in this subject -->
+                <div v-if="isStudent" class="mt-4">
+                    <span v-if="subscribedTeacher" class="inline-flex items-center gap-2 rounded-full bg-green-500/20 text-green-200 px-4 py-2 text-xs font-bold">
+                        <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                        مشترك مع {{ subscribedTeacher.name }} في {{ subject.name }}
+                    </span>
+                    <span v-else class="inline-flex items-center gap-2 rounded-full bg-red-500/20 text-red-200 px-4 py-2 text-xs font-bold">
+                        <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                        غير مشترك مع أي معلم في {{ subject.name }}
+                    </span>
+                </div>
             </div>
         </section>
 

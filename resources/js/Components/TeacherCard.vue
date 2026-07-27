@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
+import SubscriptionBadge from '@/Components/SubscriptionBadge.vue';
 import { formatQAR } from '@/lib/money';
 
 const props = defineProps({
@@ -86,6 +87,12 @@ const embedUrl = computed(() => {
                 </span>
             </div>
 
+            <SubscriptionBadge
+                v-if="teacher.is_subscribed !== undefined"
+                :subscribed="teacher.is_subscribed"
+                class="self-start"
+            />
+
             <p v-if="teacher.headline" class="text-xs font-semibold text-primary-600 dark:text-primary-400">
                 {{ teacher.headline }}
             </p>
@@ -112,7 +119,9 @@ const embedUrl = computed(() => {
                 </span>
                 <span v-else class="text-xs text-surface-400">حدّد السعر من الملف</span>
 
-                <Link :href="profileUrl" class="btn-primary btn-sm">احجز معه</Link>
+                <Link :href="profileUrl" :class="teacher.is_subscribed ? 'btn-outline btn-sm' : 'btn-primary btn-sm'">
+                    {{ teacher.is_subscribed ? 'عرض' : 'احجز معه' }}
+                </Link>
             </div>
         </div>
     </article>

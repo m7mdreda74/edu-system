@@ -87,6 +87,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
 
+    // The student's own grade: every subject on their curriculum and its teachers
+    Route::get('/my-grade', [App\Http\Controllers\Student\MyGradeController::class, 'index'])->name('student.my-grade');
+
     // Subscriptions — monthly access to groups and private tuition
     Route::get('/my-classes',                        [App\Http\Controllers\Student\SubscriptionController::class, 'index'])->name('student.my-classes');
     Route::post('/subscribe/group/{groupId}',        [App\Http\Controllers\Student\SubscriptionController::class, 'subscribeToGroup'])->name('student.subscribe.group')->middleware('throttle:15,1');

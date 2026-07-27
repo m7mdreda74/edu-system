@@ -53,7 +53,20 @@ class TeachingScheduleController extends Controller
         ];
         unset($data['private_monthly_price'], $data['accepts_private']);
 
-        if (TeachingAssignment::where('teacher_id', Auth::id())->where($data)->exists()) {
+        /** @var \App\Domain\User\Models\User $teacher */
+        $teacher = Auth::user();
+
+        // A teacher specialises in one subject. The first one they add becomes
+        // that specialty; after which they add grades, not subjects.
+        if ($teacher->subject_id === null) {
+            $teacher->update(['subject_id' => $data['subject_id']]);
+        } elseif ((int) $data['subject_id'] !== (int) $teacher->subject_id) {
+            $teacher->loadMissing('subject');
+
+            return back()->with('error', "أنت مسجّل كمعلم {$teacher->subject?->name}. لتغيير تخصصك تواصل مع الإدارة.");
+        }
+
+        if (TeachingAssignment::where('teacher_id', $teacher->id)->where($data)->exists()) {
             return back()->with('error', 'هذا الربط موجود بالفعل.');
         }
 
