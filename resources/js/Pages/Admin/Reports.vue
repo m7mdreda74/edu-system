@@ -41,6 +41,10 @@ function statusClass(status) {
         cancelled: 'badge-red',
     }[status] || 'badge-gray';
 }
+
+function printReport() {
+    window.print();
+}
 </script>
 
 <template>
@@ -56,7 +60,7 @@ function statusClass(status) {
                     </h1>
                     <p class="mt-1 text-sm text-surface-500">متابعة المدرسين والمجموعات والحصص والحجوزات في جداول واضحة.</p>
                 </div>
-                <button type="button" class="btn-primary" @click="window.print()">
+                <button type="button" class="btn-primary" @click="printReport()">
                     <Icon name="download" class="h-4 w-4" />
                     طباعة / حفظ PDF
                 </button>
