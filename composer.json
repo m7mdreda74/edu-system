@@ -64,6 +64,7 @@
             "@php artisan package:discover --ansi"
         ],
         "vercel": [
+            "@php artisan package:discover --ansi",
             "@php artisan optimize --ansi"
         ],
         "post-update-cmd": [
