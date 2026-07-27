@@ -193,3 +193,74 @@ it('counts a pending review in the action queue', function () {
 
     expect($response->json('stats.needs_action.pending_reviews'))->toBe(1);
 });
+
+// ─── Teacher photos belong to the platform, not the teacher ─────────────────
+
+it('refuses a teacher uploading their own photo', function () {
+    \Illuminate\Support\Facades\Storage::fake('public');
+
+    $this->actingAs($this->teacher)
+        ->patch(route('profile.update'), [
+            'name'   => $this->teacher->name,
+            'email'  => $this->teacher->email,
+            'avatar' => \Illuminate\Http\UploadedFile::fake()->image('me.jpg'),
+        ])
+        ->assertSessionHasErrors('avatar');
+
+    expect($this->teacher->fresh()->avatar)->toBeNull();
+});
+
+it('still lets a student set their own photo', function () {
+    \Illuminate\Support\Facades\Storage::fake('public');
+
+    $this->actingAs($this->student)
+        ->patch(route('profile.update'), [
+            'name'   => $this->student->name,
+            'email'  => $this->student->email,
+            'avatar' => \Illuminate\Http\UploadedFile::fake()->image('me.jpg', 200, 200),
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($this->student->fresh()->avatar)->not->toBeNull();
+});
+
+it('lets a teacher edit the rest of their profile', function () {
+    $this->actingAs($this->teacher)
+        ->patch(route('profile.update'), [
+            'name'            => $this->teacher->name,
+            'email'           => $this->teacher->email,
+            'headline'        => 'معلم رياضيات',
+            'intro_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($this->teacher->fresh()->headline)->toBe('معلم رياضيات');
+});
+
+it('lets an admin set and clear a teacher photo', function () {
+    \Illuminate\Support\Facades\Storage::fake('public');
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.users.avatar', ['id' => $this->teacher->id]), [
+            'avatar' => \Illuminate\Http\UploadedFile::fake()->image('teacher.jpg', 400, 400),
+        ])
+        ->assertRedirect();
+
+    expect($this->teacher->fresh()->avatar)->not->toBeNull();
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.users.avatar.delete', ['id' => $this->teacher->id]))
+        ->assertRedirect();
+
+    expect($this->teacher->fresh()->avatar)->toBeNull();
+});
+
+it('manages photos for teachers only', function () {
+    \Illuminate\Support\Facades\Storage::fake('public');
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.users.avatar', ['id' => $this->student->id]), [
+            'avatar' => \Illuminate\Http\UploadedFile::fake()->image('x.jpg'),
+        ])
+        ->assertStatus(422);
+});

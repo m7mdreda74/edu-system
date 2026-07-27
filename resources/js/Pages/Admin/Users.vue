@@ -120,6 +120,49 @@ function updateCommission() {
         onSuccess: () => { commissionModalOpen.value = false; },
     });
 }
+
+// ── Teacher photos ─────────────────────────────────────────────
+// A teacher's photo is the first thing a visitor judges on the browse pages,
+// so the platform sets it rather than the teacher.
+const isTeacher = (user) => user.roles?.some((r) => r.name === 'teacher') ?? false;
+
+const avatarModalOpen = ref(false);
+const avatarUser = ref(null);
+const avatarPreview = ref(null);
+const avatarForm = useForm({ avatar: null });
+
+function openAvatarModal(user) {
+    avatarUser.value = user;
+    avatarPreview.value = null;
+    avatarForm.reset();
+    avatarForm.clearErrors();
+    avatarModalOpen.value = true;
+}
+
+function onAvatarPicked(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    avatarForm.avatar = file;
+    avatarPreview.value = URL.createObjectURL(file);
+}
+
+function uploadAvatar() {
+    avatarForm.post(route('admin.users.avatar', { id: avatarUser.value.id }), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => { avatarModalOpen.value = false; avatarPreview.value = null; },
+    });
+}
+
+function removeAvatar() {
+    if (!confirm(`حذف صورة ${avatarUser.value?.name}؟`)) return;
+
+    router.delete(route('admin.users.avatar.delete', { id: avatarUser.value.id }), {
+        preserveScroll: true,
+        onSuccess: () => { avatarModalOpen.value = false; },
+    });
+}
 </script>
 
 <template>
@@ -185,16 +228,38 @@ function updateCommission() {
                                 class="hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
                                 <td class="p-4">
                                     <div class="flex items-center gap-3">
-                                        <div class="avatar-md bg-primary-100 dark:bg-primary-900 flex-shrink-0">
-                                            <img v-if="user.avatar" :src="user.avatar" :alt="user.name"
-                                                 class="w-full h-full object-cover rounded-full" />
-                                            <span v-else class="text-primary-700 font-bold text-sm">
-                                                {{ user.name?.charAt(0) }}
-                                            </span>
+                                        <!-- Teacher photos are public-facing, so they are set here -->
+                                        <div class="relative group flex-shrink-0">
+                                            <div class="avatar-md bg-primary-100 dark:bg-primary-900">
+                                                <img v-if="user.avatar" :src="user.avatar" :alt="user.name"
+                                                     class="w-full h-full object-cover rounded-full" />
+                                                <span v-else class="text-primary-700 font-bold text-sm">
+                                                    {{ user.name?.charAt(0) }}
+                                                </span>
+                                            </div>
+
+                                            <button
+                                                v-if="isTeacher(user)"
+                                                type="button"
+                                                class="absolute inset-0 rounded-full bg-black/55 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                title="تغيير صورة المعلم"
+                                                @click="openAvatarModal(user)"
+                                            >
+                                                <Icon name="edit" class="w-3.5 h-3.5" />
+                                            </button>
                                         </div>
+
                                         <div>
                                             <div class="font-semibold text-surface-800 dark:text-white">{{ user.name }}</div>
                                             <div class="text-xs text-surface-400">{{ user.email }}</div>
+                                            <button
+                                                v-if="isTeacher(user) && !user.avatar"
+                                                type="button"
+                                                class="text-[10px] font-bold text-accent-600 dark:text-accent-400 mt-0.5"
+                                                @click="openAvatarModal(user)"
+                                            >
+                                                بدون صورة — أضفها
+                                            </button>
                                         </div>
                                     </div>
                                 </td>
@@ -413,6 +478,61 @@ function updateCommission() {
                             <span v-if="createForm.processing" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                             <span>إضافة المستخدم</span>
                         </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ── Teacher photo ─────────────────────────────────────── -->
+        <div v-if="avatarModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="avatarModalOpen = false"></div>
+
+            <div class="relative bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                <form @submit.prevent="uploadAvatar">
+                    <div class="p-6">
+                        <h3 class="text-lg font-bold text-surface-900 dark:text-white">صورة المعلم</h3>
+                        <p class="text-xs text-surface-500 mt-1">
+                            {{ avatarUser?.name }} — تظهر هذه الصورة للطلاب في صفحات التصفح وبطاقة المعلم.
+                        </p>
+
+                        <div class="flex items-center gap-4 mt-6">
+                            <div class="w-20 h-20 rounded-full overflow-hidden bg-primary-100 dark:bg-primary-900 flex items-center justify-center border shrink-0">
+                                <img v-if="avatarPreview || avatarUser?.avatar" :src="avatarPreview ?? avatarUser.avatar" class="w-full h-full object-cover" />
+                                <span v-else class="text-primary-700 font-bold text-xl">{{ avatarUser?.name?.charAt(0) }}</span>
+                            </div>
+
+                            <div class="flex-1 min-w-0">
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    class="text-xs text-surface-500 file:me-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 w-full"
+                                    @change="onAvatarPicked"
+                                />
+                                <p class="text-[10px] text-surface-400 mt-1.5">
+                                    JPG أو PNG أو WebP، بحد أقصى 4 ميجابايت. تُحوَّل تلقائياً إلى WebP.
+                                </p>
+                                <p v-if="avatarForm.errors.avatar" class="text-xs text-red-500 mt-1">
+                                    {{ avatarForm.errors.avatar }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-2 px-6 py-4 bg-surface-50 dark:bg-surface-950/50">
+                        <button
+                            v-if="avatarUser?.avatar"
+                            type="button"
+                            class="btn-ghost btn-sm text-red-500"
+                            @click="removeAvatar"
+                        >حذف الصورة</button>
+                        <span v-else></span>
+
+                        <div class="flex gap-2">
+                            <button type="button" class="btn-ghost btn-sm" @click="avatarModalOpen = false">إلغاء</button>
+                            <button type="submit" class="btn-primary btn-sm" :disabled="avatarForm.processing || !avatarForm.avatar">
+                                {{ avatarForm.processing ? 'جارٍ الرفع...' : 'حفظ الصورة' }}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

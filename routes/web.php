@@ -203,6 +203,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('/users/{id}/toggle',     [App\Http\Controllers\Admin\UserController::class, 'toggleActive'])->name('users.toggle');
     Route::patch('/users/{id}/role',       [App\Http\Controllers\Admin\UserController::class, 'updateRole'])->name('users.role');
     Route::patch('/users/{id}/commission', [App\Http\Controllers\Admin\UserController::class, 'updateCommission'])->name('users.commission');
+    // Teacher photos are public-facing, so the platform owns them.
+    Route::post('/users/{id}/avatar',   [App\Http\Controllers\Admin\UserController::class, 'updateAvatar'])->name('users.avatar');
+    Route::delete('/users/{id}/avatar', [App\Http\Controllers\Admin\UserController::class, 'deleteAvatar'])->name('users.avatar.delete');
 
     // Subscriptions replace the old course catalogue
     Route::get('/subscriptions',         [App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions');

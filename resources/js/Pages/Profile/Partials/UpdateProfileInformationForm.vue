@@ -20,7 +20,9 @@ const isTeacher = (user.roles ?? []).includes('teacher');
 const form = useForm({
     name: user.name,
     email: user.email,
-    avatar: null,
+    // Teachers never send this — their photo is public-facing and set by an
+    // admin, and the server rejects the field for them outright.
+    ...(isTeacher ? {} : { avatar: null }),
     // Teacher-only public profile fields; the server ignores them otherwise.
     headline: user.headline ?? '',
     bio: user.bio ?? '',
@@ -39,7 +41,9 @@ const form = useForm({
             </h2>
 
             <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
-                تحديث معلومات حسابك الشخصي والبريد الإلكتروني والصورة الشخصية.
+                {{ isTeacher
+                    ? 'تحديث بياناتك وملفك العام الذي يراه الطلاب قبل الحجز معك.'
+                    : 'تحديث معلومات حسابك الشخصي والبريد الإلكتروني والصورة الشخصية.' }}
             </p>
         </header>
 
@@ -47,15 +51,22 @@ const form = useForm({
             @submit.prevent="form.post(route('profile.update'), { forceFormData: true })"
             class="mt-6 space-y-6"
         >
-            <!-- Avatar -->
+            <!-- Avatar — read-only for teachers, whose photo the platform owns -->
             <div>
-                <InputLabel for="avatar" value="الصورة الشخصية" />
+                <InputLabel value="الصورة الشخصية" />
                 <div class="mt-2 flex items-center gap-4">
                     <img v-if="user.avatar" :src="user.avatar" class="w-16 h-16 rounded-full object-cover border" />
                     <div v-else class="w-16 h-16 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-750 font-bold border">
                         {{ user.name.charAt(0) }}
                     </div>
+
+                    <p v-if="isTeacher" class="text-xs text-surface-500 dark:text-surface-400 leading-relaxed max-w-sm">
+                        صورتك تظهر للطلاب في صفحات التصفح، ولذلك تتولى إدارة المنصة تحديثها.
+                        للتغيير، تواصل مع الإدارة.
+                    </p>
+
                     <input
+                        v-else
                         id="avatar"
                         type="file"
                         accept="image/*"
@@ -63,7 +74,7 @@ const form = useForm({
                         @input="form.avatar = $event.target.files[0]"
                     />
                 </div>
-                <InputError class="mt-2" :message="form.errors.avatar" />
+                <InputError v-if="!isTeacher" class="mt-2" :message="form.errors.avatar" />
             </div>
 
             <div>
