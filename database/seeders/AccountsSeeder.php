@@ -52,147 +52,21 @@ class AccountsSeeder extends Seeder
         ]);
     }
 
-    /** @return array<int, array<string, mixed>> */
-    public static function teacherDefinitions(): array
-    {
-        return [
-            [
-                'email'            => 'ahmed@altafawwuq.com',
-                'name'             => 'أ. أحمد الكواري',
-                'phone'            => '+97455000101',
-                'headline'         => 'معلم رياضيات للثانوية — 14 سنة خبرة',
-                'bio'              => 'أدرّس الرياضيات من الأساس: كل قاعدة تبدأ بسؤال من امتحان وزاري حقيقي، ثم نبنيها خطوة خطوة حتى يصبح الحل بديهياً. أركّز على التفاضل والتكامل والهندسة التحليلية للصفين الحادي عشر والثاني عشر.',
-                'years_experience' => 14,
-                'is_featured'      => true,
-                'commission'       => 18,
-            ],
-            [
-                'email'            => 'sara@altafawwuq.com',
-                'name'             => 'أ. سارة المهندي',
-                'phone'            => '+97455000102',
-                'headline'         => 'معلمة فيزياء — الشرح بالتجربة',
-                'bio'              => 'كل درس يبدأ بتجربة أو موقف من الحياة اليومية قبل أي قانون. الطالب يفهم لماذا قبل أن يحفظ كيف، وهذا ما يجعل المعلومة تثبت حتى يوم الامتحان.',
-                'years_experience' => 9,
-                'is_featured'      => true,
-                'commission'       => 20,
-            ],
-            [
-                'email'            => 'khaled@altafawwuq.com',
-                'name'             => 'أ. خالد آل ثاني',
-                'phone'            => '+97455000103',
-                'headline'         => 'معلم أحياء — خرائط ذهنية وملخصات',
-                'bio'              => 'أسلوبي يعتمد على الخرائط الذهنية التي تختصر الوحدة كاملة في صفحة واحدة، مع مراجعات مركّزة قبل الامتحانات مباشرة.',
-                'years_experience' => 7,
-                'commission'       => 20,
-            ],
-            [
-                'email'            => 'noura@altafawwuq.com',
-                'name'             => 'أ. نورة العطية',
-                'phone'            => '+97455000104',
-                'headline'         => 'معلمة لغة عربية — من الابتدائي إلى الثانوي',
-                'bio'              => 'النحو ليس قواعد تُحفظ بل منطق يُفهم. أدرّس العربية بأسلوب يربط القاعدة بالنص الأدبي، ويعالج ضعف الإملاء والتعبير من جذوره.',
-                'years_experience' => 16,
-                'is_featured'      => true,
-                'commission'       => 18,
-            ],
-            [
-                'email'            => 'yousef@altafawwuq.com',
-                'name'             => 'أ. يوسف الحداد',
-                'phone'            => '+97455000105',
-                'headline'         => 'معلم لغة إنجليزية — قواعد ومحادثة',
-                'bio'              => 'أجمع بين إتقان القواعد المطلوبة في المنهج وبين بناء ثقة الطالب في التحدث، مع تدريب مكثف على الكتابة ومهارات الامتحان.',
-                'years_experience' => 11,
-                'commission'       => 20,
-            ],
-            [
-                'email'            => 'maryam@altafawwuq.com',
-                'name'             => 'أ. مريم الدوسري',
-                'phone'            => '+97455000106',
-                'headline'         => 'معلمة تاريخ — المسار الأدبي',
-                'bio'              => 'أحوّل التاريخ من تواريخ تُحفظ إلى قصة مترابطة تفهم أسبابها ونتائجها. متخصصة في منهج المسار الأدبي للحادي عشر والثاني عشر.',
-                'years_experience' => 10,
-                'is_featured'      => true,
-                'commission'       => 20,
-            ],
-            [
-                'email'            => 'jassim@altafawwuq.com',
-                'name'             => 'أ. جاسم البوعينين',
-                'phone'            => '+97455000109',
-                'headline'         => 'معلم علوم حاسب — المسار التكنولوجي',
-                'bio'              => 'أدرّس البرمجة وقواعد البيانات وتصميم الشبكات لطلاب المسار التكنولوجي، بمشاريع عملية يبنيها الطالب بنفسه بدل الحفظ.',
-                'years_experience' => 9,
-                'is_featured'      => true,
-                'commission'       => 20,
-            ],
-            [
-                'email'            => 'hessa@altafawwuq.com',
-                'name'             => 'أ. حصة الكواري',
-                'phone'            => '+97455000110',
-                'headline'         => 'معلمة كيمياء — من العاشر إلى الثاني عشر',
-                'bio'              => 'أربط كل تفاعل بمثال من الحياة أو الصناعة، فيصبح الحفظ نتيجة للفهم لا بديلاً عنه.',
-                'years_experience' => 10,
-                'commission'       => 20,
-            ],
-            [
-                'email'            => 'salem@altafawwuq.com',
-                'name'             => 'أ. سالم المري',
-                'phone'            => '+97455000111',
-                'headline'         => 'معلم علوم — الابتدائي والإعدادي',
-                'bio'              => 'العلوم في هذه المرحلة تُبنى بالتجربة والسؤال، لا بالتلقين. حصصي قائمة على تجارب بسيطة يعيدها الطالب في البيت.',
-                'years_experience' => 13,
-                'is_featured'      => true,
-                'commission'       => 20,
-            ],
-            [
-                'email'            => 'latifa@altafawwuq.com',
-                'name'             => 'أ. لطيفة السويدي',
-                'phone'            => '+97455000112',
-                'headline'         => 'معلمة جغرافيا — المسار الأدبي',
-                'bio'              => 'الجغرافيا خرائط تُقرأ لا أسماء تُحفظ. أدرّب الطالب على تحليل الخريطة والرسم البياني قبل أي شيء.',
-                'years_experience' => 8,
-                'commission'       => 20,
-            ],
-            [
-                'email'            => 'rashid@altafawwuq.com',
-                'name'             => 'أ. راشد الخاطر',
-                'phone'            => '+97455000113',
-                'headline'         => 'معلم تكنولوجيا المعلومات',
-                'bio'              => 'من أساسيات الحاسب حتى بناء موقع كامل — كل حصة ينتج فيها الطالب شيئاً يشغّله بنفسه.',
-                'years_experience' => 7,
-                'commission'       => 20,
-            ],
-            [
-                'email'            => 'abdullah@altafawwuq.com',
-                'name'             => 'أ. عبدالله الشمري',
-                'phone'            => '+97455000107',
-                'headline'         => 'معلم تربية إسلامية — الابتدائي والإعدادي',
-                'bio'              => 'أدرّس التربية الإسلامية بأسلوب قصصي مبسّط يناسب الأعمار الصغيرة، مع تركيز على التجويد وحفظ جزء عمّ.',
-                'years_experience' => 8,
-                'commission'       => 22,
-            ],
-            [
-                'email'            => 'fatima@altafawwuq.com',
-                'name'             => 'أ. فاطمة النعيمي',
-                'phone'            => '+97455000108',
-                'headline'         => 'معلمة رياضيات وعلوم — المرحلة الابتدائية',
-                'bio'              => 'أبني الأساس الصحيح للطفل في الحساب والعلوم عبر الأنشطة والألعاب التعليمية، لأن ضعف الابتدائي يلاحق الطالب لسنوات.',
-                'years_experience' => 12,
-                'commission'       => 22,
-            ],
-        ];
-    }
-
+    /**
+     * Teachers come from the faculty plan, which is keyed by subject — so a
+     * teacher is created under exactly one, by construction.
+     */
     private function seedTeachers(): void
     {
-        foreach (self::teacherDefinitions() as $definition) {
+        foreach (TeachingStaff::teachers() as $definition) {
             $this->makeUser('teacher', [
                 'name'                  => $definition['name'],
                 'email'                 => $definition['email'],
                 'phone'                 => $definition['phone'],
                 'headline'              => $definition['headline'],
                 'bio'                   => $definition['bio'],
-                'years_experience'      => $definition['years_experience'],
-                'is_featured'           => $definition['is_featured'] ?? false,
+                'years_experience'      => $definition['experience'],
+                'is_featured'           => $definition['featured'] ?? false,
                 'commission_percent'    => $definition['commission'],
                 'intro_video_url'       => self::DEMO_VIDEO,
                 'intro_video_thumbnail' => null,

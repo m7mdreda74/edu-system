@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Payment\Models\Coupon;
 use App\Domain\Payment\Models\Invoice;
 use App\Domain\Payment\Models\Payment;
@@ -16,6 +17,7 @@ use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Subscriptions and the money behind them.
@@ -33,24 +35,57 @@ class CommerceSeeder extends Seeder
         $this->seedCoupons();
 
         $students = User::role('student')->get();
-        $groups   = TeachingGroup::with('assignment')->where('is_active', true)->get();
-
-        if ($students->isEmpty() || $groups->isEmpty()) {
-            return;
-        }
 
         foreach ($students as $index => $student) {
-            // Two or three subscriptions each, offset so students do not all
-            // land in the same groups.
-            $picked = $groups->slice($index % max(1, $groups->count() - 3), 3);
+            // Subscribe within the student's own grade. Anything else would
+            // leave "مواد صفي" showing nothing subscribed, which is the one
+            // screen this data exists to demonstrate.
+            $groups = $this->groupsForGrade($student->grade_level);
 
-            foreach ($picked->values() as $position => $group) {
+            if ($groups->isEmpty()) {
+                continue;
+            }
+
+            // Deliberately partial: roughly half their subjects are covered,
+            // so both the green and the red badge appear for every student.
+            $take = max(1, (int) ceil($groups->count() / 2));
+
+            foreach ($groups->shuffle()->take($take)->values() as $position => $group) {
                 $this->seedSubscription($student, $group, $index + $position);
             }
         }
 
         $this->seedPrivateSubscriptions($students);
         $this->seedPayouts();
+    }
+
+    /**
+     * The bookable groups in a grade, one per subject.
+     *
+     * A student has at most one teacher per subject, so offering two groups of
+     * the same subject to the same student would produce a state the interface
+     * says cannot happen.
+     *
+     * @return Collection<int, TeachingGroup>
+     */
+    private function groupsForGrade(?string $gradeKey): Collection
+    {
+        if (! $gradeKey) {
+            return collect();
+        }
+
+        $gradeId = GradeLevel::where('key', $gradeKey)->value('id');
+
+        if (! $gradeId) {
+            return collect();
+        }
+
+        return TeachingGroup::with('assignment')
+            ->where('is_active', true)
+            ->whereHas('assignment', fn ($q) => $q->where('grade_level_id', $gradeId)->where('is_active', true))
+            ->get()
+            ->unique(fn (TeachingGroup $group) => $group->assignment?->subject_id)
+            ->values();
     }
 
     private function seedCoupons(): void
@@ -171,28 +206,18 @@ class CommerceSeeder extends Seeder
     /**
      * A few students take private tuition instead of a group.
      *
-     * @param \Illuminate\Support\Collection<int, User> $students
+     * The teacher has to be one their grade could actually book, and on a
+     * subject they have not already taken with somebody else — a student with
+     * two teachers for one subject is a state the badges cannot express.
+     *
+     * @param Collection<int, User> $students
      */
-    private function seedPrivateSubscriptions(\Illuminate\Support\Collection $students): void
+    private function seedPrivateSubscriptions(Collection $students): void
     {
-        $assignments = TeachingAssignment::where('accepts_private', true)
-            ->where('private_monthly_price', '>', 0)
-            ->take(5)
-            ->get();
+        foreach ($students->take(5) as $index => $student) {
+            $assignment = $this->privateAssignmentFor($student);
 
-        foreach ($assignments as $index => $assignment) {
-            $student = $students[$index * 3] ?? $students->first();
-
-            if (! $student) {
-                continue;
-            }
-
-            $alreadyHas = Subscription::where('student_id', $student->id)
-                ->where('teaching_assignment_id', $assignment->id)
-                ->where('type', Subscription::TYPE_PRIVATE)
-                ->exists();
-
-            if ($alreadyHas) {
+            if (! $assignment) {
                 continue;
             }
 
@@ -230,6 +255,30 @@ class CommerceSeeder extends Seeder
                 ]);
             }
         }
+    }
+
+    /** A private teacher in the student's grade, on a subject still open to them. */
+    private function privateAssignmentFor(User $student): ?TeachingAssignment
+    {
+        $gradeId = GradeLevel::where('key', $student->grade_level)->value('id');
+
+        if (! $gradeId) {
+            return null;
+        }
+
+        $taken = Subscription::where('student_id', $student->id)
+            ->with('assignment:id,subject_id')
+            ->get()
+            ->pluck('assignment.subject_id')
+            ->filter()
+            ->all();
+
+        return TeachingAssignment::where('grade_level_id', $gradeId)
+            ->where('is_active', true)
+            ->where('accepts_private', true)
+            ->where('private_monthly_price', '>', 0)
+            ->whereNotIn('subject_id', $taken)
+            ->first();
     }
 
     /** One settled payout per teacher, plus a pending one to review. */
