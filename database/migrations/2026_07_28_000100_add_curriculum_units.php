@@ -81,7 +81,10 @@ return new class extends Migration
             $table->boolean('is_published')->default(true);
             $table->timestamps();
 
-            $table->index(['teaching_assignment_id', 'academic_term_id', 'order']);
+            $table->index(
+                ['teaching_assignment_id', 'academic_term_id', 'order'],
+                'curriculum_units_assignment_term_order_idx',
+            );
         });
     }
 
