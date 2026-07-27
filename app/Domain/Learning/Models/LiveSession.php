@@ -9,6 +9,7 @@ use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A live WebRTC classroom. It belongs either to a weekly group or to a booked
@@ -67,6 +68,12 @@ class LiveSession extends Model
     public function material(): BelongsTo
     {
         return $this->belongsTo(GroupMaterial::class, 'lesson_id');
+    }
+
+    /** Permanent attendance rows used by the teacher's post-class report. */
+    public function attendees(): HasMany
+    {
+        return $this->hasMany(LiveSessionAttendee::class, 'live_session_id');
     }
 
     // ─── Domain Helpers ────────────────────────────────────────────

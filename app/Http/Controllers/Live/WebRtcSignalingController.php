@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Live;
 
 use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSessionAttendee;
+use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,7 +27,9 @@ class WebRtcSignalingController extends Controller
     public function heartbeat(Request $request, int $id): JsonResponse
     {
         $session = LiveSession::findOrFail($id);
-        $user    = Auth::user();
+        /** @var User $user */
+        $user = Auth::user();
+        $this->authorizeRoom($session, $user);
 
         // Upsert participant
         DB::table('webrtc_participants')->upsert(
@@ -44,6 +48,16 @@ class WebRtcSignalingController extends Controller
 
         // Clean up stale participants
         $cutoff = Carbon::now()->subSeconds(self::PARTICIPANT_TTL_SECONDS);
+        DB::table('webrtc_participants')
+            ->where('live_session_id', $session->id)
+            ->where('last_seen_at', '<', $cutoff)
+            ->eachById(function (object $participant): void {
+                LiveSessionAttendee::where('live_session_id', $participant->live_session_id)
+                    ->where('user_id', $participant->user_id)
+                    ->whereNull('left_at')
+                    ->update(['left_at' => Carbon::now(), 'updated_at' => Carbon::now()]);
+            });
+
         DB::table('webrtc_participants')
             ->where('live_session_id', $session->id)
             ->where('last_seen_at', '<', $cutoff)
@@ -66,7 +80,9 @@ class WebRtcSignalingController extends Controller
     public function signal(Request $request, int $id): JsonResponse
     {
         $session = LiveSession::findOrFail($id);
-        $user    = Auth::user();
+        /** @var User $user */
+        $user = Auth::user();
+        $this->authorizeRoom($session, $user);
 
         $validated = $request->validate([
             'type'       => 'required|string|max:30',
@@ -99,7 +115,9 @@ class WebRtcSignalingController extends Controller
     public function poll(Request $request, int $id): JsonResponse
     {
         $session = LiveSession::findOrFail($id);
-        $user    = Auth::user();
+        /** @var User $user */
+        $user = Auth::user();
+        $this->authorizeRoom($session, $user);
 
         // `since` is a unix timestamp in milliseconds from client
         $since = $request->query('since');
@@ -142,7 +160,9 @@ class WebRtcSignalingController extends Controller
     public function leave(int $id): JsonResponse
     {
         $session = LiveSession::findOrFail($id);
-        $user    = Auth::user();
+        /** @var User $user */
+        $user = Auth::user();
+        $this->authorizeRoom($session, $user);
 
         // Send leave signal to everyone
         DB::table('webrtc_signals')->insert([
@@ -160,6 +180,39 @@ class WebRtcSignalingController extends Controller
             ->where('user_id', $user->id)
             ->delete();
 
+        LiveSessionAttendee::where('live_session_id', $session->id)
+            ->where('user_id', $user->id)
+            ->whereNull('left_at')
+            ->update(['left_at' => Carbon::now(), 'updated_at' => Carbon::now()]);
+
         return response()->json(['ok' => true]);
+    }
+
+    private function authorizeRoom(LiveSession $session, User $user): void
+    {
+        if ($session->teacher_id === $user->id) {
+            return;
+        }
+
+        abort_unless($session->isLive() && $this->studentMayJoin($session, $user), 403, 'غير مصرح لك باستخدام غرفة الحصة.');
+    }
+
+    private function studentMayJoin(LiveSession $session, User $user): bool
+    {
+        if ($session->teaching_group_id) {
+            $group = $session->teachingGroup()->with('assignment')->first();
+
+            return ($group?->activeBookings()->where('student_id', $user->id)->exists() ?? false)
+                && $user->hasActiveSubscriptionToAssignment((int) $group?->teaching_assignment_id);
+        }
+
+        if ($session->private_session_slot_id) {
+            return $session->privateSessionSlot?->booking()
+                ->where('student_id', $user->id)
+                ->where('status', 'confirmed')
+                ->exists() ?? false;
+        }
+
+        return false;
     }
 }

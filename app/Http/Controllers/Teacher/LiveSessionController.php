@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Domain\Communication\Notifications\LiveSessionStartedNotification;
 use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
@@ -44,10 +45,19 @@ class LiveSessionController extends Controller
             'teachingGroup:id,name,teaching_assignment_id',
             'teachingGroup.assignment.subject:id,name',
             'privateSessionSlot:id,starts_at,ends_at',
+            'attendees:id,live_session_id,user_id,joined_at,left_at',
         ])
             ->where('teacher_id', $teacherId)
             ->latest('scheduled_at')
             ->get();
+
+        $sessions->each(function (LiveSession $session): void {
+            $session->setAttribute('attendees_count', $session->attendees->pluck('user_id')->unique()->count());
+            $session->setAttribute(
+                'attendance_minutes',
+                (int) round($session->attendees->sum(fn (LiveSessionAttendee $attendee) => $attendee->durationSeconds()) / 60),
+            );
+        });
 
         return Inertia::render('Teacher/LiveSessions', [
             'sessions'    => $sessions,

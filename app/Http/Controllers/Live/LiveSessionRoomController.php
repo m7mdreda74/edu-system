@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Live;
 
 use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -33,11 +34,23 @@ class LiveSessionRoomController extends Controller
             abort_unless($this->studentMayJoin($session, $user), 403, 'غير مصرح لك بدخول هذه الحصة.');
         }
 
+        // A reconnect starts a new attendance window; this keeps total time
+        // accurate instead of stretching the first window across a leave.
+        LiveSessionAttendee::firstOrCreate(
+            [
+                'live_session_id' => $session->id,
+                'user_id'         => $user->id,
+                'left_at'         => null,
+            ],
+            ['joined_at' => now()],
+        );
+
         return Inertia::render('Live/LiveSessionRoom', [
             'session'  => $session,
             // Unique and unguessable, so a room id cannot be brute-forced.
             'roomName' => "Altafawwuq_Session_{$session->id}_" . md5((string) $session->created_at),
             'user'     => [
+                'id'        => $user->id,
                 'name'      => $user->name,
                 'email'     => $user->email,
                 'avatar'    => $user->avatar,

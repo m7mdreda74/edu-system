@@ -127,6 +127,7 @@ const statusLabels = {
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">عنوان الحصة / المجموعة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الموعد</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحضور</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الرابط/التسجيل</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">إجراءات</th>
                             </tr>
@@ -141,6 +142,14 @@ const statusLabels = {
                                 </td>
                                 <td class="p-4 text-surface-600 dark:text-surface-300 font-mono text-xs">
                                     {{ new Date(session.scheduled_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                </td>
+                                <td class="p-4">
+                                    <div class="text-sm font-bold text-surface-800 dark:text-surface-100">
+                                        {{ session.attendees_count ?? 0 }} حاضر
+                                    </div>
+                                    <div class="text-[11px] text-surface-400 mt-1">
+                                        {{ session.attendance_minutes ?? 0 }} دقيقة حضور
+                                    </div>
                                 </td>
                                 <td class="p-4">
                                     <span :class="statusColors[session.status]" class="text-xs">
@@ -166,7 +175,7 @@ const statusLabels = {
                                 </td>
                             </tr>
                             <tr v-if="sessions.length === 0">
-                                <td colspan="5" class="p-8 text-center text-surface-400">
+                                <td colspan="6" class="p-8 text-center text-surface-400">
                                     لا توجد حصص مجدولة حالياً. قم بجدولة أول حصة لك.
                                 </td>
                             </tr>
