@@ -10,14 +10,15 @@ use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
 
 class WebRtcSignalingController extends Controller
 {
     // ─── How old signals we return on each poll ────────────────────────────────
-    private const SIGNAL_TTL_SECONDS     = 30;
+    private const SIGNAL_TTL_SECONDS = 30;
+
     private const PARTICIPANT_TTL_SECONDS = 10; // offline if no heartbeat for 10s
 
     /**
@@ -35,12 +36,12 @@ class WebRtcSignalingController extends Controller
         DB::table('webrtc_participants')->upsert(
             [
                 'live_session_id' => $session->id,
-                'user_id'         => $user->id,
-                'name'            => $user->name,
-                'is_teacher'      => $session->teacher_id === $user->id,
-                'last_seen_at'    => Carbon::now(),
-                'created_at'      => Carbon::now(),
-                'updated_at'      => Carbon::now(),
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'is_teacher' => $session->teacher_id === $user->id,
+                'last_seen_at' => Carbon::now(),
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
             ],
             ['live_session_id', 'user_id'],
             ['name', 'last_seen_at', 'updated_at']
@@ -85,18 +86,18 @@ class WebRtcSignalingController extends Controller
         $this->authorizeRoom($session, $user);
 
         $validated = $request->validate([
-            'type'       => 'required|string|max:30',
+            'type' => 'required|string|max:30',
             'to_user_id' => 'nullable|integer|exists:users,id',
-            'payload'    => 'required|array',
+            'payload' => 'required|array',
         ]);
 
         DB::table('webrtc_signals')->insert([
             'live_session_id' => $session->id,
-            'from_user_id'    => $user->id,
-            'to_user_id'      => $validated['to_user_id'] ?? null,
-            'type'            => $validated['type'],
-            'payload'         => json_encode($validated['payload']),
-            'created_at'      => Carbon::now(),
+            'from_user_id' => $user->id,
+            'to_user_id' => $validated['to_user_id'] ?? null,
+            'type' => $validated['type'],
+            'payload' => json_encode($validated['payload']),
+            'created_at' => Carbon::now(),
         ]);
 
         // Cleanup old signals (keep DB tidy)
@@ -130,7 +131,7 @@ class WebRtcSignalingController extends Controller
             ->where('from_user_id', '!=', $user->id)  // don't get own signals
             ->where(function ($q) use ($user) {
                 $q->whereNull('to_user_id')            // broadcast
-                  ->orWhere('to_user_id', $user->id);  // addressed to me
+                    ->orWhere('to_user_id', $user->id);  // addressed to me
             })
             ->where('created_at', '>=', $sinceAt)
             ->orderBy('created_at')
@@ -138,17 +139,17 @@ class WebRtcSignalingController extends Controller
             ->get()
             ->map(function ($row) {
                 return [
-                    'id'          => $row->id,
-                    'from'        => $row->from_user_id,
-                    'to'          => $row->to_user_id,
-                    'type'        => $row->type,
-                    'payload'     => json_decode($row->payload, true),
-                    'at'          => Carbon::parse($row->created_at)->getPreciseTimestamp(3),
+                    'id' => $row->id,
+                    'from' => $row->from_user_id,
+                    'to' => $row->to_user_id,
+                    'type' => $row->type,
+                    'payload' => json_decode($row->payload, true),
+                    'at' => Carbon::parse($row->created_at)->getPreciseTimestamp(3),
                 ];
             });
 
         return response()->json([
-            'signals'    => $signals,
+            'signals' => $signals,
             'server_now' => Carbon::now()->getPreciseTimestamp(3),
         ]);
     }
@@ -167,11 +168,11 @@ class WebRtcSignalingController extends Controller
         // Send leave signal to everyone
         DB::table('webrtc_signals')->insert([
             'live_session_id' => $session->id,
-            'from_user_id'    => $user->id,
-            'to_user_id'      => null,
-            'type'            => 'leave',
-            'payload'         => json_encode(['userId' => $user->id]),
-            'created_at'      => Carbon::now(),
+            'from_user_id' => $user->id,
+            'to_user_id' => null,
+            'type' => 'leave',
+            'payload' => json_encode(['userId' => $user->id]),
+            'created_at' => Carbon::now(),
         ]);
 
         // Remove from participants
@@ -190,6 +191,8 @@ class WebRtcSignalingController extends Controller
 
     private function authorizeRoom(LiveSession $session, User $user): void
     {
+        abort_if($session->status === LiveSession::STATUS_CANCELLED, 403, 'تم إلغاء هذه الحصة.');
+
         if ($session->teacher_id === $user->id) {
             return;
         }

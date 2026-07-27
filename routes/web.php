@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\GradeLevelController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PayoutController;
+use App\Http\Controllers\Admin\SessionApologyController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeachingGroupController;
@@ -216,7 +217,8 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('/live-sessions', [LiveSessionController::class, 'index'])->name('live-sessions');
     Route::post('/live-sessions', [LiveSessionController::class, 'store'])->name('live-sessions.store');
     Route::patch('/live-sessions/{id}/status', [LiveSessionController::class, 'updateStatus'])->name('live-sessions.status');
-    Route::delete('/live-sessions/{id}', [LiveSessionController::class, 'destroy'])->name('live-sessions.destroy');
+    Route::post('/live-sessions/{id}/apology', [LiveSessionController::class, 'apologize'])->name('live-sessions.apologize');
+    Route::post('/session-apologies/{id}/makeup', [LiveSessionController::class, 'scheduleMakeup'])->name('session-apologies.makeup');
 
     // Academic lesson planning for groups configured by the administration.
     Route::get('/teaching-schedule', [TeachingScheduleController::class, 'index'])->name('teaching-schedule');
@@ -260,6 +262,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/teaching-groups/{id}', [TeachingGroupController::class, 'destroy'])->name('teaching-groups.destroy');
     Route::post('/private-session-slots', [TeachingGroupController::class, 'storePrivateSlot'])->name('private-slots.store');
     Route::delete('/private-session-slots/{id}', [TeachingGroupController::class, 'destroyPrivateSlot'])->name('private-slots.destroy');
+
+    // Teachers submit academic apologies; only administration can apply money deductions.
+    Route::get('/session-apologies', [SessionApologyController::class, 'index'])->name('session-apologies');
+    Route::post('/session-apologies/{id}/deduct', [SessionApologyController::class, 'deduct'])->name('session-apologies.deduct');
 
     // Review moderation — nothing reaches a teacher's profile without it
     Route::get('/reviews', [App\Http\Controllers\Admin\ReviewController::class, 'index'])->name('reviews');

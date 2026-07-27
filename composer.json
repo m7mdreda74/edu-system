@@ -65,6 +65,7 @@
         ],
         "vercel": [
             "@php artisan package:discover --ansi",
+            "@php scripts/vercel-migrate.php",
             "@php artisan event:cache --ansi",
             "@php artisan route:cache --ansi"
         ],

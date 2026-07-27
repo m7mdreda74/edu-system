@@ -24,8 +24,10 @@ class LiveSessionRoomController extends Controller
         ])->findOrFail($id);
 
         /** @var User $user */
-        $user      = Auth::user();
+        $user = Auth::user();
         $isTeacher = $session->teacher_id === $user->id;
+
+        abort_if($session->status === LiveSession::STATUS_CANCELLED, 403, 'تم إلغاء هذه الحصة بعد اعتذار المدرس.');
 
         // Students can only enter after the teacher starts the broadcast.
         abort_if(! $isTeacher && ! $session->isLive(), 403, 'الحصة لم تبدأ بعد.');
@@ -39,21 +41,21 @@ class LiveSessionRoomController extends Controller
         LiveSessionAttendee::firstOrCreate(
             [
                 'live_session_id' => $session->id,
-                'user_id'         => $user->id,
-                'left_at'         => null,
+                'user_id' => $user->id,
+                'left_at' => null,
             ],
             ['joined_at' => now()],
         );
 
         return Inertia::render('Live/LiveSessionRoom', [
-            'session'  => $session,
+            'session' => $session,
             // Unique and unguessable, so a room id cannot be brute-forced.
-            'roomName' => "Altafawwuq_Session_{$session->id}_" . md5((string) $session->created_at),
-            'user'     => [
-                'id'        => $user->id,
-                'name'      => $user->name,
-                'email'     => $user->email,
-                'avatar'    => $user->avatar,
+            'roomName' => "Altafawwuq_Session_{$session->id}_".md5((string) $session->created_at),
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'avatar' => $user->avatar,
                 'isTeacher' => $isTeacher,
             ],
         ]);

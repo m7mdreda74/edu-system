@@ -46,7 +46,7 @@ function deletePayout(id) {
     if (confirm('حذف التصفية وإرجاع معاملاتها إلى الرصيد المتاح؟')) router.delete(route('admin.payouts.destroy', id));
 }
 
-const statusLabel = payout => payout.teacher_acknowledged_at ? 'تم الاستلام' : payout.status === 'paid' ? 'بانتظار إقرار المدرس' : 'تصفية معلقة';
+const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' : 'تسوية معلقة';
 </script>
 
 <template>
@@ -68,24 +68,29 @@ const statusLabel = payout => payout.teacher_acknowledged_at ? 'تم الاست�
                         <span class="badge-primary">متاح</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 mt-4 text-sm">
-                        <div class="rounded-xl bg-green-50 dark:bg-green-950/20 p-3"><p class="text-xs text-surface-500">مستحق المدرس</p><b class="text-green-600">{{ formatQAR(balances[String(teacher.id)]?.teacher_earnings) }}</b></div>
+                        <div class="rounded-xl bg-green-50 dark:bg-green-950/20 p-3"><p class="text-xs text-surface-500">الصافي بعد الخصومات</p><b class="text-green-600">{{ formatQAR(balances[String(teacher.id)]?.net_teacher_earnings) }}</b></div>
                         <div class="rounded-xl bg-primary-50 dark:bg-primary-950/20 p-3"><p class="text-xs text-surface-500">عمولة المنصة</p><b class="text-primary-600">{{ formatQAR(balances[String(teacher.id)]?.platform_commission_amount) }}</b></div>
                     </div>
+                    <p v-if="balances[String(teacher.id)]?.pending_deductions" class="mt-3 text-xs font-bold text-red-500">
+                        خصومات الحصص المعلقة: {{ formatQAR(balances[String(teacher.id)]?.pending_deductions) }}
+                    </p>
                 </div>
             </section>
 
             <div class="card overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
-                        <thead class="bg-surface-50 dark:bg-surface-800"><tr><th class="text-start p-4">المدرس</th><th class="text-start p-4">إجمالي الاشتراكات</th><th class="text-start p-4">صافي المدرس</th><th class="text-start p-4">عمولة المنصة</th><th class="text-start p-4">الفترة</th><th class="text-start p-4">الحالة</th><th class="text-start p-4">الإجراءات</th></tr></thead>
+                        <thead class="bg-surface-50 dark:bg-surface-800"><tr><th class="text-start p-4">المدرس</th><th class="text-start p-4">إجمالي الاشتراكات</th><th class="text-start p-4">المستحق قبل الخصم</th><th class="text-start p-4">خصم الحصص</th><th class="text-start p-4">الصافي</th><th class="text-start p-4">عمولة المنصة</th><th class="text-start p-4">الفترة</th><th class="text-start p-4">الحالة</th><th class="text-start p-4">الإجراءات</th></tr></thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
                             <tr v-for="payout in payouts" :key="payout.id">
                                 <td class="p-4"><b>{{ payout.teacher?.name }}</b><p class="text-xs text-surface-400">{{ payout.teacher?.email }}</p></td>
                                 <td class="p-4">{{ formatQAR(payout.gross_amount) }}</td>
-                                <td class="p-4 font-bold text-green-600">{{ formatQAR(payout.teacher_earnings ?? payout.amount) }}</td>
+                                <td class="p-4">{{ formatQAR(payout.teacher_earnings ?? payout.amount) }}</td>
+                                <td class="p-4 font-bold text-red-500">- {{ formatQAR(payout.deductions_amount) }}</td>
+                                <td class="p-4 font-bold text-green-600">{{ formatQAR(payout.amount) }}</td>
                                 <td class="p-4 text-primary-600">{{ formatQAR(payout.platform_commission_amount) }}</td>
                                 <td class="p-4 text-xs">{{ payout.period_start }} — {{ payout.period_end }}</td>
-                                <td class="p-4"><span :class="payout.teacher_acknowledged_at ? 'badge-green' : payout.status === 'paid' ? 'badge-accent' : 'badge-primary'">{{ statusLabel(payout) }}</span></td>
+                                <td class="p-4"><span :class="payout.status === 'paid' ? 'badge-green' : 'badge-primary'">{{ statusLabel(payout) }}</span></td>
                                 <td class="p-4"><div class="flex flex-wrap gap-2">
                                     <button v-if="payout.status !== 'paid'" @click="openPay(payout)" class="btn-primary btn-sm">رفع إثبات الدفع</button>
                                     <button v-if="payout.receipt_path" @click="selectedReceipt = route('admin.payouts.receipt', payout.id)" class="btn-outline btn-sm">عرض الإثبات</button>
@@ -103,7 +108,11 @@ const statusLabel = payout => payout.teacher_acknowledged_at ? 'تم الاست�
             <form @submit.prevent="submitPayout" class="card p-6 w-full max-w-lg space-y-4">
                 <h3 class="text-xl font-black">إنشاء تصفية من المعاملات المعتمدة</h3>
                 <select v-model="form.teacher_id" class="input" required><option value="" disabled>اختر المدرس</option><option v-for="teacher in teachers" :key="teacher.id" :value="teacher.id">{{ teacher.name }}</option></select>
-                <div v-if="selectedBalance" class="rounded-xl bg-surface-50 dark:bg-surface-800 p-3 text-sm">الرصيد المتاح حاليًا: <b class="text-green-600">{{ formatQAR(selectedBalance.teacher_earnings) }}</b></div>
+                <div v-if="selectedBalance" class="rounded-xl bg-surface-50 dark:bg-surface-800 p-3 text-sm space-y-1">
+                    <p>المستحق قبل الخصم: <b>{{ formatQAR(selectedBalance.teacher_earnings) }}</b></p>
+                    <p class="text-red-500">خصومات الحصص: <b>- {{ formatQAR(selectedBalance.pending_deductions) }}</b></p>
+                    <p>صافي التسوية المتوقع: <b class="text-green-600">{{ formatQAR(selectedBalance.net_teacher_earnings) }}</b></p>
+                </div>
                 <div class="grid grid-cols-2 gap-3"><div><label class="input-label">من تاريخ</label><input v-model="form.period_start" type="date" dir="ltr" class="input" required /></div><div><label class="input-label">إلى تاريخ</label><input v-model="form.period_end" type="date" dir="ltr" class="input" required /></div></div>
                 <div class="rounded-2xl border-2 border-dashed border-accent-400/60 bg-accent-50/30 dark:bg-accent-950/20 p-4"><label class="input-label">صورة إثبات تحويل مستحقات المدرس <span class="text-red-500">(اختياري هنا، ومطلوب قبل اعتبارها مدفوعة)</span></label><input type="file" accept="image/*" class="input" @change="setReceipt" /><p class="text-[11px] text-surface-500 mt-2">لو رفعت الصورة الآن سيتم تسجيل التصفية كـ «تم التحويل» مباشرة، وإلا ستظهر في الجدول بزر «رفع إثبات الدفع».</p></div>
                 <textarea v-model="form.notes" class="input" placeholder="ملاحظات اختيارية"></textarea>

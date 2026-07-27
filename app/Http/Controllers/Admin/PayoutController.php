@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Payment\Models\TeacherPayout;
+use App\Domain\Communication\Notifications\PayoutStatusNotification;
+use App\Domain\Learning\Models\LiveSessionApology;
 use App\Domain\Payment\Models\Payment;
+use App\Domain\Payment\Models\TeacherPayout;
+use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class PayoutController extends Controller
 {
@@ -24,7 +28,7 @@ class PayoutController extends Controller
             ->get();
 
         $teachers = User::role('teacher')->get(['id', 'name', 'email', 'commission_percent']);
-        $balances = Payment::query()
+        $paymentBalances = Payment::query()
             ->join('subscriptions', 'subscriptions.id', '=', 'payments.subscription_id')
             ->join('teaching_assignments', 'teaching_assignments.id', '=', 'subscriptions.teaching_assignment_id')
             ->where('payments.status', Payment::STATUS_PAID)
@@ -34,22 +38,43 @@ class PayoutController extends Controller
             ->get()
             ->keyBy('teacher_id');
 
+        $pendingDeductions = LiveSessionApology::query()
+            ->where('status', LiveSessionApology::STATUS_DEDUCTED)
+            ->whereNull('teacher_payout_id')
+            ->groupBy('teacher_id')
+            ->select('teacher_id', DB::raw('SUM(deduction_amount) as amount'))
+            ->pluck('amount', 'teacher_id');
+
+        $balances = $teachers->mapWithKeys(function (User $teacher) use ($paymentBalances, $pendingDeductions): array {
+            $balance = $paymentBalances->get($teacher->id);
+            $earnings = (int) ($balance?->teacher_earnings ?? 0);
+            $deductions = (int) ($pendingDeductions[$teacher->id] ?? 0);
+
+            return [$teacher->id => [
+                'gross_amount' => (int) ($balance?->gross_amount ?? 0),
+                'teacher_earnings' => $earnings,
+                'platform_commission_amount' => (int) ($balance?->platform_commission_amount ?? 0),
+                'pending_deductions' => $deductions,
+                'net_teacher_earnings' => max(0, $earnings - $deductions),
+            ]];
+        });
+
         return Inertia::render('Admin/Payouts', [
             'payouts' => $payouts,
             'teachers' => $teachers,
             'balances' => $balances,
-            'defaultCommission' => (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20),
+            'defaultCommission' => (int) (PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'teacher_id'          => ['required', 'exists:users,id'],
-            'period_start'        => ['required', 'date'],
-            'period_end'          => ['required', 'date'],
-            'notes'               => ['nullable', 'string'],
-            'receipt'             => ['nullable', 'file', 'image', 'max:8192'],
+            'teacher_id' => ['required', 'exists:users,id'],
+            'period_start' => ['required', 'date'],
+            'period_end' => ['required', 'date'],
+            'notes' => ['nullable', 'string'],
+            'receipt' => ['nullable', 'file', 'image', 'max:8192'],
         ]);
 
         abort_if($validated['period_end'] < $validated['period_start'], 422, 'نهاية الفترة يجب أن تكون بعد بدايتها.');
@@ -60,11 +85,11 @@ class PayoutController extends Controller
         DB::transaction(function () use ($validated, $receiptPath): void {
             $payments = Payment::query()
                 ->join('subscriptions', 'subscriptions.id', '=', 'payments.subscription_id')
-            ->join('teaching_assignments', 'teaching_assignments.id', '=', 'subscriptions.teaching_assignment_id')
+                ->join('teaching_assignments', 'teaching_assignments.id', '=', 'subscriptions.teaching_assignment_id')
                 ->where('teaching_assignments.teacher_id', $validated['teacher_id'])
                 ->where('payments.status', Payment::STATUS_PAID)
                 ->whereNull('payments.teacher_payout_id')
-                ->whereBetween('payments.paid_at', [$validated['period_start'] . ' 00:00:00', $validated['period_end'] . ' 23:59:59'])
+                ->whereBetween('payments.paid_at', [$validated['period_start'].' 00:00:00', $validated['period_end'].' 23:59:59'])
                 ->select('payments.*')
                 ->lockForUpdate()->get();
 
@@ -73,12 +98,25 @@ class PayoutController extends Controller
             $gross = (int) $payments->sum('amount');
             $teacherEarnings = (int) $payments->sum(fn ($payment) => $payment->teacher_earnings ?? 0);
             $platformAmount = (int) $payments->sum(fn ($payment) => $payment->platform_commission_amount ?? 0);
+            $deductions = LiveSessionApology::where('teacher_id', $validated['teacher_id'])
+                ->where('status', LiveSessionApology::STATUS_DEDUCTED)
+                ->whereNull('teacher_payout_id')
+                ->lockForUpdate()
+                ->get();
+            $deductionAmount = (int) $deductions->sum('deduction_amount');
+
+            if ($deductionAmount > $teacherEarnings) {
+                throw ValidationException::withMessages([
+                    'teacher_id' => 'إجمالي الخصومات أكبر من مستحقات الفترة. اختر فترة أوسع أو راجع قيمة الخصومات.',
+                ]);
+            }
 
             $payout = TeacherPayout::create([
                 'teacher_id' => $validated['teacher_id'],
-                'amount' => $teacherEarnings,
+                'amount' => $teacherEarnings - $deductionAmount,
                 'gross_amount' => $gross,
                 'teacher_earnings' => $teacherEarnings,
+                'deductions_amount' => $deductionAmount,
                 'platform_commission_amount' => $platformAmount,
                 'platform_commission' => $gross > 0 ? (int) round(($platformAmount / $gross) * 100) : 0,
                 'period_start' => $validated['period_start'],
@@ -91,12 +129,14 @@ class PayoutController extends Controller
             ]);
 
             Payment::whereIn('id', $payments->pluck('id'))->update(['teacher_payout_id' => $payout->id]);
+            LiveSessionApology::whereIn('id', $deductions->pluck('id'))
+                ->update(['teacher_payout_id' => $payout->id]);
         });
 
         if ($receiptPath) {
             TeacherPayout::where('teacher_id', $validated['teacher_id'])
                 ->where('receipt_path', $receiptPath)
-                ->first()?->teacher?->notify(new \App\Domain\Communication\Notifications\PayoutStatusNotification(
+                ->first()?->teacher?->notify(new PayoutStatusNotification(
                     TeacherPayout::where('teacher_id', $validated['teacher_id'])->where('receipt_path', $receiptPath)->first()
                 ));
         }
@@ -114,14 +154,14 @@ class PayoutController extends Controller
         abort_if($payout->status === 'paid', 422, 'هذه التصفية تم دفعها بالفعل.');
 
         $payout->update([
-            'status'  => 'paid',
+            'status' => 'paid',
             'paid_at' => now(),
             'receipt_path' => $request->file('receipt')->store('payout-receipts', 'local'),
             'paid_by' => auth()->id(),
-            'notes'   => $request->input('notes') ?? $payout->notes,
+            'notes' => $request->input('notes') ?? $payout->notes,
         ]);
 
-        $payout->teacher?->notify(new \App\Domain\Communication\Notifications\PayoutStatusNotification($payout));
+        $payout->teacher?->notify(new PayoutStatusNotification($payout));
 
         return back()->with('success', 'تم تأكيد دفع الأرباح للمعلم بنجاح.');
     }
@@ -140,6 +180,7 @@ class PayoutController extends Controller
     {
         $payout = TeacherPayout::findOrFail($id);
         abort_unless($payout->receipt_path, 404);
+
         return Storage::disk('local')->response($payout->receipt_path);
     }
 }

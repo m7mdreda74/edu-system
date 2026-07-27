@@ -22,6 +22,8 @@ const form = useForm({
 const isModalOpen = ref(false);
 const actionModal = ref(null);
 const statusForm = useForm({ status: 'ended', recording_url: '' });
+const apologyForm = useForm({ reason: '' });
+const makeupForm = useForm({ scheduled_at: '' });
 
 // A session hangs off a teaching assignment now — pick the subject first.
 const selectedAssignmentId = ref('');
@@ -48,14 +50,6 @@ function resetScheduleSelection() {
     form.scheduled_date = '';
 }
 
-function deleteSession(id) {
-    actionModal.value = { type: 'delete', sessionId: id };
-    return;
-    if (confirm('هل أنت متأكد من حذف هذه الحصة؟')) {
-        router.delete(route('teacher.live-sessions.destroy', id));
-    }
-}
-
 function updateStatus(id, newStatus) {
     if (newStatus === 'ended') {
         statusForm.reset();
@@ -63,14 +57,9 @@ function updateStatus(id, newStatus) {
         actionModal.value = { type: 'end', sessionId: id };
         return;
     }
-    let recording_url = null;
-    if (newStatus === 'ended') {
-        recording_url = prompt('هل لديك رابط تسجيل الحصة المباشرة لتوفيره للطلاب؟ (اختياري)');
-    }
-    
     router.patch(route('teacher.live-sessions.status', id), {
         status: newStatus,
-        recording_url: recording_url
+        recording_url: null,
     });
 }
 
@@ -81,22 +70,47 @@ function submitEndSession() {
     });
 }
 
-function confirmDeleteSession() {
-    router.delete(route('teacher.live-sessions.destroy', actionModal.value.sessionId), {
+function openApology(session) {
+    apologyForm.reset();
+    actionModal.value = { type: 'apology', session };
+}
+
+function submitApology() {
+    apologyForm.post(route('teacher.live-sessions.apologize', actionModal.value.session.id), {
         preserveScroll: true,
-        onSuccess: () => { actionModal.value = null; },
+        onSuccess: () => {
+            actionModal.value = null;
+            apologyForm.reset();
+        },
+    });
+}
+
+function openMakeup(session) {
+    makeupForm.reset();
+    actionModal.value = { type: 'makeup', session };
+}
+
+function submitMakeup() {
+    makeupForm.post(route('teacher.session-apologies.makeup', actionModal.value.session.apology.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            actionModal.value = null;
+            makeupForm.reset();
+        },
     });
 }
 
 const statusColors = {
     scheduled: 'badge-gray',
     live:      'badge-accent',
-    ended:     'badge-primary'
+    ended:     'badge-primary',
+    cancelled: 'badge-red',
 };
 const statusLabels = {
     scheduled: 'مجدولة',
     live:      'مباشر الآن',
-    ended:     'منتهية'
+    ended:     'منتهية',
+    cancelled: 'معتذر عنها',
 };
 </script>
 
@@ -139,9 +153,22 @@ const statusLabels = {
                                     <div class="text-xs text-surface-500 mt-1">{{ session.teaching_group?.name || 'حصة خاصة' }}</div>
                                     <div v-if="session.teaching_group" class="text-[11px] text-primary-500 mt-1">مجموعة: {{ session.teaching_group.name }}</div>
                                     <div v-else-if="session.private_session_slot" class="text-[11px] text-accent-500 mt-1">جلسة برايفيت محجوزة</div>
+                                    <div v-if="session.apology" class="mt-2 rounded-lg bg-red-500/10 p-2 text-[11px] text-red-600">
+                                        سبب الاعتذار: {{ session.apology.reason }}
+                                    </div>
                                 </td>
                                 <td class="p-4 text-surface-600 dark:text-surface-300 font-mono text-xs">
                                     {{ new Date(session.scheduled_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                </td>
+                                <td class="p-4">
+                                    <span :class="statusColors[session.status]" class="text-xs">
+                                        {{ statusLabels[session.status] }}
+                                    </span>
+                                    <p v-if="session.apology?.status === 'makeup_scheduled'" class="mt-2 text-[11px] text-green-600">
+                                        تم التعويض: {{ new Date(session.apology.makeup_scheduled_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                    </p>
+                                    <p v-else-if="session.apology?.status === 'deducted'" class="mt-2 text-[11px] text-red-600">سجلت الإدارة خصمًا</p>
+                                    <p v-else-if="session.apology" class="mt-2 text-[11px] text-accent-600">بانتظار التعويض أو قرار الإدارة</p>
                                 </td>
                                 <td class="p-4">
                                     <div class="text-sm font-bold text-surface-800 dark:text-surface-100">
@@ -152,12 +179,7 @@ const statusLabels = {
                                     </div>
                                 </td>
                                 <td class="p-4">
-                                    <span :class="statusColors[session.status]" class="text-xs">
-                                        {{ statusLabels[session.status] }}
-                                    </span>
-                                </td>
-                                <td class="p-4">
-                                    <div v-if="session.status !== 'ended'">
+                                    <div v-if="['scheduled', 'live'].includes(session.status)">
                                         <a :href="route('live-sessions.room', session.id)" target="_blank" class="text-primary-500 hover:underline text-xs block truncate max-w-[150px]">دخول القاعة المباشرة</a>
                                     </div>
                                     <div v-if="session.recording_url">
@@ -167,10 +189,9 @@ const statusLabels = {
                                 <td class="p-4">
                                     <div class="flex items-center gap-2">
                                         <button v-if="session.status === 'scheduled'" @click="updateStatus(session.id, 'live')" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">بدء الحصة</button>
+                                        <button v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
                                         <button v-if="session.status === 'live'" @click="updateStatus(session.id, 'ended')" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
-                                        <button @click="deleteSession(session.id)" class="btn-sm btn-ghost text-red-500 hover:bg-red-50" title="حذف">
-                                            <Icon name="trash" class="w-4 h-4" />
-                                        </button>
+                                        <button v-if="session.apology?.status === 'pending'" @click="openMakeup(session)" class="btn-sm btn-primary">حدد حصة تعويضية</button>
                                     </div>
                                 </td>
                             </tr>
@@ -187,7 +208,7 @@ const statusLabels = {
 
         <!-- Session action modal -->
         <div v-if="actionModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" dir="rtl">
-            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="!statusForm.processing && (actionModal = null)"></div>
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="actionModal = null"></div>
             <div class="relative w-full max-w-md overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900 animate-fade-up">
                 <form v-if="actionModal.type === 'end'" @submit.prevent="submitEndSession">
                     <div class="p-6">
@@ -207,17 +228,40 @@ const statusLabels = {
                         <button type="submit" class="btn-primary" :disabled="statusForm.processing">{{ statusForm.processing ? 'جاري الإنهاء...' : 'تأكيد إنهاء الحصة' }}</button>
                     </div>
                 </form>
-                <div v-else>
+                <form v-else-if="actionModal.type === 'apology'" @submit.prevent="submitApology">
                     <div class="p-6">
-                        <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-500"><Icon name="trash" class="h-6 w-6" /></div>
-                        <h3 class="text-xl font-black text-surface-900 dark:text-white">حذف الحصة؟</h3>
-                        <p class="mt-2 text-sm leading-6 text-surface-500">سيتم حذف الحصة من الجدول نهائيًا. هذا الإجراء لا يمكن التراجع عنه.</p>
+                        <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-500"><Icon name="calendar" class="h-6 w-6" /></div>
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white">تقديم اعتذار عن الحصة</h3>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">
+                            ستُلغى الحصة الأصلية ويصل الاعتذار للإدارة. بعد الإرسال يمكنك تحديد موعد تعويضي قبل تسجيل الخصم.
+                        </p>
+                        <div class="mt-5">
+                            <label class="input-label">سبب الاعتذار</label>
+                            <textarea v-model="apologyForm.reason" rows="4" minlength="10" maxlength="2000" class="input" required placeholder="اكتب سبب الاعتذار بوضوح"></textarea>
+                            <p v-if="apologyForm.errors.reason" class="error-msg">{{ apologyForm.errors.reason }}</p>
+                        </div>
                     </div>
                     <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
                         <button type="button" class="btn-ghost" @click="actionModal = null">إلغاء</button>
-                        <button type="button" class="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-red-600" @click="confirmDeleteSession">حذف الحصة</button>
+                        <button class="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-red-600" :disabled="apologyForm.processing">إرسال الاعتذار</button>
                     </div>
-                </div>
+                </form>
+                <form v-else-if="actionModal.type === 'makeup'" @submit.prevent="submitMakeup">
+                    <div class="p-6">
+                        <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-500/10 text-green-600"><Icon name="success" class="h-6 w-6" /></div>
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white">تحديد الحصة التعويضية</h3>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">اختر موعدًا مستقبليًا مناسبًا. بعد الحفظ يُغلق الاعتذار كتعويض بدون خصم.</p>
+                        <div class="mt-5">
+                            <label class="input-label">موعد الحصة التعويضية</label>
+                            <input v-model="makeupForm.scheduled_at" type="datetime-local" class="input" required />
+                            <p v-if="makeupForm.errors.scheduled_at" class="error-msg">{{ makeupForm.errors.scheduled_at }}</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
+                        <button type="button" class="btn-ghost" @click="actionModal = null">إلغاء</button>
+                        <button class="btn-primary" :disabled="makeupForm.processing">حفظ الحصة التعويضية</button>
+                    </div>
+                </form>
             </div>
         </div>
 

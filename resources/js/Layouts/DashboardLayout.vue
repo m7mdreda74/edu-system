@@ -57,6 +57,7 @@ const menuGroups = computed(() => {
                     { label: 'المواد الدراسية',icon: 'globe',     href: route('admin.subjects'),  name: 'admin.subjects' },
                     { label: 'الفصول الدراسية',icon: 'calendar',  href: route('admin.academic-terms'), name: 'admin.academic-terms' },
                     { label: 'مجموعات التدريس',icon: 'clock',     href: route('admin.teaching-groups'), name: 'admin.teaching-groups' },
+                    { label: 'اعتذارات الحصص', icon: 'calendar',  href: route('admin.session-apologies'), name: 'admin.session-apologies' },
                     { label: 'الاشتراكات',    icon: 'student',   href: route('admin.subscriptions'), name: 'admin.subscriptions' },
                     { label: 'التقييمات',      icon: 'chat',      href: route('admin.reviews'),   name: 'admin.reviews' },
                 ]

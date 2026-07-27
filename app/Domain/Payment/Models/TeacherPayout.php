@@ -18,6 +18,7 @@ class TeacherPayout extends Model
         'platform_commission',
         'gross_amount',
         'teacher_earnings',
+        'deductions_amount',
         'platform_commission_amount',
         'period_start',
         'period_end',
@@ -32,8 +33,8 @@ class TeacherPayout extends Model
 
     protected $casts = [
         'period_start' => 'date',
-        'period_end'   => 'date',
-        'paid_at'      => 'datetime',
+        'period_end' => 'date',
+        'paid_at' => 'datetime',
         'teacher_acknowledged_at' => 'datetime',
     ];
 

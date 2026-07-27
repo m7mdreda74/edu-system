@@ -45,7 +45,7 @@ it('reaches every admin screen', function () {
     $screens = [
         'admin.dashboard', 'admin.users', 'admin.subjects', 'admin.grade-levels',
         'admin.academic-terms', 'admin.teaching-groups', 'admin.subscriptions',
-        'admin.reviews', 'admin.payments', 'admin.payouts', 'admin.coupons',
+        'admin.session-apologies', 'admin.reviews', 'admin.payments', 'admin.payouts', 'admin.coupons',
         'admin.settings', 'admin.site-pages',
     ];
 

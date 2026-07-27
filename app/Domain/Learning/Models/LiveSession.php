@@ -10,6 +10,7 @@ use App\Domain\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * A live WebRTC classroom. It belongs either to a weekly group or to a booked
@@ -18,8 +19,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class LiveSession extends Model
 {
     public const STATUS_SCHEDULED = 'scheduled';
-    public const STATUS_LIVE      = 'live';
-    public const STATUS_ENDED     = 'ended';
+
+    public const STATUS_LIVE = 'live';
+
+    public const STATUS_ENDED = 'ended';
+
+    public const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
         'teacher_id',
@@ -40,9 +45,9 @@ class LiveSession extends Model
     protected function casts(): array
     {
         return [
-            'scheduled_at'           => 'datetime',
-            'started_at'             => 'datetime',
-            'ended_at'               => 'datetime',
+            'scheduled_at' => 'datetime',
+            'started_at' => 'datetime',
+            'ended_at' => 'datetime',
             'is_published_as_lesson' => 'boolean',
         ];
     }
@@ -74,6 +79,11 @@ class LiveSession extends Model
     public function attendees(): HasMany
     {
         return $this->hasMany(LiveSessionAttendee::class, 'live_session_id');
+    }
+
+    public function apology(): HasOne
+    {
+        return $this->hasOne(LiveSessionApology::class, 'live_session_id');
     }
 
     // ─── Domain Helpers ────────────────────────────────────────────
