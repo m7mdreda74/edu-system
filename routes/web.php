@@ -3,36 +3,17 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Public\GradeLevelBrowseController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\SubjectTeachersController;
 use App\Http\Controllers\Public\TeacherProfileController;
 use App\Http\Controllers\WebhookController;
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
-Route::get('/health', function () {
-    $checks = [];
-
-    try { DB::select('SELECT 1');                  $checks['database'] = 'ok'; }
-    catch (\Throwable $e) { $checks['database'] = 'error: ' . $e->getMessage(); }
-
-    try {
-        Cache::put('health_check', true, 5);
-        $checks['cache'] = Cache::get('health_check') ? 'ok' : 'error';
-    } catch (\Throwable $e) { $checks['cache'] = 'error: ' . $e->getMessage(); }
-
-    return response()->json([
-        'status'  => 'ok',
-        'checks'  => $checks,
-        'version' => Application::VERSION,
-        'time'    => now()->toIso8601String(),
-    ]);
-})->name('health');
+Route::get('/health', HealthController::class)->name('health');
 
 // ─── Public Browse Flow: grade → subject → teachers → profile ─────────────────
 Route::get('/',                                     [HomeController::class,             'index'])->name('home');

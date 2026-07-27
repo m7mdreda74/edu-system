@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Settings\Models\PlatformSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
-use Throwable;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -54,15 +55,19 @@ class HandleInertiaRequests extends Middleware
             ],
 
             // Dynamic platform settings (cached)
-            'settings' => PlatformSetting::getAllCached(),
+            'settings' => fn () => PlatformSetting::getAllCached(),
 
-            'grade_levels' => \App\Domain\Academic\Models\GradeLevel::where('is_active', true)
-                ->select('id', 'key', 'name', 'name_en', 'stage', 'track')
-                ->get(),
+            'grade_levels' => fn () => Cache::remember(
+                'shared.active_grade_levels',
+                now()->addHour(),
+                fn () => GradeLevel::where('is_active', true)
+                    ->select('id', 'key', 'name', 'name_en', 'stage', 'track')
+                    ->get()
+                    ->all(),
+            ),
 
             // Environment info for admin panel
             'env' => app()->environment(),
         ];
     }
 }
-

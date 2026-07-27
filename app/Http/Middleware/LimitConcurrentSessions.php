@@ -13,6 +13,10 @@ class LimitConcurrentSessions
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (config('session.driver') !== 'database') {
+            return $next($request);
+        }
+
         $user = $request->user();
 
         if ($user) {
