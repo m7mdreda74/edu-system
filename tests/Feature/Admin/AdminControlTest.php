@@ -9,7 +9,9 @@ use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 
 // ─── Everything the admin must be able to reach and change ───────────────────
@@ -29,8 +31,8 @@ beforeEach(function () {
     $this->student->assignRole('student');
 
     $this->assignment = TeachingAssignment::factory()->create([
-        'teacher_id'     => $this->teacher->id,
-        'subject_id'     => Subject::where('name', 'الرياضيات')->value('id'),
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => Subject::where('name', 'الرياضيات')->value('id'),
         'grade_level_id' => GradeLevel::where('key', 'grade_12_science')->value('id'),
     ]);
 
@@ -63,10 +65,10 @@ it('keeps every admin screen away from non-admins', function () {
 
 it('publishes a review only once the admin approves it', function () {
     $review = TeacherReview::create([
-        'user_id'     => $this->student->id,
-        'teacher_id'  => $this->teacher->id,
-        'rating'      => 5,
-        'comment'     => 'شرح ممتاز',
+        'user_id' => $this->student->id,
+        'teacher_id' => $this->teacher->id,
+        'rating' => 5,
+        'comment' => 'شرح ممتاز',
         'is_approved' => false,
     ]);
 
@@ -87,7 +89,7 @@ it('publishes a review only once the admin approves it', function () {
 it('can hide an approved review again', function () {
     $review = TeacherReview::create([
         'user_id' => $this->student->id, 'teacher_id' => $this->teacher->id,
-        'rating'  => 4, 'is_approved' => true,
+        'rating' => 4, 'is_approved' => true,
     ]);
 
     $this->actingAs($this->admin)->patch(route('admin.reviews.reject', ['id' => $review->id]));
@@ -102,7 +104,7 @@ it('clears the whole moderation backlog in one go', function () {
 
         TeacherReview::create([
             'user_id' => $student->id, 'teacher_id' => $this->teacher->id,
-            'rating'  => 5, 'is_approved' => false,
+            'rating' => 5, 'is_approved' => false,
         ]);
     }
 
@@ -115,11 +117,11 @@ it('clears the whole moderation backlog in one go', function () {
 
 it('adds an academic term', function () {
     $this->actingAs($this->admin)->post(route('admin.academic-terms.store'), [
-        'year_label'  => '2027/2028',
+        'year_label' => '2027/2028',
         'term_number' => 1,
-        'name'        => 'الفصل الدراسي الأول',
-        'starts_on'   => '2027-08-29',
-        'ends_on'     => '2027-12-16',
+        'name' => 'الفصل الدراسي الأول',
+        'starts_on' => '2027-08-29',
+        'ends_on' => '2027-12-16',
     ])->assertRedirect();
 
     expect(AcademicTerm::where('year_label', '2027/2028')->exists())->toBeTrue();
@@ -127,11 +129,11 @@ it('adds an academic term', function () {
 
 it('rejects a term that ends before it starts', function () {
     $this->actingAs($this->admin)->post(route('admin.academic-terms.store'), [
-        'year_label'  => '2027/2028',
+        'year_label' => '2027/2028',
         'term_number' => 2,
-        'name'        => 'الفصل الدراسي الثاني',
-        'starts_on'   => '2028-01-10',
-        'ends_on'     => '2027-12-01',
+        'name' => 'الفصل الدراسي الثاني',
+        'starts_on' => '2028-01-10',
+        'ends_on' => '2027-12-01',
     ])->assertSessionHasErrors('ends_on');
 });
 
@@ -157,6 +159,53 @@ it('takes a group offline without touching its teacher', function () {
 
     expect($this->group->fresh()->is_active)->toBeFalse()
         ->and($this->teacher->fresh()->is_active)->toBeTrue();
+});
+
+it('gives group and private pricing to the admin only', function () {
+    $payload = [
+        'name' => $this->group->name,
+        'capacity' => $this->group->capacity,
+        'monthly_price_qar' => 725.50,
+        'academic_term_id' => $this->group->academic_term_id,
+        'is_active' => true,
+    ];
+
+    $this->actingAs($this->teacher)
+        ->put(route('admin.teaching-groups.update', $this->group->id), $payload)
+        ->assertForbidden();
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.teaching-groups.update', $this->group->id), $payload)
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.teaching-assignments.update', $this->assignment->id), [
+            'accepts_private' => true,
+            'private_monthly_price_qar' => 950,
+            'is_active' => true,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($this->group->fresh()->monthly_price)->toBe(72_550)
+        ->and($this->assignment->fresh()->private_monthly_price)->toBe(95_000)
+        ->and($this->assignment->fresh()->accepts_private)->toBeTrue()
+        ->and(app('router')->has('teacher.teaching-schedule.groups.store'))->toBeFalse()
+        ->and(app('router')->has('teacher.teaching-schedule.private-slots.store'))->toBeFalse()
+        ->and(app('router')->has('teacher.payouts'))->toBeFalse();
+});
+
+it('keeps the teacher dashboard academic only', function () {
+    $this->actingAs($this->teacher)
+        ->get(route('teacher.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Teacher/Dashboard')
+            ->has('stats.assignments')
+            ->has('stats.lessons')
+            ->missing('stats.total_revenue')
+            ->missing('recentSubscriptions'));
 });
 
 it('shows who is inside a group', function () {
@@ -202,7 +251,7 @@ it('loads every live dashboard figure in one database round trip', function () {
 it('counts a pending review in the action queue', function () {
     TeacherReview::create([
         'user_id' => $this->student->id, 'teacher_id' => $this->teacher->id,
-        'rating'  => 5, 'is_approved' => false,
+        'rating' => 5, 'is_approved' => false,
     ]);
 
     $response = $this->actingAs($this->admin)->getJson(route('admin.dashboard.stats'));
@@ -213,13 +262,13 @@ it('counts a pending review in the action queue', function () {
 // ─── Teacher photos belong to the platform, not the teacher ─────────────────
 
 it('refuses a teacher uploading their own photo', function () {
-    \Illuminate\Support\Facades\Storage::fake('public');
+    Storage::fake('public');
 
     $this->actingAs($this->teacher)
         ->patch(route('profile.update'), [
-            'name'   => $this->teacher->name,
-            'email'  => $this->teacher->email,
-            'avatar' => \Illuminate\Http\UploadedFile::fake()->image('me.jpg'),
+            'name' => $this->teacher->name,
+            'email' => $this->teacher->email,
+            'avatar' => UploadedFile::fake()->image('me.jpg'),
         ])
         ->assertSessionHasErrors('avatar');
 
@@ -227,13 +276,13 @@ it('refuses a teacher uploading their own photo', function () {
 });
 
 it('still lets a student set their own photo', function () {
-    \Illuminate\Support\Facades\Storage::fake('public');
+    Storage::fake('public');
 
     $this->actingAs($this->student)
         ->patch(route('profile.update'), [
-            'name'   => $this->student->name,
-            'email'  => $this->student->email,
-            'avatar' => \Illuminate\Http\UploadedFile::fake()->image('me.jpg', 200, 200),
+            'name' => $this->student->name,
+            'email' => $this->student->email,
+            'avatar' => UploadedFile::fake()->image('me.jpg', 200, 200),
         ])
         ->assertSessionHasNoErrors();
 
@@ -243,9 +292,9 @@ it('still lets a student set their own photo', function () {
 it('lets a teacher edit the rest of their profile', function () {
     $this->actingAs($this->teacher)
         ->patch(route('profile.update'), [
-            'name'            => $this->teacher->name,
-            'email'           => $this->teacher->email,
-            'headline'        => 'معلم رياضيات',
+            'name' => $this->teacher->name,
+            'email' => $this->teacher->email,
+            'headline' => 'معلم رياضيات',
             'intro_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         ])
         ->assertSessionHasNoErrors();
@@ -254,11 +303,11 @@ it('lets a teacher edit the rest of their profile', function () {
 });
 
 it('lets an admin set and clear a teacher photo', function () {
-    \Illuminate\Support\Facades\Storage::fake('public');
+    Storage::fake('public');
 
     $this->actingAs($this->admin)
         ->post(route('admin.users.avatar', ['id' => $this->teacher->id]), [
-            'avatar' => \Illuminate\Http\UploadedFile::fake()->image('teacher.jpg', 400, 400),
+            'avatar' => UploadedFile::fake()->image('teacher.jpg', 400, 400),
         ])
         ->assertRedirect();
 
@@ -272,11 +321,11 @@ it('lets an admin set and clear a teacher photo', function () {
 });
 
 it('manages photos for teachers only', function () {
-    \Illuminate\Support\Facades\Storage::fake('public');
+    Storage::fake('public');
 
     $this->actingAs($this->admin)
         ->post(route('admin.users.avatar', ['id' => $this->student->id]), [
-            'avatar' => \Illuminate\Http\UploadedFile::fake()->image('x.jpg'),
+            'avatar' => UploadedFile::fake()->image('x.jpg'),
         ])
         ->assertStatus(422);
 });

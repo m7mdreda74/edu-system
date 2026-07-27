@@ -20,6 +20,9 @@ beforeEach(function () {
     $this->grade = GradeLevel::where('key', 'grade_12_science')->firstOrFail();
     $this->maths = Subject::where('name', 'الرياضيات')->firstOrFail();
 
+    $this->admin = User::factory()->create();
+    $this->admin->assignRole('admin');
+
     // Two teachers on the same subject — the case the browse flow exists for.
     $this->teacherA = User::factory()->create(['name' => 'أ. أحمد', 'is_active' => true, 'subject_id' => $this->maths->id]);
     $this->teacherA->assignRole('teacher');
@@ -29,8 +32,8 @@ beforeEach(function () {
 
     $this->groups = collect([$this->teacherA, $this->teacherB])->map(function (User $teacher) {
         $assignment = TeachingAssignment::factory()->create([
-            'teacher_id'     => $teacher->id,
-            'subject_id'     => $this->maths->id,
+            'teacher_id' => $teacher->id,
+            'subject_id' => $this->maths->id,
             'grade_level_id' => $this->grade->id,
         ]);
 
@@ -38,7 +41,7 @@ beforeEach(function () {
     });
 
     $this->student = User::factory()->create([
-        'grade_level'       => 'grade_12_science',
+        'grade_level' => 'grade_12_science',
         'email_verified_at' => now(),
     ]);
     $this->student->assignRole('student');
@@ -134,26 +137,40 @@ it('carries the status onto the public subject page too', function () {
             ->where('isStudent', true));
 });
 
-// ─── The one-subject rule at the point of writing ───────────────────────────
+// ─── Only administration can assign teachers ───────────────────────────────
 
-it('stops a teacher taking on a second subject', function () {
-    $physics = Subject::where('name', 'الفيزياء')->firstOrFail();
-
+it('keeps teaching assignments away from teachers', function () {
     $this->actingAs($this->teacherA)
-        ->post(route('teacher.teaching-schedule.assignments.store'), [
-            'subject_id'     => $physics->id,
+        ->post(route('admin.teaching-assignments.store'), [
+            'teacher_id' => $this->teacherA->id,
+            'subject_id' => $this->maths->id,
             'grade_level_id' => GradeLevel::where('key', 'grade_11_science')->value('id'),
         ])
-        ->assertSessionHas('error');
+        ->assertForbidden();
+
+    expect(app('router')->has('teacher.teaching-schedule.assignments.store'))->toBeFalse();
+});
+
+it('stops the admin assigning a teacher to a second subject', function () {
+    $physics = Subject::where('name', 'الفيزياء')->firstOrFail();
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.teaching-assignments.store'), [
+            'teacher_id' => $this->teacherA->id,
+            'subject_id' => $physics->id,
+            'grade_level_id' => GradeLevel::where('key', 'grade_11_science')->value('id'),
+        ])
+        ->assertSessionHasErrors('subject_id');
 
     expect(TeachingAssignment::where('teacher_id', $this->teacherA->id)
         ->distinct('subject_id')->count('subject_id'))->toBe(1);
 });
 
-it('lets a teacher add another grade of their own subject', function () {
-    $this->actingAs($this->teacherA)
-        ->post(route('teacher.teaching-schedule.assignments.store'), [
-            'subject_id'     => $this->maths->id,
+it('lets the admin add another grade of the teacher subject', function () {
+    $this->actingAs($this->admin)
+        ->post(route('admin.teaching-assignments.store'), [
+            'teacher_id' => $this->teacherA->id,
+            'subject_id' => $this->maths->id,
             'grade_level_id' => GradeLevel::where('key', 'grade_11_science')->value('id'),
         ])
         ->assertSessionHasNoErrors();
@@ -161,13 +178,14 @@ it('lets a teacher add another grade of their own subject', function () {
     expect(TeachingAssignment::where('teacher_id', $this->teacherA->id)->count())->toBe(2);
 });
 
-it('adopts the first subject a new teacher adds as their specialty', function () {
+it('sets a new teacher specialty from the first admin assignment', function () {
     $fresh = User::factory()->create(['is_active' => true, 'subject_id' => null]);
     $fresh->assignRole('teacher');
 
-    $this->actingAs($fresh)
-        ->post(route('teacher.teaching-schedule.assignments.store'), [
-            'subject_id'     => $this->maths->id,
+    $this->actingAs($this->admin)
+        ->post(route('admin.teaching-assignments.store'), [
+            'teacher_id' => $fresh->id,
+            'subject_id' => $this->maths->id,
             'grade_level_id' => $this->grade->id,
         ]);
 

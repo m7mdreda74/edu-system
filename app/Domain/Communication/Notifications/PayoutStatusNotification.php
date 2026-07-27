@@ -14,14 +14,17 @@ class PayoutStatusNotification extends Notification
 
     public function __construct(public TeacherPayout $payout) {}
 
-    public function via(object $notifiable): array { return ['database']; }
+    public function via(object $notifiable): array
+    {
+        return ['database'];
+    }
 
     public function toArray(object $notifiable): array
     {
         return [
             'title' => 'تم تحويل مستحقاتك المالية',
-            'message' => 'تم تحويل ' . number_format(($this->payout->amount ?? 0) / 100, 2) . ' ر.ق. لك. راجع الإثبات وأكد الاستلام.',
-            'link' => route('teacher.payouts'),
+            'message' => 'سجلت الإدارة تحويل '.number_format(($this->payout->amount ?? 0) / 100, 2).' ر.ق. لك.',
+            'link' => route('teacher.dashboard'),
             'payout_id' => $this->payout->id,
             'icon' => '💰',
         ];
