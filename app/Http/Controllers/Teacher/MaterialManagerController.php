@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
@@ -24,10 +26,12 @@ class MaterialManagerController extends Controller
 
         return Inertia::render('Teacher/Materials', [
             'group' => [
-                'id'      => $group->id,
-                'name'    => $group->name,
-                'subject' => $group->assignment?->subject?->only(['id', 'name']),
-                'grade'   => $group->assignment?->gradeLevel?->only(['key', 'name']),
+                'id'   => $group->id,
+                'name' => $group->name,
+                // Lets this legacy screen point at the curriculum builder that replaced it.
+                'assignment_id' => $group->teaching_assignment_id,
+                'subject'       => $group->assignment?->subject?->only(['id', 'name']),
+                'grade'         => $group->assignment?->gradeLevel?->only(['key', 'name']),
             ],
             'materials' => $group->materials()->get(),
         ]);
@@ -47,7 +51,9 @@ class MaterialManagerController extends Controller
             'attachment'       => ['nullable', 'file', 'mimes:pdf,docx,pptx,zip', 'max:20480'],
         ]);
 
-        $validated['teaching_group_id'] = $group->id;
+        // This screen predates the curriculum builder, so everything it uploads
+        // lands in the assignment's first unit.
+        $validated['curriculum_unit_id'] = CurriculumUnit::firstFor($group)->id;
         $validated['order'] ??= (int) $group->materials()->max('order') + 1;
         $validated['duration_seconds'] ??= 0;
         $validated['is_free_preview'] = (bool) ($validated['is_free_preview'] ?? false);
@@ -65,9 +71,9 @@ class MaterialManagerController extends Controller
 
     public function update(Request $request, int $id): RedirectResponse
     {
-        $material = GroupMaterial::with('group.assignment')->findOrFail($id);
+        $material = GroupMaterial::with('unit.assignment')->findOrFail($id);
 
-        $this->assertOwns($material->group);
+        $this->assertOwnsAssignment($material->unit?->assignment);
 
         $validated = $request->validate([
             'title'            => ['required', 'string', 'max:255'],
@@ -85,9 +91,9 @@ class MaterialManagerController extends Controller
 
     public function destroy(int $id): RedirectResponse
     {
-        $material = GroupMaterial::with('group.assignment')->findOrFail($id);
+        $material = GroupMaterial::with('unit.assignment')->findOrFail($id);
 
-        $this->assertOwns($material->group);
+        $this->assertOwnsAssignment($material->unit?->assignment);
 
         $material->delete();
 
@@ -108,8 +114,14 @@ class MaterialManagerController extends Controller
 
     private function assertOwns(?TeachingGroup $group): void
     {
+        $this->assertOwnsAssignment($group?->assignment);
+    }
+
+    /** Lessons hang off the assignment now, so ownership is checked there. */
+    private function assertOwnsAssignment(?TeachingAssignment $assignment): void
+    {
         abort_unless(
-            $group && $group->assignment?->teacher_id === Auth::id(),
+            $assignment && $assignment->teacher_id === Auth::id(),
             403,
             'هذه المجموعة ليست ضمن جدولك.',
         );

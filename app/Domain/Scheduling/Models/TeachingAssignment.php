@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Scheduling\Models;
 
+use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Subscription\Models\Subscription;
@@ -66,6 +67,12 @@ class TeachingAssignment extends Model
     public function groups(): HasMany
     {
         return $this->hasMany(TeachingGroup::class);
+    }
+
+    /** The syllabus: "الوحدة الأولى" upwards, across both terms. */
+    public function units(): HasMany
+    {
+        return $this->hasMany(CurriculumUnit::class, 'teaching_assignment_id')->orderBy('order');
     }
 
     public function privateSlots(): HasMany

@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
         'users',
         'teaching_assignments', 'teaching_groups', 'teaching_group_schedules', 'teaching_group_lessons',
         'private_session_slots', 'session_bookings', 'subscriptions',
-        'group_materials', 'lesson_progress', 'lesson_questions',
+        'curriculum_units', 'group_materials', 'lesson_progress', 'lesson_questions',
         'quizzes', 'quiz_questions', 'quiz_options', 'quiz_attempts',
         'worksheets', 'worksheet_submissions',
         'coupons', 'payments', 'invoices', 'teacher_payouts', 'payment_audit_logs',

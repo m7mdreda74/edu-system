@@ -6,7 +6,6 @@ namespace Database\Seeders;
 
 use App\Domain\Communication\Models\ChatMessage;
 use App\Domain\Communication\Models\Conversation;
-use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LessonProgress;
 use App\Domain\Learning\Models\LessonQuestion;
 use App\Domain\Learning\Models\TeacherReview;
@@ -31,7 +30,7 @@ class EngagementSeeder extends Seeder
     public function run(): void
     {
         $subscriptions = Subscription::active()
-            ->with(['student', 'group.materials', 'assignment.teacher'])
+            ->with(['student', 'group', 'assignment.teacher'])
             ->get();
 
         foreach ($subscriptions as $index => $subscription) {
@@ -49,7 +48,7 @@ class EngagementSeeder extends Seeder
     /** Part-way through the material, not everyone at the same point. */
     private function seedProgress(Subscription $subscription, int $index): void
     {
-        $materials = $subscription->group?->materials ?? collect();
+        $materials = $subscription->group?->materials()->get() ?? collect();
 
         if ($materials->isEmpty()) {
             return;
@@ -83,7 +82,8 @@ class EngagementSeeder extends Seeder
             return;
         }
 
-        $quizzes = Quiz::where('teaching_group_id', $subscription->teaching_group_id)
+        // Quizzes hang off the syllabus, which belongs to the assignment.
+        $quizzes = Quiz::whereHas('unit', fn ($q) => $q->where('teaching_assignment_id', $subscription->teaching_assignment_id))
             ->where('is_active', true)
             ->take(2)
             ->get();
@@ -118,7 +118,7 @@ class EngagementSeeder extends Seeder
             return;
         }
 
-        $worksheets = Worksheet::where('teaching_group_id', $subscription->teaching_group_id)
+        $worksheets = Worksheet::whereHas('unit', fn ($q) => $q->where('teaching_assignment_id', $subscription->teaching_assignment_id))
             ->where('requires_submission', true)
             ->get();
 
@@ -152,7 +152,7 @@ class EngagementSeeder extends Seeder
             return;
         }
 
-        $material = $subscription->group?->materials?->first();
+        $material = $subscription->group?->materials()->first();
         $teacher  = $subscription->assignment?->teacher;
 
         if (! $material || ! $teacher) {

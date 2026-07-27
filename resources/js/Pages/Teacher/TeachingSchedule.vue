@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 
 const props = defineProps({ assignments: { type: Array, default: () => [] }, subjects: { type: Array, default: () => [] }, gradeLevels: { type: Array, default: () => [] } });
@@ -97,7 +97,10 @@ function formatDate(value) { return new Date(value).toLocaleString('ar-EG', { da
             </section>
 
             <section v-for="item in assignments" :key="item.id" class="card p-6 space-y-5">
-                <h2 class="font-bold text-lg">{{ item.subject.name }} — {{ item.grade_level.name }}</h2>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h2 class="font-bold text-lg">{{ item.subject.name }} — {{ item.grade_level.name }}</h2>
+                    <Link :href="route('teacher.curriculum', { assignment: item.id })" class="btn-primary btn-sm">بناء المنهج: الفصول والوحدات والدروس</Link>
+                </div>
                 <article v-for="entry in item.groups" :key="entry.id" class="rounded-2xl border border-surface-200 dark:border-surface-700 p-5 space-y-4">
                     <div class="flex flex-wrap justify-between gap-3">
                         <div><h3 class="font-black">{{ entry.name }}</h3><p class="text-xs text-primary-600">{{ entry.active_bookings_count }}/{{ entry.capacity }} طالب محجوز</p></div>

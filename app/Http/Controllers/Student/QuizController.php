@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Application\Quiz\Services\QuizService;
 use App\Domain\Quiz\Models\Quiz;
+use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,33 +20,23 @@ class QuizController extends Controller
         private readonly QuizService $quizService,
     ) {}
 
+    /**
+     * Deliberately renders outside the exam's window too: a student who arrives
+     * early should read "متاح من …" rather than be shown a 403.
+     */
     public function show(int $quizId): Response
     {
+        /** @var User $user */
         $user = auth()->user();
-        $quiz = Quiz::with(['questions.options:id,question_id,option_text'])
+        $quiz = Quiz::with('unit:id,teaching_assignment_id')
+            ->withCount('questions')
             ->where('is_active', true)
             ->findOrFail($quizId);
 
-        // Quizzes belong to a group; only a live subscription unlocks them.
-        $hasAccess = $quiz->teaching_group_id
-            && $user->subscriptions()->active()->where('teaching_group_id', $quiz->teaching_group_id)->exists();
+        $this->authorizeAccess($user, $quiz);
 
-        abort_unless($hasAccess, 403, 'يجب أن يكون لديك اشتراك فعّال في هذه المجموعة.');
-
-        $attempts         = $this->quizService->getAttempts($user, $quiz);
+        $attempts          = $this->quizService->getAttempts($user, $quiz);
         $remainingAttempts = $this->quizService->getRemainingAttempts($user, $quiz);
-
-        // Strip correct answers from questions — never sent to client!
-        $questions = $quiz->questions->map(fn($q) => [
-            'id'   => $q->id,
-            'text' => $q->question_text,
-            'type' => $q->type,
-            // Only send option text + ID — is_correct is NEVER included
-            'options' => $q->options->map(fn($o) => [
-                'id'   => $o->id,
-                'text' => $o->option_text,
-            ]),
-        ]);
 
         return Inertia::render('Student/Quiz', [
             'quiz' => [
@@ -53,9 +44,15 @@ class QuizController extends Controller
                 'title'              => $quiz->title,
                 'time_limit_minutes' => $quiz->time_limit_minutes,
                 'passing_score'      => $quiz->passing_score,
-                'questions_count'    => $quiz->questions->count(),
+                'questions_count'    => (int) $quiz->questions_count,
+                'is_open'            => $quiz->isOpen(),
+                'opens_at'           => $quiz->available_from?->toIso8601String(),
+                'closes_at'          => $quiz->available_until?->toIso8601String(),
+                'window_label'       => $quiz->windowLabel(),
             ],
-            'questions'         => $questions,
+            // Question text is deliberately withheld until `start` has checked
+            // the availability window and created the student's attempt.
+            'questions'         => [],
             'attempts'          => $attempts,
             'remainingAttempts' => $remainingAttempts,
         ]);
@@ -63,8 +60,18 @@ class QuizController extends Controller
 
     public function start(int $quizId): JsonResponse
     {
+        /** @var User $user */
         $user = auth()->user();
-        $quiz = Quiz::findOrFail($quizId);
+        $quiz = Quiz::with([
+            'unit:id,teaching_assignment_id',
+            'questions.options:id,question_id,option_text',
+        ])->findOrFail($quizId);
+
+        $this->authorizeAccess($user, $quiz);
+
+        // "متاح من / إلى" is the teacher's own gate on the exam.
+        abort_unless($quiz->isOpen(), 403, 'هذا الاختبار غير متاح حالياً.');
+        abort_if($quiz->questions->isEmpty(), 422, 'الاختبار لا يحتوي على أسئلة.');
 
         try {
             $attempt = $this->quizService->startAttempt($user, $quiz);
@@ -72,6 +79,9 @@ class QuizController extends Controller
             return response()->json([
                 'attempt_id' => $attempt->id,
                 'started_at' => $attempt->started_at->toIso8601String(),
+                // `is_correct` was not selected by the relationship above and
+                // is never serialized to the browser.
+                'questions'  => $this->presentQuestions($quiz),
             ]);
         } catch (LogicException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
@@ -84,6 +94,12 @@ class QuizController extends Controller
      */
     public function submit(Request $request, int $quizId): JsonResponse
     {
+        /** @var User $user */
+        $user = auth()->user();
+        $quiz = Quiz::with('unit:id,teaching_assignment_id')->findOrFail($quizId);
+
+        $this->authorizeAccess($user, $quiz);
+
         $validated = $request->validate([
             'attempt_id'          => ['required', 'integer'],
             'answers'             => ['required', 'array'],
@@ -91,9 +107,9 @@ class QuizController extends Controller
             'answers.*.*'         => ['integer'],
         ]);
 
-        $user    = auth()->user();
         $attempt = \App\Domain\Quiz\Models\QuizAttempt::where('id', $validated['attempt_id'])
             ->where('user_id', $user->id)
+            ->where('quiz_id', $quiz->id)
             ->firstOrFail();
 
         try {
@@ -111,12 +127,19 @@ class QuizController extends Controller
 
     public function recordViolation(Request $request, int $quizId): JsonResponse
     {
+        /** @var User $user */
+        $user = auth()->user();
+        $quiz = Quiz::with('unit:id,teaching_assignment_id')->findOrFail($quizId);
+
+        $this->authorizeAccess($user, $quiz);
+
         $validated = $request->validate([
             'attempt_id' => ['required', 'integer'],
         ]);
 
         $attempt = \App\Domain\Quiz\Models\QuizAttempt::where('id', $validated['attempt_id'])
-            ->where('user_id', auth()->id())
+            ->where('user_id', $user->id)
+            ->where('quiz_id', $quiz->id)
             ->firstOrFail();
 
         $attempt->increment('violations');
@@ -124,5 +147,41 @@ class QuizController extends Controller
         return response()->json([
             'violations' => $attempt->violations,
         ]);
+    }
+
+    /**
+     * Quizzes belong to a unit of the syllabus; a live subscription to that
+     * teacher's subject unlocks them, whether the student sits in a group or
+     * takes private lessons.
+     */
+    private function authorizeAccess(User $user, Quiz $quiz): void
+    {
+        $assignmentId = $quiz->unit?->teaching_assignment_id;
+
+        abort_unless(
+            $assignmentId && $user->hasActiveSubscriptionToAssignment($assignmentId),
+            403,
+            'يجب أن يكون لديك اشتراك فعّال في هذه المجموعة.',
+        );
+    }
+
+    /**
+     * Questions are disclosed only after the attempt has started. The query in
+     * `start` selects no answer-key column, so even accidental serialization of
+     * an option cannot reveal whether it is correct.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function presentQuestions(Quiz $quiz): array
+    {
+        return $quiz->questions->map(fn ($question): array => [
+            'id'   => $question->id,
+            'text' => $question->question_text,
+            'type' => $question->type,
+            'options' => $question->options->map(fn ($option): array => [
+                'id'   => $option->id,
+                'text' => $option->option_text,
+            ])->values()->all(),
+        ])->values()->all();
     }
 }

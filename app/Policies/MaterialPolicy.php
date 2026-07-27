@@ -8,24 +8,28 @@ use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\User\Models\User;
 
 /**
- * MaterialPolicy — controls access to group material.
+ * MaterialPolicy — controls access to a lesson.
  *
  * Core business rule: paid material needs a live subscription. Access is a
  * window in time now, so a lapsed subscription locks the content again.
+ *
+ * The syllabus hangs off the teaching assignment rather than off a timetable
+ * slot, so the subscription is checked against the assignment. That is what
+ * lets a private student — who has no group at all — reach the same lessons.
  */
 class MaterialPolicy
 {
     public function watch(User $user, GroupMaterial $material): bool
     {
-        $material->loadMissing('group.assignment');
-        $group = $material->group;
+        $material->loadMissing('unit.assignment');
+        $assignment = $material->unit?->assignment;
 
-        if (! $group) {
+        if (! $assignment) {
             return false;
         }
 
-        // Admins, and the teacher who owns the group, always have access.
-        if ($user->isAdmin() || $user->id === $group->assignment?->teacher_id) {
+        // Admins, and the teacher who wrote the syllabus, always have access.
+        if ($user->isAdmin() || $user->id === $assignment->teacher_id) {
             return true;
         }
 
@@ -33,6 +37,6 @@ class MaterialPolicy
             return true;
         }
 
-        return $user->hasActiveSubscriptionTo($group);
+        return $user->hasActiveSubscriptionToAssignment($assignment->id);
     }
 }

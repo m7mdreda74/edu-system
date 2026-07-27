@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Domain\Quiz;
 
-use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\Quiz\Models\QuizOption;
 use App\Domain\Quiz\Models\QuizQuestion;
@@ -17,10 +17,13 @@ class QuizFactory extends Factory
     public function definition(): array
     {
         return [
-            'teaching_group_id'  => TeachingGroup::factory(),
+            // No `lesson_id` — a quiz standing alone is the unit's electronic exam.
+            'curriculum_unit_id' => CurriculumUnit::factory(),
             'title'              => 'اختبار ' . $this->faker->word(),
             'passing_score'      => 70,
             'time_limit_minutes' => null,
+            'available_from'     => null,
+            'available_until'    => null,
             'is_active'          => true,
         ];
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Academic\Models\AcademicTerm;
+use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Http\Controllers\Controller;
@@ -35,7 +36,7 @@ class TeachingGroupController extends Controller
             'schedules',
             'term:id,year_label,name',
         ])
-            ->withCount(['activeBookings', 'materials'])
+            ->withCount('activeBookings')
             ->when(! empty($filters['search']), fn ($q) => $q
                 ->where('name', 'like', '%' . $filters['search'] . '%')
                 ->orWhereHas('assignment.teacher', fn ($t) => $t->where('name', 'like', '%' . $filters['search'] . '%')))
@@ -45,8 +46,15 @@ class TeachingGroupController extends Controller
             ->when(! empty($filters['term']), fn ($q) => $q->where('academic_term_id', $filters['term']))
             ->latest()
             ->paginate(20)
-            ->withQueryString()
-            ->through(fn (TeachingGroup $group) => [
+            ->withQueryString();
+
+        // Lessons belong to the assignment's units, so the count cannot ride
+        // along on the group query — it is resolved for the page in one go.
+        $materialCounts = GroupMaterial::countsByAssignment(
+            collect($groups->items())->pluck('teaching_assignment_id'),
+        );
+
+        $groups->through(fn (TeachingGroup $group) => [
                 'id'              => $group->id,
                 'name'            => $group->name,
                 'teacher'         => $group->assignment?->teacher?->only(['id', 'name', 'avatar']),
@@ -56,7 +64,7 @@ class TeachingGroupController extends Controller
                 'monthly_price'   => $group->monthly_price,
                 'capacity'        => $group->capacity,
                 'students_count'  => $group->active_bookings_count,
-                'materials_count' => $group->materials_count,
+                'materials_count' => $materialCounts[$group->teaching_assignment_id] ?? 0,
                 'is_active'       => $group->is_active,
                 'is_full'         => $group->active_bookings_count >= $group->capacity,
                 'schedule'        => $group->schedules
@@ -95,7 +103,6 @@ class TeachingGroupController extends Controller
             'assignment.subject:id,name',
             'assignment.gradeLevel:id,name',
             'schedules',
-            'materials',
         ])->findOrFail($id);
 
         $subscriptions = Subscription::with('student:id,name,email,avatar')
@@ -127,7 +134,7 @@ class TeachingGroupController extends Controller
                     'start' => substr((string) $s->start_time, 0, 5),
                     'end'   => substr((string) $s->end_time, 0, 5),
                 ])->values(),
-                'materials' => $group->materials->map->only(['id', 'title', 'order', 'is_free_preview'])->values(),
+                'materials' => $group->materials()->get()->map->only(['id', 'title', 'order', 'is_free_preview'])->values(),
             ],
             'subscriptions' => $subscriptions,
         ]);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -44,13 +45,19 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
+        // Lessons belong to the assignment's units, so their count is resolved
+        // separately rather than riding along on the group query.
+        $materialCounts = GroupMaterial::countsByAssignment($assignmentIds);
+
         $groups = TeachingGroup::with(['assignment.subject:id,name', 'assignment.gradeLevel:id,key,name'])
             ->whereIn('teaching_assignment_id', $assignmentIds)
-            ->withCount(['activeBookings', 'materials'])
+            ->withCount('activeBookings')
             ->latest()
             ->get()
             ->map(fn (TeachingGroup $group) => [
                 'id'              => $group->id,
+                // The syllabus link points at the assignment, not the group.
+                'assignment_id'   => $group->teaching_assignment_id,
                 'name'            => $group->name,
                 'subject'         => $group->assignment?->subject?->only(['id', 'name']),
                 'grade'           => $group->assignment?->gradeLevel?->only(['key', 'name']),
@@ -58,7 +65,7 @@ class DashboardController extends Controller
                 'currency'        => $group->currency,
                 'capacity'        => $group->capacity,
                 'students_count'  => $group->active_bookings_count,
-                'materials_count' => $group->materials_count,
+                'materials_count' => $materialCounts[$group->teaching_assignment_id] ?? 0,
                 'is_active'       => $group->is_active,
             ]);
 

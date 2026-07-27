@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Domain\Academic\Models\CurriculumUnit;
+use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Learning\Models\WorksheetSubmission;
+use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\Subscription\Models\Subscription;
 use App\Http\Controllers\Controller;
 use App\Notifications\GenericDatabaseNotification;
 use Illuminate\Http\RedirectResponse;
@@ -24,7 +28,7 @@ class WorksheetController extends Controller
     {
         $group = $this->ownedGroupOrFail($groupId);
 
-        $worksheets = Worksheet::where('teaching_group_id', $group->id)
+        $worksheets = $group->worksheets()
             ->with(['material:id,title'])
             ->withCount('submissions')
             ->get();
@@ -58,8 +62,13 @@ class WorksheetController extends Controller
             'max_score'           => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $validated['file_path']         = '/storage/' . $request->file('file')->store('worksheets', 'public');
-        $validated['teaching_group_id'] = $group->id;
+        $validated['file_path'] = '/storage/' . $request->file('file')->store('worksheets', 'public');
+
+        // Homework inherits its lesson's unit; a loose study sheet falls back to
+        // the assignment's first unit.
+        $lessonUnitId = GroupMaterial::whereKey($validated['lesson_id'] ?? null)->value('curriculum_unit_id');
+
+        $validated['curriculum_unit_id'] = $lessonUnitId ?? CurriculumUnit::firstFor($group)->id;
 
         unset($validated['file']);
 
@@ -70,9 +79,9 @@ class WorksheetController extends Controller
 
     public function gradeSubmission(Request $request, int $submissionId): RedirectResponse
     {
-        $submission = WorksheetSubmission::with('worksheet.group.assignment')->findOrFail($submissionId);
+        $submission = WorksheetSubmission::with('worksheet.unit.assignment')->findOrFail($submissionId);
 
-        $this->assertOwns($submission->worksheet?->group);
+        $this->assertOwnsAssignment($submission->worksheet?->unit?->assignment);
 
         $validated = $request->validate([
             'score'            => ['required', 'integer', 'min:0', 'max:' . ($submission->worksheet->max_score ?? 100)],
@@ -88,7 +97,7 @@ class WorksheetController extends Controller
         $submission->student?->notify(new GenericDatabaseNotification([
             'title'   => 'تم تصحيح الواجب 📝',
             'message' => "تم تصحيح واجبك في '{$submission->worksheet->title}' وحصلت على درجة {$validated['score']}/{$submission->worksheet->max_score}.",
-            'link'    => route('student.learn', $submission->worksheet->teaching_group_id),
+            'link'    => $this->learnLink($submission),
         ]));
 
         return back()->with('success', 'تم حفظ الدرجة والتقييم بنجاح.');
@@ -96,9 +105,9 @@ class WorksheetController extends Controller
 
     public function destroy(int $id): RedirectResponse
     {
-        $worksheet = Worksheet::with('group.assignment')->findOrFail($id);
+        $worksheet = Worksheet::with('unit.assignment')->findOrFail($id);
 
-        $this->assertOwns($worksheet->group);
+        $this->assertOwnsAssignment($worksheet->unit?->assignment);
 
         $worksheet->delete();
 
@@ -118,10 +127,31 @@ class WorksheetController extends Controller
 
     private function assertOwns(?TeachingGroup $group): void
     {
+        $this->assertOwnsAssignment($group?->assignment);
+    }
+
+    /** Sheets hang off the assignment now, so ownership is checked there. */
+    private function assertOwnsAssignment(?TeachingAssignment $assignment): void
+    {
         abort_unless(
-            $group && $group->assignment?->teacher_id === Auth::id(),
+            $assignment && $assignment->teacher_id === Auth::id(),
             403,
             'هذه المجموعة ليست ضمن جدولك.',
         );
+    }
+
+    /**
+     * The study room is still addressed by group, so send the student to the
+     * slot they hold under this assignment — private students have none, and
+     * land on their class list instead.
+     */
+    private function learnLink(WorksheetSubmission $submission): string
+    {
+        $groupId = Subscription::where('student_id', $submission->student_id)
+            ->where('teaching_assignment_id', $submission->worksheet?->unit?->teaching_assignment_id)
+            ->whereNotNull('teaching_group_id')
+            ->value('teaching_group_id');
+
+        return $groupId ? route('student.learn', $groupId) : route('student.my-classes');
     }
 }

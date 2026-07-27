@@ -4,21 +4,24 @@ declare(strict_types=1);
 
 namespace App\Domain\Learning\Models;
 
-use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\Academic\Models\CurriculumUnit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * A study sheet or homework assignment published to a group.
+ * A file the teacher publishes: a study sheet, the homework of a lesson, or the
+ * paper form of a unit exam. Homework carries a `lesson_id`; a paper exam has
+ * none and hangs off the unit directly.
  */
 class Worksheet extends Model
 {
-    public const TYPE_STUDY    = 'study';
-    public const TYPE_HOMEWORK = 'homework';
+    public const TYPE_STUDY      = 'study';
+    public const TYPE_HOMEWORK   = 'homework';
+    public const TYPE_PAPER_EXAM = 'paper_exam';
 
     protected $fillable = [
-        'teaching_group_id',
+        'curriculum_unit_id',
         'lesson_id',
         'title',
         'file_path',
@@ -37,9 +40,9 @@ class Worksheet extends Model
         ];
     }
 
-    public function group(): BelongsTo
+    public function unit(): BelongsTo
     {
-        return $this->belongsTo(TeachingGroup::class, 'teaching_group_id');
+        return $this->belongsTo(CurriculumUnit::class, 'curriculum_unit_id');
     }
 
     public function material(): BelongsTo

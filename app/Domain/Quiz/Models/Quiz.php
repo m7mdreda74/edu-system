@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Quiz\Models;
 
+use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Learning\Models\GroupMaterial;
-use App\Domain\Scheduling\Models\TeachingGroup;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,11 +23,13 @@ class Quiz extends Model
     const MAX_QUIZ_ATTEMPTS = 3;
 
     protected $fillable = [
-        'teaching_group_id',
+        'curriculum_unit_id',
         'lesson_id',
         'title',
         'passing_score',
         'time_limit_minutes',
+        'available_from',
+        'available_until',
         'is_active',
     ];
 
@@ -36,13 +38,15 @@ class Quiz extends Model
         return [
             'passing_score'      => 'integer',
             'time_limit_minutes' => 'integer',
+            'available_from'     => 'datetime',
+            'available_until'    => 'datetime',
             'is_active'          => 'boolean',
         ];
     }
 
-    public function group(): BelongsTo
+    public function unit(): BelongsTo
     {
-        return $this->belongsTo(TeachingGroup::class, 'teaching_group_id');
+        return $this->belongsTo(CurriculumUnit::class, 'curriculum_unit_id');
     }
 
     public function material(): BelongsTo
@@ -63,5 +67,27 @@ class Quiz extends Model
     public function hasTimeLimit(): bool
     {
         return $this->time_limit_minutes !== null;
+    }
+
+    /** Sitting the exam is allowed now. A missing bound means that side is open. */
+    public function isOpen(): bool
+    {
+        return $this->is_active
+            && ($this->available_from === null || $this->available_from->isPast())
+            && ($this->available_until === null || $this->available_until->isFuture());
+    }
+
+    /** "متاح من 2026-01-12 08:00 إلى 2026-01-20 20:00" */
+    public function windowLabel(): string
+    {
+        $from  = $this->available_from?->format('Y-m-d H:i');
+        $until = $this->available_until?->format('Y-m-d H:i');
+
+        return match (true) {
+            $from !== null && $until !== null => "متاح من {$from} إلى {$until}",
+            $from !== null                    => "متاح من {$from}",
+            $until !== null                   => "متاح حتى {$until}",
+            default                           => 'متاح في أي وقت',
+        };
     }
 }

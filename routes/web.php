@@ -166,7 +166,34 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::post('/payouts/{id}/acknowledge', [App\Http\Controllers\Teacher\PayoutController::class, 'acknowledge'])->name('payouts.acknowledge');
     Route::get('/payouts/{id}/receipt',      [App\Http\Controllers\Teacher\PayoutController::class, 'receipt'])->name('payouts.receipt');
 
-    // Group material (recorded videos and files)
+    // Curriculum builder — the syllabus hangs off the assignment, not the group,
+    // so the teacher writes it once for every group and private student on it.
+    Route::get('/assignments/{assignment}/curriculum',            [App\Http\Controllers\Teacher\CurriculumController::class, 'index'])->name('curriculum');
+    Route::post('/assignments/{assignment}/curriculum/skeleton',  [App\Http\Controllers\Teacher\CurriculumController::class, 'skeleton'])->name('curriculum.skeleton');
+    Route::post('/assignments/{assignment}/units',                [App\Http\Controllers\Teacher\CurriculumController::class, 'storeUnit'])->name('units.store');
+    Route::put('/units/{unit}',                                   [App\Http\Controllers\Teacher\CurriculumController::class, 'updateUnit'])->name('units.update');
+    Route::delete('/units/{unit}',                                [App\Http\Controllers\Teacher\CurriculumController::class, 'destroyUnit'])->name('units.destroy');
+    Route::post('/units/{unit}/reorder',                          [App\Http\Controllers\Teacher\CurriculumController::class, 'reorderUnit'])->name('units.reorder');
+    Route::post('/units/{unit}/lessons',                          [App\Http\Controllers\Teacher\CurriculumController::class, 'storeLesson'])->name('lessons.store');
+    Route::put('/lessons/{lesson}',                               [App\Http\Controllers\Teacher\CurriculumController::class, 'updateLesson'])->name('lessons.update');
+    Route::delete('/lessons/{lesson}',                            [App\Http\Controllers\Teacher\CurriculumController::class, 'destroyLesson'])->name('lessons.destroy');
+    // The {lesson} and {unit} placeholders are read by UploadHomeworkRequest and
+    // UploadPaperExamRequest to decide whether the file is required — do not rename.
+    Route::post('/lessons/{lesson}/booklet',                      [App\Http\Controllers\Teacher\CurriculumController::class, 'storeBooklet'])->name('lessons.booklet');
+    Route::post('/lessons/{lesson}/homework',                     [App\Http\Controllers\Teacher\CurriculumController::class, 'storeHomework'])->name('lessons.homework');
+    Route::post('/units/{unit}/paper-exam',                       [App\Http\Controllers\Teacher\CurriculumController::class, 'storePaperExam'])->name('units.paper-exam');
+
+    // Quiz builder — the electronic form of the unit exam
+    Route::post('/units/{unit}/quizzes',     [App\Http\Controllers\Teacher\QuizBuilderController::class, 'store'])->name('quizzes.store');
+    Route::get('/quizzes/{quiz}/edit',       [App\Http\Controllers\Teacher\QuizBuilderController::class, 'edit'])->name('quizzes.edit');
+    Route::put('/quizzes/{quiz}',            [App\Http\Controllers\Teacher\QuizBuilderController::class, 'update'])->name('quizzes.update');
+    Route::delete('/quizzes/{quiz}',         [App\Http\Controllers\Teacher\QuizBuilderController::class, 'destroy'])->name('quizzes.destroy');
+    Route::post('/quizzes/{quiz}/questions', [App\Http\Controllers\Teacher\QuizBuilderController::class, 'storeQuestion'])->name('quizzes.questions.store');
+    Route::put('/questions/{question}',      [App\Http\Controllers\Teacher\QuizBuilderController::class, 'updateQuestion'])->name('questions.update');
+    Route::delete('/questions/{question}',   [App\Http\Controllers\Teacher\QuizBuilderController::class, 'destroyQuestion'])->name('questions.destroy');
+
+    // Group material (recorded videos and files) — superseded by the curriculum
+    // builder above; kept because uploads made here still land in the first unit.
     Route::get('/groups/{groupId}/materials',  [App\Http\Controllers\Teacher\MaterialManagerController::class, 'index'])->name('materials');
     Route::post('/groups/{groupId}/materials', [App\Http\Controllers\Teacher\MaterialManagerController::class, 'store'])->name('materials.store');
     Route::put('/materials/{id}',              [App\Http\Controllers\Teacher\MaterialManagerController::class, 'update'])->name('materials.update');

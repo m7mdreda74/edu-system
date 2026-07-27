@@ -27,7 +27,7 @@ class VideoUrlController extends Controller
 
     public function getSignedUrl(Request $request, int $materialId): JsonResponse
     {
-        $material = GroupMaterial::with('group.assignment')->findOrFail($materialId);
+        $material = GroupMaterial::with('unit.assignment')->findOrFail($materialId);
 
         /** @var \App\Domain\User\Models\User $user */
         $user = $request->user();

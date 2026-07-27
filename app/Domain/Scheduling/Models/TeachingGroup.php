@@ -10,15 +10,18 @@ use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\Subscription\Models\Subscription;
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * A weekly class with a fixed capacity, sold as a monthly subscription.
- * All teaching content — materials, quizzes, worksheets, live sessions —
- * hangs off the group.
+ * A weekly class with a fixed capacity, sold as a monthly subscription — a
+ * timetable slot. The syllabus itself lives on the assignment, so what hangs
+ * off the group is only what is specific to the slot: bookings, the schedule
+ * and its live sessions.
  */
 class TeachingGroup extends Model
 {
@@ -93,19 +96,30 @@ class TeachingGroup extends Model
         return $this->hasMany(Subscription::class);
     }
 
-    public function materials(): HasMany
+    /**
+     * Content now belongs to the assignment's units, not to the slot, so these
+     * three are plain queries rather than relationships. They cannot be eager
+     * loaded — reach for `assignment.units` when you need the whole tree.
+     */
+    public function materials(): Builder
     {
-        return $this->hasMany(GroupMaterial::class, 'teaching_group_id')->orderBy('order');
+        return GroupMaterial::whereHas('unit', $this->sameAssignment())->orderBy('order');
     }
 
-    public function quizzes(): HasMany
+    public function quizzes(): Builder
     {
-        return $this->hasMany(Quiz::class, 'teaching_group_id');
+        return Quiz::whereHas('unit', $this->sameAssignment());
     }
 
-    public function worksheets(): HasMany
+    public function worksheets(): Builder
     {
-        return $this->hasMany(Worksheet::class, 'teaching_group_id');
+        return Worksheet::whereHas('unit', $this->sameAssignment());
+    }
+
+    /** Anything hanging off a unit of this slot's assignment. */
+    private function sameAssignment(): Closure
+    {
+        return fn (Builder $query) => $query->where('teaching_assignment_id', $this->teaching_assignment_id);
     }
 
     public function liveSessions(): HasMany

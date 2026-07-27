@@ -92,6 +92,7 @@ defineProps({
                                 <span class="text-xs font-black text-primary-700 dark:text-primary-400 hidden sm:block">
                                     {{ formatMonthly(group.monthly_price) }}
                                 </span>
+                                <Link v-if="group.assignment_id" :href="route('teacher.curriculum', { assignment: group.assignment_id })" class="btn-primary btn-sm">المنهج</Link>
                                 <Link :href="route('teacher.materials', { groupId: group.id })" class="btn-outline btn-sm">المواد</Link>
                                 <Link :href="route('teacher.worksheets.index', { groupId: group.id })" class="btn-ghost btn-sm">الواجبات</Link>
                             </div>

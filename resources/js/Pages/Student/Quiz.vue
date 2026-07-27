@@ -16,22 +16,25 @@ const phase          = ref('intro');   // intro | taking | result
 const attemptId      = ref(null);
 const answers        = ref({});        // { [questionId]: [optionId, ...] }
 const currentIdx     = ref(0);
+const quizQuestions  = ref([...props.questions]);
 const result         = ref(null);
 const error          = ref('');
 const timeLeft       = ref(null);
 let   timerInterval  = null;
 
-const currentQuestion = computed(() => props.questions[currentIdx.value]);
+const currentQuestion = computed(() => quizQuestions.value[currentIdx.value]);
 
 const isAnswered = (questionId) =>
     (answers.value[questionId]?.length ?? 0) > 0;
 
 const allAnswered = computed(() =>
-    props.questions.every(q => isAnswered(q.id))
+    quizQuestions.value.every(q => isAnswered(q.id))
 );
 
 const progressPercent = computed(() =>
-    Math.round(((currentIdx.value + 1) / props.questions.length) * 100)
+    quizQuestions.value.length
+        ? Math.round(((currentIdx.value + 1) / quizQuestions.value.length) * 100)
+        : 0
 );
 
 // ── Timer ──────────────────────────────────────────────────────
@@ -112,6 +115,7 @@ async function startQuiz() {
     try {
         const res = await axios.post(route('student.quiz.start', { quizId: props.quiz.id }));
         attemptId.value = res.data.attempt_id;
+        quizQuestions.value = res.data.questions ?? [];
         phase.value     = 'taking';
         answers.value   = {};
         currentIdx.value = 0;
@@ -143,7 +147,7 @@ function isSelected(questionId, optionId) {
 }
 
 function goNext() {
-    if (currentIdx.value < props.questions.length - 1) {
+    if (currentIdx.value < quizQuestions.value.length - 1) {
         currentIdx.value++;
     }
 }
@@ -259,7 +263,7 @@ onUnmounted(() => {
                 <!-- Header -->
                 <div class="flex items-center justify-between mb-6">
                     <div class="text-sm text-surface-500 dark:text-surface-400">
-                        سؤال {{ currentIdx + 1 }} / {{ questions.length }}
+                        سؤال {{ currentIdx + 1 }} / {{ quizQuestions.length }}
                     </div>
 
                     <!-- Timer -->
@@ -345,7 +349,7 @@ onUnmounted(() => {
                     </div>
 
                     <button
-                        v-if="currentIdx < questions.length - 1"
+                        v-if="currentIdx < quizQuestions.length - 1"
                         @click="goNext"
                         class="btn-primary"
                         id="next-question-btn"

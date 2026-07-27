@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\Worksheet;
@@ -33,16 +34,21 @@ class ContentSeeder extends Seeder
         foreach ($groups as $index => $group) {
             $subject = $group->assignment?->subject?->name ?? 'المادة';
 
-            $materials = $this->seedMaterials($group, $subject);
+            // Content belongs to the assignment, so groups sharing one teacher
+            // and subject share a unit — the guards below stop the second group
+            // seeding it all over again.
+            $unit = CurriculumUnit::firstFor($group);
+
+            $materials = $this->seedMaterials($group, $unit, $subject);
             $this->seedLessonPlan($group, $subject);
-            $this->seedQuizzes($group, $subject, $materials);
-            $this->seedWorksheets($group, $subject, $materials);
+            $this->seedQuizzes($group, $unit, $subject, $materials);
+            $this->seedWorksheets($group, $unit, $subject, $materials);
             $this->seedLiveSessions($group, $subject, $index);
         }
     }
 
     /** @return array<int, GroupMaterial> */
-    private function seedMaterials(TeachingGroup $group, string $subject): array
+    private function seedMaterials(TeachingGroup $group, CurriculumUnit $unit, string $subject): array
     {
         if ($group->materials()->exists()) {
             return $group->materials()->get()->all();
@@ -61,14 +67,14 @@ class ContentSeeder extends Seeder
 
         foreach ($titles as $position => $title) {
             $materials[] = GroupMaterial::create([
-                'teaching_group_id' => $group->id,
-                'title'             => $title,
-                'video_url'         => self::DEMO_VIDEO,
-                'duration_seconds'  => 60 * random_int(22, 58),
-                'order'             => $position + 1,
+                'curriculum_unit_id' => $unit->id,
+                'title'              => $title,
+                'video_url'          => self::DEMO_VIDEO,
+                'duration_seconds'   => 60 * random_int(22, 58),
+                'order'              => $position + 1,
                 // The opener is the free sample a visitor can watch.
-                'is_free_preview'   => $position === 0,
-                'description'       => 'شرح مفصّل مع أمثلة من الامتحانات الوزارية السابقة، وملخص في نهاية الحصة.',
+                'is_free_preview'    => $position === 0,
+                'description'        => 'شرح مفصّل مع أمثلة من الامتحانات الوزارية السابقة، وملخص في نهاية الحصة.',
             ]);
         }
 
@@ -103,7 +109,7 @@ class ContentSeeder extends Seeder
     }
 
     /** @param array<int, GroupMaterial> $materials */
-    private function seedQuizzes(TeachingGroup $group, string $subject, array $materials): void
+    private function seedQuizzes(TeachingGroup $group, CurriculumUnit $unit, string $subject, array $materials): void
     {
         if ($group->quizzes()->exists() || $materials === []) {
             return;
@@ -117,11 +123,14 @@ class ContentSeeder extends Seeder
 
         foreach ($quizzes as $definition) {
             $quiz = Quiz::create([
-                'teaching_group_id'  => $group->id,
+                'curriculum_unit_id' => $unit->id,
                 'lesson_id'          => $definition['material']?->id,
                 'title'              => $definition['title'],
                 'passing_score'      => $definition['passing'],
                 'time_limit_minutes' => $definition['limit'],
+                // Open for the rest of the term so the student side has a live window.
+                'available_from'     => now()->subWeek(),
+                'available_until'    => now()->addMonths(2),
                 'is_active'          => $definition['active'],
             ]);
 
@@ -162,14 +171,14 @@ class ContentSeeder extends Seeder
     }
 
     /** @param array<int, GroupMaterial> $materials */
-    private function seedWorksheets(TeachingGroup $group, string $subject, array $materials): void
+    private function seedWorksheets(TeachingGroup $group, CurriculumUnit $unit, string $subject, array $materials): void
     {
         if ($group->worksheets()->exists()) {
             return;
         }
 
         Worksheet::create([
-            'teaching_group_id'   => $group->id,
+            'curriculum_unit_id'  => $unit->id,
             'lesson_id'           => $materials[0]->id ?? null,
             'title'               => "ملزمة {$subject} — الوحدة الأولى",
             'file_path'           => '/storage/worksheets/sample-notes.pdf',
@@ -179,7 +188,7 @@ class ContentSeeder extends Seeder
         ]);
 
         Worksheet::create([
-            'teaching_group_id'   => $group->id,
+            'curriculum_unit_id'  => $unit->id,
             'lesson_id'           => $materials[1]->id ?? null,
             'title'               => 'واجب الوحدة الأولى',
             'file_path'           => '/storage/worksheets/sample-homework.pdf',
@@ -190,7 +199,7 @@ class ContentSeeder extends Seeder
         ]);
 
         Worksheet::create([
-            'teaching_group_id'   => $group->id,
+            'curriculum_unit_id'  => $unit->id,
             'lesson_id'           => null,
             'title'               => 'واجب المراجعة النهائية',
             'file_path'           => '/storage/worksheets/sample-revision.pdf',

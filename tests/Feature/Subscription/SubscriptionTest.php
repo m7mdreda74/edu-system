@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Application\Subscription\Services\SubscriptionService;
+use App\Domain\Academic\Models\AcademicTerm;
+use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\GroupMaterial;
@@ -38,6 +40,14 @@ beforeEach(function () {
         'teaching_assignment_id' => $this->assignment->id,
         'monthly_price'          => 45_000,
         'capacity'               => 2,
+    ]);
+
+    // The syllabus hangs off the assignment, so material needs a unit to sit in.
+    $this->unit = CurriculumUnit::create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id'       => AcademicTerm::currentOrNext()->id,
+        'order'                  => 1,
+        'title'                  => 'الوحدة الأولى',
     ]);
 
     $this->student = User::factory()->create(['email_verified_at' => now()]);
@@ -123,12 +133,12 @@ it('expires lapsed subscriptions and frees their seats', function () {
 
 it('locks paid material behind a live subscription', function () {
     $material = GroupMaterial::create([
-        'teaching_group_id' => $this->group->id,
-        'title'             => 'الحصة الأولى',
-        'video_url'         => 'https://example.com/video.mp4',
-        'duration_seconds'  => 600,
-        'order'             => 1,
-        'is_free_preview'   => false,
+        'curriculum_unit_id' => $this->unit->id,
+        'title'              => 'الحصة الأولى',
+        'video_url'          => 'https://example.com/video.mp4',
+        'duration_seconds'   => 600,
+        'order'              => 1,
+        'is_free_preview'    => false,
     ]);
 
     $policy = new App\Policies\MaterialPolicy();
@@ -142,11 +152,11 @@ it('locks paid material behind a live subscription', function () {
 
 it('lets anyone watch a free preview', function () {
     $preview = GroupMaterial::create([
-        'teaching_group_id' => $this->group->id,
-        'title'             => 'معاينة',
-        'duration_seconds'  => 300,
-        'order'             => 1,
-        'is_free_preview'   => true,
+        'curriculum_unit_id' => $this->unit->id,
+        'title'              => 'معاينة',
+        'duration_seconds'   => 300,
+        'order'              => 1,
+        'is_free_preview'    => true,
     ]);
 
     expect((new App\Policies\MaterialPolicy())->watch($this->student, $preview))->toBeTrue();
