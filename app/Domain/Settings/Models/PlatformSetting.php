@@ -22,7 +22,7 @@ class PlatformSetting extends Model
      */
     public static function getAllCached(): array
     {
-        return Cache::rememberForever('platform_settings', function () {
+        return Cache::remember('platform_settings', now()->addMinute(), function () {
             return self::all()->pluck('value', 'key')->toArray();
         });
     }

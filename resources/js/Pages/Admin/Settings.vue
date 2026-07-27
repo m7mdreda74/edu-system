@@ -449,6 +449,8 @@ function removeRawSetting(setting) {
 function saveSettings() {
     syncListsBeforeSubmit();
     form.post(route('admin.settings.update'), {
+        preserveScroll: true,
+        only: ['dbSettings', 'flash', 'settings'],
         onSuccess: () => {
             isDirty.value = false;
         }
