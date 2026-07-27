@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Scheduling\Services;
 
+use App\Domain\Communication\Notifications\AdminSessionBookingNotification;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -15,7 +16,7 @@ class SessionBookingService
 {
     public function bookGroup(User $student, int $groupId, ?string $notes = null): SessionBooking
     {
-        return DB::transaction(function () use ($student, $groupId, $notes): SessionBooking {
+        $booking = DB::transaction(function () use ($student, $groupId, $notes): SessionBooking {
             $group = TeachingGroup::with('assignment')->lockForUpdate()->findOrFail($groupId);
 
             if (! $group->is_active || ! $group->assignment->is_active) {
@@ -66,11 +67,20 @@ class SessionBookingService
                 'notes' => $notes,
             ]);
         });
+
+        $booking->load([
+            'student:id,name',
+            'group.assignment.subject:id,name',
+            'group.assignment.teacher:id,name',
+        ]);
+        $this->notifyAdmins($booking);
+
+        return $booking;
     }
 
     public function bookPrivate(User $student, int $slotId, ?string $notes = null): SessionBooking
     {
-        return DB::transaction(function () use ($student, $slotId, $notes): SessionBooking {
+        $booking = DB::transaction(function () use ($student, $slotId, $notes): SessionBooking {
             $slot = PrivateSessionSlot::with('assignment')->lockForUpdate()->findOrFail($slotId);
 
             if (! $slot->isAvailable() || ! $slot->assignment->is_active) {
@@ -99,6 +109,15 @@ class SessionBookingService
 
             return $booking;
         });
+
+        $booking->load([
+            'student:id,name',
+            'privateSlot.assignment.subject:id,name',
+            'privateSlot.assignment.teacher:id,name',
+        ]);
+        $this->notifyAdmins($booking);
+
+        return $booking;
     }
 
     public function cancel(User $student, int $bookingId): void
@@ -115,5 +134,12 @@ class SessionBookingService
                 $booking->privateSlot->update(['status' => 'available']);
             }
         });
+    }
+
+    private function notifyAdmins(SessionBooking $booking): void
+    {
+        foreach (User::role('admin')->get() as $admin) {
+            $admin->notify(new AdminSessionBookingNotification($booking));
+        }
     }
 }

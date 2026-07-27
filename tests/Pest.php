@@ -18,7 +18,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Feature/Admin/AdminControlTest.php', 'Feature/Auth', 'Feature/Browse', 'Feature/Curriculum', 'Feature/Live', 'Feature/Subscription');
+    ->in('Feature/Admin/AdminControlTest.php', 'Feature/Auth', 'Feature/Browse', 'Feature/Communication', 'Feature/Curriculum', 'Feature/Live', 'Feature/Subscription');
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)

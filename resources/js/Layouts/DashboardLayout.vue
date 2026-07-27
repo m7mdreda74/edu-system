@@ -46,6 +46,7 @@ const menuGroups = computed(() => {
                 title: 'الرئيسية والمالية',
                 links: [
                     { label: 'الرئيسية',     icon: 'dashboard', href: route('admin.dashboard'), name: 'admin.dashboard' },
+                    { label: 'التقارير',      icon: 'chart',     href: route('admin.reports'),   name: 'admin.reports' },
                     { label: 'المدفوعات',    icon: 'payments',  href: route('admin.payments'),  name: 'admin.payments' },
                     { label: 'تسوية الأرباح',  icon: 'earnings',  href: route('admin.payouts'),   name: 'admin.payouts' },
                 ]

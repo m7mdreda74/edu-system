@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Domain\Communication\Notifications\AdminLiveSessionStatusNotification;
 use App\Domain\Communication\Notifications\LiveSessionStartedNotification;
 use App\Domain\Communication\Notifications\SessionApologySubmittedNotification;
 use App\Domain\Communication\Notifications\SessionScheduleChangedNotification;
@@ -174,6 +175,19 @@ class LiveSessionController extends Controller
         }
 
         $session->save();
+
+        if (in_array($validated['status'], [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED], true)) {
+            $session->load([
+                'teacher:id,name',
+                'teachingGroup:id,name,teaching_assignment_id',
+                'teachingGroup.assignment.subject:id,name',
+                'attendees:id,live_session_id,user_id',
+            ]);
+
+            foreach (User::role('admin')->get() as $admin) {
+                $admin->notify(new AdminLiveSessionStatusNotification($session, $validated['status']));
+            }
+        }
 
         return back()->with('success', 'تم تحديث حالة الحصة.');
     }

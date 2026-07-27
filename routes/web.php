@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\GradeLevelController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PayoutController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SessionApologyController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SubjectController;
@@ -236,6 +237,7 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports');
     // Polled by the dashboard so its figures stay live without a page reload.
     Route::get('/dashboard/stats', [App\Http\Controllers\Admin\DashboardController::class, 'stats'])->name('dashboard.stats');
     Route::get('/users', [UserController::class, 'index'])->name('users');

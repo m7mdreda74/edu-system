@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Application\Subscription\Services;
 
+use App\Domain\Communication\Notifications\AdminSessionBookingNotification;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
+use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
@@ -59,15 +61,15 @@ class SubscriptionService
             }
 
             return Subscription::create([
-                'student_id'             => $student->id,
-                'type'                   => Subscription::TYPE_GROUP,
+                'student_id' => $student->id,
+                'type' => Subscription::TYPE_GROUP,
                 'teaching_assignment_id' => $group->teaching_assignment_id,
-                'teaching_group_id'      => $group->id,
-                'monthly_price'          => $group->monthly_price,
-                'currency'               => $group->currency ?? 'QAR',
-                'period_start'           => $periodStart,
-                'period_end'             => $periodEnd,
-                'status'                 => Subscription::STATUS_PENDING,
+                'teaching_group_id' => $group->id,
+                'monthly_price' => $group->monthly_price,
+                'currency' => $group->currency ?? 'QAR',
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'status' => Subscription::STATUS_PENDING,
             ]);
         });
     }
@@ -100,15 +102,15 @@ class SubscriptionService
             [$periodStart, $periodEnd] = $this->resolvePeriod($startsOn);
 
             return Subscription::create([
-                'student_id'             => $student->id,
-                'type'                   => Subscription::TYPE_PRIVATE,
+                'student_id' => $student->id,
+                'type' => Subscription::TYPE_PRIVATE,
                 'teaching_assignment_id' => $assignment->id,
-                'teaching_group_id'      => null,
-                'monthly_price'          => $assignment->private_monthly_price,
-                'currency'               => $assignment->currency ?? 'QAR',
-                'period_start'           => $periodStart,
-                'period_end'             => $periodEnd,
-                'status'                 => Subscription::STATUS_PENDING,
+                'teaching_group_id' => null,
+                'monthly_price' => $assignment->private_monthly_price,
+                'currency' => $assignment->currency ?? 'QAR',
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'status' => Subscription::STATUS_PENDING,
             ]);
         });
     }
@@ -123,9 +125,9 @@ class SubscriptionService
             return $subscription;
         }
 
-        return DB::transaction(function () use ($subscription): Subscription {
+        $activated = DB::transaction(function () use ($subscription): Subscription {
             $subscription->update([
-                'status'       => Subscription::STATUS_ACTIVE,
+                'status' => Subscription::STATUS_ACTIVE,
                 'cancelled_at' => null,
             ]);
 
@@ -135,6 +137,26 @@ class SubscriptionService
 
             return $subscription->fresh();
         });
+
+        if ($activated->teaching_group_id) {
+            $booking = SessionBooking::with([
+                'student:id,name',
+                'group.assignment.subject:id,name',
+                'group.assignment.teacher:id,name',
+            ])
+                ->where('student_id', $activated->student_id)
+                ->where('teaching_group_id', $activated->teaching_group_id)
+                ->where('status', 'confirmed')
+                ->first();
+
+            if ($booking) {
+                foreach (User::role('admin')->get() as $admin) {
+                    $admin->notify(new AdminSessionBookingNotification($booking));
+                }
+            }
+        }
+
+        return $activated;
     }
 
     /**
@@ -144,19 +166,19 @@ class SubscriptionService
     public function renew(Subscription $subscription): Subscription
     {
         $currentEnd = $subscription->period_end ?? now();
-        $newStart   = $currentEnd->isFuture() ? $currentEnd->copy() : now()->startOfDay();
+        $newStart = $currentEnd->isFuture() ? $currentEnd->copy() : now()->startOfDay();
 
         return Subscription::create([
-            'student_id'             => $subscription->student_id,
-            'type'                   => $subscription->type,
+            'student_id' => $subscription->student_id,
+            'type' => $subscription->type,
             'teaching_assignment_id' => $subscription->teaching_assignment_id,
-            'teaching_group_id'      => $subscription->teaching_group_id,
-            'monthly_price'          => $this->currentPriceFor($subscription),
-            'currency'               => $subscription->currency,
-            'period_start'           => $newStart,
-            'period_end'             => $newStart->copy()->addMonth(),
-            'status'                 => Subscription::STATUS_PENDING,
-            'auto_renew'             => $subscription->auto_renew,
+            'teaching_group_id' => $subscription->teaching_group_id,
+            'monthly_price' => $this->currentPriceFor($subscription),
+            'currency' => $subscription->currency,
+            'period_start' => $newStart,
+            'period_end' => $newStart->copy()->addMonth(),
+            'status' => Subscription::STATUS_PENDING,
+            'auto_renew' => $subscription->auto_renew,
         ]);
     }
 
@@ -165,12 +187,12 @@ class SubscriptionService
     {
         DB::transaction(function () use ($subscription): void {
             $subscription->update([
-                'status'       => Subscription::STATUS_CANCELLED,
+                'status' => Subscription::STATUS_CANCELLED,
                 'cancelled_at' => now(),
             ]);
 
             if ($subscription->teaching_group_id) {
-                \App\Domain\Scheduling\Models\SessionBooking::where('student_id', $subscription->student_id)
+                SessionBooking::where('student_id', $subscription->student_id)
                     ->where('teaching_group_id', $subscription->teaching_group_id)
                     ->where('status', 'confirmed')
                     ->update(['status' => 'cancelled']);
@@ -192,7 +214,7 @@ class SubscriptionService
             $subscription->update(['status' => Subscription::STATUS_EXPIRED]);
 
             if ($subscription->teaching_group_id) {
-                \App\Domain\Scheduling\Models\SessionBooking::where('student_id', $subscription->student_id)
+                SessionBooking::where('student_id', $subscription->student_id)
                     ->where('teaching_group_id', $subscription->teaching_group_id)
                     ->where('status', 'confirmed')
                     ->update(['status' => 'cancelled']);
@@ -237,13 +259,13 @@ class SubscriptionService
     /** A confirmed booking is what holds the seat in the group. */
     private function reserveSeat(Subscription $subscription): void
     {
-        \App\Domain\Scheduling\Models\SessionBooking::updateOrCreate(
+        SessionBooking::updateOrCreate(
             [
-                'student_id'        => $subscription->student_id,
+                'student_id' => $subscription->student_id,
                 'teaching_group_id' => $subscription->teaching_group_id,
             ],
             [
-                'status'    => 'confirmed',
+                'status' => 'confirmed',
                 'booked_at' => now(),
             ],
         );
