@@ -86,7 +86,7 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
             </section>
 
             <div class="card overflow-hidden">
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-800"><tr><th class="text-start p-4">المدرس</th><th class="text-start p-4">إجمالي الاشتراكات</th><th class="text-start p-4">المستحق قبل الخصم</th><th class="text-start p-4">خصم الحصص</th><th class="text-start p-4">الصافي</th><th class="text-start p-4">عمولة المنصة</th><th class="text-start p-4">الفترة</th><th class="text-start p-4">الحالة</th><th class="text-start p-4">الإجراءات</th></tr></thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
@@ -141,3 +141,4 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
         <div v-if="selectedReceipt" class="fixed inset-0 z-50 grid place-items-center p-4 bg-black/80" @click="selectedReceipt = null"><img :src="selectedReceipt" class="max-h-[85vh] max-w-3xl rounded-2xl object-contain" /></div>
     </DashboardLayout>
 </template>
+

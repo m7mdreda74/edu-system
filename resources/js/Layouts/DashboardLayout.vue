@@ -290,7 +290,7 @@ const isActive = (name) => {
             </div>
 
             <!-- Page Content -->
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-4 lg:p-8">
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-2 md:p-4 lg:p-6">
                 <div class="w-full mx-auto">
                     <slot />
                 </div>

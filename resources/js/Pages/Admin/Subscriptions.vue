@@ -109,7 +109,7 @@ async function cancel(id) {
 
             <!-- Table -->
             <div class="card overflow-hidden">
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-900 text-xs text-surface-500">
                             <tr>
@@ -192,3 +192,4 @@ async function cancel(id) {
         </div>
     </DashboardLayout>
 </template>
+

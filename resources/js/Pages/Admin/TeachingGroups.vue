@@ -243,7 +243,7 @@ function formatDate(value) {
                         {{ Object.values(assignmentForm.errors)[0] }}
                     </p>
 
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto no-scrollbar">
                         <table class="w-full text-sm">
                             <thead class="text-xs text-surface-500">
                                 <tr>
@@ -366,7 +366,7 @@ function formatDate(value) {
             </div>
 
             <div class="card overflow-hidden">
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-900 text-xs text-surface-500">
                             <tr>
@@ -423,3 +423,4 @@ function formatDate(value) {
         </div>
     </DashboardLayout>
 </template>
+

@@ -139,7 +139,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                 <!-- 1. Subjects Tab -->
                 <div v-if="activeTab === 'subjects'">
                     <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">المواد الدراسية المسجلة للمرحلة</h3>
-                    <div class="overflow-x-auto" v-if="subjects.length > 0">
+                    <div class="overflow-x-auto no-scrollbar" v-if="subjects.length > 0">
                         <table class="table-app w-full text-start">
                             <thead>
                                 <tr>
@@ -176,7 +176,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                 <!-- 2. Groups Tab -->
                 <div v-if="activeTab === 'groups'">
                     <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">مجموعات التدريس في هذه المرحلة</h3>
-                    <div class="overflow-x-auto" v-if="groups.length > 0">
+                    <div class="overflow-x-auto no-scrollbar" v-if="groups.length > 0">
                         <table class="table-app w-full text-start">
                             <thead>
                                 <tr>
@@ -214,7 +214,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                 <!-- 3. Teachers Tab -->
                 <div v-if="activeTab === 'teachers'">
                     <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">أعضاء هيئة التدريس النشطين في المرحلة</h3>
-                    <div class="overflow-x-auto" v-if="teachers.length > 0">
+                    <div class="overflow-x-auto no-scrollbar" v-if="teachers.length > 0">
                         <table class="table-app w-full text-start">
                             <thead>
                                 <tr>
@@ -242,7 +242,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                 <!-- 4. Students Tab -->
                 <div v-if="activeTab === 'students'">
                     <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">الطلاب المسجلين في هذه المرحلة</h3>
-                    <div class="overflow-x-auto" v-if="students.length > 0">
+                    <div class="overflow-x-auto no-scrollbar" v-if="students.length > 0">
                         <table class="table-app w-full text-start">
                             <thead>
                                 <tr>
@@ -276,3 +276,4 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
         </div>
     </DashboardLayout>
 </template>
+

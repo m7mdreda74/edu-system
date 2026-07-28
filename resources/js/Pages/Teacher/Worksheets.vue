@@ -163,7 +163,7 @@ function submitGrade(subId, maxScore) {
 
             <!-- Tab Content: Submissions List -->
             <div v-if="activeTab === 'submissions'" class="card overflow-hidden">
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
@@ -288,3 +288,4 @@ function submitGrade(subId, maxScore) {
         </div>
     </DashboardLayout>
 </template>
+

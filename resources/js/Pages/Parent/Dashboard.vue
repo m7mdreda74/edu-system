@@ -223,7 +223,7 @@ function submitReject() {
                                 <span>نتائج الاختبارات والتقييمات</span>
                             </h3>
 
-                            <div class="overflow-x-auto">
+                            <div class="overflow-x-auto no-scrollbar">
                                 <table class="w-full text-sm">
                                     <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                                         <tr>
@@ -264,7 +264,7 @@ function submitReject() {
                                 <span>المدفوعات والفواتير</span>
                             </h3>
 
-                            <div class="overflow-x-auto">
+                            <div class="overflow-x-auto no-scrollbar">
                                 <table class="w-full text-sm">
                                     <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                                         <tr>
@@ -376,3 +376,4 @@ function submitReject() {
         </div>
     </DashboardLayout>
 </template>
+
