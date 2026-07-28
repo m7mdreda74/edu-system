@@ -37,7 +37,7 @@ class LessonQuestionController extends Controller
         ]);
 
         $question = LessonQuestion::create([
-            'user_id'         => auth()->id(),
+            'user_id'         => $request->user()->id,
             'lesson_id'       => $lessonId,
             'parent_id'       => $validated['parent_id'] ?? null,
             'content'         => $validated['content'],
