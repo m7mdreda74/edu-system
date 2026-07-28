@@ -4,6 +4,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import StatCard from '@/Components/StatCard.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     assignment:   { type: Object, required: true },
@@ -20,6 +21,7 @@ const VISIT = { preserveScroll: true, preserveState: true };
 
 const busy      = ref(null);   // key of the row currently saving
 const rowErrors = ref({});     // key -> validation bag from the last failed save
+const { confirm } = useConfirm();
 
 function send(method, url, data, key, options = {}) {
     const visit = {
@@ -170,8 +172,14 @@ function moveUnit(unit, direction) {
     send('post', route('teacher.units.reorder', unit.id), { direction }, `unit:${unit.id}`);
 }
 
-function removeUnit(unit) {
-    if (!confirm(`حذف «${unit.title}» بكل دروسها واختباراتها؟ لا يمكن التراجع.`)) return;
+async function removeUnit(unit) {
+    const ok = await confirm({
+        title: `حذف «${unit.title}»`,
+        message: 'سيتم حذف الوحدة بكل دروسها واختباراتها. لا يمكن التراجع.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (!ok) return;
     send('delete', route('teacher.units.destroy', unit.id), {}, `unit:${unit.id}`);
 }
 
@@ -205,8 +213,14 @@ function togglePreview(lesson) {
     send('put', route('teacher.lessons.update', lesson.id), { is_free_preview: !lesson.is_free_preview }, `lesson:${lesson.id}`);
 }
 
-function removeLesson(lesson) {
-    if (!confirm(`حذف «${lesson.title}»؟`)) return;
+async function removeLesson(lesson) {
+    const ok = await confirm({
+        title: `حذف «${lesson.title}»`,
+        message: 'سيتم حذف الدرس نهائياً.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (!ok) return;
     send('delete', route('teacher.lessons.destroy', lesson.id), {}, `lesson:${lesson.id}`);
 }
 
@@ -227,9 +241,14 @@ function saveVideo(lesson) {
     });
 }
 
-function clearVideo(lesson) {
-    if (!confirm('إزالة رابط الفيديو من هذا الدرس؟')) return;
-
+async function clearVideo(lesson) {
+    const ok = await confirm({
+        title: 'إزالة الفيديو',
+        message: 'سيتم إزالة رابط الفيديو من هذا الدرس.',
+        confirmLabel: 'إزالة',
+        variant: 'warning',
+    });
+    if (!ok) return;
     send('put', route('teacher.lessons.update', lesson.id), { video_url: '', duration_seconds: 0 }, `lesson:${lesson.id}:video`, {
         onSuccess: () => { editingVideo.value[lesson.id] = false; },
     });
@@ -282,8 +301,14 @@ function savePaperExamField(unit, payload) {
     send('post', route('teacher.units.paper-exam', unit.id), payload, `unit:${unit.id}:paper`);
 }
 
-function removeSheet(sheet, message) {
-    if (!confirm(message)) return;
+async function removeSheet(sheet, message) {
+    const ok = await confirm({
+        title: 'حذف الملف',
+        message,
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (!ok) return;
     send('delete', route('teacher.worksheets.destroy', { id: sheet.id }), {}, `sheet:${sheet.id}`);
 }
 

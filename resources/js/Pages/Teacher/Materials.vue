@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     group:     { type: Object, required: true },
@@ -10,6 +11,7 @@ const props = defineProps({
 });
 
 const showForm = ref(false);
+const { confirm } = useConfirm();
 
 const form = useForm({
     title: '',
@@ -31,10 +33,14 @@ function submit() {
     });
 }
 
-function destroy(id) {
-    if (confirm('حذف هذه المادة؟')) {
-        router.delete(route('teacher.materials.destroy', { id }));
-    }
+async function destroy(id) {
+    const ok = await confirm({
+        title: 'حذف المادة',
+        message: 'سيتم حذف هذه المادة نهائياً.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('teacher.materials.destroy', { id }));
 }
 
 function formatDuration(seconds) {

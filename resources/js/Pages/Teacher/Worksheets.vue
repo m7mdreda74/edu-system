@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { Head, useForm, router, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     group:       { type: Object, required: true },
@@ -12,6 +13,7 @@ const props = defineProps({
 });
 
 const isModalOpen = ref(false);
+const { confirm } = useConfirm();
 
 const form = useForm({
     title: '',
@@ -48,10 +50,14 @@ function submitWorksheet() {
     });
 }
 
-function deleteWorksheet(id) {
-    if (confirm('هل أنت متأكد من حذف هذا الشيت؟')) {
-        router.delete(route('teacher.worksheets.destroy', { id }));
-    }
+async function deleteWorksheet(id) {
+    const ok = await confirm({
+        title: 'حذف الشيت',
+        message: 'هل أنت متأكد من حذف هذا الشيت؟ لا يمكن التراجع.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('teacher.worksheets.destroy', { id }));
 }
 
 function submitGrade(subId, maxScore) {

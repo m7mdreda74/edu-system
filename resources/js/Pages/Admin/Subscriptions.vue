@@ -5,6 +5,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import { formatQAR } from '@/lib/money';
 import { debounce } from '@/lib/debounce';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     subscriptions: { type: Object, required: true },
@@ -40,10 +41,16 @@ const applyFilters = debounce(() => {
 
 watch([search, status, type], applyFilters);
 
-function cancel(id) {
-    if (confirm('إلغاء هذا الاشتراك؟ سيفقد الطالب مقعده في المجموعة.')) {
-        router.delete(route('admin.subscriptions.cancel', { id }));
-    }
+const { confirm } = useConfirm();
+
+async function cancel(id) {
+    const ok = await confirm({
+        title: 'إلغاء الاشتراك',
+        message: 'سيفقد الطالب مقعده في المجموعة.',
+        confirmLabel: 'إلغاء',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('admin.subscriptions.cancel', { id }));
 }
 </script>
 

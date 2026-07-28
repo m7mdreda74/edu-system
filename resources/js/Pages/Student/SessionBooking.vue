@@ -1,10 +1,15 @@
 <script setup>
 import { Head, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
+import { useConfirm } from '@/composables/useConfirm';
 defineProps({ assignments: { type: Array, default: () => [] }, bookings: { type: Array, default: () => [] } });
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const { confirm } = useConfirm();
 function book(name, id) { router.post(route(name, id)); }
-function cancel(id) { if (confirm('إلغاء الحجز؟')) router.delete(route('student.session-booking.cancel', id)); }
+async function cancel(id) {
+    const ok = await confirm({ title: 'إلغاء الحجز', message: 'هل أنت متأكد من إلغاء هذا الحجز؟', confirmLabel: 'إلغاء', variant: 'warning' });
+    if (ok) router.delete(route('student.session-booking.cancel', id));
+}
 function formatDate(value) { return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }); }
 </script>
 

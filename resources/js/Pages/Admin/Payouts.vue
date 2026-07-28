@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     payouts: { type: Array, required: true },
@@ -17,6 +18,7 @@ const selectedPayout = ref(null);
 const selectedReceipt = ref(null);
 const form = useForm({ teacher_id: '', period_start: '', period_end: '', notes: '', receipt: null });
 const payForm = useForm({ receipt: null, notes: '' });
+const { confirm } = useConfirm();
 
 const selectedBalance = computed(() => props.balances[String(form.teacher_id)] ?? props.balances[form.teacher_id] ?? null);
 const formatQAR = value => `${new Intl.NumberFormat('ar-QA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((value ?? 0) / 100)} ر.ق.`;
@@ -42,8 +44,14 @@ function submitPaymentProof() {
     });
 }
 
-function deletePayout(id) {
-    if (confirm('حذف التصفية وإرجاع معاملاتها إلى الرصيد المتاح؟')) router.delete(route('admin.payouts.destroy', id));
+async function deletePayout(id) {
+    const ok = await confirm({
+        title: 'حذف التصفية',
+        message: 'سيتم حذف التصفية وإرجاع معاملاتها إلى الرصيد المتاح.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('admin.payouts.destroy', id));
 }
 
 const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' : 'تسوية معلقة';

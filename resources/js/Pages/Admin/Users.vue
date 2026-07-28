@@ -4,6 +4,7 @@ import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useDebounceFn } from '@vueuse/core';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     users:   { type: Object, required: true },  // paginated
@@ -12,6 +13,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { confirm } = useConfirm();
 
 const search = ref(props.filters.search ?? '');
 const role   = ref(props.filters.role ?? '');
@@ -155,8 +157,14 @@ function uploadAvatar() {
     });
 }
 
-function removeAvatar() {
-    if (!confirm(`حذف صورة ${avatarUser.value?.name}؟`)) return;
+async function removeAvatar() {
+    const ok = await confirm({
+        title: 'حذف الصورة الشخصية',
+        message: `هل أنت متأكد من حذف صورة ${avatarUser.value?.name}؟`,
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (!ok) return;
 
     router.delete(route('admin.users.avatar.delete', { id: avatarUser.value.id }), {
         preserveScroll: true,

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     quiz:       { type: Object, required: true },
@@ -13,6 +14,7 @@ const props = defineProps({
 
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 6;
+const { confirm } = useConfirm();
 
 const OPTION_LABELS = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة'];
 
@@ -39,10 +41,14 @@ function saveSettings() {
     });
 }
 
-function destroyQuiz() {
-    if (confirm('حذف الاختبار بكل أسئلته؟ لا يمكن التراجع عن هذا الإجراء.')) {
-        router.delete(route('teacher.quizzes.destroy', props.quiz.id));
-    }
+async function destroyQuiz() {
+    const ok = await confirm({
+        title: 'حذف الاختبار',
+        message: 'سيتم حذف الاختبار بكل أسئلته. لا يمكن التراجع عن هذا الإجراء.',
+        confirmLabel: 'حذف نهائياً',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('teacher.quizzes.destroy', props.quiz.id));
 }
 
 // ── Question drafts ───────────────────────────────────────────────
@@ -264,14 +270,19 @@ function saveQuestion(draft) {
     });
 }
 
-function destroyQuestion(draft) {
+async function destroyQuestion(draft) {
     if (draft.id === null) {
         drafts.value = drafts.value.filter((row) => row !== draft);
-
         return;
     }
 
-    if (! confirm('حذف هذا السؤال وإجاباته؟')) return;
+    const ok = await confirm({
+        title: 'حذف السؤال',
+        message: 'سيتم حذف هذا السؤال وكل إجاباته.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (!ok) return;
 
     router.delete(route('teacher.questions.destroy', draft.id), {
         preserveScroll: true,

@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import { formatMonthly, DAY_NAMES } from '@/lib/money';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     subscriptions: { type: Array, default: () => [] },
@@ -27,6 +28,8 @@ const statusClasses = {
     cancelled: 'badge-red',
 };
 
+const { confirm } = useConfirm();
+
 function scheduleText(group) {
     if (!group?.schedules?.length) return 'الموعد غير محدد';
     return group.schedules.map((s) => `${DAY_NAMES[s.day] ?? ''} ${s.start}–${s.end}`).join('، ');
@@ -36,10 +39,14 @@ function renew(id) {
     router.post(route('student.subscriptions.renew', { id }));
 }
 
-function cancel(id) {
-    if (confirm('متأكد إنك عايز تلغي الاشتراك؟')) {
-        router.delete(route('student.subscriptions.cancel', { id }));
-    }
+async function cancel(id) {
+    const ok = await confirm({
+        title: 'إلغاء الاشتراك',
+        message: 'هل أنت متأكد من إلغاء اشتراكك؟ ستفقد مقعدك في المجموعة.',
+        confirmLabel: 'إلغاء',
+        variant: 'warning',
+    });
+    if (ok) router.delete(route('student.subscriptions.cancel', { id }));
 }
 </script>
 

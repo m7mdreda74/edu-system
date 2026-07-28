@@ -4,10 +4,13 @@ import { useForm, router, Link, Head } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import axios from 'axios';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     dbSettings: { type: Array, required: true },
 });
+
+const { confirm } = useConfirm();
 
 // A comprehensive list of default settings (ensures all keys are initialized even if they don't exist in the database)
 const defaultSettings = [
@@ -433,12 +436,18 @@ function addRawSetting() {
     isDirty.value = true;
 }
 
-function removeRawSetting(setting) {
+async function removeRawSetting(setting) {
     const actualIndex = form.settings.findIndex(s => s === setting);
     if (actualIndex === -1) return;
 
     if (setting.id) {
-        if (confirm('هل أنت متأكد من حذف هذا الإعداد؟')) {
+        const ok = await confirm({
+            title: 'حذف الإعداد',
+            message: 'هل أنت متأكد من حذف هذا الإعداد؟',
+            confirmLabel: 'حذف',
+            variant: 'danger',
+        });
+        if (ok) {
             router.delete(route('admin.settings.destroy', setting.id), {
                 onSuccess: () => { form.settings.splice(actualIndex, 1); }
             });

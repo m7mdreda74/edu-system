@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import Whiteboard from '@/Components/Whiteboard.vue';
 import VideoRoom from '@/Components/VideoRoom.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     session: { type: Object, required: true },
@@ -19,6 +20,8 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let durationInterval = null;
 const audioContext = ref(null);
+const videoRoomRef = ref(null);
+const { confirm } = useConfirm();
 
 // ─── View Mode ────────────────────────────────────────────────────────────────
 // viewMode: 'video' | 'split' | 'whiteboard'
@@ -129,8 +132,15 @@ function rejectLobby(id) {
         lobbyParticipants.value = lobbyParticipants.value.filter(p => p.id !== id);
     }
 }
-function kickStudent(id) {
-    if (jitsiApi && confirm('هل تريد طرد هذا الطالب من الحصة؟')) {
+async function kickStudent(id) {
+    if (!jitsiApi) return;
+    const ok = await confirm({
+        title: 'طرد الطالب',
+        message: 'هل تريد طرد هذا الطالب من الحصة؟',
+        confirmLabel: 'طرد',
+        variant: 'danger',
+    });
+    if (ok) {
         jitsiApi.executeCommand('kickParticipant', id);
         activeParticipants.value = activeParticipants.value.filter(p => p.id !== id);
     }
@@ -141,8 +151,15 @@ function toggleLobbyMode() {
         jitsiApi.executeCommand('toggleLobby', lobbyEnabled.value);
     }
 }
-function muteAllStudents() {
-    if (jitsiApi && confirm('هل تريد كتم صوت الجميع؟')) jitsiApi.executeCommand('muteEveryone');
+async function muteAllStudents() {
+    if (!jitsiApi) return;
+    const ok = await confirm({
+        title: 'كتم الجميع',
+        message: 'هل تريد كتم صوت الجميع؟',
+        confirmLabel: 'كتم',
+        variant: 'warning',
+    });
+    if (ok) jitsiApi.executeCommand('muteEveryone');
 }
 
 // No external video SDK needed — VideoRoom.vue handles everything

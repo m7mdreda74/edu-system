@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     subjects:    { type: Array, default: () => [] },
@@ -13,6 +14,7 @@ const ICONS = ['book', 'language', 'globe', 'calculator', 'atom', 'flask', 'dna'
 
 const showForm = ref(false);
 const editingId = ref(null);
+const { confirm } = useConfirm();
 
 const form = useForm({
     name: '',
@@ -81,10 +83,14 @@ function submit() {
         : form.post(route('admin.subjects.store'), options);
 }
 
-function destroy(id) {
-    if (confirm('حذف هذه المادة؟')) {
-        router.delete(route('admin.subjects.destroy', { id }));
-    }
+async function destroy(id) {
+    const ok = await confirm({
+        title: 'حذف المادة',
+        message: 'سيتم حذف هذه المادة الدراسية نهائياً.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('admin.subjects.destroy', { id }));
 }
 </script>
 

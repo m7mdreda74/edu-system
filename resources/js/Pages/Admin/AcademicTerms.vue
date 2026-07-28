@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 defineProps({
     terms:   { type: Array, default: () => [] },
@@ -11,6 +12,7 @@ defineProps({
 
 const showForm = ref(false);
 const editingId = ref(null);
+const { confirm } = useConfirm();
 
 const form = useForm({
     year_label: '',
@@ -54,10 +56,14 @@ function submit() {
         : form.post(route('admin.academic-terms.store'), options);
 }
 
-function destroy(id) {
-    if (confirm('حذف هذا الفصل الدراسي؟')) {
-        router.delete(route('admin.academic-terms.destroy', { id }));
-    }
+async function destroy(id) {
+    const ok = await confirm({
+        title: 'حذف الفصل الدراسي',
+        message: 'سيتم حذف هذا الفصل الدراسي نهائياً.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('admin.academic-terms.destroy', { id }));
 }
 </script>
 

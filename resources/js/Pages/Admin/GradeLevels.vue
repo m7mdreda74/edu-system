@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, useForm, router, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     gradeLevels: { type: Array, required: true },
@@ -11,6 +12,7 @@ const props = defineProps({
 const isModalOpen = ref(false);
 const editingGradeLevel = ref(null);
 const selectedStage = ref('all_stages');
+const { confirm } = useConfirm();
 
 const form = useForm({
     key: '',
@@ -71,10 +73,14 @@ function submitForm() {
     }
 }
 
-function deleteGradeLevel(id) {
-    if (confirm('هل أنت متأكد من حذف هذه المرحلة الدراسية؟')) {
-        router.delete(route('admin.grade-levels.destroy', { id }));
-    }
+async function deleteGradeLevel(id) {
+    const ok = await confirm({
+        title: 'حذف المرحلة الدراسية',
+        message: 'سيتم حذف هذه المرحلة الدراسية نهائياً.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('admin.grade-levels.destroy', { id }));
 }
 </script>
 

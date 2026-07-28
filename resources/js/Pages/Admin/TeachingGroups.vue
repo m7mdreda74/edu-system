@@ -6,6 +6,7 @@ import Icon from '@/Components/Icon.vue';
 import StatCard from '@/Components/StatCard.vue';
 import { formatQAR } from '@/lib/money';
 import { debounce } from '@/lib/debounce';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     groups:       { type: Object, required: true },
@@ -18,6 +19,8 @@ const props = defineProps({
     terms:        { type: Array, default: () => [] },
     stats:        { type: Object, default: () => ({}) },
 });
+
+const { confirm } = useConfirm();
 
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const managementTab = ref('assignments');
@@ -128,20 +131,28 @@ function updateGroup() {
     });
 }
 
-function toggle(group) {
+async function toggle(group) {
     const message = group.is_active
         ? `إيقاف "${group.name}"؟ لن تظهر للطلاب الجدد.`
         : `تفعيل "${group.name}"؟`;
 
-    if (confirm(message)) {
-        router.patch(route('admin.teaching-groups.toggle', { id: group.id }), {}, { preserveScroll: true });
-    }
+    const ok = await confirm({
+        title: group.is_active ? 'إيقاف المجموعة' : 'تفعيل المجموعة',
+        message,
+        confirmLabel: group.is_active ? 'إيقاف' : 'تفعيل',
+        variant: group.is_active ? 'warning' : 'info',
+    });
+    if (ok) router.patch(route('admin.teaching-groups.toggle', { id: group.id }), {}, { preserveScroll: true });
 }
 
-function destroyGroup(group) {
-    if (confirm(`حذف "${group.name}" نهائيًا؟`)) {
-        router.delete(route('admin.teaching-groups.destroy', group.id), { preserveScroll: true });
-    }
+async function destroyGroup(group) {
+    const ok = await confirm({
+        title: `حذف "${group.name}"`,
+        message: 'سيتم حذف هذه المجموعة نهائياً.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('admin.teaching-groups.destroy', group.id), { preserveScroll: true });
 }
 
 function storePrivateSlot() {
@@ -151,10 +162,14 @@ function storePrivateSlot() {
     });
 }
 
-function destroyPrivateSlot(slot) {
-    if (confirm('إلغاء موعد البرايفيت؟')) {
-        router.delete(route('admin.private-slots.destroy', slot.id), { preserveScroll: true });
-    }
+async function destroyPrivateSlot(slot) {
+    const ok = await confirm({
+        title: 'إلغاء موعد البرايفت',
+        message: 'سيتم إلغاء هذا الموعد.',
+        confirmLabel: 'إلغاء',
+        variant: 'warning',
+    });
+    if (ok) router.delete(route('admin.private-slots.destroy', slot.id), { preserveScroll: true });
 }
 
 function formatDate(value) {

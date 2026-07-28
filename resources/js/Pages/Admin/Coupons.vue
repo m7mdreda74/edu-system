@@ -3,12 +3,14 @@ import { ref } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     coupons: { type: Array, required: true },
 });
 
 const isModalOpen = ref(false);
+const { confirm } = useConfirm();
 
 const form = useForm({
     code: '',
@@ -35,10 +37,14 @@ function toggleStatus(id) {
     router.patch(route('admin.coupons.toggle', { id }), {}, { preserveScroll: true });
 }
 
-function deleteCoupon(id) {
-    if (confirm('هل أنت متأكد من حذف هذا الكوبون؟')) {
-        router.delete(route('admin.coupons.destroy', { id }));
-    }
+async function deleteCoupon(id) {
+    const ok = await confirm({
+        title: 'حذف الكوبون',
+        message: 'سيتم حذف هذا الكوبون نهائياً.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('admin.coupons.destroy', { id }));
 }
 </script>
 

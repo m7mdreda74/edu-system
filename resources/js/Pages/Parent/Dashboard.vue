@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { Head, useForm, router, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     links:           { type: Array, required: true },
@@ -11,6 +12,7 @@ const props = defineProps({
 });
 
 const isModalOpen = ref(false);
+const { confirm } = useConfirm();
 
 const form = useForm({
     email: '',
@@ -31,10 +33,14 @@ function submitLink() {
     });
 }
 
-function unlinkStudent(id) {
-    if (confirm('هل أنت متأكد من إلغاء ربط هذا الحساب؟')) {
-        router.delete(route('parent.unlink-student', { id }));
-    }
+async function unlinkStudent(id) {
+    const ok = await confirm({
+        title: 'إلغاء ربط الحساب',
+        message: 'هل أنت متأكد من إلغاء ربط هذا الحساب؟',
+        confirmLabel: 'إلغاء الربط',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('parent.unlink-student', { id }));
 }
 
 function selectStudent(studentId) {

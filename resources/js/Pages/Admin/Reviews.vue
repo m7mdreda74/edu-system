@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import { debounce } from '@/lib/debounce';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     reviews: { type: Object, required: true },
@@ -27,17 +28,26 @@ function setStatus(status) {
 
 const approve = (id) => router.patch(route('admin.reviews.approve', { id }), {}, { preserveScroll: true });
 const reject  = (id) => router.patch(route('admin.reviews.reject',  { id }), {}, { preserveScroll: true });
+const { confirm } = useConfirm();
 
-function destroy(id) {
-    if (confirm('حذف التقييم نهائياً؟')) {
-        router.delete(route('admin.reviews.destroy', { id }), { preserveScroll: true });
-    }
+async function destroy(id) {
+    const ok = await confirm({
+        title: 'حذف التقييم',
+        message: 'سيتم حذف هذا التقييم نهائياً.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) router.delete(route('admin.reviews.destroy', { id }), { preserveScroll: true });
 }
 
-function approveAll() {
-    if (confirm(`اعتماد كل التقييمات المعلّقة (${props.counts.pending})؟`)) {
-        router.post(route('admin.reviews.approve-all'));
-    }
+async function approveAll() {
+    const ok = await confirm({
+        title: 'اعتماد جميع التقييمات',
+        message: `سيتم اعتماد ${props.counts.pending} تقييم معلّق ونشرها للطلاب.`,
+        confirmLabel: 'اعتماد الجميع',
+        variant: 'info',
+    });
+    if (ok) router.post(route('admin.reviews.approve-all'));
 }
 </script>
 

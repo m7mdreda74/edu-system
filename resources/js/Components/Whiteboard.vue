@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const emit = defineEmits(['close']);
 
@@ -8,6 +9,7 @@ const canvasRef = ref(null);
 const overlayRef = ref(null);
 let ctx = null;
 let isDrawing = false;
+const { confirm } = useConfirm();
 let startX = 0;
 let startY = 0;
 let lastX = 0;
@@ -383,8 +385,14 @@ function addLaserTrail(x, y) {
 }
 
 // ─── Board Actions ────────────────────────────────────────────────────────────
-function clearBoard() {
-    if (!confirm('هل تريد مسح السبورة بالكامل؟')) return;
+async function clearBoard() {
+    const ok = await confirm({
+        title: 'مسح السبورة',
+        message: 'هل تريد مسح السبورة بالكامل؟',
+        confirmLabel: 'مسح',
+        variant: 'danger',
+    });
+    if (!ok) return;
     fillBackground();
     saveHistory();
 }
