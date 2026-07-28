@@ -3,12 +3,14 @@ import { ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     payments: { type: Object, required: true },
     filters:  { type: Object, default: () => ({}) },
 });
 
+const { confirm } = useConfirm();
 const status = ref(props.filters.status ?? '');
 const selectedReceipt = ref(null);
 
@@ -41,15 +43,31 @@ const statusLabels = {
     refunded: 'مُسترد'
 };
 
-function approvePayment(p) {
-    if (confirm('هل أنت متأكد من صحة إيصال الدفع وتفعيل الاشتراك للطالب؟')) {
+async function approvePayment(p) {
+    const ok = await confirm({
+        title: 'اعتماد الدفع',
+        message: 'هل أنت متأكد من صحة إيصال الدفع وتفعيل الاشتراك للطالب؟',
+        confirmLabel: 'نعم، اعتماد',
+        variant: 'info',
+    });
+    if (ok) {
         router.post(route('admin.payments.approve', { payment: p.id }), { note: 'تمت مطابقة إيصال التحويل واعتماده.' });
     }
 }
 
-function rejectPayment(p) {
-    const reason = prompt('اكتب سبب رفض إيصال التحويل:');
-    if (reason?.trim()) router.post(route('admin.payments.reject', { payment: p.id }), { reason: reason.trim() });
+async function rejectPayment(p) {
+    const result = await confirm({
+        title: 'رفض إيصال التحويل',
+        message: `سيتم إخطار الطالب برفض إيصاله.`,
+        confirmLabel: 'رفض',
+        cancelLabel: 'إلغاء',
+        variant: 'danger',
+        inputLabel: 'سبب الرفض',
+        inputPlaceholder: 'اكتب سبب رفض إيصال التحويل...',
+    });
+    if (result?.confirmed) {
+        router.post(route('admin.payments.reject', { payment: p.id }), { reason: result.value });
+    }
 }
 
 </script>

@@ -4,6 +4,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/authStore';
 import Icon from '@/Components/Icon.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
+import ConfirmDialog from '@/Components/ConfirmDialog.vue';
 
 
 const authStore = useAuthStore();
@@ -132,6 +133,8 @@ const isActive = (name) => {
 
 <template>
     <div class="min-h-screen bg-transparent flex" dir="rtl" lang="ar">
+        <!-- Global Confirm Dialog -->
+        <ConfirmDialog />
         
         <!-- ── Mobile Sidebar Overlay ──────────────────────────────────────── -->
         <div v-if="isSidebarOpen" @click="isSidebarOpen = false"
