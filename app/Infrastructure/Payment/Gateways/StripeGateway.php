@@ -34,9 +34,9 @@ class StripeGateway implements PaymentGatewayInterface
 
     public function __construct()
     {
-        $this->publishableKey = config('services.stripe.key', '');
-        $this->secretKey      = config('services.stripe.secret', '');
-        $this->webhookSecret  = config('services.stripe.webhook_secret', '');
+        $this->publishableKey = (string) (config('services.stripe.key') ?? '');
+        $this->secretKey      = (string) (config('services.stripe.secret') ?? '');
+        $this->webhookSecret  = (string) (config('services.stripe.webhook_secret') ?? '');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
