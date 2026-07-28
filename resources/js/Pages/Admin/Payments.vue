@@ -141,7 +141,7 @@ async function rejectPayment(p) {
                                     </span>
                                 </td>
                                 <td class="p-4 text-xs text-surface-400">{{ p.paid_at || p.created_at || '—' }}</td>
-                                <td class="p-4">
+                                <td class="p-4 whitespace-nowrap">
                                     <div class="flex items-center gap-2">
                                         <button v-if="p.receipt_path" @click="selectedReceipt = route('admin.payments.receipt', p.id)" class="btn-outline text-xs py-1 px-2.5 flex items-center gap-1">
                                             <Icon name="eye" class="w-3.5 h-3.5 shrink-0" />
