@@ -20,14 +20,16 @@ use App\Http\Requests\Teacher\UpdateCurriculumUnitRequest;
 use App\Http\Requests\Teacher\UploadBookletRequest;
 use App\Http\Requests\Teacher\UploadHomeworkRequest;
 use App\Http\Requests\Teacher\UploadPaperExamRequest;
+use App\Services\CurriculumBlobUpload;
 use App\Support\ArabicOrdinal;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -45,6 +47,10 @@ class CurriculumController extends Controller
 {
     /** Uploads are stored on the public disk and referenced by this URL prefix. */
     private const PUBLIC_PREFIX = '/storage/';
+
+    public function __construct(
+        private readonly CurriculumBlobUpload $blobUploads,
+    ) {}
 
     public function index(Request $request, int $assignmentId): Response
     {
@@ -69,24 +75,65 @@ class CurriculumController extends Controller
 
         return Inertia::render('Teacher/Curriculum', [
             'assignment' => [
-                'id'      => $assignment->id,
+                'id' => $assignment->id,
                 'subject' => $assignment->subject?->only(['id', 'name']),
-                'grade'   => $assignment->gradeLevel?->only(['id', 'key', 'name']),
+                'grade' => $assignment->gradeLevel?->only(['id', 'key', 'name']),
                 'teacher' => $assignment->teacher?->only(['id', 'name']),
             ],
             'terms' => $terms->map(fn (AcademicTerm $term) => [
-                'id'          => $term->id,
-                'name'        => $term->name,
-                'year_label'  => $term->year_label,
+                'id' => $term->id,
+                'name' => $term->name,
+                'year_label' => $term->year_label,
                 'term_number' => $term->term_number,
-                'full_name'   => $term->fullName(),
-                'is_current'  => (bool) $term->isCurrent(),
+                'full_name' => $term->fullName(),
+                'is_current' => (bool) $term->isCurrent(),
                 'units_count' => (int) ($unitCounts[$term->id] ?? 0),
             ])->all(),
             'activeTermId' => $activeTermId,
-            'units'        => $units->all(),
-            'stats'        => $this->stats($units),
+            'units' => $units->all(),
+            'stats' => $this->stats($units),
+            'directUploads' => [
+                'enabled' => $this->blobUploads->enabled(),
+                'serverless' => (bool) config('services.vercel_blob.serverless', false),
+                'authorize_url' => route('teacher.curriculum-uploads.authorize'),
+                'handle_url' => (string) config('services.vercel_blob.handle_url', '/api/blob-upload'),
+                'max_bytes' => CurriculumBlobUpload::MAX_BYTES,
+            ],
         ]);
+    }
+
+    /**
+     * Authorize a direct browser-to-Blob upload after checking the teacher owns
+     * the curriculum target. The returned token is opaque to the browser and
+     * is verified by api/blob-upload.js with APP_KEY.
+     */
+    public function authorizeBlobUpload(Request $request): JsonResponse
+    {
+        if (! $this->blobUploads->enabled()) {
+            return response()->json([
+                'message' => 'تخزين الملفات غير مهيأ في بيئة الإنتاج بعد.',
+            ], 503);
+        }
+
+        $data = $request->validate([
+            'kind' => ['required', 'in:booklet,homework,exam'],
+            'target_id' => ['required', 'integer', 'min:1'],
+            'pathname' => ['required', 'string', 'max:950'],
+            'file_size' => ['required', 'integer', 'min:1', 'max:'.CurriculumBlobUpload::MAX_BYTES],
+        ]);
+
+        $kind = (string) $data['kind'];
+        $targetId = (int) $data['target_id'];
+        $teacher = Auth::id();
+
+        $this->assertUploadTargetOwned($kind, $targetId);
+
+        return response()->json($this->blobUploads->issueAuthorization(
+            (int) $teacher,
+            $kind,
+            $targetId,
+            (string) $data['pathname'],
+        ));
     }
 
     /**
@@ -96,14 +143,14 @@ class CurriculumController extends Controller
      */
     public function skeleton(StoreCurriculumSkeletonRequest $request, int $assignmentId): RedirectResponse
     {
-        $assignment     = $this->ownedAssignment($assignmentId);
-        $termId         = $request->integer('academic_term_id');
-        $unitsCount     = $request->integer('units_count');
+        $assignment = $this->ownedAssignment($assignmentId);
+        $termId = $request->integer('academic_term_id');
+        $unitsCount = $request->integer('units_count');
         $lessonsPerUnit = $request->integer('lessons_per_unit');
 
         DB::transaction(function () use ($assignment, $termId, $unitsCount, $lessonsPerUnit): void {
-            $order   = $this->lastUnitOrder($assignment->id, $termId);
-            $now     = now();
+            $order = $this->lastUnitOrder($assignment->id, $termId);
+            $now = now();
             $lessons = [];
 
             for ($u = 1; $u <= $unitsCount; $u++) {
@@ -111,22 +158,22 @@ class CurriculumController extends Controller
 
                 $unit = CurriculumUnit::create([
                     'teaching_assignment_id' => $assignment->id,
-                    'academic_term_id'       => $termId,
-                    'order'                  => $order,
-                    'title'                  => 'الوحدة ' . ArabicOrdinal::feminine($order),
-                    'is_published'           => true,
+                    'academic_term_id' => $termId,
+                    'order' => $order,
+                    'title' => 'الوحدة '.ArabicOrdinal::feminine($order),
+                    'is_published' => true,
                 ]);
 
                 for ($l = 1; $l <= $lessonsPerUnit; $l++) {
                     $lessons[] = [
                         'curriculum_unit_id' => $unit->id,
-                        'academic_term_id'   => $termId,
-                        'title'              => 'الدرس ' . ArabicOrdinal::masculine($l),
-                        'order'              => $l,
-                        'duration_seconds'   => 0,
-                        'is_free_preview'    => 0,
-                        'created_at'         => $now,
-                        'updated_at'         => $now,
+                        'academic_term_id' => $termId,
+                        'title' => 'الدرس '.ArabicOrdinal::masculine($l),
+                        'order' => $l,
+                        'duration_seconds' => 0,
+                        'is_free_preview' => 0,
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ];
                 }
 
@@ -134,9 +181,9 @@ class CurriculumController extends Controller
                 // The teacher switches it on from the quiz builder.
                 Quiz::create([
                     'curriculum_unit_id' => $unit->id,
-                    'title'              => 'اختبار ' . $unit->title,
-                    'passing_score'      => 60,
-                    'is_active'          => false,
+                    'title' => 'اختبار '.$unit->title,
+                    'passing_score' => 60,
+                    'is_active' => false,
                 ]);
             }
 
@@ -152,15 +199,15 @@ class CurriculumController extends Controller
     public function storeUnit(StoreCurriculumUnitRequest $request, int $assignmentId): RedirectResponse
     {
         $assignment = $this->ownedAssignment($assignmentId);
-        $termId     = $request->integer('academic_term_id');
+        $termId = $request->integer('academic_term_id');
 
         CurriculumUnit::create([
             'teaching_assignment_id' => $assignment->id,
-            'academic_term_id'       => $termId,
-            'order'                  => $this->lastUnitOrder($assignment->id, $termId) + 1,
-            'title'                  => trim((string) $request->input('title')),
-            'description'            => $request->input('description'),
-            'is_published'           => $request->boolean('is_published', true),
+            'academic_term_id' => $termId,
+            'order' => $this->lastUnitOrder($assignment->id, $termId) + 1,
+            'title' => trim((string) $request->input('title')),
+            'description' => $request->input('description'),
+            'is_published' => $request->boolean('is_published', true),
         ]);
 
         return back()->with('success', 'تمت إضافة الوحدة.');
@@ -206,7 +253,7 @@ class CurriculumController extends Controller
     public function reorderUnit(ReorderCurriculumUnitRequest $request, int $unitId): RedirectResponse
     {
         $unit = $this->ownedUnit($unitId);
-        $up   = $request->input('direction') === 'up';
+        $up = $request->input('direction') === 'up';
 
         $neighbour = CurriculumUnit::where('teaching_assignment_id', $unit->teaching_assignment_id)
             ->where('academic_term_id', $unit->academic_term_id)
@@ -235,13 +282,13 @@ class CurriculumController extends Controller
 
         GroupMaterial::create([
             'curriculum_unit_id' => $unit->id,
-            'academic_term_id'   => $unit->academic_term_id,
-            'order'              => $this->lastLessonOrder($unit->id) + 1,
-            'title'              => trim((string) $request->input('title')),
-            'video_url'          => $request->input('video_url'),
-            'duration_seconds'   => $request->integer('duration_seconds'),
-            'description'        => $request->input('description'),
-            'is_free_preview'    => $request->boolean('is_free_preview'),
+            'academic_term_id' => $unit->academic_term_id,
+            'order' => $this->lastLessonOrder($unit->id) + 1,
+            'title' => trim((string) $request->input('title')),
+            'video_url' => $request->input('video_url'),
+            'duration_seconds' => $request->integer('duration_seconds'),
+            'description' => $request->input('description'),
+            'is_free_preview' => $request->boolean('is_free_preview'),
         ]);
 
         return back()->with('success', 'تمت إضافة الدرس.');
@@ -250,7 +297,7 @@ class CurriculumController extends Controller
     public function updateLesson(UpdateCurriculumLessonRequest $request, int $lessonId): RedirectResponse
     {
         $lesson = $this->ownedLesson($lessonId);
-        $data   = $request->validated();
+        $data = $request->validated();
 
         if (isset($data['title'])) {
             $data['title'] = trim($data['title']);
@@ -277,11 +324,19 @@ class CurriculumController extends Controller
     {
         $lesson = $this->ownedLesson($lessonId);
 
-        $this->forgetUpload($lesson->attachment_path);
+        $oldPath = $lesson->attachment_path;
+        $newPath = $this->storeUploadFromRequest(
+            $request,
+            'booklet',
+            'booklets',
+            CurriculumBlobUpload::KIND_BOOKLET,
+            $lesson->id,
+        );
 
         $lesson->update([
-            'attachment_path' => $this->storeUpload($request->file('booklet'), 'booklets'),
+            'attachment_path' => $newPath,
         ]);
+        $this->forgetUpload($oldPath);
 
         return back()->with('success', 'تم رفع ملزمة الدرس.');
     }
@@ -289,22 +344,33 @@ class CurriculumController extends Controller
     /** "الواجب" — one per lesson; posting again replaces the file in place. */
     public function storeHomework(UploadHomeworkRequest $request, int $lessonId): RedirectResponse
     {
-        $lesson   = $this->ownedLesson($lessonId);
+        $lesson = $this->ownedLesson($lessonId);
         $homework = $lesson->homework()->first();
+        $oldPath = $homework?->file_path;
 
         $data = [
             'curriculum_unit_id' => $lesson->curriculum_unit_id,
-            'lesson_id'          => $lesson->id,
-            'type'               => Worksheet::TYPE_HOMEWORK,
+            'lesson_id' => $lesson->id,
+            'type' => Worksheet::TYPE_HOMEWORK,
             ...$this->sheetAttributes($request, $homework, "واجب {$lesson->title}"),
         ];
 
-        if ($request->hasFile('file')) {
-            $this->forgetUpload($homework?->file_path);
-            $data['file_path'] = $this->storeUpload($request->file('file'), 'homework');
+        $newPath = $this->storeUploadFromRequest(
+            $request,
+            'file',
+            'homework',
+            CurriculumBlobUpload::KIND_HOMEWORK,
+            $lesson->id,
+        );
+
+        if ($newPath !== null) {
+            $data['file_path'] = $newPath;
         }
 
         $homework ? $homework->update($data) : Worksheet::create($data);
+        if ($newPath !== null) {
+            $this->forgetUpload($oldPath, $newPath);
+        }
 
         return back()->with('success', 'تم حفظ واجب الدرس.');
     }
@@ -319,20 +385,31 @@ class CurriculumController extends Controller
     {
         $unit = $this->ownedUnit($unitId);
         $exam = $unit->paperExam()->first();
+        $oldPath = $exam?->file_path;
 
         $data = [
             'curriculum_unit_id' => $unit->id,
-            'lesson_id'          => null,
-            'type'               => Worksheet::TYPE_PAPER_EXAM,
+            'lesson_id' => null,
+            'type' => Worksheet::TYPE_PAPER_EXAM,
             ...$this->sheetAttributes($request, $exam, "اختبار {$unit->title} — النموذج الورقي"),
         ];
 
-        if ($request->hasFile('file')) {
-            $this->forgetUpload($exam?->file_path);
-            $data['file_path'] = $this->storeUpload($request->file('file'), 'exams');
+        $newPath = $this->storeUploadFromRequest(
+            $request,
+            'file',
+            'exams',
+            CurriculumBlobUpload::KIND_EXAM,
+            $unit->id,
+        );
+
+        if ($newPath !== null) {
+            $data['file_path'] = $newPath;
         }
 
         $exam ? $exam->update($data) : Worksheet::create($data);
+        if ($newPath !== null) {
+            $this->forgetUpload($oldPath, $newPath);
+        }
 
         return back()->with('success', 'تم حفظ النموذج الورقي لاختبار الوحدة.');
     }
@@ -344,15 +421,15 @@ class CurriculumController extends Controller
     {
         // No academic calendar seeded yet — nothing can hang off a term.
         if ($termId === null) {
-            return (new CurriculumUnit())->newCollection();
+            return (new CurriculumUnit)->newCollection();
         }
 
         return CurriculumUnit::where('teaching_assignment_id', $assignment->id)
             ->where('academic_term_id', $termId)
             ->with([
                 'lessons.homework' => fn ($query) => $query->withCount('submissions'),
-                'electronicExam'   => fn ($query) => $query->withCount('questions'),
-                'paperExam'        => fn ($query) => $query->withCount('submissions'),
+                'electronicExam' => fn ($query) => $query->withCount('questions'),
+                'paperExam' => fn ($query) => $query->withCount('submissions'),
             ])
             ->orderBy('order')
             ->get();
@@ -363,24 +440,24 @@ class CurriculumController extends Controller
         $lessons = $unit->lessons->map(fn (GroupMaterial $lesson) => $this->presentLesson($lesson));
 
         return [
-            'id'               => $unit->id,
-            'order'            => $unit->order,
-            'title'            => $unit->title,
-            'description'      => $unit->description,
-            'is_published'     => $unit->is_published,
+            'id' => $unit->id,
+            'order' => $unit->order,
+            'title' => $unit->title,
+            'description' => $unit->description,
+            'is_published' => $unit->is_published,
             'academic_term_id' => (int) $unit->academic_term_id,
-            'lessons'          => $lessons->all(),
-            'lessons_count'    => $lessons->count(),
-            'electronic_exam'  => $this->presentQuiz($unit->electronicExam),
-            'paper_exam'       => $this->presentWorksheet($unit->paperExam),
+            'lessons' => $lessons->all(),
+            'lessons_count' => $lessons->count(),
+            'electronic_exam' => $this->presentQuiz($unit->electronicExam),
+            'paper_exam' => $this->presentWorksheet($unit->paperExam),
             // The chips on the collapsed row: a slot is green only when every
             // lesson in the unit has it, so an empty unit is grey across.
             'readiness' => [
-                'video'           => $lessons->isNotEmpty() && $lessons->every(fn (array $lesson) => $lesson['has_video']),
-                'booklet'         => $lessons->isNotEmpty() && $lessons->every(fn (array $lesson) => $lesson['has_booklet']),
-                'homework'        => $lessons->isNotEmpty() && $lessons->every(fn (array $lesson) => $lesson['homework'] !== null),
+                'video' => $lessons->isNotEmpty() && $lessons->every(fn (array $lesson) => $lesson['has_video']),
+                'booklet' => $lessons->isNotEmpty() && $lessons->every(fn (array $lesson) => $lesson['has_booklet']),
+                'homework' => $lessons->isNotEmpty() && $lessons->every(fn (array $lesson) => $lesson['homework'] !== null),
                 'electronic_exam' => $unit->electronicExam !== null,
-                'paper_exam'      => $unit->paperExam !== null,
+                'paper_exam' => $unit->paperExam !== null,
             ],
         ];
     }
@@ -388,17 +465,17 @@ class CurriculumController extends Controller
     private function presentLesson(GroupMaterial $lesson): array
     {
         return [
-            'id'               => $lesson->id,
-            'order'            => $lesson->order,
-            'title'            => $lesson->title,
-            'description'      => $lesson->description,
-            'video_url'        => $lesson->video_url,
+            'id' => $lesson->id,
+            'order' => $lesson->order,
+            'title' => $lesson->title,
+            'description' => $lesson->description,
+            'video_url' => $lesson->video_url,
             'duration_seconds' => $lesson->duration_seconds,
-            'is_free_preview'  => $lesson->is_free_preview,
-            'booklet_path'     => $lesson->attachment_path,
-            'has_video'        => filled($lesson->video_url),
-            'has_booklet'      => filled($lesson->attachment_path),
-            'homework'         => $this->presentWorksheet($lesson->homework),
+            'is_free_preview' => $lesson->is_free_preview,
+            'booklet_path' => $lesson->attachment_path,
+            'has_video' => filled($lesson->video_url),
+            'has_booklet' => filled($lesson->attachment_path),
+            'homework' => $this->presentWorksheet($lesson->homework),
         ];
     }
 
@@ -411,16 +488,16 @@ class CurriculumController extends Controller
         $questions = (int) ($quiz->questions_count ?? 0);
 
         return [
-            'id'                 => $quiz->id,
-            'title'              => $quiz->title,
-            'questions_count'    => $questions,
+            'id' => $quiz->id,
+            'title' => $quiz->title,
+            'questions_count' => $questions,
             'time_limit_minutes' => $quiz->time_limit_minutes,
-            'passing_score'      => $quiz->passing_score,
-            'is_active'          => $quiz->is_active,
-            'available_from'     => $quiz->available_from?->toIso8601String(),
-            'available_until'    => $quiz->available_until?->toIso8601String(),
-            'window_label'       => $quiz->windowLabel(),
-            'is_open'            => $quiz->isOpen(),
+            'passing_score' => $quiz->passing_score,
+            'is_active' => $quiz->is_active,
+            'available_from' => $quiz->available_from?->toIso8601String(),
+            'available_until' => $quiz->available_until?->toIso8601String(),
+            'window_label' => $quiz->windowLabel(),
+            'is_open' => $quiz->isOpen(),
             // A skeleton exam exists but has nothing in it yet.
             'is_ready' => $quiz->is_active && $questions > 0,
         ];
@@ -433,13 +510,13 @@ class CurriculumController extends Controller
         }
 
         return [
-            'id'                  => $sheet->id,
-            'title'               => $sheet->title,
-            'file_path'           => $sheet->file_path,
-            'due_date'            => $sheet->due_date?->format('Y-m-d'),
-            'max_score'           => $sheet->max_score,
+            'id' => $sheet->id,
+            'title' => $sheet->title,
+            'file_path' => $sheet->file_path,
+            'due_date' => $sheet->due_date?->format('Y-m-d'),
+            'max_score' => $sheet->max_score,
             'requires_submission' => $sheet->requires_submission,
-            'submissions_count'   => (int) ($sheet->submissions_count ?? 0),
+            'submissions_count' => (int) ($sheet->submissions_count ?? 0),
         ];
     }
 
@@ -449,7 +526,7 @@ class CurriculumController extends Controller
         $lessons = $units->flatMap(fn (array $unit) => $unit['lessons']);
 
         return [
-            'units'   => $units->count(),
+            'units' => $units->count(),
             'lessons' => $lessons->count(),
             'complete_lessons' => $lessons
                 ->filter(fn (array $lesson) => $lesson['has_video'] && $lesson['has_booklet'] && $lesson['homework'] !== null)
@@ -513,18 +590,73 @@ class CurriculumController extends Controller
             ->max('order');
     }
 
-    private function storeUpload(UploadedFile $file, string $folder): string
-    {
-        return self::PUBLIC_PREFIX . $file->store($folder, 'public');
+    private function storeUploadFromRequest(
+        Request $request,
+        string $fileField,
+        string $folder,
+        string $kind,
+        int $targetId,
+    ): ?string {
+        if ($request->hasFile($fileField)) {
+            if ((bool) config('services.vercel_blob.serverless', false)) {
+                throw ValidationException::withMessages([
+                    $fileField => 'ارفع الملف من زر الرفع مرة أخرى بعد تفعيل التخزين الدائم.',
+                ]);
+            }
+
+            $stored = $request->file($fileField)->store($folder, 'public');
+
+            if (! is_string($stored) || $stored === '') {
+                throw ValidationException::withMessages([
+                    $fileField => 'تعذر حفظ الملف المرفوع.',
+                ]);
+            }
+
+            return self::PUBLIC_PREFIX.$stored;
+        }
+
+        if (! $request->filled('blob_url')) {
+            return null;
+        }
+
+        try {
+            return $this->blobUploads->validateCompleted(
+                (string) $request->input('blob_url'),
+                (string) $request->input('blob_pathname'),
+                (int) Auth::id(),
+                $kind,
+                $targetId,
+            );
+        } catch (\Throwable $exception) {
+            throw ValidationException::withMessages([
+                'blob_url' => 'تعذر التحقق من الملف المرفوع. أعد رفعه من فضلك.',
+            ]);
+        }
     }
 
-    private function forgetUpload(?string $publicPath): void
+    private function forgetUpload(?string $publicPath, ?string $replacement = null): void
     {
-        if ($publicPath === null || ! str_starts_with($publicPath, self::PUBLIC_PREFIX)) {
+        if (
+            $publicPath === null
+            || $publicPath === $replacement
+            || ! str_starts_with($publicPath, self::PUBLIC_PREFIX)
+        ) {
             return;
         }
 
         Storage::disk('public')->delete(substr($publicPath, strlen(self::PUBLIC_PREFIX)));
+    }
+
+    private function assertUploadTargetOwned(string $kind, int $targetId): void
+    {
+        match ($kind) {
+            CurriculumBlobUpload::KIND_BOOKLET,
+            CurriculumBlobUpload::KIND_HOMEWORK => $this->ownedLesson($targetId),
+            CurriculumBlobUpload::KIND_EXAM => $this->ownedUnit($targetId),
+            default => throw ValidationException::withMessages([
+                'kind' => 'نوع الرفع غير صالح.',
+            ]),
+        };
     }
 
     private function titleOr(?string $given, string $fallback): string

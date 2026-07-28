@@ -26,11 +26,15 @@ class UploadPaperExamRequest extends FormRequest
 
     public function rules(): array
     {
+        $alreadyExists = $this->unitHasPaperExam();
+
         return [
-            'file'                => [$this->unitHasPaperExam() ? 'nullable' : 'required', 'file', 'max:' . UploadBookletRequest::MAX_KILOBYTES],
-            'title'               => ['nullable', 'string', 'max:255'],
-            'due_date'            => ['nullable', 'date'],
-            'max_score'           => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'file' => [$alreadyExists ? 'nullable' : 'required_without:blob_url', 'file', 'max:'.UploadBookletRequest::MAX_KILOBYTES],
+            'blob_url' => [$alreadyExists ? 'nullable' : 'required_without:file', 'nullable', 'url:https', 'max:2048'],
+            'blob_pathname' => ['nullable', 'required_with:blob_url', 'string', 'max:1024'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'due_date' => ['nullable', 'date'],
+            'max_score' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'requires_submission' => ['nullable', 'boolean'],
         ];
     }
@@ -39,9 +43,13 @@ class UploadPaperExamRequest extends FormRequest
     {
         return [
             'file.required' => 'اختر ملف النموذج الورقي أولاً.',
-            'file.file'     => 'النموذج الورقي يجب أن يكون ملفاً.',
-            'file.max'      => 'حجم النموذج الورقي يجب ألا يتجاوز 25 ميجابايت.',
-            'title.max'     => 'عنوان الاختبار يجب ألا يتجاوز 255 حرفاً.',
+            'file.required_without' => 'اختر ملف النموذج الورقي أولاً.',
+            'file.file' => 'النموذج الورقي يجب أن يكون ملفاً.',
+            'file.max' => 'حجم النموذج الورقي يجب ألا يتجاوز 25 ميجابايت.',
+            'blob_url.required_without' => 'اختر ملف النموذج الورقي أولاً.',
+            'blob_url.url' => 'تعذر التحقق من ملف النموذج الورقي المرفوع.',
+            'blob_pathname.required_with' => 'بيانات ملف النموذج الورقي المرفوع غير مكتملة.',
+            'title.max' => 'عنوان الاختبار يجب ألا يتجاوز 255 حرفاً.',
             'due_date.date' => 'تاريخ تسليم النموذج الورقي غير صحيح.',
             'max_score.min' => 'الدرجة النهائية للاختبار يجب أن تكون 1 على الأقل.',
             'max_score.max' => 'الدرجة النهائية للاختبار يجب ألا تتجاوز 1000.',

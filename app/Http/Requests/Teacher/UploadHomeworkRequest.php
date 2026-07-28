@@ -28,11 +28,15 @@ class UploadHomeworkRequest extends FormRequest
 
     public function rules(): array
     {
+        $alreadyExists = $this->lessonHasHomework();
+
         return [
-            'file'                => [$this->lessonHasHomework() ? 'nullable' : 'required', 'file', 'max:' . UploadBookletRequest::MAX_KILOBYTES],
-            'title'               => ['nullable', 'string', 'max:255'],
-            'due_date'            => ['nullable', 'date'],
-            'max_score'           => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'file' => [$alreadyExists ? 'nullable' : 'required_without:blob_url', 'file', 'max:'.UploadBookletRequest::MAX_KILOBYTES],
+            'blob_url' => [$alreadyExists ? 'nullable' : 'required_without:file', 'nullable', 'url:https', 'max:2048'],
+            'blob_pathname' => ['nullable', 'required_with:blob_url', 'string', 'max:1024'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'due_date' => ['nullable', 'date'],
+            'max_score' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'requires_submission' => ['nullable', 'boolean'],
         ];
     }
@@ -40,13 +44,17 @@ class UploadHomeworkRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'file.required'  => 'اختر ملف الواجب أولاً.',
-            'file.file'      => 'الواجب يجب أن يكون ملفاً.',
-            'file.max'       => 'حجم الواجب يجب ألا يتجاوز 25 ميجابايت.',
-            'title.max'      => 'عنوان الواجب يجب ألا يتجاوز 255 حرفاً.',
-            'due_date.date'  => 'تاريخ تسليم الواجب غير صحيح.',
-            'max_score.min'  => 'الدرجة النهائية للواجب يجب أن تكون 1 على الأقل.',
-            'max_score.max'  => 'الدرجة النهائية للواجب يجب ألا تتجاوز 1000.',
+            'file.required' => 'اختر ملف الواجب أولاً.',
+            'file.required_without' => 'اختر ملف الواجب أولاً.',
+            'file.file' => 'الواجب يجب أن يكون ملفاً.',
+            'file.max' => 'حجم الواجب يجب ألا يتجاوز 25 ميجابايت.',
+            'blob_url.required_without' => 'اختر ملف الواجب أولاً.',
+            'blob_url.url' => 'تعذر التحقق من ملف الواجب المرفوع.',
+            'blob_pathname.required_with' => 'بيانات ملف الواجب المرفوع غير مكتملة.',
+            'title.max' => 'عنوان الواجب يجب ألا يتجاوز 255 حرفاً.',
+            'due_date.date' => 'تاريخ تسليم الواجب غير صحيح.',
+            'max_score.min' => 'الدرجة النهائية للواجب يجب أن تكون 1 على الأقل.',
+            'max_score.max' => 'الدرجة النهائية للواجب يجب ألا تتجاوز 1000.',
         ];
     }
 

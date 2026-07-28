@@ -134,3 +134,15 @@ npm run build
 ## 📄 الترخيص / License
 
 هذا المشروع مرخص بموجب رخصة [MIT](LICENSE).
+
+### Vercel file uploads
+
+Vercel Functions have a read-only deployment filesystem, so curriculum files
+must use durable object storage in production. Connect a **public Vercel Blob
+store** to this project from the Vercel dashboard (Storage → Blob), then
+redeploy. New Vercel connections use rotating OIDC credentials automatically
+and expose `BLOB_STORE_ID`; no long-lived secret needs to be committed.
+
+The curriculum page then uploads directly from the browser to Blob, avoiding
+Vercel's 4.5 MB Function request limit while retaining the application's 25 MB
+file limit. Local development continues to use Laravel's `public` disk.

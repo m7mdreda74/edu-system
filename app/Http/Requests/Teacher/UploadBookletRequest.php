@@ -29,7 +29,9 @@ class UploadBookletRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'booklet' => ['required', 'file', 'max:' . self::MAX_KILOBYTES],
+            'booklet' => ['nullable', 'required_without:blob_url', 'file', 'max:'.self::MAX_KILOBYTES],
+            'blob_url' => ['nullable', 'required_without:booklet', 'url:https', 'max:2048'],
+            'blob_pathname' => ['nullable', 'required_with:blob_url', 'string', 'max:1024'],
         ];
     }
 
@@ -37,8 +39,12 @@ class UploadBookletRequest extends FormRequest
     {
         return [
             'booklet.required' => 'اختر ملف الملزمة أولاً.',
-            'booklet.file'     => 'الملزمة يجب أن تكون ملفاً.',
-            'booklet.max'      => 'حجم الملزمة يجب ألا يتجاوز 25 ميجابايت.',
+            'booklet.required_without' => 'اختر ملف الملزمة أولاً.',
+            'booklet.file' => 'الملزمة يجب أن تكون ملفاً.',
+            'booklet.max' => 'حجم الملزمة يجب ألا يتجاوز 25 ميجابايت.',
+            'blob_url.required_without' => 'اختر ملف الملزمة أولاً.',
+            'blob_url.url' => 'تعذر التحقق من ملف الملزمة المرفوع.',
+            'blob_pathname.required_with' => 'بيانات ملف الملزمة المرفوع غير مكتملة.',
         ];
     }
 }

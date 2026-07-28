@@ -192,6 +192,9 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::post('/units/{unit}/lessons', [CurriculumController::class, 'storeLesson'])->name('lessons.store');
     Route::put('/lessons/{lesson}', [CurriculumController::class, 'updateLesson'])->name('lessons.update');
     Route::delete('/lessons/{lesson}', [CurriculumController::class, 'destroyLesson'])->name('lessons.destroy');
+    Route::post('/curriculum-uploads/authorize', [CurriculumController::class, 'authorizeBlobUpload'])
+        ->name('curriculum-uploads.authorize')
+        ->middleware('throttle:30,1');
     // The {lesson} and {unit} placeholders are read by UploadHomeworkRequest and
     // UploadPaperExamRequest to decide whether the file is required — do not rename.
     Route::post('/lessons/{lesson}/booklet', [CurriculumController::class, 'storeBooklet'])->name('lessons.booklet');

@@ -2,6 +2,9 @@
     "$schema": "https://www.schemastore.org/package.json",
     "private": true,
     "type": "module",
+    "engines": {
+        "node": ">=20.0.0"
+    },
     "scripts": {
         "build": "vite build",
         "dev": "vite"
@@ -23,6 +26,7 @@
     },
     "dependencies": {
         "@pinia/nuxt": "^0.11.3",
+        "@vercel/blob": "^2.4.0",
         "@vueuse/core": "^14.3.0",
         "pinia": "^3.0.4",
         "plyr": "^3.8.4",

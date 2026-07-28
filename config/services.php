@@ -54,4 +54,16 @@ return [
         'gateway' => env('PAYMENT_GATEWAY', 'fatora'), // fatora | stripe | tap
     ],
 
+    'vercel_blob' => [
+        'enabled' => filter_var(env('VERCEL', false), FILTER_VALIDATE_BOOLEAN)
+            && (
+                trim((string) env('BLOB_STORE_ID', '')) !== ''
+                || trim((string) env('BLOB_READ_WRITE_TOKEN', '')) !== ''
+            ),
+        'store_id' => env('BLOB_STORE_ID'),
+        'token' => env('BLOB_READ_WRITE_TOKEN'),
+        'handle_url' => env('BLOB_UPLOAD_HANDLE_URL', '/api/blob-upload'),
+        'serverless' => filter_var(env('VERCEL', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
 ];

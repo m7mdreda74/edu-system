@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import axios from 'axios';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import StatCard from '@/Components/StatCard.vue';
 import Icon from '@/Components/Icon.vue';
@@ -12,6 +13,16 @@ const props = defineProps({
     activeTermId: { type: Number, default: null },
     units:        { type: Array,  default: () => [] },
     stats:        { type: Object, default: () => ({ units: 0, lessons: 0, complete_lessons: 0, ready_exams: 0 }) },
+    directUploads: {
+        type: Object,
+        default: () => ({
+            enabled: false,
+            serverless: false,
+            authorize_url: null,
+            handle_url: '/api/blob-upload',
+            max_bytes: 25 * 1024 * 1024,
+        }),
+    },
 });
 
 // ─── Shared visit options ────────────────────────────────────────────────────
@@ -255,9 +266,22 @@ async function clearVideo(lesson) {
 }
 
 // ─── Lesson slot: ملزمة الشرح ────────────────────────────────────────────────
-function uploadBooklet(lesson, event) {
+async function uploadBooklet(lesson, event) {
     const file = takeFile(event);
     if (!file) return;
+
+    if (props.directUploads.enabled) {
+        await uploadDirect(
+            'booklet',
+            lesson.id,
+            file,
+            route('teacher.lessons.booklet', lesson.id),
+            `lesson:${lesson.id}:booklet`,
+        );
+        return;
+    }
+
+    if (blockUnconfiguredServerlessUpload(`lesson:${lesson.id}:booklet`)) return;
 
     send('post', route('teacher.lessons.booklet', lesson.id), { booklet: file }, `lesson:${lesson.id}:booklet`, { forceFormData: true });
 }
@@ -265,9 +289,22 @@ function uploadBooklet(lesson, event) {
 // ─── Lesson slot: الواجب ─────────────────────────────────────────────────────
 // Each control posts only the field it owns; an absent key keeps its stored
 // value, so moving the due date never wipes the score.
-function uploadHomework(lesson, event) {
+async function uploadHomework(lesson, event) {
     const file = takeFile(event);
     if (!file) return;
+
+    if (props.directUploads.enabled) {
+        await uploadDirect(
+            'homework',
+            lesson.id,
+            file,
+            route('teacher.lessons.homework', lesson.id),
+            `lesson:${lesson.id}:homework`,
+        );
+        return;
+    }
+
+    if (blockUnconfiguredServerlessUpload(`lesson:${lesson.id}:homework`)) return;
 
     send('post', route('teacher.lessons.homework', lesson.id), { file }, `lesson:${lesson.id}:homework`, { forceFormData: true });
 }
@@ -290,9 +327,22 @@ function createQuiz(unit) {
     }, { preserveScroll: true });
 }
 
-function uploadPaperExam(unit, event) {
+async function uploadPaperExam(unit, event) {
     const file = takeFile(event);
     if (!file) return;
+
+    if (props.directUploads.enabled) {
+        await uploadDirect(
+            'exam',
+            unit.id,
+            file,
+            route('teacher.units.paper-exam', unit.id),
+            `unit:${unit.id}:paper`,
+        );
+        return;
+    }
+
+    if (blockUnconfiguredServerlessUpload(`unit:${unit.id}:paper`)) return;
 
     send('post', route('teacher.units.paper-exam', unit.id), { file }, `unit:${unit.id}:paper`, { forceFormData: true });
 }
@@ -317,6 +367,86 @@ function takeFile(event) {
     const file = event.target.files?.[0] ?? null;
     event.target.value = '';   // so picking the same file twice still fires
     return file;
+}
+
+function blockUnconfiguredServerlessUpload(key) {
+    if (!props.directUploads.serverless) return false;
+
+    rowErrors.value[key] = {
+        upload: 'تخزين الملفات غير مهيأ في بيئة الإنتاج بعد.',
+    };
+
+    return true;
+}
+
+async function uploadDirect(kind, targetId, file, finalizeUrl, key) {
+    rowErrors.value[key] = {};
+
+    if (file.size > props.directUploads.max_bytes) {
+        rowErrors.value[key] = { file: 'حجم الملف يجب ألا يتجاوز 25 ميجابايت.' };
+        return;
+    }
+
+    busy.value = key;
+
+    try {
+        const pathname = directUploadPath(kind, targetId, file.name);
+        const { data } = await axios.post(props.directUploads.authorize_url, {
+            kind,
+            target_id: targetId,
+            pathname,
+            file_size: file.size,
+        });
+
+        const { data: presigned } = await axios.post(props.directUploads.handle_url, {
+            pathname,
+            authorization: data.authorization,
+        });
+        const uploadResponse = await fetch(presigned.upload_url, {
+            method: 'PUT',
+            body: file,
+        });
+
+        if (!uploadResponse.ok) {
+            throw new Error('Blob upload failed.');
+        }
+
+        const blob = await uploadResponse.json();
+
+        if (!blob?.url || !blob?.pathname) {
+            throw new Error('Blob upload returned an invalid response.');
+        }
+
+        send('post', finalizeUrl, {
+            blob_url: blob.url,
+            blob_pathname: blob.pathname,
+        }, key);
+    } catch (error) {
+        const validationErrors = error.response?.data?.errors;
+        const firstValidationError = validationErrors
+            ? Object.values(validationErrors).flat()[0]
+            : null;
+
+        rowErrors.value[key] = {
+            upload: firstValidationError
+                ?? error.response?.data?.message
+                ?? 'تعذر رفع الملف. حاول مرة أخرى.',
+        };
+        busy.value = null;
+    }
+}
+
+function directUploadPath(kind, targetId, originalName) {
+    const cleanName = originalName
+        .normalize('NFKC')
+        .replace(/[^\p{L}\p{N}._-]+/gu, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(-160) || 'upload.bin';
+
+    const nonce = globalThis.crypto?.randomUUID?.()
+        ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    return `curriculum/${props.assignment.teacher.id}/${kind}/${targetId}/${nonce}-${cleanName}`;
 }
 
 function fileName(path) {
