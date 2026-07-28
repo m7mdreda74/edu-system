@@ -34,7 +34,7 @@ class UserController extends Controller
             )
             ->withCount('subscriptions')
             ->latest()
-            ->paginate(25)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Users', [
@@ -180,3 +180,4 @@ class UserController extends Controller
         Cache::forget('home.featured_teachers');
     }
 }
+

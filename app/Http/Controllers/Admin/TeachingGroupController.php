@@ -53,7 +53,7 @@ class TeachingGroupController extends Controller
                 ->whereRaw('capacity <= (select count(*) from session_bookings where session_bookings.teaching_group_id = teaching_groups.id and status = ?)', ['confirmed']))
             ->when(! empty($filters['term']), fn ($query) => $query->where('academic_term_id', $filters['term']))
             ->latest()
-            ->paginate(20)
+            ->paginate(10)
             ->withQueryString();
 
         $materialCounts = GroupMaterial::countsByAssignment(
@@ -458,3 +458,4 @@ class TeachingGroupController extends Controller
             ->diffInMinutes(Carbon::createFromFormat('H:i', $end));
     }
 }
+

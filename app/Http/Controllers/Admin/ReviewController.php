@@ -32,7 +32,7 @@ class ReviewController extends Controller
                 ->whereHas('teacher', fn ($t) => $t->where('name', 'like', '%' . $filters['search'] . '%'))
                 ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%' . $filters['search'] . '%')))
             ->latest()
-            ->paginate(20)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Reviews', [
@@ -84,3 +84,4 @@ class ReviewController extends Controller
         Cache::forget('home.featured_teachers');
     }
 }
+

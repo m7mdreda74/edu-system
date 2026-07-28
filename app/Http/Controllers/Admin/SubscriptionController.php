@@ -39,7 +39,7 @@ class SubscriptionController extends Controller
                     ->orWhere('email', 'like', '%' . $filters['search'] . '%'),
             ))
             ->latest()
-            ->paginate(25)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Subscriptions', [
@@ -61,3 +61,4 @@ class SubscriptionController extends Controller
         return back()->with('success', 'تم إلغاء الاشتراك.');
     }
 }
+

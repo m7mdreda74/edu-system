@@ -19,7 +19,7 @@ class PaymentController extends Controller
         $payments = Payment::with(['user:id,name,email', 'subscription.assignment.subject:id,name', 'subscription.assignment.teacher:id,name', 'subscription.group:id,name'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->latest()
-            ->paginate(25)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Payments', [
@@ -68,3 +68,4 @@ class PaymentController extends Controller
         return Storage::disk('local')->response($payment->receipt_path);
     }
 }
+

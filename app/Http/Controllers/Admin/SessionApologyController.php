@@ -30,7 +30,7 @@ class SessionApologyController extends Controller
         ])
             ->when($status, fn ($query) => $query->where('status', $status))
             ->latest()
-            ->paginate(20)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/SessionApologies', [
@@ -80,3 +80,4 @@ class SessionApologyController extends Controller
         return back()->with('success', 'تم تسجيل الخصم وسيُطبّق مرة واحدة على تسوية المعلم التالية.');
     }
 }
+

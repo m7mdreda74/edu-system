@@ -291,7 +291,7 @@ const isActive = (name) => {
 
             <!-- Page Content -->
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-4 lg:p-8">
-                <div class="max-w-7xl mx-auto">
+                <div class="w-full mx-auto">
                     <slot />
                 </div>
             </main>

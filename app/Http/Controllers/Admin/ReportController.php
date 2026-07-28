@@ -70,7 +70,7 @@ class ReportController extends Controller
 
         $sessions = $sessionQuery
             ->latest('scheduled_at')
-            ->paginate(30)
+            ->paginate(10)
             ->withQueryString();
 
         $sessionCountQuery = (clone $sessionQuery);
@@ -138,3 +138,4 @@ class ReportController extends Controller
         ]);
     }
 }
+
