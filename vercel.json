@@ -31,6 +31,12 @@
             "dest": "/api/index.php"
         }
     ],
+    "crons": [
+        {
+            "path": "/api/cron/subscription-renewal-reminders",
+            "schedule": "0 0 * * *"
+        }
+    ],
     "env": {
         "APP_ENV": "production",
         "CACHE_STORE": "file",

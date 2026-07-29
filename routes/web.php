@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Communication\ChatController;
 use App\Http\Controllers\Communication\NotificationController;
+use App\Http\Controllers\Cron\SubscriptionRenewalReminderController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Live\LiveSessionRoomController;
 use App\Http\Controllers\Live\WebRtcSignalingController;
@@ -39,6 +40,7 @@ use App\Http\Controllers\Student\SessionBookingController;
 use App\Http\Controllers\Student\StudentPurchaseRequestController;
 use App\Http\Controllers\Student\SubscriptionController;
 use App\Http\Controllers\Student\VideoUrlController;
+use App\Http\Controllers\SubscriptionRenewalController;
 use App\Http\Controllers\Teacher\CurriculumController;
 use App\Http\Controllers\Teacher\LiveSessionController;
 use App\Http\Controllers\Teacher\MaterialManagerController;
@@ -50,6 +52,8 @@ use Illuminate\Support\Facades\Route;
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 Route::get('/health', HealthController::class)->name('health');
+Route::get('/api/cron/subscription-renewal-reminders', SubscriptionRenewalReminderController::class)
+    ->name('cron.subscription-renewal-reminders');
 
 // ─── Public Browse Flow: grade → subject → teachers → profile ─────────────────
 Route::get('/', [HomeController::class,             'index'])->name('home');
@@ -99,6 +103,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+    Route::get('/subscriptions/{subscription}/renewal', [SubscriptionRenewalController::class, 'show'])
+        ->name('subscriptions.renewal.show');
+    Route::post('/subscriptions/{subscription}/renewal', [SubscriptionRenewalController::class, 'store'])
+        ->name('subscriptions.renewal.store')
+        ->middleware('throttle:10,1');
 });
 
 // ─── Student Routes ────────────────────────────────────────────────────────────

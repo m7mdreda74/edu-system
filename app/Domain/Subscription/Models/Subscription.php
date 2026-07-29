@@ -8,6 +8,7 @@ use App\Domain\Payment\Models\Payment;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
+use Database\Factories\Domain\Subscription\SubscriptionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,17 +24,21 @@ class Subscription extends Model
 {
     use HasFactory;
 
-    protected static function newFactory(): \Database\Factories\Domain\Subscription\SubscriptionFactory
+    protected static function newFactory(): SubscriptionFactory
     {
-        return new \Database\Factories\Domain\Subscription\SubscriptionFactory();
+        return new SubscriptionFactory;
     }
 
-    public const TYPE_GROUP   = 'group';
+    public const TYPE_GROUP = 'group';
+
     public const TYPE_PRIVATE = 'private';
 
-    public const STATUS_PENDING   = 'pending';
-    public const STATUS_ACTIVE    = 'active';
-    public const STATUS_EXPIRED   = 'expired';
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
@@ -48,16 +53,18 @@ class Subscription extends Model
         'status',
         'auto_renew',
         'cancelled_at',
+        'renewal_reminder_sent_at',
     ];
 
     protected function casts(): array
     {
         return [
             'monthly_price' => 'integer',
-            'period_start'  => 'date',
-            'period_end'    => 'date',
-            'auto_renew'    => 'boolean',
-            'cancelled_at'  => 'datetime',
+            'period_start' => 'date',
+            'period_end' => 'date',
+            'auto_renew' => 'boolean',
+            'cancelled_at' => 'datetime',
+            'renewal_reminder_sent_at' => 'datetime',
         ];
     }
 

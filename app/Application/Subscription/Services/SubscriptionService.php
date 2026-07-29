@@ -165,21 +165,55 @@ class SubscriptionService
      */
     public function renew(Subscription $subscription): Subscription
     {
+        return DB::transaction(function () use ($subscription): Subscription {
+            $locked = Subscription::query()->lockForUpdate()->findOrFail($subscription->id);
+            $existing = $this->findExistingRenewal($locked);
+
+            if ($existing) {
+                return $existing;
+            }
+
+            $currentEnd = $locked->period_end ?? now();
+            $newStart = $currentEnd->isFuture() ? $currentEnd->copy() : now()->startOfDay();
+
+            return Subscription::create([
+                'student_id' => $locked->student_id,
+                'type' => $locked->type,
+                'teaching_assignment_id' => $locked->teaching_assignment_id,
+                'teaching_group_id' => $locked->teaching_group_id,
+                'monthly_price' => $this->currentPriceFor($locked),
+                'currency' => $locked->currency,
+                'period_start' => $newStart,
+                'period_end' => $newStart->copy()->addMonth(),
+                'status' => Subscription::STATUS_PENDING,
+                'auto_renew' => $locked->auto_renew,
+            ]);
+        });
+    }
+
+    /**
+     * Re-opening a notification or double-clicking the renew button must lead
+     * to the same checkout rather than creating duplicate billing periods.
+     */
+    public function findExistingRenewal(Subscription $subscription): ?Subscription
+    {
         $currentEnd = $subscription->period_end ?? now();
         $newStart = $currentEnd->isFuture() ? $currentEnd->copy() : now()->startOfDay();
 
-        return Subscription::create([
-            'student_id' => $subscription->student_id,
-            'type' => $subscription->type,
-            'teaching_assignment_id' => $subscription->teaching_assignment_id,
-            'teaching_group_id' => $subscription->teaching_group_id,
-            'monthly_price' => $this->currentPriceFor($subscription),
-            'currency' => $subscription->currency,
-            'period_start' => $newStart,
-            'period_end' => $newStart->copy()->addMonth(),
-            'status' => Subscription::STATUS_PENDING,
-            'auto_renew' => $subscription->auto_renew,
-        ]);
+        return Subscription::query()
+            ->whereKeyNot($subscription->id)
+            ->where('student_id', $subscription->student_id)
+            ->where('type', $subscription->type)
+            ->where('teaching_assignment_id', $subscription->teaching_assignment_id)
+            ->when(
+                $subscription->teaching_group_id,
+                fn ($query, $groupId) => $query->where('teaching_group_id', $groupId),
+                fn ($query) => $query->whereNull('teaching_group_id'),
+            )
+            ->whereDate('period_start', $newStart->toDateString())
+            ->whereIn('status', [Subscription::STATUS_PENDING, Subscription::STATUS_ACTIVE])
+            ->oldest('id')
+            ->first();
     }
 
     /** End a subscription early and release the group seat. */

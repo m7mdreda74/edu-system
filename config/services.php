@@ -40,13 +40,13 @@ return [
     ],
 
     'stripe' => [
-        'key'            => env('STRIPE_KEY'),
-        'secret'         => env('STRIPE_SECRET'),
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
     'tap' => [
-        'secret_key'      => env('TAP_SECRET_KEY'),
+        'secret_key' => env('TAP_SECRET_KEY'),
         'publishable_key' => env('TAP_PUBLISHABLE_KEY'),
     ],
 
@@ -64,6 +64,10 @@ return [
         'token' => env('BLOB_READ_WRITE_TOKEN'),
         'handle_url' => env('BLOB_UPLOAD_HANDLE_URL', '/api/blob-upload'),
         'serverless' => filter_var(env('VERCEL', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
+    'vercel' => [
+        'cron_secret' => env('CRON_SECRET'),
     ],
 
 ];
