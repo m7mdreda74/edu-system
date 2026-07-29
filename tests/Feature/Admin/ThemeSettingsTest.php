@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\User\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
 
-uses(\Tests\TestCase::class, \Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(TestCase::class, RefreshDatabase::class);
 
 function themeAdmin(): User
 {
@@ -104,4 +106,26 @@ it('saves settings as json without reloading the inertia page', function () {
 
     expect(PlatformSetting::where('key', 'platform_name')->value('value'))
         ->toBe('التفوق السريع');
+});
+
+it('does not allow homepage live counters to be edited as platform settings', function () {
+    $setting = PlatformSetting::create([
+        'key' => 'home_stats_students',
+        'value' => '123',
+        'type' => 'string',
+    ]);
+
+    $this->actingAs(themeAdmin())
+        ->post(route('admin.settings.update'), [
+            'settings' => [[
+                'id' => $setting->id,
+                'key' => 'home_stats_students',
+                'value' => '999999',
+                'type' => 'string',
+            ]],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(PlatformSetting::find($setting->id)->value)->toBe('123');
 });

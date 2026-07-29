@@ -48,9 +48,6 @@ const defaultSettings = [
     { key: 'home_hero_desc', value: 'نصنع مستقبل التعليم في قطر من خلال تقديم أفضل الشروحات وأقوى المناهج التعليمية المتكاملة لطلاب المرحلة الثانوية.', type: 'string' },
     { key: 'home_hero_btn1', value: 'ابدأ التعلم الآن', type: 'string' },
     { key: 'home_hero_btn2', value: 'إنشاء حساب جديد', type: 'string' },
-    { key: 'home_stats_students', value: '+500 طالب', type: 'string' },
-    { key: 'home_stats_courses', value: '+50 دورة', type: 'string' },
-    { key: 'home_stats_teachers', value: 'أكفأ المعلمين', type: 'string' },
     { key: 'home_cta_title', value: 'ابدأ رحلة تفوقك اليوم معنا', type: 'string' },
     { key: 'home_cta_desc', value: 'سجل الآن في المنصة واحصل على إمكانية الوصول الفوري للدروس والملخصات التفاعلية.', type: 'string' },
     { key: 'home_cta_btn', value: 'سجل مجاناً', type: 'string' },
@@ -86,10 +83,14 @@ const defaultSettings = [
     { key: 'manual_payment_methods', value: '[]', type: 'string' }
 ];
 
-// Initialize settings by merging defaults with current DB values
+const liveStatKeys = new Set(['home_stats_students', 'home_stats_courses', 'home_stats_teachers']);
+
+// Initialize settings by merging editable defaults with current DB values.
+// Homepage counters are calculated from the domain tables and never enter
+// this editor, even if an older deployment left their rows in the database.
 const settingsMap = new Map();
 defaultSettings.forEach(s => settingsMap.set(s.key, { ...s }));
-props.dbSettings.forEach(s => {
+props.dbSettings.filter(s => !liveStatKeys.has(s.key)).forEach(s => {
     settingsMap.set(s.key, { ...s });
 });
 
@@ -178,9 +179,6 @@ const getSettingLabel = (key) => {
     if (key === 'home_hero_desc') return 'وصف الواجهة الترحيبية (Description)';
     if (key === 'home_hero_btn1') return 'نص زر الواجهة الأساسي';
     if (key === 'home_hero_btn2') return 'نص زر الواجهة الفرعي';
-    if (key === 'home_stats_students') return 'إحصائية الطلاب المسجلين بالواجهة';
-    if (key === 'home_stats_courses') return 'إحصائية المواد بالواجهة';
-    if (key === 'home_stats_teachers') return 'إحصائية المعلمين بالواجهة';
     if (key === 'home_cta_title') return 'عنوان قسم الدعوة للتسجيل (CTA) بالأسفل';
     if (key === 'home_cta_desc') return 'وصف قسم الدعوة للتسجيل (CTA) بالأسفل';
     if (key === 'home_cta_btn') return 'نص زر قسم الدعوة للتسجيل';
@@ -245,7 +243,7 @@ const welcomePopupSettings = computed(() => {
 });
 
 const heroSettings = computed(() => {
-    return form.settings.filter(s => s.key.startsWith('home_hero_') || s.key.startsWith('home_cta_') || s.key.startsWith('home_stats_'));
+    return form.settings.filter(s => s.key.startsWith('home_hero_') || s.key.startsWith('home_cta_'));
 });
 
 const aboutSettings = computed(() => {

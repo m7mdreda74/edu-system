@@ -6,6 +6,7 @@ use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\User\Models\User;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
@@ -18,29 +19,29 @@ beforeEach(function () {
     }
 
     // The grade_levels migration ships grade_10/11/12, so reuse rather than insert.
-    $this->grade   = GradeLevel::where('key', 'grade_12_science')->firstOrFail();
+    $this->grade = GradeLevel::where('key', 'grade_12_science')->firstOrFail();
     $this->subject = Subject::where('name', 'الرياضيات')->firstOrFail();
 
     $this->teacher = User::factory()->create([
-        'name'             => 'أ. أحمد',
-        'is_active'        => true,
-        'headline'         => 'معلم رياضيات',
-        'intro_video_url'  => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        'name' => 'أ. أحمد',
+        'is_active' => true,
+        'headline' => 'معلم رياضيات',
+        'intro_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         'years_experience' => 10,
     ]);
     $this->teacher->assignRole('teacher');
 
     $this->assignment = TeachingAssignment::factory()->create([
-        'teacher_id'     => $this->teacher->id,
-        'subject_id'     => $this->subject->id,
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $this->subject->id,
         'grade_level_id' => $this->grade->id,
-        'is_active'      => true,
+        'is_active' => true,
     ]);
 
     $this->group = TeachingGroup::factory()->create([
         'teaching_assignment_id' => $this->assignment->id,
-        'monthly_price'          => 45_000,
-        'capacity'               => 10,
+        'monthly_price' => 45_000,
+        'capacity' => 10,
     ]);
 });
 
@@ -54,6 +55,27 @@ it('shows every stage of the Qatari system on the home page', function () {
 
             expect($stages)->toContain('primary', 'preparatory', 'secondary');
         });
+});
+
+it('returns homepage statistics from live platform records instead of editable settings', function () {
+    User::factory()->count(2)->create(['is_active' => true])->each(function (User $student): void {
+        $student->assignRole('student');
+    });
+
+    $inactiveStudent = User::factory()->create(['is_active' => false]);
+    $inactiveStudent->assignRole('student');
+
+    PlatformSetting::updateOrCreate(
+        ['key' => 'home_stats_students'],
+        ['value' => '999999', 'type' => 'string'],
+    );
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('stats.registered_students', 2)
+            ->where('stats.available_courses', 1)
+            ->where('stats.active_teachers', 1));
 });
 
 it('provides a dedicated teacher directory from the public navigation', function () {

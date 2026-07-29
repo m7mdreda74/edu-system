@@ -17,6 +17,12 @@ use Inertia\Response;
 
 class SettingsController extends Controller
 {
+    private const LIVE_STAT_KEYS = [
+        'home_stats_students',
+        'home_stats_courses',
+        'home_stats_teachers',
+    ];
+
     public function index(): Response
     {
         return Inertia::render('Admin/Settings', [
@@ -34,7 +40,8 @@ class SettingsController extends Controller
             'settings.*.type' => ['required', 'string', 'in:string,integer,boolean'],
         ]);
 
-        $settings = collect($validated['settings']);
+        $settings = collect($validated['settings'])
+            ->reject(fn (array $setting): bool => in_array($setting['key'], self::LIVE_STAT_KEYS, true));
 
         foreach ($settings as $index => $setting) {
             if (
@@ -128,6 +135,7 @@ class SettingsController extends Controller
 
         $timestamp = now();
         $rows = collect($validated['settings'])
+            ->reject(fn (mixed $value, string $key): bool => in_array($key, self::LIVE_STAT_KEYS, true))
             ->map(function (mixed $value, string $key) use ($timestamp): array {
                 $dbValue = is_array($value)
                     ? json_encode($value, JSON_UNESCAPED_UNICODE)

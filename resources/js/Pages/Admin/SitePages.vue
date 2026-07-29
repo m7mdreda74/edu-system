@@ -32,9 +32,6 @@ const form = useForm({
     home_hero_desc: props.dbSettings.home_hero_desc || '',
     home_hero_btn1: props.dbSettings.home_hero_btn1 || '',
     home_hero_btn2: props.dbSettings.home_hero_btn2 || '',
-    home_stats_students: props.dbSettings.home_stats_students || '',
-    home_stats_courses: props.dbSettings.home_stats_courses || '',
-    home_stats_teachers: props.dbSettings.home_stats_teachers || '',
     home_cta_title: props.dbSettings.home_cta_title || '',
     home_cta_desc: props.dbSettings.home_cta_desc || '',
     home_cta_btn: props.dbSettings.home_cta_btn || '',
@@ -103,7 +100,6 @@ async function submitPageSettings(pageKey) {
         fields = [
             'home_hero_title', 'home_hero_subtitle', 'home_hero_desc',
             'home_hero_btn1', 'home_hero_btn2',
-            'home_stats_students', 'home_stats_courses', 'home_stats_teachers',
             'home_cta_title', 'home_cta_desc', 'home_cta_btn',
             'home_features', 'home_results', 'home_why_choose_us',
             'home_youtube_videos', 'home_faqs'
@@ -300,25 +296,6 @@ function addAboutPillar() {
                             <div>
                                 <label class="label mb-1 block">نص الزر الثاني (إنشاء حساب)</label>
                                 <input v-model="form.home_hero_btn2" type="text" class="input text-xs w-full">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Platform Stats -->
-                    <div class="card p-6">
-                        <h3 class="font-bold text-sm text-surface-800 dark:text-white border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">إحصائيات المنصة التفاعلية</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="label mb-1 block">إحصائية عدد الطلاب</label>
-                                <input v-model="form.home_stats_students" type="text" class="input text-xs w-full" placeholder="+500 طالب">
-                            </div>
-                            <div>
-                                <label class="label mb-1 block">إحصائية عدد المواد</label>
-                                <input v-model="form.home_stats_courses" type="text" class="input text-xs w-full" placeholder="+50 مادة">
-                            </div>
-                            <div>
-                                <label class="label mb-1 block">إحصائية عدد المعلمين</label>
-                                <input v-model="form.home_stats_teachers" type="text" class="input text-xs w-full" placeholder="+20 معلم">
                             </div>
                         </div>
                     </div>

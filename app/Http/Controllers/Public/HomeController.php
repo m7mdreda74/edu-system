@@ -42,14 +42,14 @@ class HomeController extends Controller
                 ->orderBy('id')
                 ->get(['id', 'key', 'name', 'name_en', 'stage', 'track'])
                 ->map(fn (GradeLevel $grade) => [
-                    'id'             => $grade->id,
-                    'key'            => $grade->key,
-                    'name'           => $grade->name,
-                    'name_en'        => $grade->name_en,
-                    'stage'          => $grade->stage,
-                    'stage_label'    => $grade->stageLabel(),
-                    'track'          => $grade->track,
-                    'track_label'    => $grade->trackLabel(),
+                    'id' => $grade->id,
+                    'key' => $grade->key,
+                    'name' => $grade->name,
+                    'name_en' => $grade->name_en,
+                    'stage' => $grade->stage,
+                    'stage_label' => $grade->stageLabel(),
+                    'track' => $grade->track,
+                    'track_label' => $grade->trackLabel(),
                     'subjects_count' => (int) ($subjectCounts[$grade->id] ?? 0),
                     'teachers_count' => (int) ($teacherCounts->get($grade->id, 0)),
                 ])
@@ -71,16 +71,16 @@ class HomeController extends Controller
                 ])
                 ->get(['id', 'name', 'bio', 'headline', 'avatar', 'intro_video_url', 'intro_video_thumbnail', 'years_experience'])
                 ->map(fn (User $teacher) => [
-                    'id'                    => $teacher->id,
-                    'name'                  => $teacher->name,
-                    'headline'              => $teacher->headline,
-                    'bio'                   => $teacher->bio,
-                    'avatar'                => $teacher->avatar,
-                    'intro_video_url'       => $teacher->intro_video_url,
+                    'id' => $teacher->id,
+                    'name' => $teacher->name,
+                    'headline' => $teacher->headline,
+                    'bio' => $teacher->bio,
+                    'avatar' => $teacher->avatar,
+                    'intro_video_url' => $teacher->intro_video_url,
                     'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
-                    'years_experience'      => $teacher->years_experience,
-                    'rating'                => round((float) ($teacher->approved_rating ?? 0), 1),
-                    'subjects'              => $teacher->teachingAssignments
+                    'years_experience' => $teacher->years_experience,
+                    'rating' => round((float) ($teacher->approved_rating ?? 0), 1),
+                    'subjects' => $teacher->teachingAssignments
                         ->pluck('subject.name')
                         ->filter()
                         ->unique()
@@ -93,14 +93,27 @@ class HomeController extends Controller
 
         return Inertia::render('Public/Home', [
             'term' => $term ? [
-                'name'        => $term->fullName(),
-                'starts_on'   => $term->starts_on?->toDateString(),
-                'ends_on'     => $term->ends_on?->toDateString(),
-                'is_current'  => $term->isCurrent(),
+                'name' => $term->fullName(),
+                'starts_on' => $term->starts_on?->toDateString(),
+                'ends_on' => $term->ends_on?->toDateString(),
+                'is_current' => $term->isCurrent(),
                 'provisional' => $term->is_provisional,
             ] : null,
-            'grades'           => $grades,
+            'grades' => $grades,
             'featuredTeachers' => $featuredTeachers,
+            'stats' => [
+                'registered_students' => User::role('student')
+                    ->where('is_active', true)
+                    ->count(),
+                'available_courses' => TeachingAssignment::query()
+                    ->where('is_active', true)
+                    ->whereHas('teacher', fn ($query) => $query->where('is_active', true))
+                    ->count(),
+                'active_teachers' => User::role('teacher')
+                    ->where('is_active', true)
+                    ->whereHas('teachingAssignments', fn ($query) => $query->where('is_active', true))
+                    ->count(),
+            ],
         ]);
     }
 
