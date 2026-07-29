@@ -43,6 +43,7 @@ const defaultSettings = [
     { key: 'welcome_popup_item6_url', value: 'https://docs.example.com/screen-record', type: 'string' },
 
     // Hero / Home Page text fields
+    { key: 'home_hero_badge', value: 'منصة التعليم الأولى في قطر', type: 'string' },
     { key: 'home_hero_title', value: 'تفوّق في دراستك الثانوية', type: 'string' },
     { key: 'home_hero_subtitle', value: 'منصة التفوق التعليمية الأولى في قطر', type: 'string' },
     { key: 'home_hero_desc', value: 'نصنع مستقبل التعليم في قطر من خلال تقديم أفضل الشروحات وأقوى المناهج التعليمية المتكاملة لطلاب المرحلة الثانوية.', type: 'string' },
@@ -174,6 +175,7 @@ const getSettingLabel = (key) => {
     }
 
     // Hero / CTA
+    if (key === 'home_hero_badge') return 'الشارة أعلى العنوان الرئيسي';
     if (key === 'home_hero_title') return 'العنوان الرئيسي للواجهة (Hero Title)';
     if (key === 'home_hero_subtitle') return 'العنوان الفرعي للواجهة';
     if (key === 'home_hero_desc') return 'وصف الواجهة الترحيبية (Description)';
@@ -413,7 +415,7 @@ const advancedSettings = computed(() => {
             'welcome_popup_item4_label', 'welcome_popup_item4_url',
             'welcome_popup_item5_label', 'welcome_popup_item5_url',
             'welcome_popup_item6_label', 'welcome_popup_item6_url',
-            'home_hero_title', 'home_hero_subtitle', 'home_hero_desc', 'home_hero_btn1', 'home_hero_btn2',
+            'home_hero_badge', 'home_hero_title', 'home_hero_subtitle', 'home_hero_desc', 'home_hero_btn1', 'home_hero_btn2',
             'home_stats_students', 'home_stats_courses', 'home_stats_teachers',
             'home_cta_title', 'home_cta_desc', 'home_cta_btn',
             'about_title', 'about_badge', 'about_desc', 'about_values', 'about_pillars',

@@ -27,6 +27,7 @@ function parseJson(str, defaultValue) {
 // Convert all settings into localized edit form
 const form = useForm({
     // Home Page Settings
+    home_hero_badge: props.dbSettings.home_hero_badge || '',
     home_hero_title: props.dbSettings.home_hero_title || '',
     home_hero_subtitle: props.dbSettings.home_hero_subtitle || '',
     home_hero_desc: props.dbSettings.home_hero_desc || '',
@@ -98,7 +99,7 @@ async function submitPageSettings(pageKey) {
     let fields = [];
     if (pageKey === 'home') {
         fields = [
-            'home_hero_title', 'home_hero_subtitle', 'home_hero_desc',
+            'home_hero_badge', 'home_hero_title', 'home_hero_subtitle', 'home_hero_desc',
             'home_hero_btn1', 'home_hero_btn2',
             'home_cta_title', 'home_cta_desc', 'home_cta_btn',
             'home_features', 'home_results', 'home_why_choose_us',
@@ -277,6 +278,10 @@ function addAboutPillar() {
                     <div class="card p-6">
                         <h3 class="font-bold text-sm text-surface-800 dark:text-white border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">قسم الهيرو الرئيسي (Hero Section)</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="label mb-1 block">الشارة أعلى العنوان الرئيسي</label>
+                                <input v-model="form.home_hero_badge" type="text" class="input text-xs w-full">
+                            </div>
                             <div>
                                 <label class="label mb-1 block">العنوان العريض الأول</label>
                                 <input v-model="form.home_hero_title" type="text" class="input text-xs w-full">

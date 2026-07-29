@@ -171,27 +171,27 @@ function formatNumber(value) {
 
             <div class="container-app px-4 py-20 md:py-28 relative">
                 <div class="max-w-2xl">
-                    <div class="badge bg-white/20 text-white mb-6 text-sm py-1.5 px-4 flex items-center gap-1.5 w-fit animate-fade-in-up">
+                    <div v-if="stripEmojis($page.props.settings?.home_hero_badge)" class="badge bg-white/20 text-white mb-6 text-sm py-1.5 px-4 flex items-center gap-1.5 w-fit animate-fade-in-up">
                         <Icon name="success" class="w-4 h-4 text-accent-300 animate-float" />
-                        <span>منصة التعليم الأولى في قطر</span>
+                        <span>{{ stripEmojis($page.props.settings?.home_hero_badge) }}</span>
                     </div>
 
                     <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.3] md:leading-[1.4] lg:leading-[1.5] mb-6 tracking-tight animate-fade-in-up animation-delay-100">
-                        {{ stripEmojis($page.props.settings?.home_hero_title) || 'تفوّق في دراستك' }}
-                        <span class="block text-accent-400 mt-3 font-bold">{{ stripEmojis($page.props.settings?.home_hero_subtitle) || 'مع أفضل المدرسين' }}</span>
+                        {{ stripEmojis($page.props.settings?.home_hero_title) }}
+                        <span class="block text-accent-400 mt-3 font-bold">{{ stripEmojis($page.props.settings?.home_hero_subtitle) }}</span>
                     </h1>
 
                     <p class="text-lg text-white/80 mb-8 leading-relaxed max-w-lg animate-fade-in-up animation-delay-200">
-                        {{ stripEmojis($page.props.settings?.home_hero_desc) || 'اختر صفك، ثم المادة، ثم شاهد المعلمين وطريقة شرح كل واحد فيهم — واحجز مع اللي يناسبك.' }}
+                        {{ stripEmojis($page.props.settings?.home_hero_desc) }}
                     </p>
 
                     <div class="flex flex-wrap gap-4 items-center animate-fade-in-up animation-delay-300">
                         <a href="#grades" class="btn-accent btn-lg flex items-center gap-2 transform transition-all duration-300 hover:scale-105 hover:shadow-glow-accent">
                             <Icon name="courses" class="w-5 h-5 text-white" />
-                            <span>{{ stripEmojis($page.props.settings?.home_hero_btn1) || 'ابدأ التعلم الآن' }}</span>
+                            <span>{{ stripEmojis($page.props.settings?.home_hero_btn1) }}</span>
                         </a>
                         <Link :href="route('register')" class="btn btn-lg bg-white/10 text-white border border-white/20 hover:bg-white/20 flex items-center gap-2 transition-all duration-300 hover:scale-105">
-                            <span>{{ stripEmojis($page.props.settings?.home_hero_btn2) || 'إنشاء حساب مجاني' }}</span>
+                            <span>{{ stripEmojis($page.props.settings?.home_hero_btn2) }}</span>
                         </Link>
                     </div>
 

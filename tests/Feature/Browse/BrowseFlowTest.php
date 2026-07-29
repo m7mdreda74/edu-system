@@ -78,6 +78,17 @@ it('returns homepage statistics from live platform records instead of editable s
             ->where('stats.active_teachers', 1));
 });
 
+it('renders hero copy from platform settings so the admin can change it', function () {
+    PlatformSetting::updateOrCreate(
+        ['key' => 'home_hero_badge'],
+        ['value' => 'شارتنا المحدثة', 'type' => 'string'],
+    );
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('settings.home_hero_badge', 'شارتنا المحدثة'));
+});
+
 it('provides a dedicated teacher directory from the public navigation', function () {
     $this->get(route('teachers.index'))
         ->assertOk()

@@ -129,3 +129,17 @@ it('does not allow homepage live counters to be edited as platform settings', fu
 
     expect(PlatformSetting::find($setting->id)->value)->toBe('123');
 });
+
+it('allows the admin to edit the homepage hero badge through site pages', function () {
+    $this->actingAs(themeAdmin())
+        ->post(route('admin.site-pages.update'), [
+            'settings' => [
+                'home_hero_badge' => 'شارتنا الجديدة',
+            ],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(PlatformSetting::where('key', 'home_hero_badge')->value('value'))
+        ->toBe('شارتنا الجديدة');
+});

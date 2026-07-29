@@ -48,6 +48,7 @@ class PlatformSettingsSeeder extends Seeder
             'contact_email' => 'support@altafawwuq.com',
             'whatsapp_url' => 'https://wa.me/97455556666',
             'footer_desc' => 'منصة تعليمية قطرية تربط الطالب بأفضل المعلمين — اختر صفك، شاهد طريقة الشرح، واحجز مع من يناسبك.',
+            'home_hero_badge' => 'منصة التعليم الأولى في قطر',
             'home_hero_title' => 'تفوّق في دراستك',
             'home_hero_subtitle' => 'مع المعلم اللي يناسبك',
             'home_hero_desc' => 'اختر صفك، ثم المادة، ثم شاهد المعلمين وطريقة شرح كل واحد فيهم — واحجز مع اللي يناسبك.',
