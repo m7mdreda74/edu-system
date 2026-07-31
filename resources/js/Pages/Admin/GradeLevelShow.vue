@@ -29,7 +29,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
     <DashboardLayout>
         <Head :title="`تفاصيل المرحلة: ${gradeLevel.name}`" />
 
-        <div class="container-app px-4 py-8">
+        <div class="w-full max-w-none px-2 md:px-4 py-4 md:py-6">
             <!-- Back & Header -->
             <div class="mb-8">
                 <Link :href="route('admin.grade-levels')" class="flex items-center gap-2 text-sm text-surface-500 hover:text-primary-500 transition-colors mb-4">

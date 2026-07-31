@@ -223,6 +223,31 @@
     .section        { @apply py-16 px-4 sm:px-6 lg:px-8; }
     .container-app  { @apply max-w-7xl mx-auto w-full; }
 
+    /* Data-heavy dashboard screens should use the whole workspace. The table
+       card grows to the bottom of the viewport and keeps paging controls at
+       its foot instead of leaving a large patch of page background. */
+    .dashboard-data-page {
+        @apply w-full max-w-none flex flex-1 flex-col gap-6;
+        min-height: 100%;
+    }
+
+    .data-table-card {
+        @apply w-full flex flex-1 flex-col overflow-hidden;
+        min-height: 18rem;
+    }
+
+    .data-table-scroll {
+        @apply w-full flex-1 overflow-x-auto;
+    }
+
+    .data-table-footer {
+        @apply mt-auto shrink-0;
+    }
+
+    @media (max-width: 767px) {
+        .data-table-card { min-height: 16rem; }
+    }
+
     /* ── Skeleton Loader ── */
     .skeleton {
         @apply animate-pulse bg-surface-200 dark:bg-surface-700 rounded-lg;

@@ -118,7 +118,7 @@ function submitReject() {
     <DashboardLayout>
         <Head title="بوابة أولياء الأمور" />
 
-        <div class="container-app px-4 py-10">
+        <div class="w-full max-w-none px-2 md:px-4 py-4 md:py-6">
             <!-- Header -->
             <div class="flex items-center justify-between gap-4 mb-8">
                 <div>

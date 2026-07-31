@@ -84,9 +84,9 @@ function submitGrade(subId, maxScore) {
     <DashboardLayout>
         <Head :title="'إدارة أوراق العمل - ' + group.name" />
 
-        <div class="container-app px-4 py-10">
+        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
             <!-- Header -->
-            <div class="flex items-center justify-between gap-4 mb-8">
+            <div class="flex items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2">
                         <Icon name="courses" class="w-8 h-8 text-primary-500" />
@@ -104,7 +104,7 @@ function submitGrade(subId, maxScore) {
             </div>
 
             <!-- Tabs -->
-            <div class="flex border-b border-surface-200 dark:border-surface-800 mb-6">
+            <div class="flex border-b border-surface-200 dark:border-surface-800">
                 <button @click="activeTab = 'sheets'"
                         class="px-6 py-3 font-bold text-sm border-b-2 transition-all"
                         :class="activeTab === 'sheets' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-surface-500 hover:text-surface-700'"
@@ -162,8 +162,8 @@ function submitGrade(subId, maxScore) {
             </div>
 
             <!-- Tab Content: Submissions List -->
-            <div v-if="activeTab === 'submissions'" class="card overflow-hidden">
-                <div class="overflow-x-auto no-scrollbar">
+            <div v-if="activeTab === 'submissions'" class="card data-table-card">
+                <div class="data-table-scroll no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
@@ -209,7 +209,7 @@ function submitGrade(subId, maxScore) {
                     </table>
                 </div>
 
-                <div v-if="submissions.length === 0" class="p-16 text-center text-surface-400">
+                <div v-if="submissions.length === 0" class="flex-1 p-16 text-center text-surface-400">
                     <Icon name="courses" class="w-16 h-16 mx-auto text-surface-300 dark:text-surface-700 mb-4" />
                     <h3 class="text-lg font-bold text-surface-800 dark:text-surface-200 mb-2">لا توجد تسليمات</h3>
                     <p class="text-sm">لم يقم الطلاب برفع أي حلول بعد</p>

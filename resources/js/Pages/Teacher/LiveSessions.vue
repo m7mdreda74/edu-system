@@ -118,8 +118,8 @@ const statusLabels = {
     <DashboardLayout>
         <Head title="الحصص المباشرة" />
 
-        <div class="container-app px-4 py-8">
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2">
                         <Icon name="live" class="w-8 h-8 text-primary-500" />
@@ -133,8 +133,8 @@ const statusLabels = {
             </div>
 
             <!-- List of Sessions -->
-            <div class="card overflow-hidden">
-                <div class="overflow-x-auto no-scrollbar">
+            <div class="card data-table-card">
+                <div class="data-table-scroll no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>

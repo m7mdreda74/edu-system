@@ -52,9 +52,9 @@ async function deleteCoupon(id) {
     <DashboardLayout>
         <Head title="إدارة كوبونات الخصم" />
 
-        <div class="container-app px-4 py-10">
+        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
             <!-- Header -->
-            <div class="flex items-center justify-between gap-4 mb-8">
+            <div class="flex items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2">
                         <Icon name="payments" class="w-8 h-8 text-primary-500" />
@@ -69,8 +69,8 @@ async function deleteCoupon(id) {
             </div>
 
             <!-- Table -->
-            <div class="card overflow-hidden">
-                <div class="overflow-x-auto no-scrollbar">
+            <div class="card data-table-card">
+                <div class="data-table-scroll no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>

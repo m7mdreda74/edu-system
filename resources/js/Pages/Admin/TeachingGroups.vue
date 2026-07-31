@@ -148,7 +148,7 @@ async function destroyGroup(group) {
     <Head title="إدارة التدريس والتسعير" />
 
     <DashboardLayout>
-        <div class="space-y-6">
+        <div class="dashboard-data-page">
             <header>
                 <h1 class="text-2xl font-black text-surface-900 dark:text-white">إدارة التدريس والتسعير</h1>
                 <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
@@ -301,8 +301,8 @@ async function destroyGroup(group) {
                 </select>
             </div>
 
-            <div class="card overflow-hidden">
-                <div class="overflow-x-auto no-scrollbar">
+            <div class="card data-table-card">
+                <div class="data-table-scroll no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-900 text-xs text-surface-500">
                             <tr>
@@ -345,7 +345,7 @@ async function destroyGroup(group) {
                     </table>
                 </div>
 
-                <div v-if="groups.links?.length > 3" class="flex flex-wrap gap-1 p-4 border-t border-surface-100 dark:border-surface-800">
+                <div v-if="groups.links?.length > 3" class="data-table-footer flex flex-wrap gap-1 p-4 border-t border-surface-100 dark:border-surface-800">
                     <Link
                         v-for="link in groups.links"
                         :key="link.label"

@@ -292,7 +292,7 @@ const isActive = (name) => {
 
             <!-- Page Content -->
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-2 md:p-4 lg:p-6">
-                <div class="w-full mx-auto">
+                <div class="dashboard-slot w-full min-h-full flex flex-col">
                     <slot />
                 </div>
             </main>

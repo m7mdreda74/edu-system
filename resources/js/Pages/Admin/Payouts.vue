@@ -60,7 +60,7 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
 <template>
     <DashboardLayout>
         <Head title="تصفية حسابات المدرسين" />
-        <div class="container-app px-4 py-10 space-y-7">
+        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2"><Icon name="earnings" class="w-8 h-8 text-primary-500" />تصفية حسابات المدرسين</h1>
@@ -85,8 +85,8 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
                 </div>
             </section>
 
-            <div class="card overflow-hidden">
-                <div class="overflow-x-auto no-scrollbar">
+            <div class="card data-table-card">
+                <div class="data-table-scroll no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-800"><tr><th class="text-start p-4">المدرس</th><th class="text-start p-4">إجمالي الاشتراكات</th><th class="text-start p-4">المستحق قبل الخصم</th><th class="text-start p-4">خصم الحصص</th><th class="text-start p-4">الصافي</th><th class="text-start p-4">عمولة المنصة</th><th class="text-start p-4">الفترة</th><th class="text-start p-4">الحالة</th><th class="text-start p-4">الإجراءات</th></tr></thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-800">

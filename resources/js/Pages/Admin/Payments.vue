@@ -76,8 +76,8 @@ async function rejectPayment(p) {
     <DashboardLayout>
         <Head title="المدفوعات" />
 
-        <div class="container-app px-4 py-10">
-            <div class="flex items-center justify-between gap-4 mb-8">
+        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
+            <div class="flex items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2">
                         <Icon name="payments" class="w-8 h-8 text-primary-500" />
@@ -89,7 +89,7 @@ async function rejectPayment(p) {
             </div>
 
             <!-- Status filter -->
-            <div class="card p-4 mb-6">
+            <div class="card p-4">
                 <select v-model="status" @change="applyFilters" class="input w-48" id="payment-status-filter">
                     <option value="">كل الحالات</option>
                     <option value="paid">مدفوع</option>
@@ -100,8 +100,8 @@ async function rejectPayment(p) {
                 </select>
             </div>
 
-            <div class="card overflow-hidden">
-                <div class="overflow-x-auto no-scrollbar">
+            <div class="card data-table-card">
+                <div class="data-table-scroll no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
@@ -162,7 +162,7 @@ async function rejectPayment(p) {
                         </tbody>
                     </table>
                 </div>
-                <div v-if="!payments.data?.length" class="p-16 text-center text-surface-400 flex flex-col items-center justify-center gap-2">
+                <div v-if="!payments.data?.length" class="flex-1 p-16 text-center text-surface-400 flex flex-col items-center justify-center gap-2">
                     <Icon name="payments" class="w-12 h-12 text-surface-400" />
                     <p>لا توجد مدفوعات</p>
                 </div>

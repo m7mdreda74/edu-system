@@ -177,10 +177,10 @@ async function removeAvatar() {
     <DashboardLayout>
         <Head title="إدارة المستخدمين" />
 
-        <div class="container-app px-4 py-10">
+        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
 
             <!-- Header -->
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2">
                         <Icon name="users" class="w-8 h-8 text-primary-500" />
@@ -200,7 +200,7 @@ async function removeAvatar() {
             </div>
 
             <!-- Filters -->
-            <div class="card p-4 flex flex-wrap gap-3 mb-6">
+            <div class="card p-4 flex flex-wrap gap-3">
                 <input
                     v-model="search"
                     @input="debouncedSearch"
@@ -218,8 +218,8 @@ async function removeAvatar() {
             </div>
 
             <!-- Table -->
-            <div class="card overflow-hidden">
-                <div class="overflow-x-auto no-scrollbar">
+            <div class="card data-table-card">
+                <div class="data-table-scroll no-scrollbar">
                     <table class="w-full text-sm">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
@@ -326,7 +326,7 @@ async function removeAvatar() {
 
                 <!-- Pagination -->
                 <div v-if="users.last_page > 1"
-                     class="p-4 border-t border-surface-100 dark:border-surface-700 flex gap-2 justify-center flex-wrap">
+                     class="data-table-footer p-4 border-t border-surface-100 dark:border-surface-700 flex gap-2 justify-center flex-wrap">
                     <Link
                         v-for="link in users.links" :key="link.label"
                         :href="link.url ?? '#'"
