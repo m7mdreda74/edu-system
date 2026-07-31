@@ -16,12 +16,51 @@ const form = useForm({
 });
 
 const selectedStage = ref('secondary');
+const selectedTrack = ref(''); // only relevant for grade 11/12 secondary
 
+/** Grades that exist in the current stage */
+const stageGrades = computed(() =>
+    page.props.grade_levels?.filter(g => g.stage === selectedStage.value && g.key !== 'all') || []
+);
+
+/** Does the current stage have any track-ed grades (11/12)? */
+const hasTrackedGrades = computed(() =>
+    selectedStage.value === 'secondary' && stageGrades.value.some(g => g.track)
+);
+
+/** Available tracks for the current stage */
+const availableTracks = computed(() => {
+    if (!hasTrackedGrades.value) return [];
+    const tracks = [...new Set(stageGrades.value.filter(g => g.track).map(g => g.track))];
+    return tracks.map(t => ({
+        key: t,
+        label: {
+            science:    'المسار العلمي',
+            arts:       'مسار الآداب والإنسانيات',
+            technology: 'المسار التكنولوجي',
+        }[t] || t,
+    }));
+});
+
+/** Grades visible after stage + track filter */
 const filteredGradeLevels = computed(() => {
-    return page.props.grade_levels?.filter(g => g.stage === selectedStage.value && g.key !== 'all') || [];
+    let grades = stageGrades.value;
+
+    if (selectedStage.value === 'secondary' && selectedTrack.value) {
+        // Show common grade 10 (no track) + grades matching the selected track
+        grades = grades.filter(g => !g.track || g.track === selectedTrack.value);
+    }
+
+    return grades;
 });
 
 const onStageChange = () => {
+    selectedTrack.value = '';
+    const firstGrade = filteredGradeLevels.value[0];
+    form.grade_level = firstGrade ? firstGrade.key : '';
+};
+
+const onTrackChange = () => {
     const firstGrade = filteredGradeLevels.value[0];
     form.grade_level = firstGrade ? firstGrade.key : '';
 };
@@ -148,29 +187,68 @@ const submit = () => form.post(route('register'));
                         <p v-if="form.errors.phone" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.phone }}</p>
                     </div>
 
-                    <!-- Stage + Grade Level in row -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-1.5">
-                            <label class="block text-xs font-bold text-white/95 mr-3" for="reg-stage">المرحلة الدراسية</label>
-                            <div class="relative">
-                                <select id="reg-stage" v-model="selectedStage" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" @change="onStageChange">
-                                    <option value="primary">المرحلة الابتدائية</option>
-                                    <option value="preparatory">المرحلة الإعدادية</option>
-                                    <option value="secondary">المرحلة الثانوية</option>
-                                </select>
+                    <!-- Stage + Grade Level + Track -->
+                    <div class="space-y-4">
+                        <!-- Row: Stage + Grade -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label class="block text-xs font-bold text-white/95 mr-3" for="reg-stage">المرحلة الدراسية</label>
+                                <div class="relative">
+                                    <select id="reg-stage" v-model="selectedStage" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" @change="onStageChange">
+                                        <option value="primary">المرحلة الابتدائية</option>
+                                        <option value="preparatory">المرحلة الإعدادية</option>
+                                        <option value="secondary">المرحلة الثانوية</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="block text-xs font-bold text-white/95 mr-3" for="reg-grade">الصف الدراسي</label>
+                                <div class="relative">
+                                    <select id="reg-grade" v-model="form.grade_level" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" required>
+                                        <option value="" disabled>اختر الصف...</option>
+                                        <option v-for="gl in filteredGradeLevels" :key="gl.key" :value="gl.key">
+                                            {{ gl.name }}
+                                        </option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        <div class="space-y-1.5">
-                            <label class="block text-xs font-bold text-white/95 mr-3" for="reg-grade">الصف الدراسي</label>
-                            <div class="relative">
-                                <select id="reg-grade" v-model="form.grade_level" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" required>
-                                    <option value="" disabled>اختر الصف...</option>
-                                    <option v-for="gl in filteredGradeLevels" :key="gl.key" :value="gl.key">
-                                        {{ gl.name }}
-                                    </option>
-                                </select>
+
+                        <!-- Track selector (secondary stage + has tracks) -->
+                        <Transition
+                            enter-active-class="transition-all duration-300 ease-out"
+                            enter-from-class="opacity-0 -translate-y-2"
+                            enter-to-class="opacity-100 translate-y-0"
+                            leave-active-class="transition-all duration-200"
+                            leave-from-class="opacity-100"
+                            leave-to-class="opacity-0"
+                        >
+                            <div v-if="hasTrackedGrades" class="space-y-1.5">
+                                <label class="block text-xs font-bold text-white/95 mr-3">
+                                    المسار الدراسي <span class="text-white/50 font-normal">(اختياري للصف العاشر المشترك)</span>
+                                </label>
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        @click="selectedTrack = ''; onTrackChange()"
+                                        class="px-4 py-2 rounded-full text-xs font-bold transition-all border"
+                                        :class="selectedTrack === ''
+                                            ? 'bg-white text-primary-800 border-white'
+                                            : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'"
+                                    >كل المسارات</button>
+                                    <button
+                                        v-for="track in availableTracks"
+                                        :key="track.key"
+                                        type="button"
+                                        @click="selectedTrack = track.key; onTrackChange()"
+                                        class="px-4 py-2 rounded-full text-xs font-bold transition-all border"
+                                        :class="selectedTrack === track.key
+                                            ? 'bg-accent-500 text-white border-accent-500'
+                                            : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'"
+                                    >{{ track.label }}</button>
+                                </div>
                             </div>
-                        </div>
+                        </Transition>
                     </div>
 
                     <!-- Password Block -->

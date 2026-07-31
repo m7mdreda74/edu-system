@@ -12,19 +12,41 @@ const props = defineProps({
 const isModalOpen = ref(false);
 const editingGradeLevel = ref(null);
 const selectedStage = ref('all_stages');
+const selectedTrack = ref('all_tracks');
 const { confirm } = useConfirm();
+
+const TRACK_LABELS = {
+    science:    'المسار العلمي',
+    arts:       'مسار الآداب والإنسانيات',
+    technology: 'المسار التكنولوجي',
+};
+
+const TRACK_COLORS = {
+    science:    'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    arts:       'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+    technology: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+};
 
 const form = useForm({
     key: '',
     name: '',
     name_en: '',
     stage: 'secondary',
+    track: '',
     is_active: true,
 });
 
+const showTrackFilter = computed(() => selectedStage.value === 'secondary');
+
 const filteredGradeLevels = computed(() => {
-    if (selectedStage.value === 'all_stages') return props.gradeLevels;
-    return props.gradeLevels.filter(gl => gl.stage === selectedStage.value);
+    let list = props.gradeLevels;
+    if (selectedStage.value !== 'all_stages') {
+        list = list.filter(gl => gl.stage === selectedStage.value);
+    }
+    if (selectedStage.value === 'secondary' && selectedTrack.value !== 'all_tracks') {
+        list = list.filter(gl => gl.track === selectedTrack.value);
+    }
+    return list;
 });
 
 function getStageLabel(stage) {
@@ -41,6 +63,7 @@ function openAddModal() {
     editingGradeLevel.value = null;
     form.reset();
     form.stage = 'secondary';
+    form.track = '';
     form.is_active = true;
     isModalOpen.value = true;
 }
@@ -51,6 +74,7 @@ function openEditModal(gradeLevel) {
     form.name = gradeLevel.name;
     form.name_en = gradeLevel.name_en || '';
     form.stage = gradeLevel.stage || 'secondary';
+    form.track = gradeLevel.track || '';
     form.is_active = gradeLevel.is_active ? true : false;
     isModalOpen.value = true;
 }
@@ -105,24 +129,56 @@ async function deleteGradeLevel(id) {
             </div>
 
             <!-- Filter Tabs -->
-            <div class="flex flex-wrap gap-2 mb-8">
-                <button 
-                    v-for="stage in [
-                        { key: 'all_stages', label: 'كل المراحل' },
-                        { key: 'primary', label: 'المرحلة الابتدائية' },
-                        { key: 'preparatory', label: 'المرحلة الإعدادية' },
-                        { key: 'secondary', label: 'المرحلة الثانوية' },
-                        { key: 'all', label: 'عام / غير مصنف' }
-                    ]"
-                    :key="stage.key"
-                    @click="selectedStage = stage.key"
-                    class="btn btn-sm px-4 py-2 border transition-all"
-                    :class="selectedStage === stage.key 
-                        ? 'bg-accent-500 text-white border-accent-500 hover:bg-accent-600 shadow-glow-accent/25 font-bold' 
-                        : 'bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-300 border-surface-200 dark:border-surface-700/80 hover:bg-surface-50 dark:hover:bg-surface-750'"
+            <div class="mb-6">
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <button 
+                        v-for="stage in [
+                            { key: 'all_stages', label: 'كل المراحل' },
+                            { key: 'primary', label: 'المرحلة الابتدائية' },
+                            { key: 'preparatory', label: 'المرحلة الإعدادية' },
+                            { key: 'secondary', label: 'المرحلة الثانوية' },
+                            { key: 'all', label: 'عام / غير مصنف' }
+                        ]"
+                        :key="stage.key"
+                        @click="selectedStage = stage.key; selectedTrack = 'all_tracks'"
+                        class="btn btn-sm px-4 py-2 border transition-all"
+                        :class="selectedStage === stage.key 
+                            ? 'bg-accent-500 text-white border-accent-500 hover:bg-accent-600 shadow-glow-accent/25 font-bold' 
+                            : 'bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-300 border-surface-200 dark:border-surface-700/80 hover:bg-surface-50 dark:hover:bg-surface-750'"
+                    >
+                        {{ stage.label }}
+                    </button>
+                </div>
+
+                <!-- Track sub-filter (only for secondary) -->
+                <Transition
+                    enter-active-class="transition-all duration-300 ease-out"
+                    enter-from-class="opacity-0 -translate-y-2"
+                    enter-to-class="opacity-100 translate-y-0"
+                    leave-active-class="transition-all duration-200"
+                    leave-from-class="opacity-100"
+                    leave-to-class="opacity-0"
                 >
-                    {{ stage.label }}
-                </button>
+                    <div v-if="showTrackFilter" class="flex flex-wrap gap-2 pt-2 border-t border-surface-100 dark:border-surface-800">
+                        <span class="text-xs text-surface-400 font-semibold self-center ms-1">المسار:</span>
+                        <button
+                            v-for="track in [
+                                { key: 'all_tracks', label: 'كل المسارات', color: '' },
+                                { key: 'science',    label: '🔬 العلمي',           color: 'text-blue-600 dark:text-blue-400' },
+                                { key: 'arts',       label: '📚 الآداب والإنسانيات', color: 'text-purple-600 dark:text-purple-400' },
+                                { key: 'technology', label: '💻 التكنولوجي',       color: 'text-emerald-600 dark:text-emerald-400' },
+                            ]"
+                            :key="track.key"
+                            @click="selectedTrack = track.key"
+                            class="btn btn-sm px-3 py-1.5 border text-xs transition-all"
+                            :class="selectedTrack === track.key
+                                ? 'bg-primary-600 text-white border-primary-600 font-bold'
+                                : `bg-white dark:bg-surface-800 border-surface-200 dark:border-surface-700 hover:bg-surface-50 ${track.color}`"
+                        >
+                            {{ track.label }}
+                        </button>
+                    </div>
+                </Transition>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -131,13 +187,16 @@ async function deleteGradeLevel(id) {
                 >
                     <div>
                         <div class="flex items-center justify-between gap-2 mb-4">
-                            <!-- Code badge and Stage / Status -->
+                            <!-- Code badge, Stage, Track -->
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 <span class="bg-accent-500/10 text-accent-600 dark:text-accent-400 font-bold px-2.5 py-0.5 rounded-lg text-xs">
                                     {{ gl.key }}
                                 </span>
                                 <span class="bg-primary-500/10 text-primary-600 dark:text-primary-400 font-semibold px-2.5 py-0.5 rounded-lg text-xs">
                                     {{ getStageLabel(gl.stage) }}
+                                </span>
+                                <span v-if="gl.track" :class="TRACK_COLORS[gl.track]" class="font-semibold px-2.5 py-0.5 rounded-lg text-xs">
+                                    {{ TRACK_LABELS[gl.track] }}
                                 </span>
                             </div>
                             <span :class="gl.is_active ? 'badge-green' : 'badge-gray'" class="ms-auto">
@@ -242,6 +301,27 @@ async function deleteGradeLevel(id) {
                             </select>
                             <p v-if="form.errors.stage" class="text-red-500 text-xs mt-1">{{ form.errors.stage }}</p>
                         </div>
+
+                        <!-- Track field (secondary only) -->
+                        <Transition
+                            enter-active-class="transition-all duration-300 ease-out"
+                            enter-from-class="opacity-0 -translate-y-2"
+                            enter-to-class="opacity-100 translate-y-0"
+                            leave-active-class="transition-all duration-150"
+                            leave-from-class="opacity-100"
+                            leave-to-class="opacity-0"
+                        >
+                            <div v-if="form.stage === 'secondary'">
+                                <label class="input-label mb-1">المسار الدراسي (للمرحلة الثانوية)</label>
+                                <select v-model="form.track" class="input">
+                                    <option value="">بدون مسار (الصف العاشر المشترك)</option>
+                                    <option value="science">المسار العلمي</option>
+                                    <option value="arts">مسار الآداب والإنسانيات</option>
+                                    <option value="technology">المسار التكنولوجي</option>
+                                </select>
+                                <p v-if="form.errors.track" class="text-red-500 text-xs mt-1">{{ form.errors.track }}</p>
+                            </div>
+                        </Transition>
 
                         <div v-if="editingGradeLevel" class="flex items-center gap-2 pt-2">
                             <input v-model="form.is_active" type="checkbox" id="gl-active" class="rounded border-surface-300 text-primary-600 focus:ring-primary-500" />

@@ -123,12 +123,30 @@ const parsedFaqs = computed(() => {
 });
 
 const selectedStageTab = ref('all');
+const selectedTrackTab = ref('all');
 
+const TRACK_LABELS = {
+    science:    '🔬 العلمي',
+    arts:       '📚 الآداب والإنسانيات',
+    technology: '💻 التكنولوجي',
+};
 
 const filteredGrades = computed(() => {
-    if (selectedStageTab.value === 'all') return props.grades;
-    return props.grades.filter(g => g.stage === selectedStageTab.value);
+    let list = props.grades;
+    if (selectedStageTab.value !== 'all') {
+        list = list.filter(g => g.stage === selectedStageTab.value);
+    }
+    if (selectedStageTab.value === 'secondary' && selectedTrackTab.value !== 'all') {
+        // null track = grade 10 (common), show when 'all' is selected only
+        list = list.filter(g => g.track === selectedTrackTab.value);
+    }
+    return list;
 });
+
+function selectStage(key) {
+    selectedStageTab.value = key;
+    selectedTrackTab.value = 'all';
+}
 
 // Grouped by stage so the secondary tracks sit under one heading instead of
 // looking like extra, unrelated grades.
@@ -243,23 +261,55 @@ function formatNumber(value) {
                 </div>
 
                 <!-- Grade Filter Tabs -->
-                <div class="flex flex-wrap justify-center gap-3 mb-6 animate-fade-in-up animation-delay-100">
-                    <button 
-                        v-for="tab in [
-                            { key: 'all', label: 'كل المراحل' },
-                            { key: 'primary', label: 'المرحلة الابتدائية' },
-                            { key: 'preparatory', label: 'المرحلة الإعدادية' },
-                            { key: 'secondary', label: 'المرحلة الثانوية' }
-                        ]"
-                        :key="tab.key"
-                        @click="selectedStageTab = tab.key" 
-                        class="px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 transform active:scale-95 border"
-                        :class="selectedStageTab === tab.key 
-                            ? 'bg-primary-600 border-primary-600 text-white shadow-glow-primary' 
-                            : 'border-surface-200 dark:border-surface-800 text-surface-600 dark:text-surface-300 bg-surface-50 dark:bg-surface-900/50 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                <div class="mb-6 animate-fade-in-up animation-delay-100">
+                    <div class="flex flex-wrap justify-center gap-3 mb-3">
+                        <button 
+                            v-for="tab in [
+                                { key: 'all', label: 'كل المراحل' },
+                                { key: 'primary', label: 'المرحلة الابتدائية' },
+                                { key: 'preparatory', label: 'المرحلة الإعدادية' },
+                                { key: 'secondary', label: 'المرحلة الثانوية' }
+                            ]"
+                            :key="tab.key"
+                            @click="selectStage(tab.key)" 
+                            class="px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 transform active:scale-95 border"
+                            :class="selectedStageTab === tab.key 
+                                ? 'bg-primary-600 border-primary-600 text-white shadow-glow-primary' 
+                                : 'border-surface-200 dark:border-surface-800 text-surface-600 dark:text-surface-300 bg-surface-50 dark:bg-surface-900/50 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                        >
+                            {{ tab.label }}
+                        </button>
+                    </div>
+
+                    <!-- Track sub-filter for secondary -->
+                    <Transition
+                        enter-active-class="transition-all duration-300 ease-out"
+                        enter-from-class="opacity-0 -translate-y-2"
+                        enter-to-class="opacity-100 translate-y-0"
+                        leave-active-class="transition-all duration-200"
+                        leave-from-class="opacity-100"
+                        leave-to-class="opacity-0"
                     >
-                        {{ tab.label }}
-                    </button>
+                        <div v-if="selectedStageTab === 'secondary'" class="flex flex-wrap justify-center gap-2 pt-3 border-t border-surface-200 dark:border-surface-800">
+                            <span class="text-xs text-surface-400 font-semibold self-center">المسار:</span>
+                            <button
+                                v-for="track in [
+                                    { key: 'all', label: 'كل المسارات' },
+                                    { key: 'science',    label: TRACK_LABELS.science },
+                                    { key: 'arts',       label: TRACK_LABELS.arts },
+                                    { key: 'technology', label: TRACK_LABELS.technology },
+                                ]"
+                                :key="track.key"
+                                @click="selectedTrackTab = track.key"
+                                class="px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border"
+                                :class="selectedTrackTab === track.key
+                                    ? 'bg-accent-500 border-accent-500 text-white shadow-glow-accent'
+                                    : 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-300 bg-white dark:bg-surface-900/50 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                            >
+                                {{ track.label }}
+                            </button>
+                        </div>
+                    </Transition>
                 </div>
 
                 <!-- One block per stage, so the secondary tracks read clearly -->

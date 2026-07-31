@@ -42,10 +42,16 @@ class GradeLevelController extends Controller
             'name'      => ['required', 'string', 'max:255'],
             'name_en'   => ['nullable', 'string', 'max:255'],
             'stage'     => ['required', 'string', 'in:primary,preparatory,secondary,all'],
+            'track'     => ['nullable', 'string', 'in:science,arts,technology'],
             'is_active' => ['sometimes', 'boolean'],
         ], [
             'key.regex' => 'يجب أن يحتوي رمز المرحلة على أحرف إنجليزية وأرقام وعلامة شرطة فقط بدون مسافات.',
         ]);
+
+        // Only secondary grades have tracks
+        if (($validated['stage'] ?? '') !== 'secondary') {
+            $validated['track'] = null;
+        }
 
         GradeLevel::create($validated);
 
@@ -101,8 +107,13 @@ class GradeLevelController extends Controller
             'name'      => ['required', 'string', 'max:255'],
             'name_en'   => ['nullable', 'string', 'max:255'],
             'stage'     => ['required', 'string', 'in:primary,preparatory,secondary,all'],
+            'track'     => ['nullable', 'string', 'in:science,arts,technology'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+
+        if (($validated['stage'] ?? '') !== 'secondary') {
+            $validated['track'] = null;
+        }
 
         $gl->update($validated);
 
