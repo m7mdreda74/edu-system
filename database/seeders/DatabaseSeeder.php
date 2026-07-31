@@ -36,9 +36,9 @@ class DatabaseSeeder extends Seeder
         'quizzes', 'quiz_questions', 'quiz_options', 'quiz_attempts',
         'worksheets', 'worksheet_submissions',
         'coupons', 'payments', 'invoices', 'teacher_payouts', 'payment_audit_logs',
-        'reviews', 'conversations', 'chat_messages',
+        'reviews', 'conversations', 'conversation_participants', 'chat_messages',
         'live_sessions', 'live_session_attendees',
-        'parent_student_links', 'purchase_requests', 'notifications',
+        'parent_student_links', 'purchase_requests', 'private_lesson_requests', 'notifications',
         'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'roles', 'permissions',
     ];
 
@@ -105,23 +105,25 @@ class DatabaseSeeder extends Seeder
         $this->command?->info('✅ تم تجهيز المنصة.');
 
         $this->command?->table(['المحتوى', 'العدد'], [
-            ['الصفوف الدراسية',   $count('grade_levels')],
-            ['المواد',            $count('subjects')],
-            ['روابط المنهج',      $count('grade_level_subject')],
-            ['المعلمون',          DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')->where('roles.name', 'teacher')->count()],
-            ['الطلاب',            DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')->where('roles.name', 'student')->count()],
-            ['أولياء الأمور',     DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')->where('roles.name', 'parent')->count()],
-            ['تكليفات التدريس',   $count('teaching_assignments')],
-            ['المجموعات',         $count('teaching_groups')],
+            ['الصفوف الدراسية',     $count('grade_levels')],
+            ['المواد',              $count('subjects')],
+            ['روابط المنهج',        $count('grade_level_subject')],
+            ['المعلمون',            DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')->where('roles.name', 'teacher')->count()],
+            ['الطلاب',              DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')->where('roles.name', 'student')->count()],
+            ['أولياء الأمور',       DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')->where('roles.name', 'parent')->count()],
+            ['تكليفات التدريس',     $count('teaching_assignments')],
+            ['المجموعات',           $count('teaching_groups')],
             ['مواعيد الحصص الخاصة', $count('private_session_slots')],
-            ['المواد التعليمية',  $count('group_materials')],
-            ['الاختبارات',        $count('quizzes')],
-            ['الواجبات والملازم', $count('worksheets')],
-            ['الحصص المباشرة',    $count('live_sessions')],
-            ['الاشتراكات',        $count('subscriptions')],
-            ['المدفوعات',         $count('payments')],
-            ['التقييمات',         $count('reviews')],
-            ['المحادثات',         $count('conversations')],
+            ['المواد التعليمية',    $count('group_materials')],
+            ['الاختبارات',          $count('quizzes')],
+            ['الواجبات والملازم',   $count('worksheets')],
+            ['الحصص المباشرة',      $count('live_sessions')],
+            ['الاشتراكات',          $count('subscriptions')],
+            ['المدفوعات',           $count('payments')],
+            ['التقييمات',           $count('reviews')],
+            ['المحادثات',           $count('conversations')],
+            ['طلبات الدروس الخاصة', $count('private_lesson_requests')],
+            ['روابط ولي الأمر',     $count('parent_student_links')],
         ]);
 
         $this->command?->newLine();

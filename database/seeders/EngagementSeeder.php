@@ -8,22 +8,24 @@ use App\Domain\Communication\Models\ChatMessage;
 use App\Domain\Communication\Models\Conversation;
 use App\Domain\Learning\Models\LessonProgress;
 use App\Domain\Learning\Models\LessonQuestion;
+use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Learning\Models\WorksheetSubmission;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\Quiz\Models\QuizAttempt;
+use App\Domain\Scheduling\Models\PrivateLessonRequest;
 use App\Domain\Subscription\Models\PurchaseRequest;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
+use App\Domain\User\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
- * Everything students actually do once they are subscribed: watch, ask, submit,
- * sit quizzes, message their teacher, and rate them.
- *
- * All of it hangs off live subscriptions, so a student never has progress in a
- * group they were never in.
+ * Everything students actually do once subscribed:
+ * watch, ask, submit, sit quizzes, message their teacher, rate them,
+ * request private lessons, and attend live sessions.
  */
 class EngagementSeeder extends Seeder
 {
@@ -41,8 +43,10 @@ class EngagementSeeder extends Seeder
             $this->seedConversation($subscription, $index);
         }
 
+        $this->seedLiveSessionAttendees();
         $this->seedReviews();
         $this->seedPurchaseRequests();
+        $this->seedPrivateLessonRequests();
     }
 
     /** Part-way through the material, not everyone at the same point. */
@@ -55,7 +59,7 @@ class EngagementSeeder extends Seeder
         }
 
         $completed = $index % 4 === 0
-            ? $materials->count()          // one student in four has finished
+            ? $materials->count()
             : random_int(1, max(1, $materials->count() - 1));
 
         foreach ($materials->take($completed) as $material) {
@@ -65,9 +69,8 @@ class EngagementSeeder extends Seeder
             );
         }
 
-        // And one they are midway through.
+        // One in-progress material
         $inProgress = $materials->get($completed);
-
         if ($inProgress) {
             LessonProgress::firstOrCreate(
                 ['student_id' => $subscription->student_id, 'lesson_id' => $inProgress->id],
@@ -82,7 +85,6 @@ class EngagementSeeder extends Seeder
             return;
         }
 
-        // Quizzes hang off the syllabus, which belongs to the assignment.
         $quizzes = Quiz::whereHas('unit', fn ($q) => $q->where('teaching_assignment_id', $subscription->teaching_assignment_id))
             ->where('is_active', true)
             ->take(2)
@@ -106,7 +108,6 @@ class EngagementSeeder extends Seeder
                 'passed'       => $score >= $quiz->passing_score,
                 'started_at'   => now()->subDays(3 + $position)->subMinutes(20),
                 'submitted_at' => now()->subDays(3 + $position),
-                // The odd student switched tabs mid-exam.
                 'violations'   => $index % 6 === 0 ? random_int(1, 2) : 0,
             ]);
         }
@@ -131,7 +132,6 @@ class EngagementSeeder extends Seeder
                 continue;
             }
 
-            // The first is marked, the second still sitting in the queue.
             $isGraded = $position === 0;
 
             WorksheetSubmission::create([
@@ -159,10 +159,24 @@ class EngagementSeeder extends Seeder
             return;
         }
 
+        $questions = [
+            'لو سمحت، ممكن توضيح الخطوة الثانية في المثال؟ لم أفهم من أين جاء الرقم.',
+            'هل يمكنني حل المسألة بطريقة مختلفة عما شُرح؟',
+            'ما الفرق بين هذه الطريقة وطريقة الكتاب المدرسي؟',
+        ];
+
+        $answers = [
+            'سؤال ممتاز — الرقم ناتج عن تعويض القيمة في القانون السابق. راجع الدقيقة 4:30 وستجدها موضحة.',
+            'بالتأكيد، الطريقتان صحيحتان. الطريقة الثانية أبسط في بعض الحالات.',
+            'الفرق أن المنهج يستخدم الطريقة الأساسية، لكن ما شرحناه أسرع في الامتحانات.',
+        ];
+
+        $questionIdx = $index % count($questions);
+
         $question = LessonQuestion::create([
             'user_id'         => $subscription->student_id,
             'lesson_id'       => $material->id,
-            'content'         => 'لو سمحت، ممكن توضيح الخطوة الثانية في المثال؟ لم أفهم من أين جاء الرقم.',
+            'content'         => $questions[$questionIdx],
             'video_timestamp' => random_int(120, 900),
         ]);
 
@@ -170,7 +184,7 @@ class EngagementSeeder extends Seeder
             'user_id'   => $teacher->id,
             'lesson_id' => $material->id,
             'parent_id' => $question->id,
-            'content'   => 'سؤال ممتاز — الرقم ناتج عن تعويض القيمة في القانون السابق. راجع الدقيقة 4:30 وستجدها موضحة.',
+            'content'   => $answers[$questionIdx],
         ]);
     }
 
@@ -195,15 +209,42 @@ class EngagementSeeder extends Seeder
             ['last_message_at' => now()->subHours(3)],
         );
 
+        // Seed conversation_participants
+        foreach ([
+            [$subscription->student_id, 'student'],
+            [$teacher->id, 'teacher'],
+        ] as [$userId, $role]) {
+            DB::table('conversation_participants')->insertOrIgnore([
+                'conversation_id'  => $conversation->id,
+                'user_id'          => $userId,
+                'participant_role' => $role,
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+        }
+
         if ($conversation->messages()->exists()) {
             return;
         }
 
-        $thread = [
-            [$subscription->student_id, 'السلام عليكم أستاذ، هل ستكون حصة الأربعاء في موعدها؟', true],
-            [$teacher->id, 'وعليكم السلام، نعم في موعدها بإذن الله. جهّز أسئلة الواجب معك.', true],
-            [$subscription->student_id, 'تمام، شكراً جزيلاً.', false],
+        $threads = [
+            [
+                [$subscription->student_id, 'السلام عليكم أستاذ، هل ستكون حصة الأربعاء في موعدها؟', true],
+                [$teacher->id, 'وعليكم السلام، نعم في موعدها بإذن الله. جهّز أسئلة الواجب معك.', true],
+                [$subscription->student_id, 'تمام، شكراً جزيلاً.', false],
+            ],
+            [
+                [$subscription->student_id, 'أستاذ، لم أفهم الفصل الأخير. هل يمكنني حضور حصة إضافية؟', true],
+                [$teacher->id, 'بالتأكيد، سنضيف وقتاً في نهاية الحصة القادمة لمراجعة الفصل.', true],
+                [$subscription->student_id, 'جزاك الله خيراً أستاذ.', false],
+            ],
+            [
+                [$subscription->student_id, 'هل المادة المرفوعة تغطي امتحان الفصل الأول؟', true],
+                [$teacher->id, 'نعم، كل مقاطع الفيديو مرتّبة حسب الامتحان. ابدأ بالوحدة الثانية.', true],
+            ],
         ];
+
+        $thread = $threads[$index % count($threads)];
 
         foreach ($thread as $position => [$senderId, $message, $isRead]) {
             ChatMessage::create([
@@ -219,7 +260,36 @@ class EngagementSeeder extends Seeder
         $conversation->update(['last_message_at' => now()->subHours(3)]);
     }
 
-    /** Ratings on teachers, most approved and a couple still awaiting review. */
+    /**
+     * Add attendees to ended live sessions so attendance records exist.
+     */
+    private function seedLiveSessionAttendees(): void
+    {
+        $endedSessions = \App\Domain\Learning\Models\LiveSession::where('status', 'ended')
+            ->with('teachingGroup.subscriptions.student')
+            ->take(30)
+            ->get();
+
+        foreach ($endedSessions as $session) {
+            $students = $session->teachingGroup?->subscriptions
+                ?->where('status', 'active')
+                ->pluck('student')
+                ->filter()
+                ->take(10) ?? collect();
+
+            foreach ($students as $student) {
+                LiveSessionAttendee::firstOrCreate(
+                    ['live_session_id' => $session->id, 'user_id' => $student->id],
+                    [
+                        'joined_at' => $session->started_at?->addMinutes(random_int(1, 10)),
+                        'left_at'   => $session->ended_at?->subMinutes(random_int(0, 5)),
+                    ],
+                );
+            }
+        }
+    }
+
+    /** Ratings on teachers, most approved, a few still awaiting review. */
     private function seedReviews(): void
     {
         $comments = [
@@ -228,6 +298,9 @@ class EngagementSeeder extends Seeder
             'أفضل معلم درست معه، متابعة مستمرة وردود سريعة على الأسئلة.',
             'الحصص منظمة والملازم مفيدة جداً قبل الامتحان.',
             'صبور جداً مع الطلاب ويعيد الشرح حتى نفهم.',
+            'المادة العلمية قوية جداً والشرح مرتّب خطوة بخطوة.',
+            'استفدت من الاختبارات القصيرة في نهاية كل حصة.',
+            'الأستاذ يشرح بطريقة عملية مرتبطة بالحياة اليومية.',
         ];
 
         $studied = Subscription::with('assignment')
@@ -241,18 +314,17 @@ class EngagementSeeder extends Seeder
                 continue;
             }
 
-            // Not everybody leaves a review.
-            if ((int) $studentId % 3 === 1) {
+            // ~70% of students leave a review
+            if ((int) $studentId % 10 >= 7) {
                 continue;
             }
 
             TeacherReview::firstOrCreate(
                 ['user_id' => (int) $studentId, 'teacher_id' => (int) $teacherId],
                 [
-                    'rating'      => random_int(4, 5),
+                    'rating'      => random_int(3, 5),
                     'comment'     => $comments[(int) $studentId % count($comments)],
-                    // A few sit unapproved so the moderation view is not empty.
-                    'is_approved' => (int) $studentId % 7 !== 0,
+                    'is_approved' => (int) $studentId % 5 !== 0, // ~80% approved
                 ],
             );
         }
@@ -274,7 +346,7 @@ class EngagementSeeder extends Seeder
                 ->whereNotIn('id', Subscription::where('student_id', $link->student_user_id)
                     ->whereNotNull('teaching_group_id')
                     ->select('teaching_group_id'))
-                ->skip($index)
+                ->skip($index % 5)
                 ->first();
 
             if (! $group) {
@@ -296,6 +368,61 @@ class EngagementSeeder extends Seeder
                         : null,
                 ],
             );
+        }
+    }
+
+    /**
+     * Seed private lesson requests — students requesting private sessions
+     * from teachers they are subscribed to or interested in.
+     * Covers: pending, accepted, rejected states.
+     */
+    private function seedPrivateLessonRequests(): void
+    {
+        $statuses = ['pending', 'accepted', 'rejected'];
+
+        $notes = [
+            'أريد تقوية في الفصل الثالث، وخاصة مسائل التفاضل.',
+            'أحتاج مراجعة مكثفة قبل الامتحان النهائي بأسبوعين.',
+            'لدي ضعف في الجزء الحسابي من المادة وأريد درساً خاصاً.',
+            'ابني يجد صعوبة في الحل التحليلي، هل يمكن ترتيب درس خاص؟',
+            'أرغب في تسريع الفهم قبل بدء الفصل القادم.',
+            'الامتحان الوزاري بعد ثلاثة أسابيع وأحتاج مراجعة شاملة.',
+        ];
+
+        // Pick students with active subscriptions and request a private lesson
+        // from their teacher (a different assignment than the group one).
+        $students = User::role('student')->take(80)->get();
+
+        foreach ($students as $index => $student) {
+            // Find an assignment the student is NOT subscribed to yet
+            $takenAssignmentIds = Subscription::where('student_id', $student->id)
+                ->pluck('teaching_assignment_id')
+                ->all();
+
+            $assignment = \App\Domain\Scheduling\Models\TeachingAssignment::where('accepts_private', true)
+                ->where('is_active', true)
+                ->whereNotIn('id', $takenAssignmentIds)
+                ->inRandomOrder()
+                ->first();
+
+            if (! $assignment) {
+                continue;
+            }
+
+            $already = PrivateLessonRequest::where('student_id', $student->id)
+                ->where('teaching_assignment_id', $assignment->id)
+                ->exists();
+
+            if ($already) {
+                continue;
+            }
+
+            PrivateLessonRequest::create([
+                'student_id'             => $student->id,
+                'teaching_assignment_id' => $assignment->id,
+                'student_note'           => $notes[$index % count($notes)],
+                'status'                 => $statuses[$index % count($statuses)],
+            ]);
         }
     }
 }

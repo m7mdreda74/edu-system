@@ -14,16 +14,58 @@ use Spatie\Permission\Models\Role;
 /**
  * Admins, teachers, students and parents.
  *
- * Teachers get a full public profile — headline, bio, intro video, experience —
- * because that is the surface students choose from, and a teacher without one
- * shows up as an empty card.
+ * Scale: 20 students per grade level + 1 parent per 2 students.
+ * Teachers: 3 per subject (defined in TeachingStaff).
  */
 class AccountsSeeder extends Seeder
 {
     public const PASSWORD = 'password';
 
-    /** A placeholder every teacher's intro video points at. */
     private const DEMO_VIDEO = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+
+    /** Arabic male names */
+    private const MALE_NAMES = [
+        'محمد رضا', 'عبدالرحمن سعد', 'فهد المري', 'سلطان الهاجري', 'علي الجابر',
+        'حمد الرميحي', 'ناصر الخليفي', 'جاسم الفضالة', 'راشد الخاطر', 'خليفة العبيدلي',
+        'طلال المهندي', 'صالح النعمة', 'محمد الكواري', 'عبدالله آل ثاني', 'يوسف الهاجري',
+        'فيصل المناعي', 'عمر الأنصاري', 'بدر الخليفي', 'سعيد المالكي', 'أحمد الدوسري',
+        'خالد الغانم', 'عيسى الرميحي', 'عادل الشمري', 'نواف الكبيسي', 'وليد السليطي',
+        'سلمان المسند', 'ثاني القحطاني', 'حسن البوعينين', 'بسام الحداد', 'إبراهيم الكعبي',
+    ];
+
+    /** Arabic female names */
+    private const FEMALE_NAMES = [
+        'نورة العلي', 'مريم الباكر', 'دانة الكبيسي', 'شيخة النصر', 'موزة السليطي',
+        'العنود المسند', 'لولوة البوعينين', 'هند المالكي', 'سارة المناعي', 'أمل الأنصاري',
+        'ريم الدرويش', 'غالية آل خليفة', 'لطيفة السويدي', 'رنا الهاجري', 'فاطمة النعيمي',
+        'حصة الكواري', 'عائشة المسند', 'مريم الدوسري', 'منى العبيدلي', 'ليلى الرشيد',
+        'خولة الجابر', 'مها الخاطر', 'نجلاء الشمري', 'شذى الفضالة', 'روان الرميحي',
+        'هيا الكبيسي', 'ولاء المناعي', 'جواهر الدوسري', 'نبيلة الهاجري', 'إيمان القحطاني',
+    ];
+
+    /** Parent names */
+    private const PARENT_NAMES = [
+        ['name' => 'رضا محمود',    'gender' => 'father'],
+        ['name' => 'أحمد العلي',   'gender' => 'father'],
+        ['name' => 'سعد الدوسري',  'gender' => 'father'],
+        ['name' => 'خالد الباكر',  'gender' => 'father'],
+        ['name' => 'محمد المري',   'gender' => 'father'],
+        ['name' => 'عبدالله الكواري', 'gender' => 'father'],
+        ['name' => 'فارس الهاجري', 'gender' => 'father'],
+        ['name' => 'ناصر الخليفي', 'gender' => 'father'],
+        ['name' => 'سلطان المسند', 'gender' => 'father'],
+        ['name' => 'حمد الأنصاري', 'gender' => 'father'],
+        ['name' => 'فاطمة العلي',  'gender' => 'mother'],
+        ['name' => 'مريم الخاطر',  'gender' => 'mother'],
+        ['name' => 'نورة الدوسري', 'gender' => 'mother'],
+        ['name' => 'هند الشمري',   'gender' => 'mother'],
+        ['name' => 'شيخة الغانم',  'gender' => 'mother'],
+        ['name' => 'موزة السليطي', 'gender' => 'mother'],
+        ['name' => 'عائشة المنصوري', 'gender' => 'mother'],
+        ['name' => 'لولوة الكبيسي', 'gender' => 'mother'],
+        ['name' => 'دانة الفضالة', 'gender' => 'mother'],
+        ['name' => 'العنود الرميحي', 'gender' => 'mother'],
+    ];
 
     public function run(): void
     {
@@ -52,10 +94,6 @@ class AccountsSeeder extends Seeder
         ]);
     }
 
-    /**
-     * Teachers come from the faculty plan, which is keyed by subject — so a
-     * teacher is created under exactly one, by construction.
-     */
     private function seedTeachers(): void
     {
         foreach (TeachingStaff::teachers() as $definition) {
@@ -74,31 +112,42 @@ class AccountsSeeder extends Seeder
         }
     }
 
-    /** @return array<int, User> */
+    /**
+     * 20 students per grade level, spread evenly between male/female names.
+     *
+     * @return array<int, User>
+     */
     private function seedStudents(): array
     {
-        $names = [
-            'محمد رضا', 'نورة العلي', 'عبدالرحمن سعد', 'مريم الباكر', 'فهد المري',
-            'دانة الكبيسي', 'سلطان الهاجري', 'شيخة النصر', 'علي الجابر', 'موزة السليطي',
-            'حمد الرميحي', 'العنود المسند', 'ناصر الخليفي', 'لولوة البوعينين', 'جاسم الفضالة',
-            'هند المالكي', 'راشد الخاطر', 'سارة المناعي', 'خليفة العبيدلي', 'أمل الأنصاري',
-            'طلال المهندي', 'ريم الدرويش', 'صالح النعمة', 'غالية آل خليفة',
-        ];
-
-        // Spread across the whole ladder so every stage has someone in it.
-        $gradeKeys = GradeLevel::where('is_active', true)->orderBy('id')->pluck('key')->all();
+        $grades    = GradeLevel::where('is_active', true)->orderBy('id')->get();
         $students  = [];
+        $counter   = 1;
 
-        foreach ($names as $index => $name) {
-            $students[] = $this->makeUser('student', [
-                'name'        => $name,
-                'email'       => 'student' . ($index + 1) . '@altafawwuq.com',
-                'phone'       => '+9745510' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
-                'grade_level' => $gradeKeys[$index % count($gradeKeys)],
-            ]);
+        $allNames = [];
+        for ($i = 0; $i < 30; $i++) {
+            $allNames[] = self::MALE_NAMES[$i];
+            $allNames[] = self::FEMALE_NAMES[$i];
         }
 
-        // A memorable one for demos, in a grade that has plenty of teachers.
+        foreach ($grades as $gradeIndex => $grade) {
+            for ($slot = 0; $slot < 20; $slot++) {
+                $nameIndex  = ($gradeIndex * 20 + $slot) % count($allNames);
+                $name       = $allNames[$nameIndex];
+                $email      = 'student' . $counter . '@altafawwuq.com';
+                $phone      = '+9745512' . str_pad((string) $counter, 4, '0', STR_PAD_LEFT);
+
+                $students[] = $this->makeUser('student', [
+                    'name'        => $name,
+                    'email'       => $email,
+                    'phone'       => $phone,
+                    'grade_level' => $grade->key,
+                ]);
+
+                $counter++;
+            }
+        }
+
+        // Memorable demo account in grade_12_science
         $students[] = $this->makeUser('student', [
             'name'        => 'طالب تجريبي',
             'email'       => 'student@altafawwuq.com',
@@ -109,33 +158,44 @@ class AccountsSeeder extends Seeder
         return $students;
     }
 
-    /** @param array<int, User> $students */
+    /**
+     * 1 parent per 2 students — each parent linked to exactly 2 children.
+     *
+     * @param  array<int, User>  $students
+     */
     private function seedParents(array $students): void
     {
-        $parents = [
-            ['name' => 'رضا محمود',   'email' => 'parent@altafawwuq.com',  'phone' => '+97455000301'],
-            ['name' => 'أحمد العلي',  'email' => 'parent2@altafawwuq.com', 'phone' => '+97455000302'],
-            ['name' => 'سعد الدوسري', 'email' => 'parent3@altafawwuq.com', 'phone' => '+97455000303'],
-            ['name' => 'خالد الباكر', 'email' => 'parent4@altafawwuq.com', 'phone' => '+97455000304'],
-        ];
-
         $relationships = ['father', 'mother', 'guardian'];
+        $parentDefs    = self::PARENT_NAMES;
+        $parentIndex   = 0;
+        $phoneCounter  = 1;
 
-        foreach ($parents as $index => $definition) {
-            $parent = $this->makeUser('parent', $definition);
+        // Chunk students into pairs, create a parent for each pair.
+        $chunks = array_chunk($students, 2);
 
-            // Two children each, taken from the top of the student list so the
-            // demo parent always has someone to look at.
-            foreach ([$index * 2, $index * 2 + 1] as $position) {
-                if (! isset($students[$position])) {
-                    continue;
-                }
+        foreach ($chunks as $chunkIndex => $pair) {
+            $def    = $parentDefs[$parentIndex % count($parentDefs)];
+            $email  = $parentIndex === 0
+                ? 'parent@altafawwuq.com'
+                : 'parent' . ($parentIndex + 1) . '@altafawwuq.com';
 
+            $parent = $this->makeUser('parent', [
+                'name'  => $def['name'],
+                'email' => $email,
+                'phone' => '+9745513' . str_pad((string) $phoneCounter, 4, '0', STR_PAD_LEFT),
+            ]);
+
+            $relationship = $def['gender'] === 'mother' ? 'mother' : 'father';
+
+            foreach ($pair as $student) {
                 ParentStudentLink::firstOrCreate(
-                    ['parent_user_id' => $parent->id, 'student_user_id' => $students[$position]->id],
-                    ['relationship' => $relationships[$index % count($relationships)], 'verified_at' => now()],
+                    ['parent_user_id' => $parent->id, 'student_user_id' => $student->id],
+                    ['relationship' => $relationship, 'verified_at' => now()],
                 );
             }
+
+            $parentIndex++;
+            $phoneCounter++;
         }
     }
 
