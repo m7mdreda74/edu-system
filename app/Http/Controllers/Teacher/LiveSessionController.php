@@ -51,7 +51,7 @@ class LiveSessionController extends Controller
         $sessions = LiveSession::with([
             'teachingGroup:id,name,teaching_assignment_id',
             'teachingGroup.assignment.subject:id,name',
-            'privateSessionSlot:id,starts_at,ends_at',
+            'privateSessionSlot:id,starts_at,ends_at,is_free_intro',
             'attendees:id,live_session_id,user_id,joined_at,left_at',
             'apology:id,live_session_id,reason,status,makeup_session_id,makeup_scheduled_at,deduction_amount,admin_note,teacher_payout_id',
             'apology.makeupSession:id,title,scheduled_at,status',

@@ -8,15 +8,26 @@ use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\Worksheet;
+use App\Domain\Learning\Models\WorksheetSubmission;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\Quiz\Models\QuizAttempt;
+use App\Domain\Quiz\Models\QuizOption;
+use App\Domain\Quiz\Models\QuizQuestion;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
+use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
+use App\Notifications\GenericDatabaseNotification;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+// Binds $this inside every Pest closure in this file to Tests\TestCase.
+uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
     foreach (['admin', 'teacher', 'student', 'parent'] as $role) {
@@ -204,6 +215,7 @@ it('stores a timed multiple choice exam and enforces its answer key', function (
         ->post(route('teacher.quizzes.questions.store', ['quiz' => $quiz->id]), [
             'question_text' => 'أي الأعداد التالية أولية؟',
             'type' => 'multiple',
+            'points' => 5,
             'options' => [
                 ['option_text' => '2', 'is_correct' => true],
                 ['option_text' => '3', 'is_correct' => true],
@@ -215,6 +227,7 @@ it('stores a timed multiple choice exam and enforces its answer key', function (
 
     expect($quiz->refresh()->time_limit_minutes)->toBe(25)
         ->and($quiz->questions()->count())->toBe(1)
+        ->and($quiz->questions()->firstOrFail()->points)->toBe(5)
         ->and($quiz->questions()->firstOrFail()->correctOptions()->count())->toBe(2);
 
     $this->actingAs($this->teacher)
@@ -227,6 +240,146 @@ it('stores a timed multiple choice exam and enforces its answer key', function (
             ],
         ])
         ->assertSessionHasErrors('options');
+});
+
+it('awards the configured points and keeps the pass result percentage-based', function () {
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $this->term->id,
+    ]);
+    $quiz = Quiz::factory()->create([
+        'curriculum_unit_id' => $unit->id,
+        'passing_score' => 70,
+    ]);
+
+    $first = QuizQuestion::create([
+        'quiz_id' => $quiz->id,
+        'question_text' => 'السؤال الأعلى نقاطًا',
+        'type' => 'single',
+        'points' => 9,
+        'order' => 1,
+    ]);
+    $firstCorrect = QuizOption::create([
+        'question_id' => $first->id,
+        'option_text' => 'صحيح',
+        'is_correct' => true,
+    ]);
+    QuizOption::create([
+        'question_id' => $first->id,
+        'option_text' => 'خطأ',
+        'is_correct' => false,
+    ]);
+
+    $second = QuizQuestion::create([
+        'quiz_id' => $quiz->id,
+        'question_text' => 'سؤال بنقطة واحدة',
+        'type' => 'single',
+        'points' => 1,
+        'order' => 2,
+    ]);
+    QuizOption::create([
+        'question_id' => $second->id,
+        'option_text' => 'صحيح',
+        'is_correct' => true,
+    ]);
+    $secondWrong = QuizOption::create([
+        'question_id' => $second->id,
+        'option_text' => 'خطأ',
+        'is_correct' => false,
+    ]);
+
+    $group = TeachingGroup::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $this->term->id,
+    ]);
+    $student = User::factory()->create(['email_verified_at' => now()]);
+    $student->assignRole('student');
+    Subscription::factory()->active()->create([
+        'student_id' => $student->id,
+        'teaching_assignment_id' => $this->assignment->id,
+        'teaching_group_id' => $group->id,
+    ]);
+
+    $attemptId = $this->actingAs($student)
+        ->postJson(route('student.quiz.start', $quiz->id))
+        ->assertOk()
+        ->json('attempt_id');
+
+    $this->actingAs($student)
+        ->postJson(route('student.quiz.submit', $quiz->id), [
+            'attempt_id' => $attemptId,
+            'answers' => [
+                $first->id => [$firstCorrect->id],
+                $second->id => [$secondWrong->id],
+            ],
+        ])
+        ->assertOk()
+        ->assertJson([
+            'score' => 90,
+            'earned_points' => 9,
+            'total_points' => 10,
+            'passed' => true,
+        ]);
+
+    expect(QuizAttempt::findOrFail($attemptId))
+        ->earned_points->toBe(9)
+        ->total_points->toBe(10)
+        ->score->toBe(90)
+        ->passed->toBeTrue();
+});
+
+it('sends a paper unit exam grade and teacher feedback to the student and verified parent', function () {
+    Notification::fake();
+
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $this->term->id,
+    ]);
+    $paperExam = Worksheet::create([
+        'curriculum_unit_id' => $unit->id,
+        'title' => 'النموذج الورقي للوحدة الأولى',
+        'file_path' => '/storage/paper-exams/unit-one.pdf',
+        'type' => Worksheet::TYPE_PAPER_EXAM,
+        'requires_submission' => true,
+        'max_score' => 40,
+    ]);
+    $student = User::factory()->create();
+    $student->assignRole('student');
+    $parent = User::factory()->create();
+    $parent->assignRole('parent');
+    ParentStudentLink::create([
+        'parent_user_id' => $parent->id,
+        'student_user_id' => $student->id,
+        'relationship' => 'parent',
+        'verified_at' => now(),
+    ]);
+    $submission = WorksheetSubmission::create([
+        'worksheet_id' => $paperExam->id,
+        'student_id' => $student->id,
+        'submitted_file_path' => '/storage/submissions/student-answer.pdf',
+        'submitted_at' => now(),
+    ]);
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.worksheets.grade', $submission->id), [
+            'score' => 34,
+            'teacher_feedback' => 'مستوى ممتاز مع مراجعة السؤال الأخير.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    Notification::assertSentTo($student, GenericDatabaseNotification::class);
+    Notification::assertSentTo($parent, GenericDatabaseNotification::class, function ($notification) use ($parent): bool {
+        $data = $notification->toArray($parent);
+
+        return str_contains($data['message'], '34/40')
+            && str_contains($data['message'], 'مستوى ممتاز');
+    });
+
+    expect($submission->fresh())
+        ->score->toBe(34)
+        ->teacher_feedback->toBe('مستوى ممتاز مع مراجعة السؤال الأخير.')
+        ->graded_at->not->toBeNull();
 });
 
 it('withholds exam questions until a subscribed student starts inside the availability window', function () {

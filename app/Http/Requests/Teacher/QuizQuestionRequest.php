@@ -34,6 +34,7 @@ class QuizQuestionRequest extends FormRequest
         return [
             'question_text'         => ['required', 'string', 'min:3', 'max:1000'],
             'type'                  => ['required', 'string', 'in:single,multiple'],
+            'points'                => ['nullable', 'integer', 'min:1', 'max:100'],
             'order'                 => ['nullable', 'integer', 'min:1', 'max:999'],
             'options'               => ['required', 'array', 'min:' . self::MIN_OPTIONS, 'max:' . self::MAX_OPTIONS],
             'options.*.option_text' => ['required', 'string', 'max:500'],
@@ -49,6 +50,9 @@ class QuizQuestionRequest extends FormRequest
             'question_text.max'              => 'نص السؤال طويل جداً.',
             'type.required'                  => 'حدد نوع السؤال.',
             'type.in'                        => 'نوع السؤال غير معروف.',
+            'points.integer'                 => 'نقاط السؤال يجب أن تكون رقمًا صحيحًا.',
+            'points.min'                     => 'السؤال يجب أن يساوي نقطة واحدة على الأقل.',
+            'points.max'                     => 'لا يمكن أن تزيد نقاط السؤال عن 100.',
             'options.required'               => 'أضف إجابات السؤال.',
             'options.array'                  => 'صيغة الإجابات غير صحيحة.',
             'options.min'                    => 'يجب أن يحتوي السؤال على إجابتين على الأقل.',

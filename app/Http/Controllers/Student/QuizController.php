@@ -45,6 +45,7 @@ class QuizController extends Controller
                 'time_limit_minutes' => $quiz->time_limit_minutes,
                 'passing_score'      => $quiz->passing_score,
                 'questions_count'    => (int) $quiz->questions_count,
+                'total_points'       => (int) $quiz->questions()->sum('points'),
                 'is_open'            => $quiz->isOpen(),
                 'opens_at'           => $quiz->available_from?->toIso8601String(),
                 'closes_at'          => $quiz->available_until?->toIso8601String(),
@@ -119,6 +120,8 @@ class QuizController extends Controller
                 'score'         => $result->score,
                 'passed'        => $result->passed,
                 'passing_score' => $attempt->quiz->passing_score,
+                'earned_points' => $result->earned_points,
+                'total_points'  => $result->total_points,
             ]);
         } catch (LogicException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
@@ -178,6 +181,7 @@ class QuizController extends Controller
             'id'   => $question->id,
             'text' => $question->question_text,
             'type' => $question->type,
+            'points' => max(1, (int) $question->points),
             'options' => $question->options->map(fn ($option): array => [
                 'id'   => $option->id,
                 'text' => $option->option_text,

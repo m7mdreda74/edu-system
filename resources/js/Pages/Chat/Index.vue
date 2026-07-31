@@ -179,7 +179,7 @@ function selectConversation(id) {
 }
 
 function getOtherUser(conversation) {
-    return isTeacher ? conversation.student : conversation.teacher;
+    return conversation.counterpart ?? (isTeacher ? conversation.student : conversation.teacher);
 }
 
 onMounted(() => {
@@ -233,7 +233,7 @@ onUnmounted(() => {
                                         {{ getOtherUser(conv)?.name }}
                                     </div>
                                     <div class="text-xs text-surface-500 truncate mt-0.5">
-                                        {{ conv.assignment?.subject?.name }}
+                                        {{ conv.assignment?.subject?.name ?? conv.subject ?? 'تواصل مع المنصة' }}
                                     </div>
                                 </div>
                             </div>
@@ -264,7 +264,7 @@ onUnmounted(() => {
                                 </div>
                                 <div>
                                     <div class="font-bold text-surface-900 dark:text-white">{{ getOtherUser(activeConversation)?.name }}</div>
-                                    <div class="text-xs text-surface-500">{{ activeConversation.assignment?.subject?.name }}</div>
+                                    <div class="text-xs text-surface-500">{{ activeConversation.assignment?.subject?.name ?? activeConversation.subject ?? 'تواصل مع المنصة' }}</div>
                                 </div>
                             </div>
                         </div>

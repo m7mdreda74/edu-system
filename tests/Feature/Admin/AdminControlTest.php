@@ -8,11 +8,20 @@ use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\Scheduling\Models\TeachingGroupSchedule;
 use App\Domain\User\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+// Binds $this inside every Pest closure in this file to Tests\TestCase.
+// Required for Intelephense to resolve $this->admin / actingAs() / get() etc.
+uses(TestCase::class, RefreshDatabase::class);
+
+
 
 // ─── Everything the admin must be able to reach and change ───────────────────
 
@@ -194,6 +203,69 @@ it('gives group and private pricing to the admin only', function () {
         ->and(app('router')->has('teacher.teaching-schedule.groups.store'))->toBeFalse()
         ->and(app('router')->has('teacher.teaching-schedule.private-slots.store'))->toBeFalse()
         ->and(app('router')->has('teacher.payouts'))->toBeFalse();
+});
+
+it('requires private pricing to stay above every group price', function () {
+    $this->actingAs($this->admin)
+        ->patch(route('admin.teaching-assignments.update', $this->assignment->id), [
+            'accepts_private' => true,
+            'private_monthly_price_qar' => 400,
+            'is_active' => true,
+        ])
+        ->assertSessionHasErrors('private_monthly_price_qar');
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.teaching-groups.update', $this->group->id), [
+            'name' => $this->group->name,
+            'capacity' => $this->group->capacity,
+            'monthly_price_qar' => 900,
+            'academic_term_id' => $this->group->academic_term_id,
+            'is_active' => true,
+        ])
+        ->assertSessionHasErrors('monthly_price_qar');
+});
+
+it('keeps pricing and capacity with admin while the teacher owns group schedules', function () {
+    $this->actingAs($this->admin)
+        ->post(route('admin.teaching-groups.store'), [
+            'teaching_assignment_id' => $this->assignment->id,
+            'academic_term_id' => AcademicTerm::first()->id,
+            'name' => 'مجموعة إدارية بلا موعد',
+            'capacity' => 12,
+            'monthly_price_qar' => 250,
+            'timezone' => 'Asia/Qatar',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $group = TeachingGroup::where('name', 'مجموعة إدارية بلا موعد')->firstOrFail();
+
+    expect($group->schedules()->count())->toBe(0)
+        ->and($group->capacity)->toBe(12)
+        ->and($group->monthly_price)->toBe(25_000)
+        ->and(app('router')->has('admin.private-slots.store'))->toBeFalse()
+        ->and(app('router')->has('admin.private-slots.destroy'))->toBeFalse();
+
+    $payload = [
+        'day_of_week' => 2,
+        'start_time' => '17:00',
+        'end_time' => '18:30',
+    ];
+
+    $this->actingAs($this->admin)
+        ->post(route('teacher.teaching-schedule.groups.schedules.store', $group->id), $payload)
+        ->assertForbidden();
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.teaching-schedule.groups.schedules.store', $group->id), $payload)
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $schedule = TeachingGroupSchedule::where('teaching_group_id', $group->id)->firstOrFail();
+
+    expect($schedule->day_of_week)->toBe(2)
+        ->and(substr((string) $schedule->start_time, 0, 5))->toBe('17:00')
+        ->and($schedule->duration_minutes)->toBe(90);
 });
 
 it('keeps the teacher dashboard academic only', function () {

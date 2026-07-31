@@ -8,8 +8,13 @@ use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\User\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+// Binds $this inside every Pest closure in this file to Tests\TestCase.
+uses(TestCase::class, RefreshDatabase::class);
 
 // ─── Public browse flow: grade → subject → teachers → profile ────────────────
 

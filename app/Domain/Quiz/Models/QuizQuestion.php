@@ -17,6 +17,7 @@ class QuizQuestion extends Model
         'quiz_id',
         'question_text',
         'type',
+        'points',
         'order',
     ];
 
@@ -24,6 +25,7 @@ class QuizQuestion extends Model
     {
         return [
             'order' => 'integer',
+            'points' => 'integer',
         ];
     }
 

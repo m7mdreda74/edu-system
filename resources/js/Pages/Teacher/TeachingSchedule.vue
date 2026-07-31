@@ -10,10 +10,16 @@ const props = defineProps({
 
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const lessonDrafts = ref({});
+const scheduleDrafts = ref({});
+const freeSlotDrafts = ref({});
 
 watch(() => props.assignments, (assignments) => {
     assignments.flatMap((item) => item.groups || []).forEach((group) => {
         lessonDrafts.value[group.id] ??= { title: '', description: '' };
+        scheduleDrafts.value[group.id] ??= { day_of_week: 0, start_time: '', end_time: '' };
+    });
+    assignments.forEach((assignment) => {
+        freeSlotDrafts.value[assignment.id] ??= { starts_at: '', ends_at: '' };
     });
 }, { immediate: true });
 
@@ -36,6 +42,45 @@ function scheduleLesson(id) {
     });
 }
 
+function addGroupSchedule(groupId) {
+    router.post(
+        route('teacher.teaching-schedule.groups.schedules.store', groupId),
+        scheduleDrafts.value[groupId],
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                scheduleDrafts.value[groupId] = { day_of_week: 0, start_time: '', end_time: '' };
+            },
+        },
+    );
+}
+
+function removeGroupSchedule(scheduleId) {
+    router.delete(route('teacher.teaching-schedule.group-schedules.destroy', scheduleId), {
+        preserveScroll: true,
+    });
+}
+
+function publishFreeSlot(assignmentId) {
+    const draft = freeSlotDrafts.value[assignmentId];
+
+    router.post(route('teacher.free-intro-sessions.store'), {
+        teaching_assignment_id: assignmentId,
+        starts_at: draft.starts_at,
+        ends_at: draft.ends_at,
+        timezone: 'Asia/Qatar',
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            freeSlotDrafts.value[assignmentId] = { starts_at: '', ends_at: '' };
+        },
+    });
+}
+
+function cancelFreeSlot(slotId) {
+    router.delete(route('teacher.free-intro-sessions.destroy', slotId), { preserveScroll: true });
+}
+
 function formatDate(value) {
     return new Date(value).toLocaleString('ar-EG', {
         dateStyle: 'medium',
@@ -52,16 +97,16 @@ function formatDate(value) {
             <header>
                 <h1 class="text-3xl font-black text-surface-900 dark:text-white">الخطة الأكاديمية وجدول الحصص</h1>
                 <p class="text-surface-500 mt-2">
-                    الإدارة تحدد المواد والمجموعات والمواعيد والأسعار، وأنت تدير المنهج وخطة الشرح والحصص.
+                    الإدارة تحدد الإسنادات والأسعار والسعة، وأنت تدير المنهج والمواعيد ونشر الحصص والاختبارات.
                 </p>
             </header>
 
             <div class="rounded-2xl border border-accent-500/25 bg-accent-500/10 p-4 flex items-start gap-3">
                 <Icon name="info" class="w-5 h-5 text-accent-600 shrink-0 mt-0.5" />
                 <div>
-                    <h2 class="font-bold text-sm text-surface-900 dark:text-white">الصلاحيات الإدارية لدى إدارة المنصة</h2>
+                    <h2 class="font-bold text-sm text-surface-900 dark:text-white">فصل واضح للصلاحيات</h2>
                     <p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
-                        لإضافة مادة أو مجموعة، تعديل موعد أو سعة، أو إتاحة برايفيت تواصل مع الإدارة.
+                        تواصل مع الإدارة للإسناد والتسعير والسعة فقط. المواعيد والمنهج والمحتوى والاختبارات والحصص المباشرة مسؤوليتك.
                     </p>
                 </div>
             </div>
@@ -77,6 +122,44 @@ function formatDate(value) {
                     <Link :href="route('teacher.curriculum', { assignment: assignment.id })" class="btn-primary btn-sm">
                         بناء المنهج والوحدات والدروس
                     </Link>
+                </div>
+
+                <div class="rounded-2xl border border-accent-500/25 bg-accent-500/5 p-5 space-y-4">
+                    <div>
+                        <h3 class="font-black text-surface-900 dark:text-white">الحصة التجريبية المجانية</h3>
+                        <p class="text-xs text-surface-500 mt-1">
+                            انشر مواعيد متاحة ليحجز الطالب حصة واحدة معك مسبقًا وبدون أي رسوم.
+                        </p>
+                    </div>
+
+                    <form class="grid md:grid-cols-3 gap-3" @submit.prevent="publishFreeSlot(assignment.id)">
+                        <input v-model="freeSlotDrafts[assignment.id].starts_at" type="datetime-local" class="input" required />
+                        <input v-model="freeSlotDrafts[assignment.id].ends_at" type="datetime-local" class="input" required />
+                        <button class="btn-accent">نشر الموعد المجاني</button>
+                    </form>
+
+                    <div v-if="assignment.private_slots?.length" class="grid md:grid-cols-2 gap-3">
+                        <div
+                            v-for="slot in assignment.private_slots"
+                            :key="slot.id"
+                            class="rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-3 flex items-center justify-between gap-3"
+                        >
+                            <div>
+                                <p class="text-sm font-bold">{{ formatDate(slot.starts_at) }}</p>
+                                <p class="text-xs mt-1" :class="slot.status === 'booked' ? 'text-green-600' : 'text-surface-500'">
+                                    {{ slot.status === 'booked' ? `محجوزة بواسطة ${slot.booking?.student?.name ?? 'طالب'}` : 'متاحة للحجز' }}
+                                </p>
+                            </div>
+                            <button
+                                v-if="slot.status !== 'booked'"
+                                type="button"
+                                class="btn-ghost btn-sm text-red-500"
+                                @click="cancelFreeSlot(slot.id)"
+                            >
+                                إلغاء
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <article
@@ -95,14 +178,34 @@ function formatDate(value) {
                         </div>
                     </div>
 
-                    <div class="flex flex-wrap gap-2">
+                    <div class="rounded-xl border border-primary-500/20 bg-primary-500/5 p-4 space-y-3">
+                        <div class="flex flex-wrap gap-2">
                         <span
                             v-for="schedule in group.schedules"
                             :key="schedule.id"
-                            class="rounded-full bg-primary-500/10 px-3 py-1 text-sm text-primary-700 dark:text-primary-300"
+                            class="inline-flex items-center gap-2 rounded-full bg-primary-500/10 px-3 py-1 text-sm text-primary-700 dark:text-primary-300"
                         >
                             {{ days[schedule.day_of_week] }} · {{ schedule.start_time.slice(0, 5) }} إلى {{ schedule.end_time.slice(0, 5) }}
+                            <button
+                                type="button"
+                                class="font-black text-red-500"
+                                aria-label="حذف الموعد"
+                                @click="removeGroupSchedule(schedule.id)"
+                            >
+                                ×
+                            </button>
                         </span>
+                        <p v-if="!group.schedules.length" class="text-xs text-surface-500">حدد أول موعد للمجموعة لتظهر للطلاب وتتم جدولة الحصص عليه.</p>
+                        </div>
+
+                        <form class="grid md:grid-cols-4 gap-3" @submit.prevent="addGroupSchedule(group.id)">
+                            <select v-model.number="scheduleDrafts[group.id].day_of_week" class="input" required>
+                                <option v-for="(day, index) in days" :key="day" :value="index">{{ day }}</option>
+                            </select>
+                            <input v-model="scheduleDrafts[group.id].start_time" type="time" class="input" required />
+                            <input v-model="scheduleDrafts[group.id].end_time" type="time" class="input" required />
+                            <button class="btn-outline">إضافة موعد للمجموعة</button>
+                        </form>
                     </div>
 
                     <div class="rounded-xl bg-surface-50 dark:bg-surface-900/50 p-4">

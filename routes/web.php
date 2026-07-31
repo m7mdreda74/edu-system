@@ -21,6 +21,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Live\LiveSessionRoomController;
 use App\Http\Controllers\Live\WebRtcSignalingController;
 use App\Http\Controllers\Parent\ParentDashboardController;
+use App\Http\Controllers\Parent\ParentPrivateLessonRequestController;
 use App\Http\Controllers\Parent\ParentPurchaseRequestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Public\GradeLevelBrowseController;
@@ -31,17 +32,19 @@ use App\Http\Controllers\Public\TeacherDirectoryController;
 use App\Http\Controllers\Public\TeacherProfileController;
 use App\Http\Controllers\Student\CertificateController;
 use App\Http\Controllers\Student\DashboardController;
+use App\Http\Controllers\Student\FreeIntroSessionController as StudentFreeIntroSessionController;
 use App\Http\Controllers\Student\LearnController;
 use App\Http\Controllers\Student\LessonQuestionController;
 use App\Http\Controllers\Student\MyGradeController;
+use App\Http\Controllers\Student\PrivateLessonRequestController;
 use App\Http\Controllers\Student\QuizController;
 use App\Http\Controllers\Student\ReviewController;
-use App\Http\Controllers\Student\SessionBookingController;
 use App\Http\Controllers\Student\StudentPurchaseRequestController;
 use App\Http\Controllers\Student\SubscriptionController;
 use App\Http\Controllers\Student\VideoUrlController;
 use App\Http\Controllers\SubscriptionRenewalController;
 use App\Http\Controllers\Teacher\CurriculumController;
+use App\Http\Controllers\Teacher\FreeIntroSessionController as TeacherFreeIntroSessionController;
 use App\Http\Controllers\Teacher\LiveSessionController;
 use App\Http\Controllers\Teacher\MaterialManagerController;
 use App\Http\Controllers\Teacher\QuizBuilderController;
@@ -118,18 +121,17 @@ Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
     // The student's own grade: every subject on their curriculum and its teachers
     Route::get('/my-grade', [MyGradeController::class, 'index'])->name('student.my-grade');
 
-    // Subscriptions — monthly access to groups and private tuition
+    // Group subscriptions, plus teacher-led agreement requests for private tuition.
     Route::get('/my-classes', [SubscriptionController::class, 'index'])->name('student.my-classes');
     Route::post('/subscribe/group/{groupId}', [SubscriptionController::class, 'subscribeToGroup'])->name('student.subscribe.group')->middleware('throttle:15,1');
-    Route::post('/subscribe/private/{assignmentId}', [SubscriptionController::class, 'subscribeToPrivate'])->name('student.subscribe.private')->middleware('throttle:15,1');
+    Route::post('/private-lesson-requests/{assignmentId}', [PrivateLessonRequestController::class, 'store'])
+        ->name('student.private-lesson-requests.store')
+        ->middleware('throttle:10,1');
+    Route::post('/free-intro-sessions/{slotId}', [StudentFreeIntroSessionController::class, 'store'])
+        ->name('student.free-intro-sessions.store')
+        ->middleware('throttle:10,1');
     Route::post('/subscriptions/{id}/renew', [SubscriptionController::class, 'renew'])->name('student.subscriptions.renew');
     Route::delete('/subscriptions/{id}', [SubscriptionController::class, 'cancel'])->name('student.subscriptions.cancel');
-
-    // Booking teachers' groups and private slots
-    Route::get('/session-booking', [SessionBookingController::class, 'index'])->name('student.session-booking');
-    Route::post('/session-booking/groups/{id}', [SessionBookingController::class, 'bookGroup'])->name('student.session-booking.group');
-    Route::post('/session-booking/private/{id}', [SessionBookingController::class, 'bookPrivate'])->name('student.session-booking.private');
-    Route::delete('/session-booking/{id}', [SessionBookingController::class, 'cancel'])->name('student.session-booking.cancel');
 
     // Study room — materials, progress and homework for one group
     Route::get('/my-classes/{groupId}/learn', [LearnController::class, 'show'])->name('student.learn');
@@ -236,6 +238,10 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
 
     // Academic lesson planning for groups configured by the administration.
     Route::get('/teaching-schedule', [TeachingScheduleController::class, 'index'])->name('teaching-schedule');
+    Route::post('/teaching-schedule/groups/{id}/schedules', [TeachingScheduleController::class, 'storeGroupSchedule'])->name('teaching-schedule.groups.schedules.store');
+    Route::delete('/teaching-schedule/group-schedules/{id}', [TeachingScheduleController::class, 'destroyGroupSchedule'])->name('teaching-schedule.group-schedules.destroy');
+    Route::post('/free-intro-sessions', [TeacherFreeIntroSessionController::class, 'store'])->name('free-intro-sessions.store');
+    Route::delete('/free-intro-sessions/{id}', [TeacherFreeIntroSessionController::class, 'destroy'])->name('free-intro-sessions.destroy');
     Route::post('/teaching-schedule/groups/{id}/lessons', [TeachingScheduleController::class, 'storeGroupLesson'])->name('teaching-schedule.groups.lessons.store');
     Route::post('/teaching-schedule/group-lessons/{id}/schedule', [TeachingScheduleController::class, 'scheduleGroupLesson'])->name('teaching-schedule.group-lessons.schedule');
     Route::get('/teaching-schedule/group-lessons/{id}/schedule', [TeachingScheduleController::class, 'redirectGroupLessonSchedule'])->name('teaching-schedule.group-lessons.schedule-link');
@@ -266,7 +272,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/subscriptions', [App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions');
     Route::delete('/subscriptions/{id}', [App\Http\Controllers\Admin\SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
 
-    // Teaching assignments, groups, availability and all pricing belong to admin.
+    // Teaching assignments, group shells, capacity and all pricing belong to admin.
     Route::get('/teaching-groups', [TeachingGroupController::class, 'index'])->name('teaching-groups');
     Route::post('/teaching-assignments', [TeachingGroupController::class, 'storeAssignment'])->name('teaching-assignments.store');
     Route::patch('/teaching-assignments/{id}', [TeachingGroupController::class, 'updateAssignment'])->name('teaching-assignments.update');
@@ -275,8 +281,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/teaching-groups/{id}', [TeachingGroupController::class, 'update'])->name('teaching-groups.update');
     Route::patch('/teaching-groups/{id}/toggle', [TeachingGroupController::class, 'toggle'])->name('teaching-groups.toggle');
     Route::delete('/teaching-groups/{id}', [TeachingGroupController::class, 'destroy'])->name('teaching-groups.destroy');
-    Route::post('/private-session-slots', [TeachingGroupController::class, 'storePrivateSlot'])->name('private-slots.store');
-    Route::delete('/private-session-slots/{id}', [TeachingGroupController::class, 'destroyPrivateSlot'])->name('private-slots.destroy');
 
     // Teachers submit academic apologies; only administration can apply money deductions.
     Route::get('/session-apologies', [SessionApologyController::class, 'index'])->name('session-apologies');
@@ -341,6 +345,9 @@ Route::middleware(['auth', 'role:parent'])->prefix('parent')->name('parent.')->g
     Route::delete('/unlink-student/{id}', [ParentDashboardController::class, 'unlinkStudent'])->name('unlink-student');
     Route::post('/purchase-requests/{id}/pay', [ParentDashboardController::class, 'payForRequest'])->name('purchase-requests.pay');
     Route::post('/purchase-requests/{id}/reject', [ParentPurchaseRequestController::class, 'reject'])->name('purchase-requests.reject');
+    Route::post('/groups/{groupId}/subscribe', [ParentDashboardController::class, 'subscribeToGroup'])->name('groups.subscribe');
+    Route::post('/free-intro-sessions/{slotId}', [ParentDashboardController::class, 'bookFreeIntro'])->name('free-intro-sessions.book');
+    Route::post('/private-lesson-requests/{assignmentId}', [ParentPrivateLessonRequestController::class, 'store'])->name('private-lesson-requests.store');
 });
 
 require __DIR__.'/auth.php';

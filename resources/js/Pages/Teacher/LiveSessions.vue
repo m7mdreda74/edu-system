@@ -152,7 +152,9 @@ const statusLabels = {
                                     <div class="font-bold text-surface-900 dark:text-white text-base">{{ session.title }}</div>
                                     <div class="text-xs text-surface-500 mt-1">{{ session.teaching_group?.name || 'حصة خاصة' }}</div>
                                     <div v-if="session.teaching_group" class="text-[11px] text-primary-500 mt-1">مجموعة: {{ session.teaching_group.name }}</div>
-                                    <div v-else-if="session.private_session_slot" class="text-[11px] text-accent-500 mt-1">جلسة برايفيت محجوزة</div>
+                                    <div v-else-if="session.private_session_slot" class="text-[11px] text-accent-500 mt-1">
+                                        {{ session.private_session_slot.is_free_intro ? 'حصة تجريبية مجانية محجوزة' : 'جلسة برايفيت محجوزة' }}
+                                    </div>
                                     <div v-if="session.apology" class="mt-2 rounded-lg bg-red-500/10 p-2 text-[11px] text-red-600">
                                         سبب الاعتذار: {{ session.apology.reason }}
                                     </div>

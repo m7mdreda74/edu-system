@@ -62,6 +62,7 @@ const menuGroups = computed(() => {
                     { label: 'اعتذارات الحصص', icon: 'calendar',  href: route('admin.session-apologies'), name: 'admin.session-apologies' },
                     { label: 'الاشتراكات',    icon: 'student',   href: route('admin.subscriptions'), name: 'admin.subscriptions' },
                     { label: 'التقييمات',      icon: 'chat',      href: route('admin.reviews'),   name: 'admin.reviews' },
+                    { label: 'رسائل أولياء الأمور', icon: 'chat', href: route('chat.index'), name: 'chat.index' },
                 ]
             },
             {
@@ -92,6 +93,7 @@ const menuGroups = computed(() => {
                 title: 'لوحة ولي الأمر',
                 links: [
                     { label: 'لوحة المتابعة', icon: 'dashboard', href: route('parent.dashboard'), name: 'parent.dashboard' },
+                    { label: 'الرسائل', icon: 'chat', href: route('chat.index'), name: 'chat.index' },
                 ]
             }
         ];
@@ -103,7 +105,6 @@ const menuGroups = computed(() => {
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
                     { label: 'مواد صفي', icon: 'book',      href: route('student.my-grade'),   name: 'student.my-grade' },
                     { label: 'حصصي',     icon: 'courses',   href: route('student.my-classes'), name: 'student.my-classes' },
-                    { label: 'حجز المدرس والموعد', icon: 'clock', href: route('student.session-booking'), name: 'student.session-booking' },
                     { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),         name: 'chat.index' },
                 ]
             }
@@ -171,7 +172,7 @@ const isActive = (name) => {
                     </div>
                     <div v-show="!isSidebarCollapsed" class="overflow-hidden flex-1">
                         <div class="text-sm font-bold text-surface-900 dark:text-white truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{ authStore.user?.name }}</div>
-                        <div class="text-xs text-primary-600 dark:text-primary-400 truncate">{{ authStore.isAdmin ? 'مدير المنصة' : (authStore.isTeacher ? 'مدرس' : 'طالب') }}</div>
+                        <div class="text-xs text-primary-600 dark:text-primary-400 truncate">{{ authStore.isAdmin ? 'مدير المنصة' : (authStore.isTeacher ? 'مدرس' : (authStore.isParent ? 'ولي أمر' : 'طالب')) }}</div>
                     </div>
                     <Icon v-show="!isSidebarCollapsed" name="arrowLeft" class="w-4 h-4 text-surface-450 dark:text-surface-500 group-hover:translate-x-[-3px] transition-transform rtl-flip shrink-0" />
                 </Link>

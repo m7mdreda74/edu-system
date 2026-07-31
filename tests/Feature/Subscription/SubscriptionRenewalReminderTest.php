@@ -15,9 +15,14 @@ use App\Domain\Scheduling\Models\TeachingGroupSchedule;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+// Binds $this inside every Pest closure in this file to Tests\TestCase.
+uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
     Carbon::setTestNow(Carbon::parse('2026-07-29 09:00:00', 'UTC'));

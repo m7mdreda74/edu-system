@@ -120,7 +120,7 @@ const embedUrl = computed(() => {
                 <span v-else class="text-xs text-surface-400">حدّد السعر من الملف</span>
 
                 <Link :href="profileUrl" :class="teacher.is_subscribed ? 'btn-outline btn-sm' : 'btn-primary btn-sm'">
-                    {{ teacher.is_subscribed ? 'عرض' : 'احجز معه' }}
+                    {{ teacher.is_subscribed ? 'عرض' : 'المجموعات والحصص' }}
                 </Link>
             </div>
         </div>

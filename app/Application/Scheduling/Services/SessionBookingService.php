@@ -9,6 +9,7 @@ use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
+use App\Notifications\GenericDatabaseNotification;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -116,6 +117,67 @@ class SessionBookingService
             'privateSlot.assignment.teacher:id,name',
         ]);
         $this->notifyAdmins($booking);
+
+        return $booking;
+    }
+
+    public function bookFreeIntro(User $student, int $slotId): SessionBooking
+    {
+        $booking = DB::transaction(function () use ($student, $slotId): SessionBooking {
+            $slot = PrivateSessionSlot::with([
+                'assignment.teacher:id,name,is_active',
+                'assignment.gradeLevel:id,key',
+            ])->lockForUpdate()->findOrFail($slotId);
+
+            if (
+                ! $slot->is_free_intro
+                || ! $slot->isAvailable()
+                || ! $slot->assignment?->is_active
+                || ! $slot->assignment?->teacher?->is_active
+            ) {
+                throw new LogicException('موعد الحصة المجانية لم يعد متاحًا.');
+            }
+
+            if (
+                $student->grade_level
+                && $slot->assignment->gradeLevel?->key !== $student->grade_level
+            ) {
+                throw new LogicException('هذه الحصة المجانية ليست مخصصة لصفك الدراسي.');
+            }
+
+            $alreadyUsed = SessionBooking::where('student_id', $student->id)
+                ->where('status', 'confirmed')
+                ->whereHas('privateSlot', fn ($query) => $query->where('is_free_intro', true)
+                    ->whereHas('assignment', fn ($assignment) => $assignment
+                        ->where('teacher_id', $slot->assignment->teacher_id)))
+                ->exists();
+
+            if ($alreadyUsed) {
+                throw new LogicException('يمكنك حجز حصة تجريبية مجانية واحدة فقط مع كل مدرس.');
+            }
+
+            $booking = SessionBooking::create([
+                'student_id' => $student->id,
+                'private_session_slot_id' => $slot->id,
+                'status' => 'confirmed',
+                'booked_at' => now(),
+            ]);
+
+            $slot->update(['status' => 'booked']);
+
+            return $booking;
+        });
+
+        $booking->load([
+            'privateSlot.assignment.subject:id,name',
+            'privateSlot.assignment.teacher:id,name',
+        ]);
+
+        $booking->privateSlot?->assignment?->teacher?->notify(new GenericDatabaseNotification([
+            'title' => 'تم حجز حصة تجريبية مجانية',
+            'message' => "{$student->name} حجز الحصة التجريبية المجانية في {$booking->privateSlot?->assignment?->subject?->name}.",
+            'link' => route('teacher.live-sessions'),
+        ]));
 
         return $booking;
     }

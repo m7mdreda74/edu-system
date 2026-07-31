@@ -55,6 +55,42 @@ function formatQAR(halala) {
     return `${formatted} ر.ق.`;
 }
 
+const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+function studentId() {
+    return props.selectedStudent?.student?.id;
+}
+
+function subscribeToGroup(groupId) {
+    router.post(route('parent.groups.subscribe', { groupId }), { student_id: studentId() });
+}
+
+function bookFreeIntro(slotId) {
+    router.post(route('parent.free-intro-sessions.book', { slotId }), { student_id: studentId() });
+}
+
+function requestPrivate(assignmentId) {
+    router.post(route('parent.private-lesson-requests.store', { assignmentId }), {
+        student_id: studentId(),
+        note: 'نرغب في الاتفاق على موعد حصص البرايفت المناسب للطالب.',
+    });
+}
+
+function contactTeacher(assignmentId) {
+    router.post(route('chat.start'), {
+        kind: 'academic',
+        teaching_assignment_id: assignmentId,
+        student_id: studentId(),
+    });
+}
+
+function contactAdmin() {
+    router.post(route('chat.start'), {
+        kind: 'support',
+        student_id: studentId(),
+    });
+}
+
 const rejectNotes = ref('');
 const activeRejectRequestId = ref(null);
 const isRejectModalOpen = ref(false);
@@ -163,8 +199,7 @@ function submitReject() {
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        <Link :href="route('checkout.show', { slug: req.course?.slug })"
-                                              :data="{ purchase_request_id: req.id }"
+                                        <Link :href="route('parent.purchase-requests.pay', { id: req.id })"
                                               class="btn-primary btn-sm flex items-center gap-1.5"
                                         >
                                             <span>دفع الآن</span>
@@ -189,31 +224,115 @@ function submitReject() {
                             </div>
                         </div>
 
-                        <!-- Progress in Courses -->
-                        <div class="card p-6">
-                            <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4 flex items-center gap-2">
-                                <Icon name="courses" class="w-5 h-5 text-primary-500" />
-                                <span>الاشتراكات الحالية</span>
-                            </h3>
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div class="card p-5">
+                                <p class="text-xs text-surface-500">نسبة الحضور</p>
+                                <p class="text-3xl font-black text-primary-600 mt-2">{{ selectedStudent.attendanceSummary.rate }}%</p>
+                                <p class="text-xs text-surface-400 mt-1">{{ selectedStudent.attendanceSummary.present }} من {{ selectedStudent.attendanceSummary.total }} حصة</p>
+                            </div>
+                            <div class="card p-5">
+                                <p class="text-xs text-surface-500">الاشتراكات</p>
+                                <p class="text-3xl font-black text-green-600 mt-2">{{ selectedStudent.subscriptions.length }}</p>
+                                <p class="text-xs text-surface-400 mt-1">اشتراك للطالب</p>
+                            </div>
+                            <div class="card p-5">
+                                <p class="text-xs text-surface-500">الاختبارات</p>
+                                <p class="text-3xl font-black text-accent-600 mt-2">{{ selectedStudent.quizAttempts.length }}</p>
+                                <p class="text-xs text-surface-400 mt-1">محاولة مسجلة</p>
+                            </div>
+                        </div>
 
-                            <div class="space-y-4">
-                                <div v-for="enroll in selectedStudent.enrollments" :key="enroll.id" class="border border-surface-100 dark:border-surface-800 p-4 rounded-2xl">
-                                    <div class="flex items-center justify-between gap-4 mb-2">
+                        <div class="card p-6">
+                            <div class="flex items-center justify-between gap-3 mb-4">
+                                <h3 class="text-lg font-bold text-surface-900 dark:text-white flex items-center gap-2">
+                                    <Icon name="courses" class="w-5 h-5 text-primary-500" />
+                                    الاشتراكات والحصص
+                                </h3>
+                                <button class="btn-ghost btn-sm" @click="contactAdmin">تواصل مع الإدارة</button>
+                            </div>
+                            <div class="space-y-3">
+                                <div v-for="subscription in selectedStudent.subscriptions" :key="subscription.id" class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
                                         <div>
-                                            <h4 class="font-bold text-surface-900 dark:text-white text-base">{{ enroll.subject?.name }}</h4>
-                                            <p class="text-xs text-surface-400">المدرس: {{ enroll.teacher?.name }}</p>
+                                            <p class="font-bold">{{ subscription.subject?.name }} — {{ subscription.group?.name ?? 'حصص برايفت' }}</p>
+                                            <p class="text-xs text-surface-500 mt-1">المدرس: {{ subscription.teacher?.name }} · {{ subscription.status === 'active' ? 'نشط' : 'بانتظار الدفع' }}</p>
                                         </div>
-                                        <div class="text-sm font-bold text-primary-500">{{ enroll.progress_percent }}%</div>
+                                        <div class="text-end">
+                                            <p class="font-black">{{ formatQAR(subscription.monthly_price) }}</p>
+                                            <p class="text-xs text-surface-400">حتى {{ subscription.period_end ?? '—' }}</p>
+                                        </div>
                                     </div>
-                                    <div class="progress-bar w-full">
-                                        <div class="progress-bar-fill" :style="{ width: enroll.progress_percent + '%' }"></div>
+                                    <div class="flex flex-wrap gap-2 mt-3">
+                                        <button class="btn-outline btn-sm" @click="contactTeacher(subscription.assignment_id)">مراسلة المدرس</button>
+                                        <Link v-if="subscription.status === 'pending'" :href="route('checkout.show', subscription.id)" class="btn-primary btn-sm">إكمال الدفع</Link>
                                     </div>
                                 </div>
+                                <p v-if="!selectedStudent.subscriptions.length" class="text-sm text-surface-500">لا توجد اشتراكات للطالب حتى الآن.</p>
+                            </div>
+                        </div>
 
-                                <div v-if="selectedStudent.enrollments.length === 0" class="text-center py-6 text-surface-400">
-                                    الطالب غير مشترك مع أي معلم بعد.
+                        <div v-if="selectedStudent.eligibleGroups.length" class="card p-6">
+                            <h3 class="text-lg font-bold mb-4">احجز مجموعة للطالب وادفع نيابةً عنه</h3>
+                            <div class="grid md:grid-cols-2 gap-3">
+                                <div v-for="group in selectedStudent.eligibleGroups" :key="group.id" class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
+                                    <p class="font-bold">{{ group.subject?.name }} — {{ group.name }}</p>
+                                    <p class="text-xs text-surface-500 mt-1">المدرس: {{ group.teacher?.name }} · المقاعد المتاحة: {{ group.seats_left }}</p>
+                                    <p v-if="group.schedules.length" class="text-xs text-surface-500 mt-1">
+                                        {{ group.schedules.map(schedule => `${days[schedule.day]} ${schedule.start}-${schedule.end}`).join('، ') }}
+                                    </p>
+                                    <div class="flex items-center justify-between mt-3">
+                                        <b>{{ formatQAR(group.monthly_price) }}</b>
+                                        <button class="btn-primary btn-sm" :disabled="group.already_subscribed || !group.seats_left" @click="subscribeToGroup(group.id)">
+                                            {{ group.already_subscribed ? 'مشترك بالفعل' : (!group.seats_left ? 'مكتملة' : 'احجز وادفع') }}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <div v-if="selectedStudent.freeIntroSlots.length" class="card p-6">
+                            <h3 class="text-lg font-bold mb-1">حصة مجانية للطالب</h3>
+                            <p class="text-xs text-surface-500 mb-4">اختر موعدًا منشورًا من المدرس، بدون رسوم أو اشتراك.</p>
+                            <div class="grid md:grid-cols-2 gap-3">
+                                <div v-for="slot in selectedStudent.freeIntroSlots" :key="slot.id" class="rounded-xl border border-accent-500/30 bg-accent-500/5 p-4 flex items-center justify-between gap-3">
+                                    <div>
+                                        <p class="font-bold">{{ slot.teacher?.name }}</p>
+                                        <p class="text-xs text-surface-500">{{ slot.subject }} · {{ new Date(slot.starts_at).toLocaleString('ar-EG') }}</p>
+                                    </div>
+                                    <button class="btn-accent btn-sm" @click="bookFreeIntro(slot.id)">احجز مجانًا</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="selectedStudent.privateAssignments.length" class="card p-6">
+                            <h3 class="text-lg font-bold mb-1">الحصص البرايفت</h3>
+                            <p class="text-xs text-surface-500 mb-4">اطلب الحجز للطالب، ثم اتفق مع المدرس على الموعد. سعر البرايفت أعلى من المجموعة.</p>
+                            <div class="grid md:grid-cols-2 gap-3">
+                                <div v-for="assignment in selectedStudent.privateAssignments" :key="assignment.id" class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
+                                    <p class="font-bold">{{ assignment.subject }} — {{ assignment.teacher?.name }}</p>
+                                    <p class="font-black text-primary-600 mt-2">{{ formatQAR(assignment.monthly_price) }} شهريًا</p>
+                                    <button class="btn-accent btn-sm mt-3 w-full" :disabled="assignment.has_active_subscription" @click="requestPrivate(assignment.id)">
+                                        {{ assignment.has_active_subscription ? 'اشتراك برايفت نشط' : (assignment.has_pending_request ? 'متابعة طلب البرايفت من الرسائل' : 'اطلب برايفت للطالب') }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Attendance -->
+                        <div class="card p-6">
+                            <h3 class="text-lg font-bold mb-4">سجل الحضور</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead><tr class="text-surface-500 border-b border-surface-200 dark:border-surface-700"><th class="p-3 text-start">الحصة</th><th class="p-3 text-start">المادة</th><th class="p-3 text-start">الموعد</th><th class="p-3 text-start">الحالة</th><th class="p-3 text-start">المدة</th></tr></thead>
+                                    <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
+                                        <tr v-for="session in selectedStudent.attendance" :key="session.id">
+                                            <td class="p-3 font-bold">{{ session.title }}</td><td class="p-3">{{ session.subject }}</td><td class="p-3 text-xs">{{ new Date(session.scheduled_at).toLocaleString('ar-EG') }}</td>
+                                            <td class="p-3"><span :class="session.attended ? 'badge-green' : 'badge-gray'">{{ session.attended ? 'حاضر' : 'غائب' }}</span></td><td class="p-3">{{ session.minutes }} دقيقة</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p v-if="!selectedStudent.attendance.length" class="text-sm text-surface-500 text-center py-4">لا يوجد سجل حصص منتهية حتى الآن.</p>
                         </div>
 
                         <!-- Quiz results -->
@@ -236,16 +355,16 @@ function submitReject() {
                                     </thead>
                                     <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
                                         <tr v-for="att in selectedStudent.quizAttempts" :key="att.id">
-                                            <td class="px-6 py-4 font-bold text-surface-900 dark:text-white">{{ att.quiz?.title }}</td>
-                                            <td class="px-6 py-4 text-surface-500">{{ att.quiz?.passing_score }}%</td>
-                                            <td class="px-6 py-4 font-semibold">{{ att.score }}%</td>
+                                            <td class="px-6 py-4 font-bold text-surface-900 dark:text-white">{{ att.title }}</td>
+                                            <td class="px-6 py-4 text-surface-500">{{ att.passing_score }}%</td>
+                                            <td class="px-6 py-4 font-semibold">{{ att.earned_points }}/{{ att.total_points }} ({{ att.score }}%)</td>
                                             <td class="px-6 py-4">
                                                 <span :class="att.passed ? 'badge-green' : 'badge-gray'">
                                                     {{ att.passed ? 'ناجح' : 'لم ينجح' }}
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 text-xs text-surface-400">
-                                                {{ new Date(att.created_at).toLocaleDateString('ar') }}
+                                                {{ att.submitted_at ? new Date(att.submitted_at).toLocaleDateString('ar') : 'لم يسلّم' }}
                                             </td>
                                         </tr>
                                     </tbody>
@@ -255,6 +374,21 @@ function submitReject() {
                             <div v-if="selectedStudent.quizAttempts.length === 0" class="text-center py-6 text-surface-400">
                                 لا توجد محاولات اختبار مسجلة حتى الآن.
                             </div>
+                        </div>
+
+                        <!-- Homework and paper exam grades -->
+                        <div class="card p-6">
+                            <h3 class="text-lg font-bold mb-4">الواجبات وتقييم الاختبار الورقي</h3>
+                            <div class="space-y-3">
+                                <div v-for="submission in selectedStudent.submissions" :key="submission.id" class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <div><p class="font-bold">{{ submission.title }}</p><p class="text-xs text-surface-500 mt-1">{{ submission.subject }} · {{ submission.type === 'paper_exam' ? 'اختبار ورقي' : 'واجب' }}</p></div>
+                                        <b v-if="submission.score !== null">{{ submission.score }}/{{ submission.max_score }}</b><span v-else class="text-xs text-surface-400">بانتظار التقييم</span>
+                                    </div>
+                                    <p v-if="submission.teacher_feedback" class="text-sm text-surface-600 dark:text-surface-300 mt-3">ملاحظات المدرس: {{ submission.teacher_feedback }}</p>
+                                </div>
+                            </div>
+                            <p v-if="!selectedStudent.submissions.length" class="text-sm text-surface-500 text-center py-4">لا توجد واجبات أو نماذج ورقية مسلّمة.</p>
                         </div>
 
                         <!-- Payments/Transactions -->

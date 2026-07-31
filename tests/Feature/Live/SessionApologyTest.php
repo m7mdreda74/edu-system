@@ -12,7 +12,12 @@ use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+// Binds $this inside every Pest closure in this file to Tests\TestCase.
+uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
     foreach (['admin', 'teacher', 'student', 'parent'] as $role) {

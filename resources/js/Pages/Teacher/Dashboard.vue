@@ -56,7 +56,7 @@ defineProps({
             <div class="rounded-2xl border border-primary-500/20 bg-primary-500/5 p-4 flex items-start gap-3">
                 <Icon name="info" class="w-5 h-5 text-primary-600 shrink-0" />
                 <p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-                    الإدارة مسؤولة عن الإسناد والمجموعات والمواعيد والسعة والأسعار والاشتراكات والتسويات المالية.
+                    الإدارة مسؤولة عن الإسناد والمجموعات والسعة والأسعار والاشتراكات والتسويات المالية، وأنت مسؤول عن المواعيد والعمل الأكاديمي.
                     دورك هنا أكاديمي: المنهج، الدروس، الفيديوهات، الملازم، الواجبات، الاختبارات والحصص المباشرة.
                 </p>
             </div>

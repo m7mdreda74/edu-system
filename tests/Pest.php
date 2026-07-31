@@ -10,15 +10,11 @@ use Tests\TestCase;
 | Test Case
 |--------------------------------------------------------------------------
 |
-| Feature tests boot the full application and run against a fresh schema, so
-| every test starts from a known-empty database. Directories are listed one by
-| one because `Tests\Feature\Admin\ThemeSettingsTest` binds its own test case.
+| Unit tests use the full TestCase with RefreshDatabase. Feature test files
+| each call uses(TestCase::class, RefreshDatabase::class) directly in the
+| file so that Intelephense can resolve $this inside Pest closures.
 |
 */
-
-pest()->extend(TestCase::class)
-    ->use(RefreshDatabase::class)
-    ->in('Feature/Admin/AdminControlTest.php', 'Feature/Auth', 'Feature/Browse', 'Feature/Communication', 'Feature/Curriculum', 'Feature/Live', 'Feature/Subscription');
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)

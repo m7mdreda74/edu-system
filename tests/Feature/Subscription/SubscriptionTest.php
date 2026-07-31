@@ -7,13 +7,23 @@ use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
+use App\Domain\Communication\Models\ChatMessage;
 use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\Scheduling\Models\PrivateLessonRequest;
+use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
+use App\Notifications\GenericDatabaseNotification;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+// Binds $this inside every Pest closure in this file to Tests\TestCase.
+uses(TestCase::class, RefreshDatabase::class);
 
 // ─── Monthly subscriptions replace one-off course purchases ──────────────────
 
@@ -170,6 +180,124 @@ it('sends the student to checkout when they subscribe from the profile', functio
     $subscription = Subscription::where('student_id', $this->student->id)->firstOrFail();
 
     expect($subscription->status)->toBe(Subscription::STATUS_PENDING);
+});
+
+it('creates one private lesson request and opens the agreement chat with the teacher', function () {
+    Notification::fake();
+
+    $response = $this->actingAs($this->student)
+        ->post(route('student.private-lesson-requests.store', ['assignmentId' => $this->assignment->id]), [
+            'note' => 'الأحد بعد السادسة مناسب لي',
+        ]);
+
+    $privateRequest = PrivateLessonRequest::firstOrFail();
+
+    $response->assertRedirect(route('chat.index', ['conversation' => $privateRequest->conversation_id]));
+
+    expect($privateRequest->student_id)->toBe($this->student->id)
+        ->and($privateRequest->teaching_assignment_id)->toBe($this->assignment->id)
+        ->and($privateRequest->status)->toBe(PrivateLessonRequest::STATUS_PENDING)
+        ->and(ChatMessage::where('conversation_id', $privateRequest->conversation_id)
+            ->where('sender_id', $this->student->id)
+            ->where('message', 'like', '%الأحد بعد السادسة%')
+            ->exists())->toBeTrue()
+        ->and(Subscription::where('student_id', $this->student->id)->exists())->toBeFalse();
+
+    Notification::assertSentTo($this->assignment->teacher, GenericDatabaseNotification::class);
+
+    $this->actingAs($this->student)
+        ->post(route('student.private-lesson-requests.store', ['assignmentId' => $this->assignment->id]))
+        ->assertRedirect(route('chat.index', ['conversation' => $privateRequest->conversation_id]));
+
+    expect(PrivateLessonRequest::count())->toBe(1);
+});
+
+it('shows the pending private request on the teacher profile', function () {
+    $this->actingAs($this->student)
+        ->post(route('student.private-lesson-requests.store', ['assignmentId' => $this->assignment->id]));
+
+    $this->actingAs($this->student)
+        ->get(route('teachers.show', [
+            'id' => $this->assignment->teacher_id,
+            'grade' => $this->assignment->gradeLevel->key,
+            'subject' => $this->assignment->subject_id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('focus.grade', $this->assignment->gradeLevel->key)
+            ->where('focus.subject', $this->assignment->subject_id)
+            ->where('assignments.0.private_request.status', PrivateLessonRequest::STATUS_PENDING)
+            ->where('assignments.0.private_request.conversation_id', PrivateLessonRequest::first()->conversation_id));
+});
+
+it('lets a student reserve one free intro session per teacher without creating a payment or subscription', function () {
+    Notification::fake();
+    $teacher = $this->assignment->teacher;
+
+    $this->actingAs($teacher)
+        ->post(route('teacher.free-intro-sessions.store'), [
+            'teaching_assignment_id' => $this->assignment->id,
+            'starts_at' => now()->addDays(2)->setTime(16, 0)->format('Y-m-d H:i:s'),
+            'ends_at' => now()->addDays(2)->setTime(17, 0)->format('Y-m-d H:i:s'),
+            'timezone' => 'Asia/Qatar',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $firstSlot = PrivateSessionSlot::firstOrFail();
+
+    $profileRoute = route('teachers.show', [
+        'id' => $teacher->id,
+        'grade' => $this->assignment->gradeLevel->key,
+        'subject' => $this->assignment->subject_id,
+    ]);
+
+    $this->actingAs($this->student)
+        ->get($profileRoute)
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('assignments.0.free_intro_slots.0.id', $firstSlot->id)
+            ->where('freeIntroBooking', null));
+
+    $this->actingAs($this->student)
+        ->post(route('student.free-intro-sessions.store', $firstSlot->id))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($firstSlot->fresh())
+        ->is_free_intro->toBeTrue()
+        ->status->toBe('booked')
+        ->and(SessionBooking::where('student_id', $this->student->id)
+            ->where('private_session_slot_id', $firstSlot->id)
+            ->where('status', 'confirmed')
+            ->count())->toBe(1)
+        ->and(Subscription::where('student_id', $this->student->id)->count())->toBe(0);
+
+    Notification::assertSentTo($teacher, GenericDatabaseNotification::class);
+
+    $this->actingAs($this->student)
+        ->get($profileRoute)
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('assignments.0.free_intro_slots', 0)
+            ->where('freeIntroBooking.id', SessionBooking::where('student_id', $this->student->id)->value('id')));
+
+    $secondSlot = PrivateSessionSlot::create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'starts_at' => now()->addDays(3)->setTime(16, 0),
+        'ends_at' => now()->addDays(3)->setTime(17, 0),
+        'timezone' => 'Asia/Qatar',
+        'is_free_intro' => true,
+        'status' => 'available',
+    ]);
+
+    $this->actingAs($this->student)
+        ->post(route('student.free-intro-sessions.store', $secondSlot->id))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($secondSlot->fresh()->status)->toBe('available')
+        ->and(SessionBooking::where('student_id', $this->student->id)->count())->toBe(1);
 });
 
 it('shows the student their classes', function () {

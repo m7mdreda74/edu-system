@@ -42,7 +42,7 @@ const form = useForm({
 
             <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
                 {{ isTeacher
-                    ? 'تحديث بياناتك وملفك العام الذي يراه الطلاب قبل الحجز معك.'
+                    ? 'تحديث بياناتك وملفك العام الذي يراه الطلاب قبل اختيار إحدى مجموعاتك أو حصصك الخاصة.'
                     : 'تحديث معلومات حسابك الشخصي والبريد الإلكتروني والصورة الشخصية.' }}
             </p>
         </header>
@@ -113,7 +113,7 @@ const form = useForm({
                 <div class="pt-6 border-t border-surface-200 dark:border-surface-700">
                     <h3 class="font-bold text-surface-900 dark:text-white text-sm mb-1">ملفك العام للطلاب</h3>
                     <p class="text-xs text-surface-500 dark:text-surface-400">
-                        الطالب يشوف الفيديو التعريفي ونبذتك قبل ما يقرر يحجز معك — كمّلهم عشان تظهر بشكل أفضل.
+                        الطالب يشوف الفيديو التعريفي ونبذتك قبل ما يختار إحدى مجموعاتك أو حصصك الخاصة — كمّلهم عشان تظهر بشكل أفضل.
                     </p>
                 </div>
 

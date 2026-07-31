@@ -10,6 +10,7 @@ const props = defineProps({
     assignments: { type: Array, default: () => [] },
     reviews:     { type: Array, default: () => [] },
     focus:       { type: Object, default: () => ({ grade: null, subject: null }) },
+    freeIntroBooking: { type: Object, default: null },
 });
 
 const page      = usePage();
@@ -28,6 +29,7 @@ const activeAssignment = computed(
 );
 
 const playingVideo = ref(false);
+const privateNote = ref('');
 
 const embedUrl = computed(() => {
     const url = props.teacher.intro_video_url;
@@ -56,14 +58,16 @@ function subscribeToGroup(groupId) {
     });
 }
 
-function subscribeToPrivate(assignmentId) {
+function requestPrivateLessons(assignmentId) {
     if (!authUser.value) {
         router.visit(route('login'));
         return;
     }
 
     subscribing.value = `private-${assignmentId}`;
-    router.post(route('student.subscribe.private', { assignmentId }), {}, {
+    router.post(route('student.private-lesson-requests.store', { assignmentId }), {
+        note: privateNote.value,
+    }, {
         onFinish: () => (subscribing.value = null),
     });
 }
@@ -71,6 +75,29 @@ function subscribeToPrivate(assignmentId) {
 function askParentToPay(groupId) {
     router.post(route('student.purchase-requests.store'), { teaching_group_id: groupId });
 }
+
+function bookFreeIntro(slotId) {
+    if (!authUser.value) {
+        router.visit(route('login'));
+        return;
+    }
+
+    subscribing.value = `free-${slotId}`;
+    router.post(route('student.free-intro-sessions.store', { slotId }), {}, {
+        preserveScroll: true,
+        onFinish: () => (subscribing.value = null),
+    });
+}
+
+function formatDateTime(value) {
+    return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+const otherTeachersUrl = computed(() => (
+    props.focus.grade && props.focus.subject
+        ? route('subjects.teachers', { gradeKey: props.focus.grade, subject: props.focus.subject })
+        : route('teachers.index')
+));
 </script>
 
 <template>
@@ -80,6 +107,21 @@ function askParentToPay(groupId) {
         <!-- ── Hero: who they are + intro video ─────────────────────── -->
         <section class="hero-gradient text-white py-14">
             <div class="container-app px-4">
+                <nav v-if="activeAssignment" class="flex items-center gap-2 text-xs text-white/60 mb-6 flex-wrap">
+                    <Link :href="route('grades.show', { key: activeAssignment.grade.key })" class="hover:text-white transition-colors">
+                        {{ activeAssignment.grade.name }}
+                    </Link>
+                    <span>/</span>
+                    <Link
+                        :href="route('subjects.teachers', { gradeKey: activeAssignment.grade.key, subject: activeAssignment.subject.id })"
+                        class="hover:text-white transition-colors"
+                    >
+                        {{ activeAssignment.subject.name }}
+                    </Link>
+                    <span>/</span>
+                    <span class="text-white/90">{{ teacher.name }}</span>
+                </nav>
+
                 <div class="grid lg:grid-cols-2 gap-8 items-center">
                     <div>
                         <div class="flex items-center gap-4 mb-5">
@@ -113,6 +155,9 @@ function askParentToPay(groupId) {
                                 <div class="text-lg font-black">{{ teacher.students_count }}</div>
                                 <div class="text-[11px] text-white/60">طالب حالياً</div>
                             </div>
+                            <Link :href="otherTeachersUrl" class="btn-outline btn-sm border-white/30 text-white hover:bg-white/10">
+                                مشاهدة مدرس آخر
+                            </Link>
                         </div>
                     </div>
 
@@ -159,7 +204,7 @@ function askParentToPay(groupId) {
         <section class="section">
             <div class="container-app">
                 <div v-if="assignments.length">
-                    <h2 class="text-xl font-black text-surface-900 dark:text-white mb-4">المواد والمجموعات</h2>
+                    <h2 class="text-xl font-black text-surface-900 dark:text-white mb-4">مواعيد المدرس وخيارات الحجز</h2>
 
                     <!-- Subject tabs -->
                     <div class="flex flex-wrap gap-2 mb-6">
@@ -176,6 +221,39 @@ function askParentToPay(groupId) {
                             {{ assignment.subject?.name }}
                             <span class="opacity-60"> — {{ assignment.grade?.name }}</span>
                         </button>
+                    </div>
+
+                    <div class="card p-5 mb-5 border-accent-500/30 bg-accent-500/5">
+                        <div class="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                                <h3 class="font-black text-surface-900 dark:text-white">حصة تجريبية مجانية</h3>
+                                <p class="text-xs text-surface-500 mt-1">
+                                    احجز مسبقًا حصة واحدة مع المدرس بدون دفع أو إدخال بيانات مالية.
+                                </p>
+                            </div>
+                            <span class="badge-green">مجانية 100%</span>
+                        </div>
+
+                        <div v-if="freeIntroBooking" class="mt-4 rounded-xl bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-300">
+                            حجزك مؤكد: {{ formatDateTime(freeIntroBooking.starts_at) }}
+                        </div>
+
+                        <div v-else-if="activeAssignment.free_intro_slots?.length" class="mt-4 flex flex-wrap gap-2">
+                            <button
+                                v-for="slot in activeAssignment.free_intro_slots"
+                                :key="slot.id"
+                                type="button"
+                                class="btn-outline btn-sm"
+                                :disabled="subscribing === `free-${slot.id}`"
+                                @click="bookFreeIntro(slot.id)"
+                            >
+                                {{ subscribing === `free-${slot.id}` ? 'جارٍ الحجز...' : formatDateTime(slot.starts_at) }}
+                            </button>
+                        </div>
+
+                        <p v-else class="mt-4 text-xs text-surface-400">
+                            لا يوجد موعد مجاني منشور لهذا الصف حاليًا.
+                        </p>
                     </div>
 
                     <div v-if="activeAssignment" class="grid lg:grid-cols-3 gap-5">
@@ -215,7 +293,7 @@ function askParentToPay(groupId) {
                                                     :disabled="subscribing === `group-${group.id}`"
                                                     @click="subscribeToGroup(group.id)"
                                                 >
-                                                    {{ subscribing === `group-${group.id}` ? '...' : 'اشترك شهرياً' }}
+                                                    {{ subscribing === `group-${group.id}` ? '...' : 'احجز المجموعة' }}
                                                 </button>
 
                                                 <button
@@ -245,21 +323,40 @@ function askParentToPay(groupId) {
 
                             <template v-if="activeAssignment.accepts_private">
                                 <p class="text-xs text-surface-500 dark:text-surface-400 mb-4 leading-relaxed">
-                                    حصص فردية مع المعلم بمواعيد تتفق عليها معه، باشتراك شهري.
+                                    البرايفت بسعر أعلى من المجموعة، والموعد لا يُحجز مسبقًا؛ ترسل طلبًا ثم تتفق مع المدرس على الموعد المناسب.
                                 </p>
 
                                 <div class="text-xl font-black text-primary-700 dark:text-primary-400 mb-4">
                                     {{ formatMonthly(activeAssignment.private_monthly_price) }}
                                 </div>
 
-                                <button
-                                    type="button"
+                                <Link
+                                    v-if="activeAssignment.private_request?.conversation_id"
+                                    :href="route('chat.index', { conversation: activeAssignment.private_request.conversation_id })"
                                     class="btn-accent btn-sm w-full justify-center"
-                                    :disabled="subscribing === `private-${activeAssignment.id}`"
-                                    @click="subscribeToPrivate(activeAssignment.id)"
                                 >
-                                    {{ subscribing === `private-${activeAssignment.id}` ? '...' : 'اشترك في الحصص الخاصة' }}
-                                </button>
+                                    متابعة الاتفاق مع المدرس
+                                </Link>
+
+                                <template v-else>
+                                    <label class="input-label" for="private-note">الأوقات المناسبة لك (اختياري)</label>
+                                    <textarea
+                                        id="private-note"
+                                        v-model="privateNote"
+                                        class="input min-h-20 mb-3"
+                                        maxlength="1000"
+                                        placeholder="مثال: الأحد والثلاثاء بعد الساعة 6 مساءً"
+                                    ></textarea>
+
+                                    <button
+                                        type="button"
+                                        class="btn-accent btn-sm w-full justify-center"
+                                        :disabled="subscribing === `private-${activeAssignment.id}`"
+                                        @click="requestPrivateLessons(activeAssignment.id)"
+                                    >
+                                        {{ subscribing === `private-${activeAssignment.id}` ? '...' : 'قدّم طلب حجز برايفت' }}
+                                    </button>
+                                </template>
                             </template>
 
                             <p v-else class="text-xs text-surface-400">

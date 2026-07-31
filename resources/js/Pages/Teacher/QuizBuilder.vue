@@ -68,6 +68,7 @@ function makeDraft(question = null) {
         id:            question?.id ?? null,
         question_text: question?.question_text ?? '',
         type:          question?.type ?? 'single',
+        points:        question?.points ?? 1,
         order:         question?.order ?? null,
         options:       question?.options?.length
             ? question.options.map((option) => makeOption(option.option_text, !!option.is_correct))
@@ -103,6 +104,7 @@ watch(() => props.questions, syncDrafts, { immediate: true });
 
 const savedDrafts = computed(() => drafts.value.filter((draft) => draft.id !== null));
 const pendingCount = computed(() => drafts.value.length - savedDrafts.value.length);
+const totalPoints = computed(() => drafts.value.reduce((total, draft) => total + Number(draft.points || 0), 0));
 
 // Collapsing is keyed by question id rather than kept on the draft, so a
 // reload from the server does not silently unfold the whole list again.
@@ -203,6 +205,10 @@ function problemOf(draft) {
         return 'اكتب نص السؤال أولاً.';
     }
 
+    if (Number(draft.points) < 1) {
+        return 'حدد نقطة واحدة على الأقل للسؤال.';
+    }
+
     if (draft.options.length < MIN_OPTIONS) {
         return 'يجب أن يحتوي السؤال على إجابتين على الأقل.';
     }
@@ -228,6 +234,7 @@ function questionPayload(draft, order = null) {
     return {
         question_text: draft.question_text,
         type:          draft.type,
+        points:        draft.points,
         order:         order ?? draft.order,
         options:       draft.options.map((option) => ({
             option_text: option.option_text,
@@ -397,8 +404,8 @@ function optionError(draft, index) {
                 </div>
 
                 <div class="card p-4">
-                    <div class="text-[11px] text-surface-400 mb-1">درجة النجاح المطلوبة</div>
-                    <div class="text-2xl font-black text-surface-900 dark:text-white">{{ settings.passing_score }}%</div>
+                    <div class="text-[11px] text-surface-400 mb-1">إجمالي نقاط الاختبار</div>
+                    <div class="text-2xl font-black text-surface-900 dark:text-white">{{ totalPoints }}</div>
                 </div>
 
                 <div class="card p-4">
@@ -526,6 +533,7 @@ function optionError(draft, index) {
                             </div>
                             <div class="text-[11px] text-surface-400 flex items-center gap-2 mt-0.5 flex-wrap">
                                 <span>{{ draft.type === 'single' ? 'اختيار واحد' : 'اختيار متعدد' }}</span>
+                                <span>· {{ draft.points }} نقطة</span>
                                 <span>· {{ draft.options.length }} إجابات</span>
                                 <span>· {{ correctCount(draft) }} صحيحة</span>
                                 <span v-if="draft.dirty" class="text-accent-600 dark:text-accent-400 font-bold">· غير محفوظ</span>
@@ -565,9 +573,10 @@ function optionError(draft, index) {
                             <p v-if="draft.errors.question_text" class="error-msg">{{ draft.errors.question_text }}</p>
                         </div>
 
-                        <div>
-                            <label class="input-label">نوع السؤال</label>
-                            <div class="flex flex-wrap gap-2">
+                        <div class="grid sm:grid-cols-[1fr_140px] gap-4">
+                            <div>
+                                <label class="input-label">نوع السؤال</label>
+                                <div class="flex flex-wrap gap-2">
                                 <button type="button" class="btn btn-sm border"
                                         :class="draft.type === 'single'
                                             ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200'
@@ -582,6 +591,20 @@ function optionError(draft, index) {
                                         @click="changeType(draft, 'multiple')">
                                     أكثر من إجابة صحيحة
                                 </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="input-label">نقاط السؤال</label>
+                                <input
+                                    v-model.number="draft.points"
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    class="input"
+                                    :class="{ 'input-error': draft.errors.points }"
+                                    @input="draft.dirty = true"
+                                />
+                                <p v-if="draft.errors.points" class="error-msg">{{ draft.errors.points }}</p>
                             </div>
                         </div>
 

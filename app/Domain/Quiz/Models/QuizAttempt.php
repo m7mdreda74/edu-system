@@ -22,6 +22,8 @@ class QuizAttempt extends Model
         'user_id',
         'quiz_id',
         'score',
+        'earned_points',
+        'total_points',
         'passed',
         'started_at',
         'submitted_at',
@@ -32,6 +34,8 @@ class QuizAttempt extends Model
     {
         return [
             'score'        => 'integer', // computed server-side ONLY
+            'earned_points' => 'integer',
+            'total_points'  => 'integer',
             'passed'       => 'boolean',
             'started_at'   => 'datetime',
             'submitted_at' => 'datetime',

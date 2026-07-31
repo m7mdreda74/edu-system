@@ -79,7 +79,10 @@ class WorksheetController extends Controller
 
     public function gradeSubmission(Request $request, int $submissionId): RedirectResponse
     {
-        $submission = WorksheetSubmission::with('worksheet.unit.assignment')->findOrFail($submissionId);
+        $submission = WorksheetSubmission::with([
+            'worksheet.unit.assignment',
+            'student.parentLinks.parent',
+        ])->findOrFail($submissionId);
 
         $this->assertOwnsAssignment($submission->worksheet?->unit?->assignment);
 
@@ -94,11 +97,32 @@ class WorksheetController extends Controller
             'graded_at'        => now(),
         ]);
 
+        $isPaperExam = $submission->worksheet->type === Worksheet::TYPE_PAPER_EXAM;
+        $assessment = $isPaperExam ? 'الاختبار الورقي' : 'الواجب';
+        $message = "تم تقييم {$assessment} '{$submission->worksheet->title}' بدرجة {$validated['score']}/{$submission->worksheet->max_score}.";
+
+        if (! empty($validated['teacher_feedback'])) {
+            $message .= " تقييم المدرس: {$validated['teacher_feedback']}";
+        }
+
         $submission->student?->notify(new GenericDatabaseNotification([
-            'title'   => 'تم تصحيح الواجب 📝',
-            'message' => "تم تصحيح واجبك في '{$submission->worksheet->title}' وحصلت على درجة {$validated['score']}/{$submission->worksheet->max_score}.",
+            'title'   => $isPaperExam ? 'تم تقييم الاختبار الورقي 📝' : 'تم تصحيح الواجب 📝',
+            'message' => $message,
             'link'    => $this->learnLink($submission),
         ]));
+
+        if ($isPaperExam) {
+            foreach ($submission->student?->parentLinks ?? [] as $link) {
+                if ($link->verified_at && $link->parent) {
+                    $link->parent->notify(new GenericDatabaseNotification([
+                        'title' => 'تقييم اختبار ورقي جديد',
+                        'message' => "تم تقييم {$submission->student->name} في '{$submission->worksheet->title}' بدرجة {$validated['score']}/{$submission->worksheet->max_score}."
+                            .(! empty($validated['teacher_feedback']) ? " تقييم المدرس: {$validated['teacher_feedback']}" : ''),
+                        'link' => route('parent.dashboard', ['student_id' => $submission->student_id]),
+                    ]));
+                }
+            }
+        }
 
         return back()->with('success', 'تم حفظ الدرجة والتقييم بنجاح.');
     }

@@ -11,7 +11,6 @@ import { useConfirm } from '@/composables/useConfirm';
 const props = defineProps({
     groups:       { type: Object, required: true },
     assignments:  { type: Array, default: () => [] },
-    privateSlots: { type: Array, default: () => [] },
     teachers:     { type: Array, default: () => [] },
     subjects:     { type: Array, default: () => [] },
     gradeLevels:  { type: Array, default: () => [] },
@@ -22,7 +21,6 @@ const props = defineProps({
 
 const { confirm } = useConfirm();
 
-const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const managementTab = ref('assignments');
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? '');
@@ -49,9 +47,6 @@ const groupForm = useForm({
     name: '',
     capacity: 10,
     monthly_price_qar: 0,
-    day_of_week: 0,
-    start_time: '',
-    end_time: '',
     timezone: 'Asia/Qatar',
 });
 
@@ -62,13 +57,6 @@ const groupEdit = useForm({
     monthly_price_qar: 0,
     academic_term_id: '',
     is_active: true,
-});
-
-const privateForm = useForm({
-    teaching_assignment_id: '',
-    starts_at: '',
-    ends_at: '',
-    timezone: 'Asia/Qatar',
 });
 
 const apply = debounce(() => {
@@ -109,7 +97,6 @@ function storeGroup() {
             groupForm.reset();
             groupForm.capacity = 10;
             groupForm.monthly_price_qar = 0;
-            groupForm.day_of_week = 0;
             groupForm.timezone = 'Asia/Qatar';
         },
     });
@@ -155,26 +142,6 @@ async function destroyGroup(group) {
     if (ok) router.delete(route('admin.teaching-groups.destroy', group.id), { preserveScroll: true });
 }
 
-function storePrivateSlot() {
-    privateForm.post(route('admin.private-slots.store'), {
-        preserveScroll: true,
-        onSuccess: () => privateForm.reset('starts_at', 'ends_at'),
-    });
-}
-
-async function destroyPrivateSlot(slot) {
-    const ok = await confirm({
-        title: 'إلغاء موعد البرايفت',
-        message: 'سيتم إلغاء هذا الموعد.',
-        confirmLabel: 'إلغاء',
-        variant: 'warning',
-    });
-    if (ok) router.delete(route('admin.private-slots.destroy', slot.id), { preserveScroll: true });
-}
-
-function formatDate(value) {
-    return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
-}
 </script>
 
 <template>
@@ -185,7 +152,7 @@ function formatDate(value) {
             <header>
                 <h1 class="text-2xl font-black text-surface-900 dark:text-white">إدارة التدريس والتسعير</h1>
                 <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                    الإدارة وحدها تنشئ الإسنادات والمجموعات، وتحدد السعة والمواعيد وأسعار المجموعات والبرايفيت.
+                    الإدارة تنشئ الإسنادات والمجموعات وتحدد السعة والأسعار، والمدرس يحدد المواعيد وينشر الحصص والمحتوى والاختبارات.
                 </p>
             </header>
 
@@ -202,7 +169,6 @@ function formatDate(value) {
                         v-for="item in [
                             { key: 'assignments', label: 'إسناد المواد وتسعير البرايفيت' },
                             { key: 'groups', label: 'إنشاء مجموعة وتسعيرها' },
-                            { key: 'private', label: 'مواعيد البرايفيت' },
                         ]"
                         :key="item.key"
                         type="button"
@@ -301,11 +267,6 @@ function formatDate(value) {
                             <input v-model="groupForm.name" class="input" placeholder="اسم المجموعة" required />
                             <input v-model.number="groupForm.capacity" type="number" min="1" max="1000" class="input" placeholder="السعة" required />
                             <input v-model.number="groupForm.monthly_price_qar" type="number" min="0" step="0.01" class="input" placeholder="السعر الشهري ر.ق" required />
-                            <select v-model.number="groupForm.day_of_week" class="input">
-                                <option v-for="(day, index) in days" :key="day" :value="index">{{ day }}</option>
-                            </select>
-                            <input v-model="groupForm.start_time" type="time" class="input" required />
-                            <input v-model="groupForm.end_time" type="time" class="input" required />
                             <button class="btn-primary" :disabled="groupForm.processing">إنشاء وتسعير المجموعة</button>
                         </div>
                         <p v-if="Object.keys(groupForm.errors).length" class="text-xs text-red-500">{{ Object.values(groupForm.errors)[0] }}</p>
@@ -324,31 +285,6 @@ function formatDate(value) {
                     </form>
                 </div>
 
-                <div v-else class="p-5 space-y-6">
-                    <form class="grid md:grid-cols-4 gap-3" @submit.prevent="storePrivateSlot">
-                        <select v-model="privateForm.teaching_assignment_id" class="input md:col-span-2" required>
-                            <option value="">اختر إسنادًا مفعّلًا للبرايفيت</option>
-                            <option v-for="assignment in assignments.filter((item) => item.is_active && item.accepts_private)" :key="assignment.id" :value="assignment.id">
-                                {{ assignment.teacher?.name }} — {{ assignment.subject?.name }} — {{ assignment.grade?.name }}
-                            </option>
-                        </select>
-                        <input v-model="privateForm.starts_at" type="datetime-local" class="input" required />
-                        <input v-model="privateForm.ends_at" type="datetime-local" class="input" required />
-                        <button class="btn-primary md:col-span-4" :disabled="privateForm.processing">إتاحة الموعد من الإدارة</button>
-                        <p v-if="Object.keys(privateForm.errors).length" class="text-xs text-red-500 md:col-span-4">{{ Object.values(privateForm.errors)[0] }}</p>
-                    </form>
-
-                    <div class="grid md:grid-cols-2 gap-3">
-                        <div v-for="slot in privateSlots" :key="slot.id" class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 flex justify-between gap-3">
-                            <div>
-                                <h3 class="font-bold text-sm">{{ slot.teacher }} — {{ slot.subject }}</h3>
-                                <p class="text-xs text-surface-500 mt-1">{{ slot.grade }} · {{ formatDate(slot.starts_at) }}</p>
-                                <span class="badge-gray text-[10px] mt-2">{{ slot.status }}</span>
-                            </div>
-                            <button class="text-red-500 text-xs" @click="destroyPrivateSlot(slot)">إلغاء</button>
-                        </div>
-                    </div>
-                </div>
             </section>
 
             <div class="card p-4 flex flex-wrap gap-3">

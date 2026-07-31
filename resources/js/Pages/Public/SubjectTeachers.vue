@@ -51,7 +51,7 @@ const sortedTeachers = computed(() => {
 
                 <h1 class="text-3xl sm:text-4xl font-black mb-2">معلمو {{ subject.name }}</h1>
                 <p class="text-white/70 text-sm">
-                    شاهد الفيديو التعريفي لكل معلم، ولو عجبتك طريقة الشرح احجز معه مباشرة.
+                    شاهد الفيديو التعريفي لكل معلم، ثم استعرض مجموعاته وحصصه الخاصة واختر الأنسب لك.
                 </p>
 
                 <!-- Where this student stands in this subject -->

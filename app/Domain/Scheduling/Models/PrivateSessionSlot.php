@@ -13,11 +13,11 @@ class PrivateSessionSlot extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['teaching_assignment_id', 'starts_at', 'ends_at', 'timezone', 'status'];
+    protected $fillable = ['teaching_assignment_id', 'starts_at', 'ends_at', 'timezone', 'is_free_intro', 'status'];
 
     protected function casts(): array
     {
-        return ['starts_at' => 'datetime', 'ends_at' => 'datetime'];
+        return ['starts_at' => 'datetime', 'ends_at' => 'datetime', 'is_free_intro' => 'boolean'];
     }
 
     public function assignment(): BelongsTo { return $this->belongsTo(TeachingAssignment::class, 'teaching_assignment_id'); }

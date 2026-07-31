@@ -8,13 +8,11 @@ use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\GroupMaterial;
-use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,9 +21,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Administrative ownership of teaching assignments, groups, private
- * availability, capacity and pricing. Teachers only consume this configuration
- * while managing their academic content and live classes.
+ * Administrative ownership of teaching assignments, groups, capacity and
+ * pricing. Teachers own schedules, academic content, tests and live classes.
  */
 class TeachingGroupController extends Controller
 {
@@ -100,30 +97,9 @@ class TeachingGroupController extends Controller
             ])
             ->values();
 
-        $privateSlots = PrivateSessionSlot::with([
-            'assignment.teacher:id,name',
-            'assignment.subject:id,name',
-            'assignment.gradeLevel:id,name',
-        ])
-            ->where('starts_at', '>=', now())
-            ->where('status', '!=', 'cancelled')
-            ->orderBy('starts_at')
-            ->limit(30)
-            ->get()
-            ->map(fn (PrivateSessionSlot $slot) => [
-                'id' => $slot->id,
-                'teacher' => $slot->assignment?->teacher?->name,
-                'subject' => $slot->assignment?->subject?->name,
-                'grade' => $slot->assignment?->gradeLevel?->name,
-                'starts_at' => $slot->starts_at?->toIso8601String(),
-                'ends_at' => $slot->ends_at?->toIso8601String(),
-                'status' => $slot->status,
-            ]);
-
         return Inertia::render('Admin/TeachingGroups', [
             'groups' => $groups,
             'assignments' => $assignments,
-            'privateSlots' => $privateSlots,
             'teachers' => User::role('teacher')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'subject_id']),
             'subjects' => Subject::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'gradeLevels' => GradeLevel::where('is_active', true)->orderBy('id')->get(['id', 'key', 'name']),
@@ -202,7 +178,7 @@ class TeachingGroupController extends Controller
         ]);
 
         $price = $this->priceInMinorUnits($data['private_monthly_price_qar'] ?? 0);
-        $this->assertPrivatePrice((bool) $data['accepts_private'], $price);
+        $this->assertPrivatePrice((bool) $data['accepts_private'], $price, $assignment);
 
         $assignment->update([
             'accepts_private' => (bool) $data['accepts_private'],
@@ -221,68 +197,36 @@ class TeachingGroupController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'capacity' => ['required', 'integer', 'min:1', 'max:1000'],
             'monthly_price_qar' => ['required', 'numeric', 'min:0', 'max:1000000'],
-            'day_of_week' => ['required', 'integer', 'between:0,6'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'timezone' => ['nullable', 'timezone'],
         ]);
 
         $assignment = TeachingAssignment::with('teacher')->where('is_active', true)->findOrFail($data['teaching_assignment_id']);
-        $duration = $this->duration($data['start_time'], $data['end_time']);
+        $groupPrice = $this->priceInMinorUnits($data['monthly_price_qar']);
 
-        if ($duration < 15 || $duration > 480) {
+        if ($assignment->offersPrivate() && $groupPrice >= $assignment->private_monthly_price) {
             throw ValidationException::withMessages([
-                'end_time' => 'مدة المجموعة يجب أن تكون بين 15 دقيقة و8 ساعات.',
+                'monthly_price_qar' => 'سعر المجموعة يجب أن يكون أقل من سعر البرايفت.',
             ]);
         }
 
-        $conflict = TeachingGroup::whereHas('assignment', fn ($query) => $query->where('teacher_id', $assignment->teacher_id))
-            ->where('is_active', true)
-            ->where(function ($query) use ($data): void {
-                $query->whereHas('schedules', fn ($schedule) => $schedule
-                    ->where('day_of_week', $data['day_of_week'])
-                    ->where('start_time', '<', $data['end_time'])
-                    ->where('end_time', '>', $data['start_time']))
-                    ->orWhere(function ($legacy) use ($data): void {
-                        $legacy->doesntHave('schedules')
-                            ->where('day_of_week', $data['day_of_week'])
-                            ->where('start_time', '<', $data['end_time'])
-                            ->where('end_time', '>', $data['start_time']);
-                    });
-            })
-            ->exists();
+        TeachingGroup::create([
+            'teaching_assignment_id' => $assignment->id,
+            'academic_term_id' => $data['academic_term_id'] ?? null,
+            'name' => $data['name'],
+            'capacity' => $data['capacity'],
+            'monthly_price' => $groupPrice,
+            'currency' => 'QAR',
+            // Administrative shell only. The teacher publishes the real
+            // schedule from their academic timetable.
+            'day_of_week' => 0,
+            'start_time' => '00:00',
+            'end_time' => '00:00',
+            'duration_minutes' => 0,
+            'timezone' => $data['timezone'] ?? 'Asia/Qatar',
+            'is_active' => true,
+        ]);
 
-        if ($conflict) {
-            throw ValidationException::withMessages([
-                'start_time' => 'الموعد يتعارض مع مجموعة أخرى للمعلم.',
-            ]);
-        }
-
-        DB::transaction(function () use ($data, $assignment, $duration): void {
-            $group = TeachingGroup::create([
-                'teaching_assignment_id' => $assignment->id,
-                'academic_term_id' => $data['academic_term_id'] ?? null,
-                'name' => $data['name'],
-                'capacity' => $data['capacity'],
-                'monthly_price' => $this->priceInMinorUnits($data['monthly_price_qar']),
-                'currency' => 'QAR',
-                'day_of_week' => $data['day_of_week'],
-                'start_time' => $data['start_time'],
-                'end_time' => $data['end_time'],
-                'duration_minutes' => $duration,
-                'timezone' => $data['timezone'] ?? 'Asia/Qatar',
-                'is_active' => true,
-            ]);
-
-            $group->schedules()->create([
-                'day_of_week' => $data['day_of_week'],
-                'start_time' => $data['start_time'],
-                'end_time' => $data['end_time'],
-                'duration_minutes' => $duration,
-            ]);
-        });
-
-        return back()->with('success', 'تم إنشاء المجموعة وتسعيرها بواسطة الإدارة.');
+        return back()->with('success', 'تم إنشاء المجموعة وتسعيرها. يحدد المدرس مواعيدها من جدوله.');
     }
 
     public function update(Request $request, int $id): RedirectResponse
@@ -302,73 +246,24 @@ class TeachingGroupController extends Controller
             ]);
         }
 
+        $groupPrice = $this->priceInMinorUnits($data['monthly_price_qar']);
+        $group->loadMissing('assignment');
+
+        if ($group->assignment?->offersPrivate() && $groupPrice >= $group->assignment->private_monthly_price) {
+            throw ValidationException::withMessages([
+                'monthly_price_qar' => 'سعر المجموعة يجب أن يكون أقل من سعر البرايفت.',
+            ]);
+        }
+
         $group->update([
             'name' => $data['name'],
             'capacity' => $data['capacity'],
-            'monthly_price' => $this->priceInMinorUnits($data['monthly_price_qar']),
+            'monthly_price' => $groupPrice,
             'academic_term_id' => $data['academic_term_id'] ?? null,
             'is_active' => (bool) $data['is_active'],
         ]);
 
         return back()->with('success', 'تم تحديث بيانات المجموعة وسعرها.');
-    }
-
-    public function storePrivateSlot(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'teaching_assignment_id' => ['required', 'integer', 'exists:teaching_assignments,id'],
-            'starts_at' => ['required', 'date', 'after:now'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
-            'timezone' => ['nullable', 'timezone'],
-        ]);
-
-        $assignment = TeachingAssignment::where('is_active', true)->findOrFail($data['teaching_assignment_id']);
-        abort_unless($assignment->offersPrivate(), 422, 'فعّل البرايفيت وحدد سعره أولاً.');
-
-        $starts = Carbon::parse($data['starts_at']);
-        $ends = Carbon::parse($data['ends_at']);
-        $duration = $starts->diffInMinutes($ends);
-
-        if ($duration < 15 || $duration > 480) {
-            throw ValidationException::withMessages([
-                'ends_at' => 'مدة البرايفيت يجب أن تكون بين 15 دقيقة و8 ساعات.',
-            ]);
-        }
-
-        $overlap = PrivateSessionSlot::where('teaching_assignment_id', $assignment->id)
-            ->where('status', '!=', 'cancelled')
-            ->where('starts_at', '<', $ends)
-            ->where('ends_at', '>', $starts)
-            ->exists();
-
-        if ($overlap) {
-            throw ValidationException::withMessages([
-                'starts_at' => 'هذا الموعد يتعارض مع موعد برايفيت آخر.',
-            ]);
-        }
-
-        PrivateSessionSlot::create([
-            'teaching_assignment_id' => $assignment->id,
-            'starts_at' => $starts,
-            'ends_at' => $ends,
-            'timezone' => $data['timezone'] ?? 'Asia/Qatar',
-            'status' => 'available',
-        ]);
-
-        return back()->with('success', 'تمت إتاحة موعد البرايفيت بواسطة الإدارة.');
-    }
-
-    public function destroyPrivateSlot(int $id): RedirectResponse
-    {
-        $slot = PrivateSessionSlot::with('booking')->findOrFail($id);
-
-        if ($slot->booking?->status === 'confirmed') {
-            return back()->with('error', 'لا يمكن إلغاء موعد برايفيت محجوز.');
-        }
-
-        $slot->update(['status' => 'cancelled']);
-
-        return back()->with('success', 'تم إلغاء موعد البرايفيت.');
     }
 
     public function destroy(int $id): RedirectResponse
@@ -443,19 +338,26 @@ class TeachingGroupController extends Controller
         return (int) round((float) $price * 100);
     }
 
-    private function assertPrivatePrice(bool $acceptsPrivate, int $price): void
+    private function assertPrivatePrice(
+        bool $acceptsPrivate,
+        int $price,
+        ?TeachingAssignment $assignment = null,
+    ): void
     {
         if ($acceptsPrivate && $price <= 0) {
             throw ValidationException::withMessages([
                 'private_monthly_price_qar' => 'حدد سعرًا أكبر من صفر عند تفعيل الحصص الخاصة.',
             ]);
         }
+
+        $highestGroupPrice = $assignment?->groups()->max('monthly_price');
+
+        if ($acceptsPrivate && $highestGroupPrice !== null && $price <= (int) $highestGroupPrice) {
+            throw ValidationException::withMessages([
+                'private_monthly_price_qar' => 'سعر البرايفت يجب أن يكون أعلى من سعر كل المجموعات.',
+            ]);
+        }
     }
 
-    private function duration(string $start, string $end): int
-    {
-        return (int) Carbon::createFromFormat('H:i', $start)
-            ->diffInMinutes(Carbon::createFromFormat('H:i', $end));
-    }
 }
 

@@ -91,7 +91,8 @@ class QuizService
             throw new LogicException('الاختبار لا يحتوي على أسئلة.');
         }
 
-        $correct = 0;
+        $earnedPoints = 0;
+        $totalPoints = (int) $questions->sum(fn ($question): int => max(1, (int) $question->points));
 
         foreach ($questions as $question) {
             $submittedOptionIds = collect($answers[$question->id] ?? [])
@@ -110,17 +111,20 @@ class QuizService
                 && empty(array_diff($correctOptionIds, $submittedOptionIds));
 
             if ($isCorrect) {
-                $correct++;
+                $earnedPoints += max(1, (int) $question->points);
             }
         }
 
-        // Server-side score calculation only
-        $scorePercent = (int) round(($correct / $total) * 100);
+        // The student earns each question's configured points. The percentage
+        // remains the stable value used by the passing-score rule.
+        $scorePercent = (int) round(($earnedPoints / $totalPoints) * 100);
         $passed       = $scorePercent >= $quiz->passing_score;
 
-        return DB::transaction(function () use ($attempt, $scorePercent, $passed) {
+        return DB::transaction(function () use ($attempt, $scorePercent, $passed, $earnedPoints, $totalPoints) {
             $attempt->update([
                 'score'        => $scorePercent,
+                'earned_points' => $earnedPoints,
+                'total_points'  => $totalPoints,
                 'passed'       => $passed,
                 'submitted_at' => now(),
             ]);

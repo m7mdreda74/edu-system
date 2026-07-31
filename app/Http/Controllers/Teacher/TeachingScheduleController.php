@@ -8,6 +8,7 @@ use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Scheduling\Models\TeachingGroupLesson;
+use App\Domain\Scheduling\Models\TeachingGroupSchedule;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -29,6 +30,12 @@ class TeachingScheduleController extends Controller
                 ->withCount('activeBookings')
                 ->orderBy('day_of_week')
                 ->orderBy('start_time'),
+            'privateSlots' => fn ($query) => $query
+                ->where('is_free_intro', true)
+                ->where('status', '!=', 'cancelled')
+                ->where('starts_at', '>=', now())
+                ->with('booking.student:id,name')
+                ->orderBy('starts_at'),
         ])
             ->where('teacher_id', Auth::id())
             ->where('is_active', true)
@@ -56,6 +63,78 @@ class TeachingScheduleController extends Controller
         return back()->with('success', 'تمت إضافة الحصة إلى خطة المجموعة.');
     }
 
+    public function storeGroupSchedule(Request $request, int $id): RedirectResponse
+    {
+        $group = TeachingGroup::with('assignment')->findOrFail($id);
+        abort_if($group->assignment->teacher_id !== Auth::id(), 403);
+
+        $data = $request->validate([
+            'day_of_week' => ['required', 'integer', 'between:0,6'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+        ]);
+
+        $duration = (int) Carbon::createFromFormat('H:i', $data['start_time'])
+            ->diffInMinutes(Carbon::createFromFormat('H:i', $data['end_time']));
+
+        if ($duration < 15 || $duration > 480) {
+            return back()->withErrors(['end_time' => 'مدة الموعد يجب أن تكون بين 15 دقيقة و8 ساعات.']);
+        }
+
+        $conflict = TeachingGroupSchedule::whereHas(
+            'group.assignment',
+            fn ($query) => $query->where('teacher_id', Auth::id()),
+        )
+            ->where('day_of_week', $data['day_of_week'])
+            ->where('start_time', '<', $data['end_time'])
+            ->where('end_time', '>', $data['start_time'])
+            ->exists();
+
+        if ($conflict) {
+            return back()->withErrors(['start_time' => 'الموعد يتعارض مع مجموعة أخرى في جدولك.']);
+        }
+
+        $schedule = $group->schedules()->create([
+            ...$data,
+            'duration_minutes' => $duration,
+        ]);
+
+        if ($group->schedules()->count() === 1) {
+            $group->update([
+                'day_of_week' => $schedule->day_of_week,
+                'start_time' => $schedule->start_time,
+                'end_time' => $schedule->end_time,
+                'duration_minutes' => $schedule->duration_minutes,
+            ]);
+        }
+
+        return back()->with('success', 'تمت إضافة موعد المجموعة.');
+    }
+
+    public function destroyGroupSchedule(int $id): RedirectResponse
+    {
+        $schedule = TeachingGroupSchedule::with('group.assignment')->findOrFail($id);
+        abort_if($schedule->group?->assignment?->teacher_id !== Auth::id(), 403);
+
+        $group = $schedule->group;
+        $schedule->delete();
+
+        $first = $group->schedules()->first();
+        $group->update($first ? [
+            'day_of_week' => $first->day_of_week,
+            'start_time' => $first->start_time,
+            'end_time' => $first->end_time,
+            'duration_minutes' => $first->duration_minutes,
+        ] : [
+            'day_of_week' => 0,
+            'start_time' => '00:00',
+            'end_time' => '00:00',
+            'duration_minutes' => 0,
+        ]);
+
+        return back()->with('success', 'تم حذف موعد المجموعة.');
+    }
+
     public function scheduleGroupLesson(int $id): RedirectResponse
     {
         return DB::transaction(function () use ($id): RedirectResponse {
@@ -69,7 +148,7 @@ class TeachingScheduleController extends Controller
 
             $nextLesson = $group->lessons()->where('status', 'pending')->orderBy('position')->first();
             abort_if(! $nextLesson || $nextLesson->id !== $lesson->id, 422, 'يجب جدولة الحصة الموجودة عليها الدور أولاً.');
-            abort_if($group->schedules->isEmpty(), 422, 'لا يوجد موعد للمجموعة. تواصل مع الإدارة.');
+            abort_if($group->schedules->isEmpty(), 422, 'لا يوجد موعد للمجموعة. أضف موعدًا من جدولك أولًا.');
 
             $session = LiveSession::create([
                 'teacher_id' => Auth::id(),

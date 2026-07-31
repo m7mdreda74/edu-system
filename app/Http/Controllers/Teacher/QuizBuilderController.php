@@ -74,6 +74,7 @@ class QuizBuilderController extends Controller
                 'id'            => $question->id,
                 'question_text' => $question->question_text,
                 'type'          => $question->type,
+                'points'        => $question->points,
                 'order'         => $question->order,
                 'options'       => $question->options->map(fn (QuizOption $option): array => [
                     'id'          => $option->id,
@@ -144,6 +145,7 @@ class QuizBuilderController extends Controller
             $question = $quiz->questions()->create([
                 'question_text' => $request->validated('question_text'),
                 'type'          => $request->validated('type'),
+                'points'        => $request->integer('points', 1),
                 'order'         => $request->integer('order') ?: (int) $quiz->questions()->max('order') + 1,
             ]);
 
@@ -161,6 +163,7 @@ class QuizBuilderController extends Controller
             $question->update([
                 'question_text' => $request->validated('question_text'),
                 'type'          => $request->validated('type'),
+                'points'        => $request->integer('points', 1),
                 'order'         => $request->integer('order') ?: $question->order,
             ]);
 

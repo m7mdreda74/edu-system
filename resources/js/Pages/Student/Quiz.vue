@@ -205,9 +205,9 @@ onUnmounted(() => {
                         </div>
                         <div class="card p-4 text-center">
                             <div class="text-2xl font-bold text-primary-700 dark:text-primary-400">
-                                {{ quiz.passing_score }}%
+                                {{ quiz.total_points }}
                             </div>
-                            <div class="text-xs text-surface-500 dark:text-surface-400 mt-1">درجة النجاح</div>
+                            <div class="text-xs text-surface-500 dark:text-surface-400 mt-1">إجمالي النقاط</div>
                         </div>
                         <div class="card p-4 text-center">
                             <div class="text-2xl font-bold text-primary-700 dark:text-primary-400">
@@ -230,8 +230,8 @@ onUnmounted(() => {
                         >
                             <span class="text-sm font-medium">محاولة {{ i + 1 }}</span>
                             <div class="flex items-center gap-2">
-                                <span class="font-bold" :class="att.passed ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'">
-                                    {{ att.score }}%
+                            <span class="font-bold" :class="att.passed ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'">
+                                    {{ att.earned_points }}/{{ att.total_points }} نقطة · {{ att.score }}%
                                 </span>
                                 <span v-if="att.passed" class="badge-green text-xs">نجاح</span>
                                 <span v-else class="badge-red text-xs">رسوب</span>
@@ -289,6 +289,7 @@ onUnmounted(() => {
                 <div class="card p-6 mb-4">
                     <div class="text-xs text-primary-600 dark:text-primary-400 font-semibold mb-2">
                         {{ currentQuestion?.type === 'multiple' ? 'اختر أكثر من إجابة' : 'اختر الإجابة الصحيحة' }}
+                        · {{ currentQuestion?.points }} نقطة
                     </div>
                     <h2 class="text-lg font-bold text-surface-900 dark:text-white leading-relaxed mb-6">
                         {{ currentQuestion?.text }}
@@ -397,7 +398,8 @@ onUnmounted(() => {
                     </div>
 
                     <p class="text-surface-500 dark:text-surface-400 text-sm mb-8">
-                        درجة النجاح: {{ result.passing_score }}%
+                        جمعت {{ result.earned_points }} من {{ result.total_points }} نقطة
+                        · درجة النجاح: {{ result.passing_score }}%
                     </p>
 
                     <div class="flex flex-col sm:flex-row gap-3 justify-center">
