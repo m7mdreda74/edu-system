@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Learning\Models;
 
 use App\Domain\Academic\Models\CurriculumUnit;
+use Database\Factories\Domain\Learning\GroupMaterialFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,9 +23,9 @@ class GroupMaterial extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected static function newFactory(): \Database\Factories\Domain\Learning\GroupMaterialFactory
+    protected static function newFactory(): GroupMaterialFactory
     {
-        return new \Database\Factories\Domain\Learning\GroupMaterialFactory();
+        return new GroupMaterialFactory;
     }
 
     protected $table = 'group_materials';
@@ -45,8 +46,8 @@ class GroupMaterial extends Model
     {
         return [
             'duration_seconds' => 'integer',
-            'order'            => 'integer',
-            'is_free_preview'  => 'boolean',
+            'order' => 'integer',
+            'is_free_preview' => 'boolean',
         ];
     }
 
@@ -77,6 +78,19 @@ class GroupMaterial extends Model
     public function questions(): HasMany
     {
         return $this->hasMany(LessonQuestion::class, 'lesson_id');
+    }
+
+    /** The live class that published this protected recording, if any. */
+    public function liveSession(): HasOne
+    {
+        return $this->hasOne(LiveSession::class, 'lesson_id');
+    }
+
+    public function getIsLiveRecordingAttribute(): bool
+    {
+        return $this->relationLoaded('liveSession')
+            ? $this->liveSession !== null
+            : $this->liveSession()->exists();
     }
 
     // ─── Domain Helpers ────────────────────────────────────────────

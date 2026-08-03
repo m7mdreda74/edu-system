@@ -8,13 +8,14 @@ use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class LiveSessionRoomController extends Controller
 {
-    public function show(int $id): Response
+    public function show(int $id): Response|RedirectResponse
     {
         $session = LiveSession::with([
             'teacher:id,name',
@@ -36,8 +37,15 @@ class LiveSessionRoomController extends Controller
             abort_unless($this->studentMayJoin($session, $user), 403, 'غير مصرح لك بدخول هذه الحصة.');
         }
 
-        // A reconnect starts a new attendance window; this keeps total time
-        // accurate instead of stretching the first window across a leave.
+        // External meeting providers remain behind this authorized platform
+        // route, so only booked students receive the actual destination. Their
+        // attendance is deliberately left to the teacher's attendance roll.
+        if (filter_var($session->room_id, FILTER_VALIDATE_URL)) {
+            return redirect()->away($session->room_id);
+        }
+
+        // A reconnect to the built-in fallback room starts a new attendance
+        // window instead of stretching the first window across a leave.
         LiveSessionAttendee::firstOrCreate(
             [
                 'live_session_id' => $session->id,

@@ -146,6 +146,7 @@ function formatDuration(seconds) {
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2">
                             <h3 class="font-bold text-sm text-surface-900 dark:text-white truncate">{{ material.title }}</h3>
+                            <span v-if="material.is_live_recording" class="badge-primary text-[10px] shrink-0">تسجيل حصة محمي</span>
                             <span v-if="material.is_free_preview" class="badge-green text-[10px] shrink-0">معاينة مجانية</span>
                         </div>
                         <div class="text-[11px] text-surface-400 flex items-center gap-2 mt-0.5 flex-wrap">
@@ -155,7 +156,7 @@ function formatDuration(seconds) {
                         </div>
                     </div>
 
-                    <button type="button" class="btn-ghost btn-sm text-red-500 shrink-0" @click="destroy(material.id)">
+                    <button v-if="!material.is_live_recording" type="button" class="btn-ghost btn-sm text-red-500 shrink-0" @click="destroy(material.id)">
                         <Icon name="trash" class="w-4 h-4" />
                     </button>
                 </div>

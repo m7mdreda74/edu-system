@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\GradeLevelController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PayoutController;
+use App\Http\Controllers\Admin\RecordedClassController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SessionApologyController;
 use App\Http\Controllers\Admin\SettingsController;
@@ -127,6 +128,9 @@ Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
     Route::post('/private-lesson-requests/{assignmentId}', [PrivateLessonRequestController::class, 'store'])
         ->name('student.private-lesson-requests.store')
         ->middleware('throttle:10,1');
+    Route::post('/private-session-slots/{slotId}/book', [SubscriptionController::class, 'bookPrivateSlot'])
+        ->name('student.private-slots.book')
+        ->middleware('throttle:10,1');
     Route::post('/free-intro-sessions/{slotId}', [StudentFreeIntroSessionController::class, 'store'])
         ->name('student.free-intro-sessions.store')
         ->middleware('throttle:10,1');
@@ -233,15 +237,20 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('/live-sessions', [LiveSessionController::class, 'index'])->name('live-sessions');
     Route::post('/live-sessions', [LiveSessionController::class, 'store'])->name('live-sessions.store');
     Route::patch('/live-sessions/{id}/status', [LiveSessionController::class, 'updateStatus'])->name('live-sessions.status');
+    Route::patch('/live-sessions/{id}/meeting-link', [LiveSessionController::class, 'updateMeetingLink'])->name('live-sessions.meeting-link');
+    Route::post('/live-sessions/{id}/attendance', [LiveSessionController::class, 'updateAttendance'])->name('live-sessions.attendance');
     Route::post('/live-sessions/{id}/apology', [LiveSessionController::class, 'apologize'])->name('live-sessions.apologize');
     Route::post('/session-apologies/{id}/makeup', [LiveSessionController::class, 'scheduleMakeup'])->name('session-apologies.makeup');
 
     // Academic lesson planning for groups configured by the administration.
     Route::get('/teaching-schedule', [TeachingScheduleController::class, 'index'])->name('teaching-schedule');
     Route::post('/teaching-schedule/groups/{id}/schedules', [TeachingScheduleController::class, 'storeGroupSchedule'])->name('teaching-schedule.groups.schedules.store');
+    Route::patch('/teaching-schedule/groups/{id}/capacity', [TeachingScheduleController::class, 'updateGroupCapacity'])->name('teaching-schedule.groups.capacity');
     Route::delete('/teaching-schedule/group-schedules/{id}', [TeachingScheduleController::class, 'destroyGroupSchedule'])->name('teaching-schedule.group-schedules.destroy');
     Route::post('/free-intro-sessions', [TeacherFreeIntroSessionController::class, 'store'])->name('free-intro-sessions.store');
     Route::delete('/free-intro-sessions/{id}', [TeacherFreeIntroSessionController::class, 'destroy'])->name('free-intro-sessions.destroy');
+    Route::post('/private-session-slots', [TeacherFreeIntroSessionController::class, 'storePrivate'])->name('private-slots.store');
+    Route::delete('/private-session-slots/{id}', [TeacherFreeIntroSessionController::class, 'destroyPrivate'])->name('private-slots.destroy');
     Route::post('/teaching-schedule/groups/{id}/lessons', [TeachingScheduleController::class, 'storeGroupLesson'])->name('teaching-schedule.groups.lessons.store');
     Route::post('/teaching-schedule/group-lessons/{id}/schedule', [TeachingScheduleController::class, 'scheduleGroupLesson'])->name('teaching-schedule.group-lessons.schedule');
     Route::get('/teaching-schedule/group-lessons/{id}/schedule', [TeachingScheduleController::class, 'redirectGroupLessonSchedule'])->name('teaching-schedule.group-lessons.schedule-link');
@@ -281,6 +290,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/teaching-groups/{id}', [TeachingGroupController::class, 'update'])->name('teaching-groups.update');
     Route::patch('/teaching-groups/{id}/toggle', [TeachingGroupController::class, 'toggle'])->name('teaching-groups.toggle');
     Route::delete('/teaching-groups/{id}', [TeachingGroupController::class, 'destroy'])->name('teaching-groups.destroy');
+    Route::delete('/recorded-classes/{id}', [RecordedClassController::class, 'destroy'])->name('recorded-classes.destroy');
 
     // Teachers submit academic apologies; only administration can apply money deductions.
     Route::get('/session-apologies', [SessionApologyController::class, 'index'])->name('session-apologies');

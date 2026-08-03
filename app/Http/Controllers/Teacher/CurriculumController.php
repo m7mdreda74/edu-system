@@ -231,6 +231,12 @@ class CurriculumController extends Controller
     {
         $unit = $this->ownedUnit($unitId);
 
+        abort_if(
+            GroupMaterial::where('curriculum_unit_id', $unit->id)->whereHas('liveSession')->exists(),
+            403,
+            'لا يمكن حذف وحدة تحتوي على تسجيل حصة؛ مدير المنصة فقط يمكنه حذف التسجيل أولًا.',
+        );
+
         DB::transaction(function () use ($unit): void {
             // The foreign keys cascade the rows away; they cannot reach the
             // uploaded files, so those are collected before the unit goes.
@@ -299,6 +305,11 @@ class CurriculumController extends Controller
         $lesson = $this->ownedLesson($lessonId);
         $data = $request->validated();
 
+        if ($lesson->liveSession && array_key_exists('video_url', $data)
+            && $data['video_url'] !== $lesson->video_url) {
+            abort(403, 'تسجيل الحصة محمي ولا يمكن للمدرس تغييره أو إزالته.');
+        }
+
         if (isset($data['title'])) {
             $data['title'] = trim($data['title']);
         }
@@ -311,6 +322,8 @@ class CurriculumController extends Controller
     public function destroyLesson(int $lessonId): RedirectResponse
     {
         $lesson = $this->ownedLesson($lessonId);
+
+        abort_if($lesson->liveSession, 403, 'تسجيلات الحصص لا يحذفها إلا مدير المنصة.');
 
         // Soft delete: the row keeps its booklet and homework so a mistaken
         // delete can be undone in the database. Removing the unit sweeps both.
@@ -428,6 +441,7 @@ class CurriculumController extends Controller
             ->where('academic_term_id', $termId)
             ->with([
                 'lessons.homework' => fn ($query) => $query->withCount('submissions'),
+                'lessons.liveSession:id,lesson_id',
                 'electronicExam' => fn ($query) => $query->withCount('questions'),
                 'paperExam' => fn ($query) => $query->withCount('submissions'),
             ])
@@ -475,6 +489,7 @@ class CurriculumController extends Controller
             'booklet_path' => $lesson->attachment_path,
             'has_video' => filled($lesson->video_url),
             'has_booklet' => filled($lesson->attachment_path),
+            'is_live_recording' => $lesson->liveSession !== null,
             'homework' => $this->presentWorksheet($lesson->homework),
         ];
     }
@@ -561,7 +576,7 @@ class CurriculumController extends Controller
     /** Lesson → unit → assignment: ownership always lives at the top. */
     private function ownedLesson(int $lessonId): GroupMaterial
     {
-        $lesson = GroupMaterial::with('unit.assignment')->findOrFail($lessonId);
+        $lesson = GroupMaterial::with(['unit.assignment', 'liveSession'])->findOrFail($lessonId);
 
         $this->assertOwns($lesson->unit?->assignment);
 

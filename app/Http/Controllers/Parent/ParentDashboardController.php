@@ -4,22 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Parent;
 
-use App\Domain\Payment\Models\Payment;
+use App\Application\Scheduling\Services\SessionBookingService;
+use App\Application\Subscription\Services\SubscriptionService;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Learning\Models\WorksheetSubmission;
+use App\Domain\Payment\Models\Payment;
 use App\Domain\Quiz\Models\QuizAttempt;
+use App\Domain\Scheduling\Models\PrivateLessonRequest;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
-use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Scheduling\Models\TeachingAssignment;
+use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\PurchaseRequest;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
-use App\Application\Scheduling\Services\SessionBookingService;
-use App\Application\Subscription\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,15 +48,15 @@ class ParentDashboardController extends Controller
         if ($selectedStudentId && $links->contains('student_user_id', $selectedStudentId)) {
             $student = User::findOrFail($selectedStudentId);
             $subscriptions = Subscription::where('student_id', $selectedStudentId)
-                    ->with([
-                        'assignment.subject:id,name,icon',
-                        'assignment.gradeLevel:id,key,name',
-                        'assignment.teacher:id,name,avatar',
-                        'group:id,name,capacity,teaching_assignment_id',
-                        'group.schedules',
-                    ])
-                    ->latest('period_end')
-                    ->get();
+                ->with([
+                    'assignment.subject:id,name,icon',
+                    'assignment.gradeLevel:id,key,name',
+                    'assignment.teacher:id,name,avatar',
+                    'group:id,name,capacity,teaching_assignment_id',
+                    'group.schedules',
+                ])
+                ->latest('period_end')
+                ->get();
 
             $groupIds = $subscriptions->pluck('teaching_group_id')->filter();
             $privateSlotIds = SessionBooking::where('student_id', $selectedStudentId)
@@ -147,6 +148,8 @@ class ParentDashboardController extends Controller
                     ->whereHas('gradeLevel', fn ($gradeQuery) => $gradeQuery->where('key', $student->grade_level)))
                 ->latest()
                 ->get()
+                ->filter(fn (TeachingGroup $group) => $group->active_bookings_count < $group->capacity
+                    || $subscriptions->contains('teaching_group_id', $group->id))
                 ->map(fn (TeachingGroup $group): array => [
                     'id' => $group->id,
                     'name' => $group->name,
@@ -208,7 +211,7 @@ class ParentDashboardController extends Controller
                         ->where('teaching_assignment_id', $assignment->id)
                         ->where('type', Subscription::TYPE_PRIVATE)
                         ->contains(fn (Subscription $subscription) => $subscription->isActive()),
-                    'has_pending_request' => \App\Domain\Scheduling\Models\PrivateLessonRequest::where('student_id', $student->id)
+                    'has_pending_request' => PrivateLessonRequest::where('student_id', $student->id)
                         ->where('teaching_assignment_id', $assignment->id)
                         ->where('status', 'pending')
                         ->exists(),
@@ -217,25 +220,25 @@ class ParentDashboardController extends Controller
             $studentData = [
                 'student' => $student->only(['id', 'name', 'email', 'grade_level']),
                 'subscriptions' => $subscriptions->map(fn (Subscription $s) => [
-                        'id'             => $s->id,
-                        'assignment_id'  => $s->teaching_assignment_id,
-                        'type'           => $s->type,
-                        'status'         => $s->status,
-                        'label'          => $s->label(),
-                        'monthly_price'  => $s->monthly_price,
-                        'currency'       => $s->currency,
-                        'period_end'     => $s->period_end?->toDateString(),
-                        'days_remaining' => $s->daysRemaining(),
-                        'subject'        => $s->assignment?->subject?->only(['id', 'name', 'icon']),
-                        'teacher'        => $s->assignment?->teacher?->only(['id', 'name', 'avatar']),
-                        'group'          => $s->group?->only(['id', 'name']),
-                        'schedules'       => $s->group?->schedules?->map(fn ($schedule) => [
-                            'day' => (int) $schedule->day_of_week,
-                            'start' => substr((string) $schedule->start_time, 0, 5),
-                            'end' => substr((string) $schedule->end_time, 0, 5),
-                        ])->values(),
+                    'id' => $s->id,
+                    'assignment_id' => $s->teaching_assignment_id,
+                    'type' => $s->type,
+                    'status' => $s->status,
+                    'label' => $s->label(),
+                    'monthly_price' => $s->monthly_price,
+                    'currency' => $s->currency,
+                    'period_end' => $s->period_end?->toDateString(),
+                    'days_remaining' => $s->daysRemaining(),
+                    'subject' => $s->assignment?->subject?->only(['id', 'name', 'icon']),
+                    'teacher' => $s->assignment?->teacher?->only(['id', 'name', 'avatar']),
+                    'group' => $s->group?->only(['id', 'name']),
+                    'schedules' => $s->group?->schedules?->map(fn ($schedule) => [
+                        'day' => (int) $schedule->day_of_week,
+                        'start' => substr((string) $schedule->start_time, 0, 5),
+                        'end' => substr((string) $schedule->end_time, 0, 5),
                     ])->values(),
-                'payments'      => Payment::where('user_id', $selectedStudentId)
+                ])->values(),
+                'payments' => Payment::where('user_id', $selectedStudentId)
                     ->with('subscription.assignment.subject:id,name')
                     ->latest()
                     ->get(),
@@ -267,7 +270,7 @@ class ParentDashboardController extends Controller
             ->get();
 
         return Inertia::render('Parent/Dashboard', [
-            'links'           => $links,
+            'links' => $links,
             'selectedStudent' => $studentData,
             'pendingRequests' => $pendingRequests,
         ]);
@@ -276,7 +279,7 @@ class ParentDashboardController extends Controller
     public function linkStudent(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'email'        => ['required', 'email', 'exists:users,email'],
+            'email' => ['required', 'email', 'exists:users,email'],
             'relationship' => ['required', 'string', 'in:father,mother,guardian'],
         ]);
 
@@ -288,12 +291,12 @@ class ParentDashboardController extends Controller
 
         ParentStudentLink::firstOrCreate(
             [
-                'parent_user_id'  => Auth::id(),
+                'parent_user_id' => Auth::id(),
                 'student_user_id' => $student->id,
             ],
             [
                 'relationship' => $validated['relationship'],
-                'verified_at'  => now(),
+                'verified_at' => now(),
             ],
         );
 
@@ -311,7 +314,7 @@ class ParentDashboardController extends Controller
      * A parent paying for their child: open the subscription in the child's
      * name, then hand off to checkout.
      */
-    public function payForRequest(int $requestId, \App\Application\Subscription\Services\SubscriptionService $subscriptions): RedirectResponse
+    public function payForRequest(int $requestId, SubscriptionService $subscriptions): RedirectResponse
     {
         $purchaseRequest = PurchaseRequest::with('group')->findOrFail($requestId);
 

@@ -11,15 +11,19 @@ const props = defineProps({
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const lessonDrafts = ref({});
 const scheduleDrafts = ref({});
+const capacityDrafts = ref({});
 const freeSlotDrafts = ref({});
+const privateSlotDrafts = ref({});
 
 watch(() => props.assignments, (assignments) => {
     assignments.flatMap((item) => item.groups || []).forEach((group) => {
         lessonDrafts.value[group.id] ??= { title: '', description: '' };
         scheduleDrafts.value[group.id] ??= { day_of_week: 0, start_time: '', end_time: '' };
+        capacityDrafts.value[group.id] = group.capacity;
     });
     assignments.forEach((assignment) => {
         freeSlotDrafts.value[assignment.id] ??= { starts_at: '', ends_at: '' };
+        privateSlotDrafts.value[assignment.id] ??= { starts_at: '', ends_at: '' };
     });
 }, { immediate: true });
 
@@ -61,6 +65,12 @@ function removeGroupSchedule(scheduleId) {
     });
 }
 
+function updateCapacity(groupId) {
+    router.patch(route('teacher.teaching-schedule.groups.capacity', groupId), {
+        capacity: capacityDrafts.value[groupId],
+    }, { preserveScroll: true });
+}
+
 function publishFreeSlot(assignmentId) {
     const draft = freeSlotDrafts.value[assignmentId];
 
@@ -81,6 +91,26 @@ function cancelFreeSlot(slotId) {
     router.delete(route('teacher.free-intro-sessions.destroy', slotId), { preserveScroll: true });
 }
 
+function publishPrivateSlot(assignmentId) {
+    const draft = privateSlotDrafts.value[assignmentId];
+
+    router.post(route('teacher.private-slots.store'), {
+        teaching_assignment_id: assignmentId,
+        starts_at: draft.starts_at,
+        ends_at: draft.ends_at,
+        timezone: 'Asia/Qatar',
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            privateSlotDrafts.value[assignmentId] = { starts_at: '', ends_at: '' };
+        },
+    });
+}
+
+function cancelPrivateSlot(slotId) {
+    router.delete(route('teacher.private-slots.destroy', slotId), { preserveScroll: true });
+}
+
 function formatDate(value) {
     return new Date(value).toLocaleString('ar-EG', {
         dateStyle: 'medium',
@@ -97,7 +127,7 @@ function formatDate(value) {
             <header>
                 <h1 class="text-3xl font-black text-surface-900 dark:text-white">الخطة الأكاديمية وجدول الحصص</h1>
                 <p class="text-surface-500 mt-2">
-                    الإدارة تحدد الإسنادات والأسعار والسعة، وأنت تدير المنهج والمواعيد ونشر الحصص والاختبارات.
+                    الإدارة تحدد الإسنادات والأسعار، وأنت تحدد سعة مجموعاتك وتدير مواعيد المجموعة والبرايفيت.
                 </p>
             </header>
 
@@ -106,7 +136,7 @@ function formatDate(value) {
                 <div>
                     <h2 class="font-bold text-sm text-surface-900 dark:text-white">فصل واضح للصلاحيات</h2>
                     <p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
-                        تواصل مع الإدارة للإسناد والتسعير والسعة فقط. المواعيد والمنهج والمحتوى والاختبارات والحصص المباشرة مسؤوليتك.
+                        تواصل مع الإدارة للإسناد والتسعير فقط. السعة والمواعيد والمنهج والمحتوى والاختبارات والحصص المباشرة مسؤوليتك.
                     </p>
                 </div>
             </div>
@@ -140,7 +170,7 @@ function formatDate(value) {
 
                     <div v-if="assignment.private_slots?.length" class="grid md:grid-cols-2 gap-3">
                         <div
-                            v-for="slot in assignment.private_slots"
+                            v-for="slot in assignment.private_slots.filter(item => item.is_free_intro)"
                             :key="slot.id"
                             class="rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-3 flex items-center justify-between gap-3"
                         >
@@ -162,6 +192,36 @@ function formatDate(value) {
                     </div>
                 </div>
 
+                <div v-if="assignment.accepts_private" class="rounded-2xl border border-primary-500/25 bg-primary-500/5 p-5 space-y-4">
+                    <div>
+                        <h3 class="font-black text-surface-900 dark:text-white">مواعيد البرايفيت</h3>
+                        <p class="text-xs text-surface-500 mt-1">كل موعد متاح لطالب واحد فقط، ويُغلق تلقائيًا بمجرد حجزه.</p>
+                    </div>
+
+                    <form class="grid md:grid-cols-3 gap-3" @submit.prevent="publishPrivateSlot(assignment.id)">
+                        <input v-model="privateSlotDrafts[assignment.id].starts_at" type="datetime-local" class="input" required />
+                        <input v-model="privateSlotDrafts[assignment.id].ends_at" type="datetime-local" class="input" required />
+                        <button class="btn-primary">نشر موعد برايفيت</button>
+                    </form>
+
+                    <div v-if="assignment.private_slots?.some(item => !item.is_free_intro)" class="grid md:grid-cols-2 gap-3">
+                        <div
+                            v-for="slot in assignment.private_slots.filter(item => !item.is_free_intro)"
+                            :key="slot.id"
+                            class="rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-3 flex items-center justify-between gap-3"
+                        >
+                            <div>
+                                <p class="text-sm font-bold">{{ formatDate(slot.starts_at) }}</p>
+                                <p class="text-xs mt-1" :class="slot.status === 'booked' ? 'text-green-600' : 'text-surface-500'">
+                                    {{ slot.status === 'booked' ? `محجوز بواسطة ${slot.booking?.student?.name ?? 'طالب'}` : 'متاح لطالب واحد' }}
+                                </p>
+                            </div>
+                            <button v-if="slot.status !== 'booked'" type="button" class="btn-ghost btn-sm text-red-500" @click="cancelPrivateSlot(slot.id)">إلغاء</button>
+                        </div>
+                    </div>
+                    <p v-else class="text-xs text-surface-400">لم تنشر مواعيد برايفيت بعد.</p>
+                </div>
+
                 <article
                     v-for="group in assignment.groups"
                     :key="group.id"
@@ -170,13 +230,22 @@ function formatDate(value) {
                     <div class="flex flex-wrap justify-between gap-3">
                         <div>
                             <h3 class="font-black text-surface-900 dark:text-white">{{ group.name }}</h3>
-                            <p class="text-xs text-primary-600 mt-1">{{ group.active_bookings_count }} طالب محجوز</p>
+                            <p class="text-xs text-primary-600 mt-1">{{ group.active_bookings_count }} من {{ group.capacity }} طالب محجوز</p>
                         </div>
                         <div class="flex gap-2">
                             <Link :href="route('teacher.materials', { groupId: group.id })" class="btn-outline btn-sm">المواد</Link>
                             <Link :href="route('teacher.worksheets.index', { groupId: group.id })" class="btn-ghost btn-sm">الواجبات</Link>
                         </div>
                     </div>
+
+                    <form class="flex flex-wrap items-end gap-3 rounded-xl border border-surface-200 dark:border-surface-700 p-4" @submit.prevent="updateCapacity(group.id)">
+                        <div>
+                            <label class="input-label">الحد الأقصى لطلاب المجموعة</label>
+                            <input v-model.number="capacityDrafts[group.id]" type="number" min="1" max="1000" :min="Math.max(1, group.active_bookings_count)" class="input w-36" required />
+                        </div>
+                        <button class="btn-outline btn-sm">حفظ السعة</button>
+                        <span class="text-xs text-surface-400">يتبقى {{ Math.max(0, group.capacity - group.active_bookings_count) }} مقعد</span>
+                    </form>
 
                     <div class="rounded-xl border border-primary-500/20 bg-primary-500/5 p-4 space-y-3">
                         <div class="flex flex-wrap gap-2">

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Student;
 
 use App\Application\Certificate\Services\CertificateService;
+use App\Application\Scheduling\Services\SessionBookingService;
 use App\Application\Subscription\Services\SubscriptionService;
+use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Http\Controllers\Controller;
@@ -23,7 +25,7 @@ class SubscriptionController extends Controller
 {
     public function __construct(
         private readonly SubscriptionService $subscriptions,
-        private readonly CertificateService  $certificates,
+        private readonly CertificateService $certificates,
     ) {}
 
     /** "حصصي" — every class this student has access to. */
@@ -47,28 +49,28 @@ class SubscriptionController extends Controller
                 $group = $subscription->group;
 
                 return [
-                    'id'             => $subscription->id,
-                    'type'           => $subscription->type,
-                    'status'         => $subscription->status,
-                    'monthly_price'  => $subscription->monthly_price,
-                    'currency'       => $subscription->currency,
-                    'period_start'   => $subscription->period_start?->toDateString(),
-                    'period_end'     => $subscription->period_end?->toDateString(),
+                    'id' => $subscription->id,
+                    'type' => $subscription->type,
+                    'status' => $subscription->status,
+                    'monthly_price' => $subscription->monthly_price,
+                    'currency' => $subscription->currency,
+                    'period_start' => $subscription->period_start?->toDateString(),
+                    'period_end' => $subscription->period_end?->toDateString(),
                     'days_remaining' => $subscription->daysRemaining(),
-                    'is_active'      => $subscription->isActive(),
-                    'subject'        => $subscription->assignment?->subject?->only(['id', 'name', 'icon']),
-                    'grade'          => $subscription->assignment?->gradeLevel?->only(['key', 'name']),
-                    'teacher'        => $subscription->assignment?->teacher?->only(['id', 'name', 'avatar']),
-                    'group'          => $group ? [
-                        'id'        => $group->id,
-                        'name'      => $group->name,
+                    'is_active' => $subscription->isActive(),
+                    'subject' => $subscription->assignment?->subject?->only(['id', 'name', 'icon']),
+                    'grade' => $subscription->assignment?->gradeLevel?->only(['key', 'name']),
+                    'teacher' => $subscription->assignment?->teacher?->only(['id', 'name', 'avatar']),
+                    'group' => $group ? [
+                        'id' => $group->id,
+                        'name' => $group->name,
                         'schedules' => $group->schedules->map(fn ($s) => [
-                            'day'   => (int) $s->day_of_week,
+                            'day' => (int) $s->day_of_week,
                             'start' => substr((string) $s->start_time, 0, 5),
-                            'end'   => substr((string) $s->end_time, 0, 5),
+                            'end' => substr((string) $s->end_time, 0, 5),
                         ])->values(),
                     ] : null,
-                    'progress'       => $group ? $this->certificates->progressPercent($student, $group) : null,
+                    'progress' => $group ? $this->certificates->progressPercent($student, $group) : null,
                     'certificate_ready' => $group ? $this->certificates->isEligible($student, $group) : false,
                 ];
             })
@@ -83,7 +85,7 @@ class SubscriptionController extends Controller
     public function subscribeToGroup(int $groupId): RedirectResponse
     {
         try {
-            $group        = TeachingGroup::findOrFail($groupId);
+            $group = TeachingGroup::findOrFail($groupId);
             $subscription = $this->subscriptions->openForGroup(Auth::user(), $group);
         } catch (LogicException $e) {
             return back()->with('error', $e->getMessage());
@@ -92,11 +94,35 @@ class SubscriptionController extends Controller
         return redirect()->route('checkout.show', $subscription->id);
     }
 
+    public function bookPrivateSlot(int $slotId, SessionBookingService $bookings): RedirectResponse
+    {
+        $slot = PrivateSessionSlot::with('assignment')->findOrFail($slotId);
+        $student = Auth::user();
+
+        $hasPrivateSubscription = Subscription::active()
+            ->where('student_id', $student->id)
+            ->where('teaching_assignment_id', $slot->teaching_assignment_id)
+            ->where('type', Subscription::TYPE_PRIVATE)
+            ->exists();
+
+        if (! $hasPrivateSubscription || $slot->is_free_intro) {
+            abort(403, 'يلزم اشتراك برايفيت فعّال لحجز هذا الموعد.');
+        }
+
+        try {
+            $bookings->bookPrivate($student, $slot->id);
+        } catch (LogicException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'تم حجز موعد البرايفيت وإغلاقه أمام باقي الطلاب.');
+    }
+
     /** Buy the next month of an existing subscription. */
     public function renew(int $id): RedirectResponse
     {
         $subscription = Subscription::where('student_id', Auth::id())->findOrFail($id);
-        $renewal      = $this->subscriptions->renew($subscription);
+        $renewal = $this->subscriptions->renew($subscription);
 
         return redirect()->route('checkout.show', $renewal->id);
     }

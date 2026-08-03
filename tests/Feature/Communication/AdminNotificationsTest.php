@@ -51,6 +51,7 @@ it('notifies admins when a teacher starts and ends a live class', function () {
         'title' => 'حصة مراجعة',
         'scheduled_at' => now()->addHour(),
         'status' => LiveSession::STATUS_SCHEDULED,
+        'room_id' => 'https://meet.google.com/abc-defg-hij',
     ]);
 
     Notification::fake();

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Student;
 
 use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Support\YouTubeUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,10 +31,17 @@ class VideoUrlController extends Controller
     {
         $material = GroupMaterial::with('unit.assignment')->findOrFail($materialId);
 
-        /** @var \App\Domain\User\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         Gate::authorize('watch', $material);
+
+        if ($youtubeId = YouTubeUrl::videoId($material->video_url)) {
+            return response()->json([
+                'provider' => 'youtube',
+                'video_id' => $youtubeId,
+            ]);
+        }
 
         $signedUrl = URL::temporarySignedRoute(
             'video.stream',
@@ -41,6 +50,7 @@ class VideoUrlController extends Controller
         );
 
         return response()->json([
+            'provider' => 'file',
             'signed_url' => $signedUrl,
             'expires_in' => self::URL_EXPIRY_MINUTES * 60, // seconds
         ]);

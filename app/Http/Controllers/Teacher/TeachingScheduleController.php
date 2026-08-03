@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,7 +32,6 @@ class TeachingScheduleController extends Controller
                 ->orderBy('day_of_week')
                 ->orderBy('start_time'),
             'privateSlots' => fn ($query) => $query
-                ->where('is_free_intro', true)
                 ->where('status', '!=', 'cancelled')
                 ->where('starts_at', '>=', now())
                 ->with('booking.student:id,name')
@@ -109,6 +109,29 @@ class TeachingScheduleController extends Controller
         }
 
         return back()->with('success', 'تمت إضافة موعد المجموعة.');
+    }
+
+    public function updateGroupCapacity(Request $request, int $id): RedirectResponse
+    {
+        $data = $request->validate([
+            'capacity' => ['required', 'integer', 'min:1', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($id, $data): void {
+            $group = TeachingGroup::with('assignment')->lockForUpdate()->findOrFail($id);
+            abort_if($group->assignment?->teacher_id !== Auth::id(), 403);
+            $booked = $group->activeBookings()->count();
+
+            if ((int) $data['capacity'] < $booked) {
+                throw ValidationException::withMessages([
+                    'capacity' => 'السعة لا يمكن أن تقل عن عدد الطلاب المحجوزين حاليًا.',
+                ]);
+            }
+
+            $group->update(['capacity' => (int) $data['capacity']]);
+        });
+
+        return back()->with('success', 'تم تحديث سعة المجموعة. التوافر يتحدث تلقائيًا حسب المقاعد المشغولة.');
     }
 
     public function destroyGroupSchedule(int $id): RedirectResponse

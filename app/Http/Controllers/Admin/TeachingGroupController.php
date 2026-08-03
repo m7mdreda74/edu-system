@@ -327,7 +327,13 @@ class TeachingGroupController extends Controller
                     'start' => substr((string) $schedule->start_time, 0, 5),
                     'end' => substr((string) $schedule->end_time, 0, 5),
                 ])->values(),
-                'materials' => $group->materials()->get()->map->only(['id', 'title', 'order', 'is_free_preview'])->values(),
+                'materials' => $group->materials()->with('liveSession:id,lesson_id')->get()->map(fn (GroupMaterial $material) => [
+                    'id' => $material->id,
+                    'title' => $material->title,
+                    'order' => $material->order,
+                    'is_free_preview' => $material->is_free_preview,
+                    'recording_session_id' => $material->liveSession?->id,
+                ])->values(),
             ],
             'subscriptions' => $subscriptions,
         ]);
@@ -342,8 +348,7 @@ class TeachingGroupController extends Controller
         bool $acceptsPrivate,
         int $price,
         ?TeachingAssignment $assignment = null,
-    ): void
-    {
+    ): void {
         if ($acceptsPrivate && $price <= 0) {
             throw ValidationException::withMessages([
                 'private_monthly_price_qar' => 'حدد سعرًا أكبر من صفر عند تفعيل الحصص الخاصة.',
@@ -358,6 +363,4 @@ class TeachingGroupController extends Controller
             ]);
         }
     }
-
 }
-

@@ -754,7 +754,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                     >
                                         <Icon :name="lesson.is_free_preview ? 'unlock' : 'lock'" class="w-3.5 h-3.5" />
                                     </button>
-                                    <button type="button" class="btn-ghost btn-sm text-red-500 hover:bg-red-500/10 shrink-0" title="حذف الدرس" @click="removeLesson(lesson)">
+                                    <button v-if="!lesson.is_live_recording" type="button" class="btn-ghost btn-sm text-red-500 hover:bg-red-500/10 shrink-0" title="حذف الدرس" @click="removeLesson(lesson)">
                                         <Icon name="trash" class="w-4 h-4" />
                                     </button>
                                 </div>
@@ -794,10 +794,11 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                                 {{ lesson.video_url }}
                                             </a>
                                             <p class="text-[11px] text-surface-400 mt-1">{{ formatDuration(lesson.duration_seconds) }}</p>
-                                            <div class="flex gap-1 mt-2">
+                                            <div v-if="!lesson.is_live_recording" class="flex gap-1 mt-2">
                                                 <button type="button" class="btn-ghost btn-sm" @click="openVideo(lesson)">تعديل</button>
                                                 <button type="button" class="btn-ghost btn-sm text-red-500" @click="clearVideo(lesson)">إزالة</button>
                                             </div>
+                                            <p v-else class="text-[11px] text-primary-500 mt-2 font-semibold">تسجيل حصة محمي — الحذف متاح للإدارة فقط</p>
                                         </div>
 
                                         <button v-else type="button" :class="SLOT_EMPTY" @click="openVideo(lesson)">

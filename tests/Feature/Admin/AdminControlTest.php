@@ -21,8 +21,6 @@ use Tests\TestCase;
 // Required for Intelephense to resolve $this->admin / actingAs() / get() etc.
 uses(TestCase::class, RefreshDatabase::class);
 
-
-
 // ─── Everything the admin must be able to reach and change ───────────────────
 
 beforeEach(function () {
@@ -225,7 +223,7 @@ it('requires private pricing to stay above every group price', function () {
         ->assertSessionHasErrors('monthly_price_qar');
 });
 
-it('keeps pricing and capacity with admin while the teacher owns group schedules', function () {
+it('keeps pricing with admin while the teacher owns group capacity and schedules', function () {
     $this->actingAs($this->admin)
         ->post(route('admin.teaching-groups.store'), [
             'teaching_assignment_id' => $this->assignment->id,
@@ -256,6 +254,15 @@ it('keeps pricing and capacity with admin while the teacher owns group schedules
         ->post(route('teacher.teaching-schedule.groups.schedules.store', $group->id), $payload)
         ->assertForbidden();
 
+    $this->actingAs($this->admin)
+        ->patch(route('teacher.teaching-schedule.groups.capacity', $group->id), ['capacity' => 18])
+        ->assertForbidden();
+
+    $this->actingAs($this->teacher)
+        ->patch(route('teacher.teaching-schedule.groups.capacity', $group->id), ['capacity' => 18])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
     $this->actingAs($this->teacher)
         ->post(route('teacher.teaching-schedule.groups.schedules.store', $group->id), $payload)
         ->assertRedirect()
@@ -264,6 +271,7 @@ it('keeps pricing and capacity with admin while the teacher owns group schedules
     $schedule = TeachingGroupSchedule::where('teaching_group_id', $group->id)->firstOrFail();
 
     expect($schedule->day_of_week)->toBe(2)
+        ->and($group->fresh()->capacity)->toBe(18)
         ->and(substr((string) $schedule->start_time, 0, 5))->toBe('17:00')
         ->and($schedule->duration_minutes)->toBe(90);
 });

@@ -89,6 +89,19 @@ function bookFreeIntro(slotId) {
     });
 }
 
+function bookPrivateSlot(slotId) {
+    if (!authUser.value) {
+        router.visit(route('login'));
+        return;
+    }
+
+    subscribing.value = `slot-${slotId}`;
+    router.post(route('student.private-slots.book', { slotId }), {}, {
+        preserveScroll: true,
+        onFinish: () => (subscribing.value = null),
+    });
+}
+
 function formatDateTime(value) {
     return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
 }
@@ -322,16 +335,29 @@ const otherTeachersUrl = computed(() => (
                             <h3 class="font-bold text-surface-900 dark:text-white text-sm mb-2">حصص خاصة</h3>
 
                             <template v-if="activeAssignment.accepts_private">
-                                <p class="text-xs text-surface-500 dark:text-surface-400 mb-4 leading-relaxed">
-                                    البرايفت بسعر أعلى من المجموعة، والموعد لا يُحجز مسبقًا؛ ترسل طلبًا ثم تتفق مع المدرس على الموعد المناسب.
-                                </p>
+                                <p class="text-xs text-surface-500 dark:text-surface-400 mb-4 leading-relaxed">كل موعد برايفيت متاح لطالب واحد فقط ويختفي فور حجزه.</p>
 
                                 <div class="text-xl font-black text-primary-700 dark:text-primary-400 mb-4">
                                     {{ formatMonthly(activeAssignment.private_monthly_price) }}
                                 </div>
 
+                                <div v-if="activeAssignment.has_private_subscription" class="space-y-2">
+                                    <p class="text-xs font-bold text-surface-700 dark:text-surface-200">اختر موعدًا متاحًا</p>
+                                    <button
+                                        v-for="slot in activeAssignment.private_slots"
+                                        :key="slot.id"
+                                        type="button"
+                                        class="btn-outline btn-sm w-full justify-center"
+                                        :disabled="subscribing === `slot-${slot.id}`"
+                                        @click="bookPrivateSlot(slot.id)"
+                                    >
+                                        {{ subscribing === `slot-${slot.id}` ? 'جارٍ الحجز...' : formatDateTime(slot.starts_at) }}
+                                    </button>
+                                    <p v-if="!activeAssignment.private_slots?.length" class="text-xs text-surface-400">لا توجد مواعيد برايفيت متاحة حاليًا.</p>
+                                </div>
+
                                 <Link
-                                    v-if="activeAssignment.private_request?.conversation_id"
+                                    v-else-if="activeAssignment.private_request?.conversation_id"
                                     :href="route('chat.index', { conversation: activeAssignment.private_request.conversation_id })"
                                     class="btn-accent btn-sm w-full justify-center"
                                 >

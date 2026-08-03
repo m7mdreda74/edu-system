@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Domain\Academic\Models\AcademicTerm;
+use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Communication\Notifications\AdminLiveSessionStatusNotification;
 use App\Domain\Communication\Notifications\LiveSessionStartedNotification;
 use App\Domain\Communication\Notifications\SessionApologySubmittedNotification;
 use App\Domain\Communication\Notifications\SessionScheduleChangedNotification;
+use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionApology;
 use App\Domain\Learning\Models\LiveSessionAttendee;
@@ -18,12 +21,15 @@ use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Scheduling\Models\TeachingGroupLesson;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Support\YouTubeUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -52,6 +58,7 @@ class LiveSessionController extends Controller
             'teachingGroup:id,name,teaching_assignment_id',
             'teachingGroup.assignment.subject:id,name',
             'privateSessionSlot:id,starts_at,ends_at,is_free_intro',
+            'privateSessionSlot.booking.student:id,name,email',
             'attendees:id,live_session_id,user_id,joined_at,left_at',
             'apology:id,live_session_id,reason,status,makeup_session_id,makeup_scheduled_at,deduction_amount,admin_note,teacher_payout_id',
             'apology.makeupSession:id,title,scheduled_at,status',
@@ -61,7 +68,16 @@ class LiveSessionController extends Controller
             ->get();
 
         $sessions->each(function (LiveSession $session): void {
-            $session->setAttribute('attendees_count', $session->attendees->pluck('user_id')->unique()->count());
+            $students = $this->eligibleStudents($session);
+            $presentIds = $session->attendees->pluck('user_id')->unique();
+
+            $session->setAttribute('attendance_students', $students->map(fn (User $student) => [
+                'id' => $student->id,
+                'name' => $student->name,
+                'email' => $student->email,
+                'present' => $presentIds->contains($student->id),
+            ])->values());
+            $session->setAttribute('attendees_count', $students->whereIn('id', $presentIds)->count());
             $session->setAttribute(
                 'attendance_minutes',
                 (int) round($session->attendees->sum(fn (LiveSessionAttendee $attendee) => $attendee->durationSeconds()) / 60),
@@ -83,7 +99,7 @@ class LiveSessionController extends Controller
             'scheduled_date' => ['nullable', 'date', 'after:today'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'room_id' => ['nullable', 'string'],
+            'room_id' => ['required', 'url', 'max:2048'],
         ]);
 
         $group = null;
@@ -142,7 +158,7 @@ class LiveSessionController extends Controller
             'private_session_slot_id' => $privateSlot?->id,
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
-            'room_id' => $validated['room_id'] ?? null,
+            'room_id' => $validated['room_id'],
             'scheduled_at' => $scheduledAt,
             'status' => LiveSession::STATUS_SCHEDULED,
         ]);
@@ -158,8 +174,23 @@ class LiveSessionController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', 'in:scheduled,live,ended'],
-            'recording_url' => ['nullable', 'url'],
+            'recording_url' => [
+                'nullable',
+                'url',
+                'max:2048',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (filled($value) && ! YouTubeUrl::isValid((string) $value)) {
+                        $fail('رابط التسجيل يجب أن يكون رابط فيديو صحيحًا من YouTube.');
+                    }
+                },
+            ],
         ]);
+
+        if ($validated['status'] === LiveSession::STATUS_LIVE && ! filter_var($session->room_id, FILTER_VALIDATE_URL)) {
+            throw ValidationException::withMessages([
+                'meeting_url' => 'أضف رابط الاجتماع قبل بدء الحصة.',
+            ]);
+        }
 
         if ($validated['status'] === LiveSession::STATUS_LIVE && ! $session->isLive()) {
             $session->started_at = now();
@@ -174,7 +205,13 @@ class LiveSessionController extends Controller
             $session->recording_url = $validated['recording_url'];
         }
 
-        $session->save();
+        DB::transaction(function () use ($session): void {
+            $session->save();
+
+            if ($session->status === LiveSession::STATUS_ENDED && filled($session->recording_url)) {
+                $this->publishRecording($session);
+            }
+        });
 
         if (in_array($validated['status'], [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED], true)) {
             $session->load([
@@ -190,6 +227,68 @@ class LiveSessionController extends Controller
         }
 
         return back()->with('success', 'تم تحديث حالة الحصة.');
+    }
+
+    public function updateMeetingLink(Request $request, int $id): RedirectResponse
+    {
+        $session = LiveSession::findOrFail($id);
+
+        abort_if($session->teacher_id !== Auth::id(), 403, 'غير مصرح.');
+        abort_unless($session->status === LiveSession::STATUS_SCHEDULED, 422, 'يمكن تعديل رابط حصة مجدولة فقط.');
+
+        $data = $request->validate([
+            'meeting_url' => ['required', 'url', 'max:2048'],
+        ]);
+
+        $session->update(['room_id' => $data['meeting_url']]);
+
+        return back()->with('success', 'تم حفظ رابط الاجتماع.');
+    }
+
+    public function updateAttendance(Request $request, int $id): RedirectResponse
+    {
+        $session = LiveSession::findOrFail($id);
+
+        abort_if($session->teacher_id !== Auth::id(), 403, 'غير مصرح.');
+        abort_unless(
+            in_array($session->status, [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED], true),
+            422,
+            'يمكن تسجيل الحضور لحصة بدأت أو انتهت فقط.',
+        );
+
+        $data = $request->validate([
+            'student_ids' => ['present', 'array'],
+            'student_ids.*' => ['integer', 'distinct', 'exists:users,id'],
+        ]);
+
+        $eligibleIds = $this->eligibleStudents($session)->pluck('id');
+        $presentIds = collect($data['student_ids'] ?? [])->map(fn ($studentId) => (int) $studentId)->unique();
+
+        if ($presentIds->diff($eligibleIds)->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'student_ids' => 'لا يمكن تسجيل حضور طالب غير مشترك في هذه الحصة.',
+            ]);
+        }
+
+        DB::transaction(function () use ($session, $eligibleIds, $presentIds): void {
+            LiveSessionAttendee::where('live_session_id', $session->id)
+                ->whereIn('user_id', $eligibleIds)
+                ->delete();
+
+            $joinedAt = $session->started_at ?? $session->scheduled_at ?? now();
+            $leftAt = $session->ended_at ?? now();
+
+            foreach ($presentIds as $studentId) {
+                LiveSessionAttendee::create([
+                    'live_session_id' => $session->id,
+                    'user_id' => $studentId,
+                    'joined_at' => $joinedAt,
+                    'left_at' => $leftAt,
+                ]);
+            }
+        });
+
+        return back()->with('success', 'تم حفظ كشف حضور الحصة.');
     }
 
     public function apologize(Request $request, int $id): RedirectResponse
@@ -287,6 +386,73 @@ class LiveSessionController extends Controller
     private function assertOwnsAssignment(?TeachingAssignment $assignment): void
     {
         abort_unless($assignment && $assignment->teacher_id === Auth::id(), 403, 'غير مصرح.');
+    }
+
+    /** @return Collection<int, User> */
+    private function eligibleStudents(LiveSession $session): Collection
+    {
+        return User::query()
+            ->whereIn('id', SessionBooking::query()
+                ->where('status', 'confirmed')
+                ->when($session->teaching_group_id, fn ($query) => $query->where('teaching_group_id', $session->teaching_group_id))
+                ->when($session->private_session_slot_id, fn ($query) => $query->where('private_session_slot_id', $session->private_session_slot_id))
+                ->when(! $session->teaching_group_id && ! $session->private_session_slot_id, fn ($query) => $query->whereRaw('1 = 0'))
+                ->select('student_id'))
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+    }
+
+    /** Publish the YouTube recording once and permanently link it to its live class. */
+    private function publishRecording(LiveSession $session): void
+    {
+        if ($session->is_published_as_lesson && $session->lesson_id) {
+            return;
+        }
+
+        $session->loadMissing(['teachingGroup', 'privateSessionSlot']);
+        $assignmentId = $session->teachingGroup?->teaching_assignment_id
+            ?? $session->privateSessionSlot?->teaching_assignment_id;
+
+        if (! $assignmentId) {
+            return;
+        }
+
+        $termId = $session->teachingGroup?->academic_term_id ?? AcademicTerm::currentOrNext()?->id;
+
+        if (! $termId) {
+            throw ValidationException::withMessages([
+                'recording_url' => 'يجب إعداد فصل دراسي قبل نشر تسجيل الحصة.',
+            ]);
+        }
+
+        $unit = CurriculumUnit::firstOrCreate(
+            [
+                'teaching_assignment_id' => $assignmentId,
+                'academic_term_id' => $termId,
+                'order' => 1,
+            ],
+            ['title' => 'الوحدة الأولى', 'is_published' => true],
+        );
+
+        $duration = $session->started_at && $session->ended_at
+            ? max(0, $session->started_at->diffInSeconds($session->ended_at))
+            : 0;
+
+        $material = GroupMaterial::create([
+            'curriculum_unit_id' => $unit->id,
+            'academic_term_id' => $termId,
+            'title' => $session->title,
+            'description' => $session->description,
+            'video_url' => $session->recording_url,
+            'duration_seconds' => min($duration, 86400),
+            'order' => ((int) $unit->lessons()->max('order')) + 1,
+            'is_free_preview' => false,
+        ]);
+
+        $session->update([
+            'lesson_id' => $material->id,
+            'is_published_as_lesson' => true,
+        ]);
     }
 
     /** Everyone holding a confirmed seat in this session gets a ping. */

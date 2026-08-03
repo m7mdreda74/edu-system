@@ -23,6 +23,8 @@ const certificateReady = ref(props.progress.certificate_ready);
 const treeOpen         = ref(true);
 const activeTab        = ref('description'); // description | files | questions
 const signedVideoUrl   = ref('');
+const videoProvider    = ref('');
+const youtubeVideoId   = ref('');
 const isVideoLoading   = ref(false);
 const lockNotice       = ref('');
 
@@ -346,6 +348,8 @@ watch(activeLessonId, async (lessonId) => {
     clearInterval(progressInterval);
     lastReportedSeconds  = 0;
     signedVideoUrl.value = '';
+    videoProvider.value  = '';
+    youtubeVideoId.value = '';
     questions.value      = [];
 
     const lesson = activeLesson.value;
@@ -369,7 +373,12 @@ watch(activeLessonId, async (lessonId) => {
         const response = await axios.get(route('student.video.url', { materialId: lesson.id }));
         // The student may have clicked on while the request was in flight.
         if (activeLessonId.value !== lessonId) return;
-        signedVideoUrl.value = response.data.signed_url;
+        videoProvider.value = response.data.provider ?? 'file';
+        if (videoProvider.value === 'youtube') {
+            youtubeVideoId.value = response.data.video_id;
+        } else {
+            signedVideoUrl.value = response.data.signed_url;
+        }
     } catch (e) {
         console.error('Failed to get signed URL:', e.message);
     } finally {
@@ -503,7 +512,7 @@ function uploadAnswer(sheetId) {
                         </div>
 
                         <!-- Dynamic Watermark overlay -->
-                        <div v-if="signedVideoUrl"
+                        <div v-if="signedVideoUrl || youtubeVideoId"
                              class="absolute pointer-events-none select-none z-10 transition-all duration-1000 text-[10px] sm:text-xs font-semibold text-white/10 dark:text-white/10 drop-shadow-sm flex flex-col items-center gap-0.5 bg-black/5 px-2 py-0.5 rounded"
                              :style="watermarkStyle"
                         >
@@ -511,8 +520,16 @@ function uploadAnswer(sheetId) {
                             <span>{{ $page.props.auth.user?.email }}</span>
                         </div>
 
+                        <div
+                            v-if="videoProvider === 'youtube' && youtubeVideoId"
+                            :key="`youtube-${activeLesson?.id}`"
+                            ref="videoRef"
+                            class="plyr__video-embed w-full h-full"
+                            data-plyr-provider="youtube"
+                            :data-plyr-embed-id="youtubeVideoId"
+                        ></div>
                         <video
-                            v-if="signedVideoUrl"
+                            v-else-if="signedVideoUrl"
                             :key="activeLesson?.id"
                             ref="videoRef"
                             class="w-full h-full"

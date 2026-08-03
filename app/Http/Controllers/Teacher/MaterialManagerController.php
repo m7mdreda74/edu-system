@@ -26,14 +26,15 @@ class MaterialManagerController extends Controller
 
         return Inertia::render('Teacher/Materials', [
             'group' => [
-                'id'   => $group->id,
+                'id' => $group->id,
                 'name' => $group->name,
                 // Lets this legacy screen point at the curriculum builder that replaced it.
                 'assignment_id' => $group->teaching_assignment_id,
-                'subject'       => $group->assignment?->subject?->only(['id', 'name']),
-                'grade'         => $group->assignment?->gradeLevel?->only(['key', 'name']),
+                'subject' => $group->assignment?->subject?->only(['id', 'name']),
+                'grade' => $group->assignment?->gradeLevel?->only(['key', 'name']),
             ],
-            'materials' => $group->materials()->get(),
+            'materials' => $group->materials()->with('liveSession:id,lesson_id')->get()
+                ->each->setAppends(['is_live_recording']),
         ]);
     }
 
@@ -42,13 +43,13 @@ class MaterialManagerController extends Controller
         $group = $this->ownedGroupOrFail($groupId);
 
         $validated = $request->validate([
-            'title'            => ['required', 'string', 'max:255'],
-            'video_url'        => ['nullable', 'url', 'max:2048'],
+            'title' => ['required', 'string', 'max:255'],
+            'video_url' => ['nullable', 'url', 'max:2048'],
             'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
-            'order'            => ['nullable', 'integer', 'min:1', 'max:999'],
-            'is_free_preview'  => ['nullable', 'boolean'],
-            'description'      => ['nullable', 'string', 'max:2000'],
-            'attachment'       => ['nullable', 'file', 'mimes:pdf,docx,pptx,zip', 'max:20480'],
+            'order' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'is_free_preview' => ['nullable', 'boolean'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'attachment' => ['nullable', 'file', 'mimes:pdf,docx,pptx,zip', 'max:20480'],
         ]);
 
         // This screen predates the curriculum builder, so everything it uploads
@@ -59,7 +60,7 @@ class MaterialManagerController extends Controller
         $validated['is_free_preview'] = (bool) ($validated['is_free_preview'] ?? false);
 
         if ($request->hasFile('attachment')) {
-            $validated['attachment_path'] = '/storage/' . $request->file('attachment')->store('materials', 'public');
+            $validated['attachment_path'] = '/storage/'.$request->file('attachment')->store('materials', 'public');
         }
 
         unset($validated['attachment']);
@@ -71,18 +72,23 @@ class MaterialManagerController extends Controller
 
     public function update(Request $request, int $id): RedirectResponse
     {
-        $material = GroupMaterial::with('unit.assignment')->findOrFail($id);
+        $material = GroupMaterial::with(['unit.assignment', 'liveSession'])->findOrFail($id);
 
         $this->assertOwnsAssignment($material->unit?->assignment);
 
         $validated = $request->validate([
-            'title'            => ['required', 'string', 'max:255'],
-            'video_url'        => ['nullable', 'url', 'max:2048'],
+            'title' => ['required', 'string', 'max:255'],
+            'video_url' => ['nullable', 'url', 'max:2048'],
             'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
-            'order'            => ['nullable', 'integer', 'min:1', 'max:999'],
-            'is_free_preview'  => ['nullable', 'boolean'],
-            'description'      => ['nullable', 'string', 'max:2000'],
+            'order' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'is_free_preview' => ['nullable', 'boolean'],
+            'description' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        if ($material->liveSession && array_key_exists('video_url', $validated)
+            && $validated['video_url'] !== $material->video_url) {
+            abort(403, 'تسجيل الحصة محمي ولا يمكن للمدرس تغييره أو إزالته.');
+        }
 
         $material->update($validated);
 
@@ -91,9 +97,11 @@ class MaterialManagerController extends Controller
 
     public function destroy(int $id): RedirectResponse
     {
-        $material = GroupMaterial::with('unit.assignment')->findOrFail($id);
+        $material = GroupMaterial::with(['unit.assignment', 'liveSession'])->findOrFail($id);
 
         $this->assertOwnsAssignment($material->unit?->assignment);
+
+        abort_if($material->liveSession, 403, 'تسجيلات الحصص لا يحذفها إلا مدير المنصة.');
 
         $material->delete();
 

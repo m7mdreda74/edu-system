@@ -126,16 +126,34 @@ class SubscriptionService
         }
 
         $activated = DB::transaction(function () use ($subscription): Subscription {
-            $subscription->update([
+            $locked = Subscription::query()->lockForUpdate()->findOrFail($subscription->id);
+
+            if ($locked->status === Subscription::STATUS_ACTIVE) {
+                return $locked;
+            }
+
+            if ($locked->teaching_group_id) {
+                $group = TeachingGroup::query()->lockForUpdate()->findOrFail($locked->teaching_group_id);
+                $alreadyReserved = SessionBooking::where('student_id', $locked->student_id)
+                    ->where('teaching_group_id', $group->id)
+                    ->where('status', 'confirmed')
+                    ->exists();
+
+                if (! $alreadyReserved && ! $group->hasCapacity()) {
+                    throw new LogicException('اكتمل عدد طلاب هذه المجموعة قبل تأكيد الدفع.');
+                }
+            }
+
+            $locked->update([
                 'status' => Subscription::STATUS_ACTIVE,
                 'cancelled_at' => null,
             ]);
 
-            if ($subscription->teaching_group_id) {
-                $this->reserveSeat($subscription);
+            if ($locked->teaching_group_id) {
+                $this->reserveSeat($locked);
             }
 
-            return $subscription->fresh();
+            return $locked->fresh();
         });
 
         if ($activated->teaching_group_id) {

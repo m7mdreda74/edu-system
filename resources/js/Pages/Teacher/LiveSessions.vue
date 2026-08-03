@@ -22,6 +22,8 @@ const form = useForm({
 const isModalOpen = ref(false);
 const actionModal = ref(null);
 const statusForm = useForm({ status: 'ended', recording_url: '' });
+const meetingForm = useForm({ meeting_url: '' });
+const attendanceForm = useForm({ student_ids: [] });
 const apologyForm = useForm({ reason: '' });
 const makeupForm = useForm({ scheduled_at: '' });
 
@@ -54,7 +56,11 @@ function updateStatus(id, newStatus) {
     if (newStatus === 'ended') {
         statusForm.reset();
         statusForm.status = 'ended';
-        actionModal.value = { type: 'end', sessionId: id };
+        actionModal.value = {
+            type: 'end',
+            sessionId: id,
+            alreadyEnded: props.sessions.find(session => session.id === id)?.status === 'ended',
+        };
         return;
     }
     router.patch(route('teacher.live-sessions.status', id), {
@@ -67,6 +73,34 @@ function submitEndSession() {
     statusForm.patch(route('teacher.live-sessions.status', actionModal.value.sessionId), {
         preserveScroll: true,
         onSuccess: () => { actionModal.value = null; statusForm.reset(); },
+    });
+}
+
+function openMeeting(session) {
+    meetingForm.reset();
+    meetingForm.meeting_url = session.room_id ?? '';
+    actionModal.value = { type: 'meeting', session };
+}
+
+function submitMeeting() {
+    meetingForm.patch(route('teacher.live-sessions.meeting-link', actionModal.value.session.id), {
+        preserveScroll: true,
+        onSuccess: () => { actionModal.value = null; meetingForm.reset(); },
+    });
+}
+
+function openAttendance(session) {
+    attendanceForm.clearErrors();
+    attendanceForm.student_ids = (session.attendance_students ?? [])
+        .filter(student => student.present)
+        .map(student => student.id);
+    actionModal.value = { type: 'attendance', session };
+}
+
+function submitAttendance() {
+    attendanceForm.post(route('teacher.live-sessions.attendance', actionModal.value.session.id), {
+        preserveScroll: true,
+        onSuccess: () => { actionModal.value = null; },
     });
 }
 
@@ -181,18 +215,22 @@ const statusLabels = {
                                     </div>
                                 </td>
                                 <td class="p-4">
-                                    <div v-if="['scheduled', 'live'].includes(session.status)">
+                                    <div v-if="session.room_id && ['scheduled', 'live'].includes(session.status)">
                                         <a :href="route('live-sessions.room', session.id)" target="_blank" class="text-primary-500 hover:underline text-xs block truncate max-w-[150px]">دخول القاعة المباشرة</a>
                                     </div>
+                                    <span v-else-if="['scheduled', 'live'].includes(session.status)" class="text-xs text-red-500">لم يُضف رابط الاجتماع</span>
                                     <div v-if="session.recording_url">
                                         <a :href="session.recording_url" target="_blank" class="text-accent-500 hover:underline text-xs block truncate max-w-[150px]">رابط التسجيل</a>
                                     </div>
                                 </td>
                                 <td class="p-4">
                                     <div class="flex items-center gap-2">
+                                        <button v-if="session.status === 'scheduled'" @click="openMeeting(session)" class="btn-sm btn-ghost text-primary-500">رابط الاجتماع</button>
                                         <button v-if="session.status === 'scheduled'" @click="updateStatus(session.id, 'live')" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">بدء الحصة</button>
                                         <button v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
                                         <button v-if="session.status === 'live'" @click="updateStatus(session.id, 'ended')" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
+                                        <button v-if="session.status === 'ended' && !session.recording_url" @click="updateStatus(session.id, 'ended')" class="btn-sm btn-primary">إضافة التسجيل</button>
+                                        <button v-if="['live', 'ended'].includes(session.status)" @click="openAttendance(session)" class="btn-sm btn-outline">تسجيل الحضور</button>
                                         <button v-if="session.apology?.status === 'pending'" @click="openMakeup(session)" class="btn-sm btn-primary">حدد حصة تعويضية</button>
                                     </div>
                                 </td>
@@ -217,17 +255,51 @@ const statusLabels = {
                         <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-500/10 text-accent-600">
                             <Icon name="live" class="h-6 w-6" />
                         </div>
-                        <h3 class="text-xl font-black text-surface-900 dark:text-white">إنهاء الحصة المباشرة</h3>
-                        <p class="mt-2 text-sm leading-6 text-surface-500">يمكنك إضافة رابط تسجيل الحصة للطلاب، أو تركه فارغًا وإنهاء الحصة مباشرة.</p>
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white">{{ actionModal.alreadyEnded ? 'إضافة تسجيل الحصة' : 'إنهاء الحصة المباشرة' }}</h3>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">أضف رابط تسجيل الحصة على YouTube ليظهر للطلاب داخل المنصة، أو اتركه فارغًا إذا لم تُسجّل هذه الحصة.</p>
                         <div class="mt-5">
-                            <label class="input-label">رابط تسجيل الحصة <span class="font-normal text-surface-400">(اختياري)</span></label>
-                            <input v-model="statusForm.recording_url" type="url" dir="ltr" class="input" placeholder="https://...">
+                            <label class="input-label">رابط تسجيل الحصة <span v-if="!actionModal.alreadyEnded" class="font-normal text-surface-400">(اختياري)</span></label>
+                            <input v-model="statusForm.recording_url" type="url" dir="ltr" class="input" :required="actionModal.alreadyEnded" placeholder="https://youtube.com/watch?v=...">
                             <p v-if="statusForm.errors.recording_url" class="mt-1 text-xs text-red-500">{{ statusForm.errors.recording_url }}</p>
                         </div>
                     </div>
                     <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
                         <button type="button" class="btn-ghost" :disabled="statusForm.processing" @click="actionModal = null">إلغاء</button>
-                        <button type="submit" class="btn-primary" :disabled="statusForm.processing">{{ statusForm.processing ? 'جاري الإنهاء...' : 'تأكيد إنهاء الحصة' }}</button>
+                        <button type="submit" class="btn-primary" :disabled="statusForm.processing">{{ statusForm.processing ? 'جاري الحفظ...' : (actionModal.alreadyEnded ? 'نشر التسجيل' : 'تأكيد إنهاء الحصة') }}</button>
+                    </div>
+                </form>
+                <form v-else-if="actionModal.type === 'meeting'" @submit.prevent="submitMeeting">
+                    <div class="p-6">
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white">رابط الاجتماع المباشر</h3>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">ضع رابط Zoom أو Google Meet أو أي خدمة اجتماعات. الطالب ينتقل إليه من زر دخول الحصة.</p>
+                        <div class="mt-5">
+                            <label class="input-label">رابط الاجتماع</label>
+                            <input v-model="meetingForm.meeting_url" type="url" dir="ltr" class="input" required placeholder="https://meet.google.com/...">
+                            <p v-if="meetingForm.errors.meeting_url" class="error-msg">{{ meetingForm.errors.meeting_url }}</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
+                        <button type="button" class="btn-ghost" @click="actionModal = null">إلغاء</button>
+                        <button type="submit" class="btn-primary" :disabled="meetingForm.processing">حفظ الرابط</button>
+                    </div>
+                </form>
+                <form v-else-if="actionModal.type === 'attendance'" @submit.prevent="submitAttendance">
+                    <div class="p-6">
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white">كشف حضور الحصة</h3>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">علّم على الطلاب الحاضرين ثم احفظ الكشف.</p>
+                        <div class="mt-5 max-h-72 overflow-y-auto divide-y divide-surface-100 dark:divide-surface-800">
+                            <label v-for="student in actionModal.session.attendance_students" :key="student.id" class="flex items-center gap-3 py-3 text-sm cursor-pointer">
+                                <input v-model="attendanceForm.student_ids" type="checkbox" :value="student.id" class="rounded" />
+                                <span class="font-semibold text-surface-800 dark:text-surface-100">{{ student.name }}</span>
+                                <span class="text-xs text-surface-400" dir="ltr">{{ student.email }}</span>
+                            </label>
+                            <p v-if="!actionModal.session.attendance_students?.length" class="py-6 text-center text-sm text-surface-400">لا يوجد طلاب محجوزون في هذه الحصة.</p>
+                            <p v-if="attendanceForm.errors.student_ids" class="error-msg">{{ attendanceForm.errors.student_ids }}</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
+                        <button type="button" class="btn-ghost" @click="actionModal = null">إلغاء</button>
+                        <button type="submit" class="btn-primary" :disabled="attendanceForm.processing">حفظ الحضور</button>
                     </div>
                 </form>
                 <form v-else-if="actionModal.type === 'apology'" @submit.prevent="submitApology">
@@ -323,8 +395,9 @@ const statusLabels = {
                             </div>
 
                             <div>
-                                <label class="input-label">رابط البث الخارجي (اختياري) - <span class="text-surface-400 font-normal">استخدمه فقط إن كنت تريد بثاً خارجياً كـ Zoom</span></label>
-                                <input v-model="form.room_id" type="url" dir="ltr" class="input" placeholder="https://zoom.us/j/...">
+                                <label class="input-label">رابط الاجتماع المباشر</label>
+                                <input v-model="form.room_id" type="url" dir="ltr" class="input" required placeholder="https://meet.google.com/...">
+                                <p v-if="form.errors.room_id" class="error-msg">{{ form.errors.room_id }}</p>
                             </div>
 
                             <div>

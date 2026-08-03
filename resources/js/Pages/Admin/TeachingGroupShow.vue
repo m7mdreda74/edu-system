@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import { formatQAR } from '@/lib/money';
@@ -17,6 +17,14 @@ const BADGES = {
 const LABELS = {
     active: 'فعّال', pending: 'بانتظار الدفع', expired: 'منتهي', cancelled: 'ملغي',
 };
+
+function deleteRecording(material) {
+    if (!material.recording_session_id || !window.confirm(`حذف تسجيل «${material.title}» من المنصة؟`)) return;
+
+    router.delete(route('admin.recorded-classes.destroy', material.recording_session_id), {
+        preserveScroll: true,
+    });
+}
 </script>
 
 <template>
@@ -99,6 +107,9 @@ const LABELS = {
                             <div v-for="m in group.materials" :key="m.id" class="text-[11px] text-surface-500 flex items-center gap-1.5">
                                 <span class="text-surface-300">{{ m.order }}.</span>
                                 <span class="truncate">{{ m.title }}</span>
+                                <button v-if="m.recording_session_id" type="button" class="ms-auto text-red-500 hover:text-red-600 font-bold shrink-0" @click="deleteRecording(m)">
+                                    حذف التسجيل
+                                </button>
                                 <span v-if="m.is_free_preview" class="badge-green text-[9px] shrink-0">مجاني</span>
                             </div>
                         </div>

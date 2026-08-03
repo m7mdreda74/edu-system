@@ -6,7 +6,7 @@ use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
-use App\Domain\Live\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
@@ -28,19 +28,31 @@ abstract class TestCase extends BaseTestCase
     // Declared public so that IDE static analysis (Intelephense, PHPStan)
     // can resolve $this->admin etc. inside every it() / beforeEach() closure.
 
-    public User               $admin;
-    public User               $teacher;
-    public User               $student;
-    public User               $parent;
+    public User $admin;
+
+    public User $teacher;
+
+    public User $student;
+
+    public User $parent;
+
     public TeachingAssignment $assignment;
-    public TeachingGroup      $group;
-    public AcademicTerm       $term;
-    public Subscription       $subscription;
-    public LiveSession        $session;
-    public CurriculumUnit     $unit;
-    public GradeLevel         $grade;
-    public Subject            $subject;
-    public Subject            $maths;
+
+    public TeachingGroup $group;
+
+    public AcademicTerm $term;
+
+    public Subscription $subscription;
+
+    public LiveSession $session;
+
+    public CurriculumUnit $unit;
+
+    public GradeLevel $grade;
+
+    public Subject $subject;
+
+    public Subject $maths;
 
     // ─────────────────────────────────────────────────────────────────────────
 

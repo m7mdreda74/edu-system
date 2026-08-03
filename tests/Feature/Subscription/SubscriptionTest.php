@@ -17,6 +17,7 @@ use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use App\Notifications\GenericDatabaseNotification;
+use App\Policies\MaterialPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
@@ -32,32 +33,32 @@ beforeEach(function () {
         Role::findOrCreate($role, 'web');
     }
 
-    $grade   = GradeLevel::where('key', 'grade_12_science')->firstOrFail();
+    $grade = GradeLevel::where('key', 'grade_12_science')->firstOrFail();
     $subject = Subject::factory()->create();
 
     $teacher = User::factory()->create(['is_active' => true]);
     $teacher->assignRole('teacher');
 
     $this->assignment = TeachingAssignment::factory()->create([
-        'teacher_id'            => $teacher->id,
-        'subject_id'            => $subject->id,
-        'grade_level_id'        => $grade->id,
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+        'grade_level_id' => $grade->id,
         'private_monthly_price' => 90_000,
-        'accepts_private'       => true,
+        'accepts_private' => true,
     ]);
 
     $this->group = TeachingGroup::factory()->create([
         'teaching_assignment_id' => $this->assignment->id,
-        'monthly_price'          => 45_000,
-        'capacity'               => 2,
+        'monthly_price' => 45_000,
+        'capacity' => 2,
     ]);
 
     // The syllabus hangs off the assignment, so material needs a unit to sit in.
     $this->unit = CurriculumUnit::create([
         'teaching_assignment_id' => $this->assignment->id,
-        'academic_term_id'       => AcademicTerm::currentOrNext()->id,
-        'order'                  => 1,
-        'title'                  => 'الوحدة الأولى',
+        'academic_term_id' => AcademicTerm::currentOrNext()->id,
+        'order' => 1,
+        'title' => 'الوحدة الأولى',
     ]);
 
     $this->student = User::factory()->create(['email_verified_at' => now()]);
@@ -84,6 +85,21 @@ it('reserves the seat only once the subscription is activated', function () {
     $this->service->activate($subscription);
 
     expect(SessionBooking::where('student_id', $this->student->id)->where('status', 'confirmed')->exists())->toBeTrue();
+});
+
+it('rechecks the last group seat when pending payments are activated', function () {
+    $this->group->update(['capacity' => 1]);
+    $otherStudent = User::factory()->create();
+    $otherStudent->assignRole('student');
+
+    $first = $this->service->openForGroup($this->student, $this->group);
+    $second = $this->service->openForGroup($otherStudent, $this->group);
+
+    $this->service->activate($first);
+
+    expect(fn () => $this->service->activate($second))->toThrow(LogicException::class)
+        ->and($second->fresh()->status)->toBe(Subscription::STATUS_PENDING)
+        ->and($this->group->fresh()->activeBookings()->count())->toBe(1);
 });
 
 it('refuses to subscribe twice to the same group', function () {
@@ -144,14 +160,14 @@ it('expires lapsed subscriptions and frees their seats', function () {
 it('locks paid material behind a live subscription', function () {
     $material = GroupMaterial::create([
         'curriculum_unit_id' => $this->unit->id,
-        'title'              => 'الحصة الأولى',
-        'video_url'          => 'https://example.com/video.mp4',
-        'duration_seconds'   => 600,
-        'order'              => 1,
-        'is_free_preview'    => false,
+        'title' => 'الحصة الأولى',
+        'video_url' => 'https://example.com/video.mp4',
+        'duration_seconds' => 600,
+        'order' => 1,
+        'is_free_preview' => false,
     ]);
 
-    $policy = new App\Policies\MaterialPolicy();
+    $policy = new MaterialPolicy;
 
     expect($policy->watch($this->student, $material))->toBeFalse();
 
@@ -163,13 +179,13 @@ it('locks paid material behind a live subscription', function () {
 it('lets anyone watch a free preview', function () {
     $preview = GroupMaterial::create([
         'curriculum_unit_id' => $this->unit->id,
-        'title'              => 'معاينة',
-        'duration_seconds'   => 300,
-        'order'              => 1,
-        'is_free_preview'    => true,
+        'title' => 'معاينة',
+        'duration_seconds' => 300,
+        'order' => 1,
+        'is_free_preview' => true,
     ]);
 
-    expect((new App\Policies\MaterialPolicy())->watch($this->student, $preview))->toBeTrue();
+    expect((new MaterialPolicy)->watch($this->student, $preview))->toBeTrue();
 });
 
 it('sends the student to checkout when they subscribe from the profile', function () {
@@ -298,6 +314,67 @@ it('lets a student reserve one free intro session per teacher without creating a
 
     expect($secondSlot->fresh()->status)->toBe('available')
         ->and(SessionBooking::where('student_id', $this->student->id)->count())->toBe(1);
+});
+
+it('publishes private slots for one student and closes the slot after the first booking', function () {
+    $teacher = $this->assignment->teacher;
+    $startsAt = now()->addDays(4)->setTime(18, 0);
+
+    $this->actingAs($teacher)
+        ->post(route('teacher.private-slots.store'), [
+            'teaching_assignment_id' => $this->assignment->id,
+            'starts_at' => $startsAt->toDateTimeString(),
+            'ends_at' => $startsAt->copy()->addHour()->toDateTimeString(),
+            'timezone' => 'Asia/Qatar',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $slot = PrivateSessionSlot::where('is_free_intro', false)->firstOrFail();
+    $this->service->activate($this->service->openForPrivate($this->student, $this->assignment));
+
+    $this->actingAs($this->student)
+        ->get(route('teachers.show', $teacher->id))
+        ->assertInertia(fn ($page) => $page
+            ->where('assignments.0.has_private_subscription', true)
+            ->where('assignments.0.private_slots.0.id', $slot->id));
+
+    $this->actingAs($this->student)
+        ->post(route('student.private-slots.book', $slot->id))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($slot->fresh()->status)->toBe('booked')
+        ->and(SessionBooking::where('private_session_slot_id', $slot->id)
+            ->where('status', 'confirmed')->count())->toBe(1);
+
+    $otherStudent = User::factory()->create(['email_verified_at' => now()]);
+    $otherStudent->assignRole('student');
+    $this->service->activate($this->service->openForPrivate($otherStudent, $this->assignment));
+
+    $this->actingAs($otherStudent)
+        ->post(route('student.private-slots.book', $slot->id))
+        ->assertSessionHas('error');
+
+    expect(SessionBooking::where('private_session_slot_id', $slot->id)
+        ->where('status', 'confirmed')->count())->toBe(1);
+});
+
+it('hides a full group and shows it again after its seat is released', function () {
+    $this->group->update(['capacity' => 1]);
+    $occupant = User::factory()->create();
+    $occupant->assignRole('student');
+    $subscription = $this->service->activate($this->service->openForGroup($occupant, $this->group));
+
+    $this->get(route('teachers.show', $this->assignment->teacher_id))
+        ->assertInertia(fn ($page) => $page->has('assignments.0.groups', 0));
+
+    $this->service->cancel($subscription);
+
+    $this->get(route('teachers.show', $this->assignment->teacher_id))
+        ->assertInertia(fn ($page) => $page
+            ->has('assignments.0.groups', 1)
+            ->where('assignments.0.groups.0.id', $this->group->id));
 });
 
 it('shows the student their classes', function () {
