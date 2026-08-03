@@ -93,10 +93,15 @@ function formatDateTime(value) {
 
             <!-- Upcoming live sessions -->
             <section>
-                <h2 class="text-sm font-black text-surface-800 dark:text-surface-100 mb-3 flex items-center gap-2">
-                    <Icon name="live" class="w-4 h-4 text-red-500" />
-                    الحصص المباشرة القادمة
-                </h2>
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <h2 class="text-sm font-black text-surface-800 dark:text-surface-100 flex items-center gap-2">
+                        <Icon name="live" class="w-4 h-4 text-red-500" />
+                        الحصص المباشرة القادمة
+                    </h2>
+                    <Link :href="route('student.schedule')" class="text-xs font-bold text-primary-600 dark:text-primary-400">
+                        عرض الجدول كاملًا
+                    </Link>
+                </div>
 
                 <div v-if="upcomingSessions.length" class="card divide-y divide-surface-100 dark:divide-surface-800">
                     <div v-for="session in upcomingSessions" :key="session.id" class="flex items-center justify-between gap-3 p-4">
@@ -105,7 +110,7 @@ function formatDateTime(value) {
                                 {{ session.title }}
                             </div>
                             <div class="text-[11px] text-surface-400 flex items-center gap-2 flex-wrap">
-                                <span>{{ session.teaching_group?.assignment?.subject?.name ?? 'حصة خاصة' }}</span>
+                                <span>{{ session.subject ?? 'حصة خاصة' }}</span>
                                 <span>·</span>
                                 <span>{{ formatDateTime(session.scheduled_at) }}</span>
                             </div>

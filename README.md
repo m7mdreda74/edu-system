@@ -147,15 +147,17 @@ The curriculum page then uploads directly from the browser to Blob, avoiding
 Vercel's 4.5 MB Function request limit while retaining the application's 25 MB
 file limit. Local development continues to use Laravel's `public` disk.
 
-### Subscription renewal reminders
+### Scheduled notifications
 
-The production deployment registers a daily Vercel Cron job that checks active
-subscriptions and sends one database notification to the student and every
-verified linked parent when the next scheduled class is the final class in the
-current billing period.
+The production deployment registers two protected Vercel Cron jobs. An hourly
+job notifies each confirmed student when a scheduled live class enters the next
+24 hours, while a daily job checks active subscriptions and sends a renewal
+notification to the student and every verified linked parent when the next
+scheduled class is the final class in the current billing period.
 
 Set a random `CRON_SECRET` of at least 16 characters in the Vercel project's
 Production environment, then redeploy. Vercel sends the secret in the cron
 request's `Authorization` header, and the Laravel endpoint rejects requests
-when the secret is missing or does not match. The same check can be run locally
-with `php artisan subscriptions:send-renewal-reminders`.
+when the secret is missing or does not match. The same checks can be run locally
+with `php artisan sessions:send-reminders` and
+`php artisan subscriptions:send-renewal-reminders`.

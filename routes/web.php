@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Communication\ChatController;
 use App\Http\Controllers\Communication\NotificationController;
+use App\Http\Controllers\Cron\LiveSessionReminderController;
 use App\Http\Controllers\Cron\SubscriptionRenewalReminderController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Live\LiveSessionRoomController;
@@ -40,6 +41,7 @@ use App\Http\Controllers\Student\MyGradeController;
 use App\Http\Controllers\Student\PrivateLessonRequestController;
 use App\Http\Controllers\Student\QuizController;
 use App\Http\Controllers\Student\ReviewController;
+use App\Http\Controllers\Student\ScheduleController;
 use App\Http\Controllers\Student\StudentPurchaseRequestController;
 use App\Http\Controllers\Student\SubscriptionController;
 use App\Http\Controllers\Student\VideoUrlController;
@@ -58,6 +60,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', HealthController::class)->name('health');
 Route::get('/api/cron/subscription-renewal-reminders', SubscriptionRenewalReminderController::class)
     ->name('cron.subscription-renewal-reminders');
+Route::get('/api/cron/live-session-reminders', LiveSessionReminderController::class)
+    ->name('cron.live-session-reminders');
 
 // ─── Public Browse Flow: grade → subject → teachers → profile ─────────────────
 Route::get('/', [HomeController::class,             'index'])->name('home');
@@ -121,6 +125,8 @@ Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
 
     // The student's own grade: every subject on their curriculum and its teachers
     Route::get('/my-grade', [MyGradeController::class, 'index'])->name('student.my-grade');
+
+    Route::get('/my-schedule', [ScheduleController::class, 'index'])->name('student.schedule');
 
     // Group subscriptions, plus teacher-led agreement requests for private tuition.
     Route::get('/my-classes', [SubscriptionController::class, 'index'])->name('student.my-classes');

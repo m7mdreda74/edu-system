@@ -7,6 +7,7 @@ namespace App\Domain\Learning\Models;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -96,5 +97,32 @@ class LiveSession extends Model
     public function isPrivate(): bool
     {
         return $this->private_session_slot_id !== null;
+    }
+
+    public function scopeForStudent(Builder $query, int $studentId): Builder
+    {
+        return $query->where(function (Builder $query) use ($studentId): void {
+            $query->whereHas(
+                'teachingGroup.activeBookings',
+                fn (Builder $bookings) => $bookings->where('student_id', $studentId),
+            )->orWhereHas(
+                'privateSessionSlot.booking',
+                fn (Builder $booking) => $booking
+                    ->where('student_id', $studentId)
+                    ->where('status', 'confirmed'),
+            );
+        });
+    }
+
+    /** Scheduled future classes plus any class that is currently live. */
+    public function scopeUpcoming(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query->where('status', self::STATUS_LIVE)
+                ->orWhere(function (Builder $scheduled): void {
+                    $scheduled->where('status', self::STATUS_SCHEDULED)
+                        ->where('scheduled_at', '>=', now());
+                });
+        });
     }
 }

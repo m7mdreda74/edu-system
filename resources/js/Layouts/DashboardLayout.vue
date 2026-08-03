@@ -105,6 +105,7 @@ const menuGroups = computed(() => {
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
                     { label: 'مواد صفي', icon: 'book',      href: route('student.my-grade'),   name: 'student.my-grade' },
                     { label: 'حصصي',     icon: 'courses',   href: route('student.my-classes'), name: 'student.my-classes' },
+                    { label: 'جدول حصصي', icon: 'calendar', href: route('student.schedule'),   name: 'student.schedule' },
                     { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),         name: 'chat.index' },
                 ]
             }
