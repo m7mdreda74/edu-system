@@ -11,14 +11,6 @@ const props = defineProps({
     grades:           { type: Array, default: () => [] },
     featuredTeachers: { type: Array, default: () => [] },
     term:             { type: Object, default: null },
-    stats:            {
-        type: Object,
-        default: () => ({
-            registered_students: 0,
-            available_courses: 0,
-            active_teachers: 0,
-        }),
-    },
 });
 
 const termNotice = computed(() => {
@@ -167,10 +159,6 @@ const gradeGroups = computed(() => {
     );
 });
 
-function formatNumber(value) {
-    return new Intl.NumberFormat('en-US').format(Number(value ?? 0));
-}
-
 </script>
 
 
@@ -213,17 +201,6 @@ function formatNumber(value) {
                         </Link>
                     </div>
 
-                    <!-- Stats -->
-                    <div class="flex flex-wrap gap-8 mt-12 pt-8 border-t border-white/20 animate-fade-in-up animation-delay-400">
-                        <div v-for="stat in [
-                            { value: props.stats.registered_students, label: 'طالب مسجّل' },
-                            { value: props.stats.available_courses, label: 'دورة متاحة' },
-                            { value: props.stats.active_teachers, label: 'مدرس خبير' },
-                        ]" :key="stat.label">
-                            <div class="text-3xl font-black text-white hover:text-accent-400 transition-colors duration-300">{{ formatNumber(stat.value) }}</div>
-                            <div class="text-sm text-white/70">{{ stat.label }}</div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </section>

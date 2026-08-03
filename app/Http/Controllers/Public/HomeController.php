@@ -101,19 +101,6 @@ class HomeController extends Controller
             ] : null,
             'grades' => $grades,
             'featuredTeachers' => $featuredTeachers,
-            'stats' => [
-                'registered_students' => User::role('student')
-                    ->where('is_active', true)
-                    ->count(),
-                'available_courses' => TeachingAssignment::query()
-                    ->where('is_active', true)
-                    ->whereHas('teacher', fn ($query) => $query->where('is_active', true))
-                    ->count(),
-                'active_teachers' => User::role('teacher')
-                    ->where('is_active', true)
-                    ->whereHas('teachingAssignments', fn ($query) => $query->where('is_active', true))
-                    ->count(),
-            ],
         ]);
     }
 

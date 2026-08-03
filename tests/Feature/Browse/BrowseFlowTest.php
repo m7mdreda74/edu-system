@@ -13,12 +13,22 @@ use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
-// Binds $this inside every Pest closure in this file to Tests\TestCase.
-uses(TestCase::class, RefreshDatabase::class);
+abstract class BrowseTestCase extends TestCase
+{
+    public GradeLevel $grade;
+    public Subject $subject;
+    public User $teacher;
+    public TeachingAssignment $assignment;
+    public TeachingGroup $group;
+}
+
+// Binds $this inside every Pest closure in this file to BrowseTestCase.
+uses(BrowseTestCase::class, RefreshDatabase::class);
 
 // ─── Public browse flow: grade → subject → teachers → profile ────────────────
 
 beforeEach(function () {
+    /** @var BrowseTestCase $this */
     foreach (['admin', 'teacher', 'student', 'parent'] as $role) {
         Role::findOrCreate($role, 'web');
     }
@@ -51,9 +61,11 @@ beforeEach(function () {
 });
 
 it('shows every stage of the Qatari system on the home page', function () {
+    /** @var BrowseTestCase $this */
     $this->get(route('home'))
         ->assertOk()
         ->assertInertia(function ($page) {
+    /** @var BrowseTestCase $this */
             $page->component('Public/Home');
 
             $stages = collect($page->toArray()['props']['grades'])->pluck('stage')->unique();
@@ -62,28 +74,15 @@ it('shows every stage of the Qatari system on the home page', function () {
         });
 });
 
-it('returns homepage statistics from live platform records instead of editable settings', function () {
-    User::factory()->count(2)->create(['is_active' => true])->each(function (User $student): void {
-        $student->assignRole('student');
-    });
-
-    $inactiveStudent = User::factory()->create(['is_active' => false]);
-    $inactiveStudent->assignRole('student');
-
-    PlatformSetting::updateOrCreate(
-        ['key' => 'home_stats_students'],
-        ['value' => '999999', 'type' => 'string'],
-    );
-
+it('does not return statistics to the home page', function () {
+    /** @var BrowseTestCase $this */
     $this->get(route('home'))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->where('stats.registered_students', 2)
-            ->where('stats.available_courses', 1)
-            ->where('stats.active_teachers', 1));
+        ->assertInertia(fn ($page) => $page->missing('stats'));
 });
 
 it('renders hero copy from platform settings so the admin can change it', function () {
+    /** @var BrowseTestCase $this */
     PlatformSetting::updateOrCreate(
         ['key' => 'home_hero_badge'],
         ['value' => 'شارتنا المحدثة', 'type' => 'string'],
@@ -95,6 +94,7 @@ it('renders hero copy from platform settings so the admin can change it', functi
 });
 
 it('provides a dedicated teacher directory from the public navigation', function () {
+    /** @var BrowseTestCase $this */
     $this->get(route('teachers.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
@@ -105,9 +105,11 @@ it('provides a dedicated teacher directory from the public navigation', function
 });
 
 it('splits grades eleven and twelve into the three Qatari tracks', function () {
+    /** @var BrowseTestCase $this */
     $this->get(route('home'))
         ->assertOk()
         ->assertInertia(function ($page) {
+    /** @var BrowseTestCase $this */
             $tracked = collect($page->toArray()['props']['grades'])
                 ->whereNotNull('track')
                 ->pluck('key');
@@ -124,9 +126,11 @@ it('splits grades eleven and twelve into the three Qatari tracks', function () {
 });
 
 it('lists the whole curriculum for a grade, teachers or not', function () {
+    /** @var BrowseTestCase $this */
     $this->get(route('grades.show', ['key' => 'grade_12_science']))
         ->assertOk()
         ->assertInertia(function ($page) {
+    /** @var BrowseTestCase $this */
             $subjects = collect($page->toArray()['props']['subjects']);
 
             // The science track carries physics whether or not it is staffed.
@@ -139,9 +143,11 @@ it('lists the whole curriculum for a grade, teachers or not', function () {
 });
 
 it('marks curriculum subjects with no teacher as unstaffed', function () {
+    /** @var BrowseTestCase $this */
     $this->get(route('grades.show', ['key' => 'grade_12_arts']))
         ->assertOk()
         ->assertInertia(function ($page) {
+    /** @var BrowseTestCase $this */
             $subjects = collect($page->toArray()['props']['subjects']);
 
             expect($subjects)->not->toBeEmpty()
@@ -150,6 +156,7 @@ it('marks curriculum subjects with no teacher as unstaffed', function () {
 });
 
 it('offers the sibling track when viewing a tracked grade', function () {
+    /** @var BrowseTestCase $this */
     $this->get(route('grades.show', ['key' => 'grade_12_science']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
@@ -160,6 +167,7 @@ it('offers the sibling track when viewing a tracked grade', function () {
 });
 
 it('lists the teachers who teach a subject with their intro video', function () {
+    /** @var BrowseTestCase $this */
     $this->get(route('subjects.teachers', ['gradeKey' => 'grade_12_science', 'subject' => $this->subject->id]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
@@ -172,6 +180,7 @@ it('lists the teachers who teach a subject with their intro video', function () 
 });
 
 it('loads teacher ratings in one query regardless of teacher count', function () {
+    /** @var BrowseTestCase $this */
     User::factory()->count(7)->create(['is_active' => true])->each(function (User $teacher): void {
         $teacher->assignRole('teacher');
         TeachingAssignment::factory()->create([
@@ -198,6 +207,7 @@ it('loads teacher ratings in one query regardless of teacher count', function ()
 });
 
 it('shows a teacher profile with their groups and prices', function () {
+    /** @var BrowseTestCase $this */
     $this->get(route('teachers.show', $this->teacher->id))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
@@ -210,12 +220,14 @@ it('shows a teacher profile with their groups and prices', function () {
 });
 
 it('does not show inactive teachers', function () {
+    /** @var BrowseTestCase $this */
     $this->teacher->update(['is_active' => false]);
 
     $this->get(route('teachers.show', $this->teacher->id))->assertNotFound();
 });
 
 it('has no route named after courses any more', function () {
+    /** @var BrowseTestCase $this */
     $names = collect(app('router')->getRoutes())
         ->map(fn ($route) => $route->getName())
         ->filter();
