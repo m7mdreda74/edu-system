@@ -13,17 +13,28 @@ use App\Domain\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
+abstract class AdminControlTestCase extends TestCase
+{
+    public User $admin;
+    public User $teacher;
+    public User $student;
+    public TeachingAssignment $assignment;
+    public TeachingGroup $group;
+}
+
 // Binds $this inside every Pest closure in this file to Tests\TestCase.
 // Required for Intelephense to resolve $this->admin / actingAs() / get() etc.
-uses(TestCase::class, RefreshDatabase::class);
+uses(AdminControlTestCase::class, RefreshDatabase::class);
 
 // ─── Everything the admin must be able to reach and change ───────────────────
 
 beforeEach(function () {
+    /** @var AdminControlTestCase $this */
     foreach (['admin', 'teacher', 'student', 'parent'] as $role) {
         Role::findOrCreate($role, 'web');
     }
@@ -49,6 +60,7 @@ beforeEach(function () {
 });
 
 it('reaches every admin screen', function () {
+    /** @var AdminControlTestCase $this */
     $screens = [
         'admin.dashboard', 'admin.users', 'admin.subjects', 'admin.grade-levels',
         'admin.academic-terms', 'admin.teaching-groups', 'admin.subscriptions',
@@ -62,15 +74,33 @@ it('reaches every admin screen', function () {
 });
 
 it('keeps every admin screen away from non-admins', function () {
+    /** @var AdminControlTestCase $this */
     foreach ([$this->teacher, $this->student] as $user) {
         $this->actingAs($user)->get(route('admin.dashboard'))->assertForbidden();
         $this->actingAs($user)->get(route('admin.reviews'))->assertForbidden();
     }
 });
 
+it('lets the admin assign a new password without exposing the old one', function () {
+    /** @var AdminControlTestCase $this */
+    $oldHash = $this->teacher->password;
+
+    $this->actingAs($this->admin)
+        ->patch(route('admin.users.password', ['id' => $this->teacher->id]), [
+            'password' => 'teacher-new-password',
+            'password_confirmation' => 'teacher-new-password',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $this->assertNotSame($oldHash, $this->teacher->refresh()->password);
+    $this->assertTrue(Hash::check('teacher-new-password', $this->teacher->password));
+});
+
 // ─── Review moderation — a rating is invisible until it is approved ──────────
 
 it('publishes a review only once the admin approves it', function () {
+    /** @var AdminControlTestCase $this */
     $review = TeacherReview::create([
         'user_id' => $this->student->id,
         'teacher_id' => $this->teacher->id,
@@ -94,6 +124,7 @@ it('publishes a review only once the admin approves it', function () {
 });
 
 it('can hide an approved review again', function () {
+    /** @var AdminControlTestCase $this */
     $review = TeacherReview::create([
         'user_id' => $this->student->id, 'teacher_id' => $this->teacher->id,
         'rating' => 4, 'is_approved' => true,
@@ -105,6 +136,7 @@ it('can hide an approved review again', function () {
 });
 
 it('clears the whole moderation backlog in one go', function () {
+    /** @var AdminControlTestCase $this */
     foreach (range(1, 3) as $i) {
         $student = User::factory()->create();
         $student->assignRole('student');
@@ -123,6 +155,7 @@ it('clears the whole moderation backlog in one go', function () {
 // ─── Academic terms ─────────────────────────────────────────────────────────
 
 it('adds an academic term', function () {
+    /** @var AdminControlTestCase $this */
     $this->actingAs($this->admin)->post(route('admin.academic-terms.store'), [
         'year_label' => '2027/2028',
         'term_number' => 1,
@@ -135,6 +168,7 @@ it('adds an academic term', function () {
 });
 
 it('rejects a term that ends before it starts', function () {
+    /** @var AdminControlTestCase $this */
     $this->actingAs($this->admin)->post(route('admin.academic-terms.store'), [
         'year_label' => '2027/2028',
         'term_number' => 2,
@@ -145,6 +179,7 @@ it('rejects a term that ends before it starts', function () {
 });
 
 it('refuses to delete a term that groups are attached to', function () {
+    /** @var AdminControlTestCase $this */
     $term = AcademicTerm::first();
     $this->group->update(['academic_term_id' => $term->id]);
 
@@ -158,6 +193,7 @@ it('refuses to delete a term that groups are attached to', function () {
 // ─── Teaching group oversight ───────────────────────────────────────────────
 
 it('takes a group offline without touching its teacher', function () {
+    /** @var AdminControlTestCase $this */
     expect($this->group->is_active)->toBeTrue();
 
     $this->actingAs($this->admin)
@@ -169,6 +205,7 @@ it('takes a group offline without touching its teacher', function () {
 });
 
 it('gives group and private pricing to the admin only', function () {
+    /** @var AdminControlTestCase $this */
     $payload = [
         'name' => $this->group->name,
         'capacity' => $this->group->capacity,
@@ -204,6 +241,7 @@ it('gives group and private pricing to the admin only', function () {
 });
 
 it('requires private pricing to stay above every group price', function () {
+    /** @var AdminControlTestCase $this */
     $this->actingAs($this->admin)
         ->patch(route('admin.teaching-assignments.update', $this->assignment->id), [
             'accepts_private' => true,
@@ -224,6 +262,7 @@ it('requires private pricing to stay above every group price', function () {
 });
 
 it('keeps pricing with admin while the teacher owns group capacity and schedules', function () {
+    /** @var AdminControlTestCase $this */
     $this->actingAs($this->admin)
         ->post(route('admin.teaching-groups.store'), [
             'teaching_assignment_id' => $this->assignment->id,
@@ -277,6 +316,7 @@ it('keeps pricing with admin while the teacher owns group capacity and schedules
 });
 
 it('keeps the teacher dashboard academic only', function () {
+    /** @var AdminControlTestCase $this */
     $this->actingAs($this->teacher)
         ->get(route('teacher.dashboard'))
         ->assertOk()
@@ -289,6 +329,7 @@ it('keeps the teacher dashboard academic only', function () {
 });
 
 it('shows who is inside a group', function () {
+    /** @var AdminControlTestCase $this */
     $this->actingAs($this->admin)
         ->get(route('admin.teaching-groups.show', ['id' => $this->group->id]))
         ->assertOk()
@@ -301,6 +342,7 @@ it('shows who is inside a group', function () {
 // ─── Live dashboard figures ─────────────────────────────────────────────────
 
 it('serves dashboard figures as json for polling', function () {
+    /** @var AdminControlTestCase $this */
     $this->actingAs($this->admin)
         ->getJson(route('admin.dashboard.stats'))
         ->assertOk()
@@ -314,6 +356,7 @@ it('serves dashboard figures as json for polling', function () {
 });
 
 it('loads every live dashboard figure in one database round trip', function () {
+    /** @var AdminControlTestCase $this */
     $statsQueries = [];
     DB::listen(function ($query) use (&$statsQueries): void {
         if (str_contains($query->sql, 'groups_count')) {
@@ -329,6 +372,7 @@ it('loads every live dashboard figure in one database round trip', function () {
 });
 
 it('counts a pending review in the action queue', function () {
+    /** @var AdminControlTestCase $this */
     TeacherReview::create([
         'user_id' => $this->student->id, 'teacher_id' => $this->teacher->id,
         'rating' => 5, 'is_approved' => false,
@@ -342,6 +386,7 @@ it('counts a pending review in the action queue', function () {
 // ─── Teacher photos belong to the platform, not the teacher ─────────────────
 
 it('refuses a teacher uploading their own photo', function () {
+    /** @var AdminControlTestCase $this */
     Storage::fake('public');
 
     $this->actingAs($this->teacher)
@@ -356,6 +401,7 @@ it('refuses a teacher uploading their own photo', function () {
 });
 
 it('still lets a student set their own photo', function () {
+    /** @var AdminControlTestCase $this */
     Storage::fake('public');
 
     $this->actingAs($this->student)
@@ -370,6 +416,7 @@ it('still lets a student set their own photo', function () {
 });
 
 it('lets a teacher edit the rest of their profile', function () {
+    /** @var AdminControlTestCase $this */
     $this->actingAs($this->teacher)
         ->patch(route('profile.update'), [
             'name' => $this->teacher->name,
@@ -383,6 +430,7 @@ it('lets a teacher edit the rest of their profile', function () {
 });
 
 it('lets an admin set and clear a teacher photo', function () {
+    /** @var AdminControlTestCase $this */
     Storage::fake('public');
 
     $this->actingAs($this->admin)
@@ -401,6 +449,7 @@ it('lets an admin set and clear a teacher photo', function () {
 });
 
 it('manages photos for teachers only', function () {
+    /** @var AdminControlTestCase $this */
     Storage::fake('public');
 
     $this->actingAs($this->admin)

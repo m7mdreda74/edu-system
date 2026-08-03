@@ -12,6 +12,10 @@ defineProps({
     status: {
         type: String,
     },
+    canChangePassword: {
+        type: Boolean,
+        default: true,
+    },
 });
 </script>
 
@@ -39,7 +43,13 @@ defineProps({
                 </div>
 
                 <div class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">
-                    <UpdatePasswordForm class="max-w-xl" />
+                    <UpdatePasswordForm v-if="canChangePassword" class="max-w-xl" />
+                    <div v-else class="max-w-xl">
+                        <h2 class="text-lg font-bold text-surface-900 dark:text-white">كلمة المرور</h2>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">
+                            يتم تعيين كلمة مرور حساب المدرس وإدارتها عن طريق إدارة المنصة فقط.
+                        </p>
+                    </div>
                 </div>
 
                 <div class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">

@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
@@ -69,5 +70,20 @@ class PasswordResetTest extends TestCase
 
             return true;
         });
+    }
+
+    public function test_teachers_are_directed_to_administration_for_password_reset(): void
+    {
+        Notification::fake();
+        Role::findOrCreate('teacher', 'web');
+        $teacher = User::factory()->create();
+        $teacher->assignRole('teacher');
+
+        $this->from('/forgot-password')
+            ->post('/forgot-password', ['email' => $teacher->email])
+            ->assertSessionHasErrors('email')
+            ->assertRedirect('/forgot-password');
+
+        Notification::assertNotSentTo($teacher, ResetPassword::class);
     }
 }

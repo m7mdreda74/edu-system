@@ -57,9 +57,11 @@ class LiveSessionController extends Controller
         $sessions = LiveSession::with([
             'teachingGroup:id,name,teaching_assignment_id',
             'teachingGroup.assignment.subject:id,name',
-            'privateSessionSlot:id,starts_at,ends_at,is_free_intro',
+            'privateSessionSlot:id,teaching_assignment_id,starts_at,ends_at,is_free_intro',
+            'privateSessionSlot.assignment.subject:id,name',
             'privateSessionSlot.booking.student:id,name,email',
             'attendees:id,live_session_id,user_id,joined_at,left_at',
+            'attendees.user:id,name,email',
             'apology:id,live_session_id,reason,status,makeup_session_id,makeup_scheduled_at,deduction_amount,admin_note,teacher_payout_id',
             'apology.makeupSession:id,title,scheduled_at,status',
         ])
@@ -69,24 +71,50 @@ class LiveSessionController extends Controller
 
         $sessions->each(function (LiveSession $session): void {
             $students = $this->eligibleStudents($session);
-            $presentIds = $session->attendees->pluck('user_id')->unique();
+            $studentIds = $students->pluck('id');
+            $studentAttendees = $session->attendees->whereIn('user_id', $studentIds);
+            $presentIds = $studentAttendees->pluck('user_id')->unique();
 
             $session->setAttribute('attendance_students', $students->map(fn (User $student) => [
                 'id' => $student->id,
                 'name' => $student->name,
                 'email' => $student->email,
                 'present' => $presentIds->contains($student->id),
+                'visits' => $studentAttendees->where('user_id', $student->id)->map(fn (LiveSessionAttendee $attendee) => [
+                    'id' => $attendee->id,
+                    'joined_at' => $attendee->joined_at?->toIso8601String(),
+                    'left_at' => $attendee->left_at?->toIso8601String(),
+                    'minutes' => (int) round($attendee->durationSeconds() / 60),
+                ])->values(),
             ])->values());
-            $session->setAttribute('attendees_count', $students->whereIn('id', $presentIds)->count());
+            $session->setAttribute('attendees_count', $presentIds->count());
             $session->setAttribute(
                 'attendance_minutes',
-                (int) round($session->attendees->sum(fn (LiveSessionAttendee $attendee) => $attendee->durationSeconds()) / 60),
+                (int) round($studentAttendees->sum(fn (LiveSessionAttendee $attendee) => $attendee->durationSeconds()) / 60),
             );
         });
+
+        $attendanceReport = $sessions
+            ->flatMap(fn (LiveSession $session) => $session->attendees
+                ->where('user_id', '!=', $session->teacher_id)
+                ->map(fn (LiveSessionAttendee $attendee) => [
+                    'id' => $attendee->id,
+                    'student' => $attendee->user?->only(['id', 'name', 'email']),
+                    'session' => $session->title,
+                    'subject' => $session->teachingGroup?->assignment?->subject?->name
+                        ?? $session->privateSessionSlot?->assignment?->subject?->name,
+                    'scheduled_at' => $session->scheduled_at?->toIso8601String(),
+                    'joined_at' => $attendee->joined_at?->toIso8601String(),
+                    'left_at' => $attendee->left_at?->toIso8601String(),
+                    'minutes' => (int) round($attendee->durationSeconds() / 60),
+                ]))
+            ->sortByDesc('joined_at')
+            ->values();
 
         return Inertia::render('Teacher/LiveSessions', [
             'sessions' => $sessions,
             'assignments' => $assignments,
+            'attendanceReport' => $attendanceReport,
         ]);
     }
 
@@ -208,6 +236,15 @@ class LiveSessionController extends Controller
         DB::transaction(function () use ($session): void {
             $session->save();
 
+            if ($session->status === LiveSession::STATUS_ENDED && $session->ended_at) {
+                LiveSessionAttendee::where('live_session_id', $session->id)
+                    ->whereNull('left_at')
+                    ->update([
+                        'left_at' => $session->ended_at,
+                        'updated_at' => now(),
+                    ]);
+            }
+
             if ($session->status === LiveSession::STATUS_ENDED && filled($session->recording_url)) {
                 $this->publishRecording($session);
             }
@@ -271,20 +308,23 @@ class LiveSessionController extends Controller
         }
 
         DB::transaction(function () use ($session, $eligibleIds, $presentIds): void {
-            LiveSessionAttendee::where('live_session_id', $session->id)
-                ->whereIn('user_id', $eligibleIds)
-                ->delete();
-
             $joinedAt = $session->started_at ?? $session->scheduled_at ?? now();
             $leftAt = $session->ended_at ?? now();
 
             foreach ($presentIds as $studentId) {
-                LiveSessionAttendee::create([
-                    'live_session_id' => $session->id,
-                    'user_id' => $studentId,
-                    'joined_at' => $joinedAt,
-                    'left_at' => $leftAt,
-                ]);
+                // Keep automatic windows intact. This endpoint remains as a
+                // compatibility fallback for classes recorded before live
+                // heartbeats were enabled.
+                if (! LiveSessionAttendee::where('live_session_id', $session->id)
+                    ->where('user_id', $studentId)
+                    ->exists()) {
+                    LiveSessionAttendee::create([
+                        'live_session_id' => $session->id,
+                        'user_id' => $studentId,
+                        'joined_at' => $joinedAt,
+                        'left_at' => $leftAt,
+                    ]);
+                }
             }
         });
 

@@ -32,6 +32,17 @@ class WebRtcSignalingController extends Controller
         $user = Auth::user();
         $this->authorizeRoom($session, $user);
 
+        if ($session->teacher_id !== $user->id) {
+            LiveSessionAttendee::firstOrCreate(
+                [
+                    'live_session_id' => $session->id,
+                    'user_id' => $user->id,
+                    'left_at' => null,
+                ],
+                ['joined_at' => now()],
+            );
+        }
+
         // Upsert participant
         DB::table('webrtc_participants')->upsert(
             [

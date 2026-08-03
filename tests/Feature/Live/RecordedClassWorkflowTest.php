@@ -17,9 +17,22 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
-uses(TestCase::class, RefreshDatabase::class);
+abstract class RecordedClassTestCase extends TestCase
+{
+    public User $admin;
+    public User $teacher;
+    public User $student;
+    public AcademicTerm $term;
+    public TeachingAssignment $assignment;
+    public TeachingGroup $group;
+    public Subscription $subscription;
+    public LiveSession $session;
+}
+
+uses(RecordedClassTestCase::class, RefreshDatabase::class);
 
 beforeEach(function (): void {
+    /** @var RecordedClassTestCase $this */
     foreach (['admin', 'teacher', 'student', 'parent'] as $role) {
         Role::findOrCreate($role, 'web');
     }
@@ -64,6 +77,7 @@ beforeEach(function (): void {
 });
 
 it('publishes a YouTube recording for in-platform playback and reserves deletion for admin', function (): void {
+    /** @var RecordedClassTestCase $this */
     $this->actingAs($this->teacher)
         ->patch(route('teacher.live-sessions.status', $this->session->id), [
             'status' => LiveSession::STATUS_ENDED,
@@ -100,6 +114,7 @@ it('publishes a YouTube recording for in-platform playback and reserves deletion
 });
 
 it('lets the teacher save the attendance roll and rejects students outside the class', function (): void {
+    /** @var RecordedClassTestCase $this */
     $outsider = User::factory()->create();
     $outsider->assignRole('student');
 
@@ -121,7 +136,38 @@ it('lets the teacher save the attendance roll and rejects students outside the c
 });
 
 it('authorizes the platform join then redirects to the external meeting link', function (): void {
+    /** @var RecordedClassTestCase $this */
     $this->actingAs($this->student)
         ->get(route('live-sessions.room', $this->session->id))
         ->assertRedirect('https://meet.google.com/abc-defg-hij');
+
+    $attendance = LiveSessionAttendee::where('live_session_id', $this->session->id)
+        ->where('user_id', $this->student->id)
+        ->firstOrFail();
+
+    expect($attendance->joined_at)->not->toBeNull()
+        ->and($attendance->left_at)->toBeNull();
+
+    $this->actingAs($this->teacher)
+        ->patch(route('teacher.live-sessions.status', $this->session->id), [
+            'status' => LiveSession::STATUS_ENDED,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($attendance->fresh()->left_at)->not->toBeNull();
+
+    $this->actingAs($this->teacher)
+        ->get(route('teacher.live-sessions'))
+        ->assertInertia(fn ($page) => $page
+            ->where('attendanceReport.0.student.id', $this->student->id)
+            ->where('attendanceReport.0.joined_at', fn ($value) => filled($value))
+            ->where('attendanceReport.0.left_at', fn ($value) => filled($value)));
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.reports'))
+        ->assertInertia(fn ($page) => $page
+            ->where('attendance.data.0.student.id', $this->student->id)
+            ->where('attendance.data.0.joined_at', fn ($value) => filled($value))
+            ->where('attendance.data.0.left_at', fn ($value) => filled($value)));
 });

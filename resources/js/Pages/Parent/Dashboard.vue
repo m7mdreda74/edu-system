@@ -323,10 +323,11 @@ function submitReject() {
                             <h3 class="text-lg font-bold mb-4">سجل الحضور</h3>
                             <div class="overflow-x-auto">
                                 <table class="w-full text-sm">
-                                    <thead><tr class="text-surface-500 border-b border-surface-200 dark:border-surface-700"><th class="p-3 text-start">الحصة</th><th class="p-3 text-start">المادة</th><th class="p-3 text-start">الموعد</th><th class="p-3 text-start">الحالة</th><th class="p-3 text-start">المدة</th></tr></thead>
+                                    <thead><tr class="text-surface-500 border-b border-surface-200 dark:border-surface-700"><th class="p-3 text-start">الحصة</th><th class="p-3 text-start">المادة</th><th class="p-3 text-start">الموعد</th><th class="p-3 text-start">دخل</th><th class="p-3 text-start">خرج</th><th class="p-3 text-start">الحالة</th><th class="p-3 text-start">المدة</th></tr></thead>
                                     <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
                                         <tr v-for="session in selectedStudent.attendance" :key="session.id">
                                             <td class="p-3 font-bold">{{ session.title }}</td><td class="p-3">{{ session.subject }}</td><td class="p-3 text-xs">{{ new Date(session.scheduled_at).toLocaleString('ar-EG') }}</td>
+                                            <td class="p-3 text-xs">{{ session.joined_at ? new Date(session.joined_at).toLocaleTimeString('ar-EG') : '—' }}</td><td class="p-3 text-xs">{{ session.left_at ? new Date(session.left_at).toLocaleTimeString('ar-EG') : '—' }}</td>
                                             <td class="p-3"><span :class="session.attended ? 'badge-green' : 'badge-gray'">{{ session.attended ? 'حاضر' : 'غائب' }}</span></td><td class="p-3">{{ session.minutes }} دقيقة</td>
                                         </tr>
                                     </tbody>

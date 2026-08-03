@@ -37,23 +37,23 @@ class LiveSessionRoomController extends Controller
             abort_unless($this->studentMayJoin($session, $user), 403, 'غير مصرح لك بدخول هذه الحصة.');
         }
 
-        // External meeting providers remain behind this authorized platform
-        // route, so only booked students receive the actual destination. Their
-        // attendance is deliberately left to the teacher's attendance roll.
+        // Start the attendance window before handing students off to an
+        // external provider as well. The provider may not call our leave
+        // endpoint, so the session-end transition closes any open window.
         if (filter_var($session->room_id, FILTER_VALIDATE_URL)) {
+            if (! $isTeacher) {
+                $this->startAttendance($session, $user);
+            }
+
             return redirect()->away($session->room_id);
         }
 
-        // A reconnect to the built-in fallback room starts a new attendance
-        // window instead of stretching the first window across a leave.
-        LiveSessionAttendee::firstOrCreate(
-            [
-                'live_session_id' => $session->id,
-                'user_id' => $user->id,
-                'left_at' => null,
-            ],
-            ['joined_at' => now()],
-        );
+        if (! $isTeacher) {
+            // A reconnect to the built-in fallback room starts a new
+            // attendance window instead of stretching the first window across
+            // a leave.
+            $this->startAttendance($session, $user);
+        }
 
         return Inertia::render('Live/LiveSessionRoom', [
             'session' => $session,
@@ -92,5 +92,17 @@ class LiveSessionRoomController extends Controller
 
         // Unattached session — nobody but the teacher belongs in it.
         return false;
+    }
+
+    private function startAttendance(LiveSession $session, User $user): void
+    {
+        LiveSessionAttendee::firstOrCreate(
+            [
+                'live_session_id' => $session->id,
+                'user_id' => $user->id,
+                'left_at' => null,
+            ],
+            ['joined_at' => now()],
+        );
     }
 }

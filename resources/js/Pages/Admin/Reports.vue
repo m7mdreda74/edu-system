@@ -10,6 +10,7 @@ const props = defineProps({
     teachers: { type: Array, default: () => [] },
     groups: { type: Array, default: () => [] },
     sessions: { type: Object, default: () => ({ data: [], links: [] }) },
+    attendance: { type: Object, default: () => ({ data: [], links: [] }) },
     summary: { type: Object, default: () => ({}) },
 });
 
@@ -19,6 +20,12 @@ function applyFilters(event) {
 }
 
 function formatDate(value) {
+    return value
+        ? new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+        : '—';
+}
+
+function formatTime(value) {
     return value
         ? new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
         : '—';
@@ -138,6 +145,49 @@ function printReport() {
                         </tbody>
                     </table>
                 </div>
+            </section>
+
+            <section class="report-section">
+                <div class="mb-3 flex items-center justify-between">
+                    <h2 class="section-title">تقرير حضور الطلاب</h2>
+                    <span class="text-xs text-surface-400">وقت الدخول والخروج الفعلي</span>
+                </div>
+                <div class="table-wrap">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>الطالب</th>
+                                <th>المدرس</th>
+                                <th>الحصة / المادة</th>
+                                <th>موعد الحصة</th>
+                                <th>دخل</th>
+                                <th>خرج</th>
+                                <th>المدة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in attendance.data" :key="row.id">
+                                <td>
+                                    <div class="font-bold">{{ row.student?.name || '—' }}</div>
+                                    <div class="text-xs text-surface-400">{{ row.student?.email || '' }}</div>
+                                </td>
+                                <td>{{ row.teacher?.name || '—' }}</td>
+                                <td>
+                                    <div class="font-semibold">{{ row.session || '—' }}</div>
+                                    <div class="text-xs text-surface-400">{{ row.subject || '—' }}</div>
+                                </td>
+                                <td>{{ formatDate(row.scheduled_at) }}</td>
+                                <td>{{ formatTime(row.joined_at) }}</td>
+                                <td>{{ formatTime(row.left_at) }}</td>
+                                <td>{{ row.minutes || 0 }} دقيقة</td>
+                            </tr>
+                            <tr v-if="!attendance.data?.length"><td colspan="7" class="empty-cell">لا توجد سجلات حضور مطابقة للفلاتر.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <nav v-if="attendance.links?.length > 3" class="mt-4 flex flex-wrap justify-center gap-2 print-hidden">
+                    <Link v-for="link in attendance.links" :key="`attendance-${link.label}`" :href="link.url || '#'" preserve-scroll class="rounded-xl px-3 py-2 text-sm" :class="[link.active ? 'bg-primary-500 text-white' : 'bg-surface-100 dark:bg-surface-800', !link.url ? 'pointer-events-none opacity-40' : '']" v-html="link.label" />
+                </nav>
             </section>
 
             <section class="report-section">

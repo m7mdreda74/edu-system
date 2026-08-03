@@ -11,7 +11,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -70,6 +72,18 @@ class UserController extends Controller
         $user->assignRole($validated['role']);
 
         return back()->with('success', "تم إضافة المستخدم {$user->name} بنجاح.");
+    }
+
+    public function resetPassword(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'password' => ['required', Password::defaults(), 'confirmed'],
+        ]);
+
+        $user = User::findOrFail($id);
+        $user->update(['password' => Hash::make($validated['password'])]);
+
+        return back()->with('success', "تم تعيين كلمة مرور جديدة للمستخدم {$user->name}. لا يتم عرض كلمات المرور الحالية.");
     }
 
     public function toggleActive(int $id): RedirectResponse

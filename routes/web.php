@@ -270,6 +270,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/dashboard/stats', [App\Http\Controllers\Admin\DashboardController::class, 'stats'])->name('dashboard.stats');
     Route::get('/users', [UserController::class, 'index'])->name('users');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::patch('/users/{id}/password', [UserController::class, 'resetPassword'])->name('users.password');
     Route::patch('/users/{id}/toggle', [UserController::class, 'toggleActive'])->name('users.toggle');
     Route::patch('/users/{id}/role', [UserController::class, 'updateRole'])->name('users.role');
     Route::patch('/users/{id}/commission', [UserController::class, 'updateCommission'])->name('users.commission');

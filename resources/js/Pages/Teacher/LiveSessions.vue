@@ -7,6 +7,7 @@ import { ref, computed } from 'vue';
 const props = defineProps({
     sessions: { type: Array, required: true },
     assignments: { type: Array, required: true },
+    attendanceReport: { type: Array, default: () => [] },
 });
 
 const form = useForm({
@@ -146,6 +147,12 @@ const statusLabels = {
     ended:     'منتهية',
     cancelled: 'معتذر عنها',
 };
+
+function formatDate(value) {
+    return value
+        ? new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+        : '—';
+}
 </script>
 
 <template>
@@ -239,6 +246,49 @@ const statusLabels = {
                                 <td colspan="6" class="p-8 text-center text-surface-400">
                                     لا توجد حصص مجدولة حالياً. قم بجدولة أول حصة لك.
                                 </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card data-table-card">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-200 p-4 dark:border-surface-700">
+                    <div>
+                        <h2 class="text-lg font-black text-surface-900 dark:text-white">تقرير حضور الطلاب</h2>
+                        <p class="mt-1 text-xs text-surface-500">الطلاب المشتركون معك — يتم احتساب الدخول والخروج تلقائيًا من غرفة الحصة.</p>
+                    </div>
+                    <span class="text-xs text-surface-400">{{ attendanceReport.length }} سجل</span>
+                </div>
+                <div class="data-table-scroll no-scrollbar">
+                    <table class="w-full text-sm">
+                        <thead class="bg-surface-50 dark:bg-surface-800">
+                            <tr>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الطالب</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحصة / المادة</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">موعد الحصة</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">دخل</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">خرج</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">المدة</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-surface-100 dark:divide-surface-700">
+                            <tr v-for="row in attendanceReport" :key="row.id">
+                                <td class="p-4">
+                                    <div class="font-bold text-surface-900 dark:text-white">{{ row.student?.name || '—' }}</div>
+                                    <div class="text-xs text-surface-400">{{ row.student?.email || '' }}</div>
+                                </td>
+                                <td class="p-4">
+                                    <div class="font-semibold">{{ row.session || '—' }}</div>
+                                    <div class="text-xs text-surface-400">{{ row.subject || '—' }}</div>
+                                </td>
+                                <td class="p-4 text-xs">{{ formatDate(row.scheduled_at) }}</td>
+                                <td class="p-4 text-xs">{{ formatDate(row.joined_at) }}</td>
+                                <td class="p-4 text-xs">{{ formatDate(row.left_at) }}</td>
+                                <td class="p-4">{{ row.minutes || 0 }} دقيقة</td>
+                            </tr>
+                            <tr v-if="!attendanceReport.length">
+                                <td colspan="6" class="p-8 text-center text-surface-400">لا توجد سجلات حضور حتى الآن.</td>
                             </tr>
                         </tbody>
                     </table>

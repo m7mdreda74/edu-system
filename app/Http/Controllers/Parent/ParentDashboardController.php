@@ -81,9 +81,12 @@ class ParentDashboardController extends Controller
                 ->get();
 
             $attendance = $attendanceSessions->map(function (LiveSession $session): array {
+                $visits = $session->attendees->sortBy('joined_at')->values();
                 $minutes = (int) round($session->attendees->sum(
                     fn (LiveSessionAttendee $attendee) => $attendee->durationSeconds(),
                 ) / 60);
+                $firstVisit = $visits->first();
+                $lastVisit = $visits->last();
 
                 return [
                     'id' => $session->id,
@@ -92,6 +95,8 @@ class ParentDashboardController extends Controller
                     'teacher' => $session->teacher?->name,
                     'subject' => $session->teachingGroup?->assignment?->subject?->name
                         ?? $session->privateSessionSlot?->assignment?->subject?->name,
+                    'joined_at' => $firstVisit?->joined_at?->toIso8601String(),
+                    'left_at' => $lastVisit?->left_at?->toIso8601String(),
                     'minutes' => $minutes,
                     'attended' => $minutes > 0,
                 ];

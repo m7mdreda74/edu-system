@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
@@ -60,7 +61,7 @@ class ReportController extends Controller
                 'teacher:id,name',
                 'teachingGroup:id,name,teaching_assignment_id',
                 'teachingGroup.assignment.subject:id,name',
-                'privateSessionSlot:id,starts_at,ends_at',
+                'privateSessionSlot:id,teaching_assignment_id,starts_at,ends_at',
             ])
             ->withCount('attendees')
             ->when($teacherId, fn (Builder $query) => $query->where('teacher_id', $teacherId))
@@ -72,6 +73,44 @@ class ReportController extends Controller
             ->latest('scheduled_at')
             ->paginate(10)
             ->withQueryString();
+
+        $attendance = LiveSessionAttendee::query()
+            ->with([
+                'user:id,name,email',
+                'session:id,title,teacher_id,teaching_group_id,private_session_slot_id,scheduled_at,status',
+                'session.teacher:id,name',
+                'session.teachingGroup:id,name,teaching_assignment_id',
+                'session.teachingGroup.assignment.subject:id,name',
+                'session.privateSessionSlot.assignment.subject:id,name',
+            ])
+            ->whereHas('user', fn (Builder $query) => $query->role('student'))
+            ->whereHas('session', function (Builder $query) use ($teacherId, $start, $end, $filters): void {
+                $query
+                    ->when($teacherId, fn (Builder $q, int $id) => $q->where('teacher_id', $id))
+                    ->when($filters['status'] ?? null, fn (Builder $q, string $status) => $q->where('status', $status))
+                    ->when($start, fn (Builder $q, string $date) => $q->whereDate('scheduled_at', '>=', $date))
+                    ->when($end, fn (Builder $q, string $date) => $q->whereDate('scheduled_at', '<=', $date));
+            })
+            ->latest('joined_at')
+            ->paginate(20, ['*'], 'attendance_page')
+            ->withQueryString();
+
+        $attendance->getCollection()->transform(function (LiveSessionAttendee $attendee): array {
+            $session = $attendee->session;
+
+            return [
+                'id' => $attendee->id,
+                'student' => $attendee->user?->only(['id', 'name', 'email']),
+                'teacher' => $session?->teacher?->only(['id', 'name']),
+                'session' => $session?->title,
+                'subject' => $session?->teachingGroup?->assignment?->subject?->name
+                    ?? $session?->privateSessionSlot?->assignment?->subject?->name,
+                'scheduled_at' => $session?->scheduled_at?->toIso8601String(),
+                'joined_at' => $attendee->joined_at?->toIso8601String(),
+                'left_at' => $attendee->left_at?->toIso8601String(),
+                'minutes' => (int) round($attendee->durationSeconds() / 60),
+            ];
+        });
 
         $sessionCountQuery = (clone $sessionQuery);
         $sessionCount = $sessionCountQuery->count();
@@ -127,6 +166,7 @@ class ReportController extends Controller
             'teachers' => $teachers,
             'groups' => $groups,
             'sessions' => $sessions,
+            'attendance' => $attendance,
             'summary' => [
                 'teachers' => $teachers->count(),
                 'groups' => $groups->count(),

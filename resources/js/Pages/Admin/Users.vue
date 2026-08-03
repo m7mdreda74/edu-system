@@ -81,6 +81,29 @@ function submitCreateUser() {
     });
 }
 
+// Passwords are never displayed. The administrator can only set a new one.
+const passwordModalOpen = ref(false);
+const passwordUser = ref(null);
+const passwordForm = useForm({ password: '', password_confirmation: '' });
+
+function openPasswordModal(user) {
+    passwordUser.value = user;
+    passwordForm.reset();
+    passwordForm.clearErrors();
+    passwordModalOpen.value = true;
+}
+
+function resetUserPassword() {
+    passwordForm.patch(route('admin.users.password', { id: passwordUser.value.id }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            passwordModalOpen.value = false;
+            passwordUser.value = null;
+            passwordForm.reset();
+        },
+    });
+}
+
 // ─── Role Management ───
 const roleModalOpen = ref(false);
 const editingUser   = ref(null);
@@ -296,6 +319,12 @@ async function removeAvatar() {
                                 </td>
                                 <td class="p-4 flex gap-2">
                                     <button
+                                        @click="openPasswordModal(user)"
+                                        class="text-xs px-3 py-1.5 rounded-lg font-medium bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-950/40 dark:text-primary-300 dark:hover:bg-primary-900/50 transition-colors"
+                                    >
+                                        كلمة المرور
+                                    </button>
+                                    <button
                                         @click="toggleActive(user.id)"
                                         class="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
                                         :class="user.is_active
@@ -341,6 +370,33 @@ async function removeAvatar() {
                     </Link>
                 </div>
             </div>
+        </div>
+
+        <!-- Password reset modal -->
+        <div v-if="passwordModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="passwordModalOpen = false"></div>
+            <form @submit.prevent="resetUserPassword" class="relative card p-6 w-full max-w-sm space-y-4">
+                <div>
+                    <h3 class="text-xl font-black text-surface-900 dark:text-white">تعيين كلمة مرور</h3>
+                    <p class="text-xs text-surface-500 mt-1">
+                        {{ passwordUser?.name }} — كلمات المرور الحالية لا يمكن عرضها لأنها مخزنة بشكل مشفّر.
+                    </p>
+                </div>
+                <div>
+                    <label class="input-label" for="admin-reset-password">كلمة المرور الجديدة</label>
+                    <input id="admin-reset-password" v-model="passwordForm.password" type="password" class="input" autocomplete="new-password" minlength="8" required />
+                    <p v-if="passwordForm.errors.password" class="error-msg">{{ passwordForm.errors.password }}</p>
+                </div>
+                <div>
+                    <label class="input-label" for="admin-reset-password-confirmation">تأكيد كلمة المرور</label>
+                    <input id="admin-reset-password-confirmation" v-model="passwordForm.password_confirmation" type="password" class="input" autocomplete="new-password" minlength="8" required />
+                    <p v-if="passwordForm.errors.password_confirmation" class="error-msg">{{ passwordForm.errors.password_confirmation }}</p>
+                </div>
+                <div class="flex gap-2 justify-end">
+                    <button type="button" @click="passwordModalOpen = false" class="btn-ghost">إلغاء</button>
+                    <button type="submit" class="btn-primary" :disabled="passwordForm.processing">حفظ كلمة المرور</button>
+                </div>
+            </form>
         </div>
 
         <!-- Role Modal -->
