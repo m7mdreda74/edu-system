@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { ref, computed, onBeforeUnmount } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import Whiteboard from '@/Components/Whiteboard.vue';
 import VideoRoom from '@/Components/VideoRoom.vue';
 import { useConfirm } from '@/composables/useConfirm';
@@ -22,6 +22,16 @@ let durationInterval = null;
 const audioContext = ref(null);
 const videoRoomRef = ref(null);
 const { confirm } = useConfirm();
+
+// Legacy Jitsi controls are kept hidden while the native WebRTC room is used.
+// Defining their dormant state prevents the hidden template and teardown hook
+// from crashing the room before VideoRoom can mount.
+let jitsiApi = null;
+const jitsiContainer = ref(null);
+const isRoomLoading = ref(false);
+const lobbyEnabled = ref(false);
+const activeParticipants = ref([]);
+const lobbyParticipants = ref([]);
 
 // ─── View Mode ────────────────────────────────────────────────────────────────
 // viewMode: 'video' | 'split' | 'whiteboard'
@@ -117,6 +127,12 @@ async function startRecording() {
 
 function stopRecording() {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+}
+
+function leaveRoom() {
+    router.visit(props.user.isTeacher
+        ? route('teacher.live-sessions')
+        : route('student.schedule'));
 }
 
 // Moderation handlers
@@ -306,7 +322,7 @@ onBeforeUnmount(() => {
         <!-- ═══ HEADER BAR ═══════════════════════════════════════════════════ -->
         <div class="room-header">
             <div class="flex items-center gap-4">
-                <Link :href="route('dashboard')" class="btn-ghost p-2 text-surface-400 hover:text-white text-sm">
+                <Link :href="user.isTeacher ? route('teacher.live-sessions') : route('student.schedule')" class="btn-ghost p-2 text-surface-400 hover:text-white text-sm">
                     ← عودة
                 </Link>
                 <div class="header-divider"></div>
@@ -390,7 +406,7 @@ onBeforeUnmount(() => {
                     :user="user"
                     :session-title="session.title"
                     @participant-count="(n) => videoParticipantCount = n"
-                    @leave="() => $inertia?.visit('/dashboard')"
+                    @leave="leaveRoom"
                 />
             </div>
 

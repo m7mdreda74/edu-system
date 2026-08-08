@@ -17,7 +17,7 @@ const form = useForm({
     teaching_group_id: '',
     private_session_slot_id: '',
     scheduled_date: '',
-    room_id:      '', // Zoom link
+    room_id:      '', // Optional Zoom/Meet link; empty uses the platform room.
 });
 
 const isModalOpen = ref(false);
@@ -166,7 +166,7 @@ function formatDate(value) {
                         <Icon name="live" class="w-8 h-8 text-primary-500" />
                         <span>الحصص المباشرة</span>
                     </h1>
-                    <p class="text-surface-500 mt-1">جدولة وبدء حصص البث المباشر (Zoom, Meet) لطلابك</p>
+                    <p class="text-surface-500 mt-1">جدولة وبدء حصص البث داخل المنصة أو عبر Zoom وMeet</p>
                 </div>
                 <button @click="isModalOpen = true" class="btn-primary">
                     + جدولة حصة جديدة
@@ -222,10 +222,11 @@ function formatDate(value) {
                                     </div>
                                 </td>
                                 <td class="p-4">
-                                    <div v-if="session.room_id && ['scheduled', 'live'].includes(session.status)">
-                                        <a :href="route('live-sessions.room', session.id)" target="_blank" class="text-primary-500 hover:underline text-xs block truncate max-w-[150px]">دخول القاعة المباشرة</a>
+                                    <div v-if="['scheduled', 'live'].includes(session.status)">
+                                        <a :href="route('live-sessions.room', session.id)" target="_blank" class="text-primary-500 hover:underline text-xs block truncate max-w-[180px]">
+                                            {{ session.room_id ? 'دخول عبر رابط الاجتماع' : 'دخول قاعة المنصة' }}
+                                        </a>
                                     </div>
-                                    <span v-else-if="['scheduled', 'live'].includes(session.status)" class="text-xs text-red-500">لم يُضف رابط الاجتماع</span>
                                     <div v-if="session.recording_url">
                                         <a :href="session.recording_url" target="_blank" class="text-accent-500 hover:underline text-xs block truncate max-w-[150px]">رابط التسجيل</a>
                                     </div>
@@ -321,10 +322,10 @@ function formatDate(value) {
                 <form v-else-if="actionModal.type === 'meeting'" @submit.prevent="submitMeeting">
                     <div class="p-6">
                         <h3 class="text-xl font-black text-surface-900 dark:text-white">رابط الاجتماع المباشر</h3>
-                        <p class="mt-2 text-sm leading-6 text-surface-500">ضع رابط Zoom أو Google Meet أو أي خدمة اجتماعات. الطالب ينتقل إليه من زر دخول الحصة.</p>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">اتركه فارغًا لاستخدام قاعة المنصة، أو ضع رابط Zoom أو Google Meet لتحويل الطلاب إليه.</p>
                         <div class="mt-5">
                             <label class="input-label">رابط الاجتماع</label>
-                            <input v-model="meetingForm.meeting_url" type="url" dir="ltr" class="input" required placeholder="https://meet.google.com/...">
+                            <input v-model="meetingForm.meeting_url" type="url" dir="ltr" class="input" placeholder="https://meet.google.com/... (اختياري)">
                             <p v-if="meetingForm.errors.meeting_url" class="error-msg">{{ meetingForm.errors.meeting_url }}</p>
                         </div>
                     </div>
@@ -445,8 +446,9 @@ function formatDate(value) {
                             </div>
 
                             <div>
-                                <label class="input-label">رابط الاجتماع المباشر</label>
-                                <input v-model="form.room_id" type="url" dir="ltr" class="input" required placeholder="https://meet.google.com/...">
+                                <label class="input-label">رابط اجتماع خارجي <span class="font-normal text-surface-400">(اختياري)</span></label>
+                                <input v-model="form.room_id" type="url" dir="ltr" class="input" placeholder="اتركه فارغًا لاستخدام قاعة المنصة">
+                                <p class="mt-1 text-[11px] text-surface-400">بدون رابط خارجي، ستعمل الحصة بالصوت والصورة داخل المنصة.</p>
                                 <p v-if="form.errors.room_id" class="error-msg">{{ form.errors.room_id }}</p>
                             </div>
 

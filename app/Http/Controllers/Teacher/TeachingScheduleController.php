@@ -215,7 +215,17 @@ class TeachingScheduleController extends Controller
 
                 $slot = $date->copy()->setTimeFromTimeString($schedule->start_time);
 
-                if ($slot->greaterThan($cursor) && (! $candidate || $slot->lessThan($candidate))) {
+                if (! $slot->greaterThan($cursor)) {
+                    continue;
+                }
+
+                $hasConflict = LiveSession::query()
+                    ->where('teacher_id', $group->assignment->teacher_id)
+                    ->whereIn('status', [LiveSession::STATUS_SCHEDULED, LiveSession::STATUS_LIVE])
+                    ->where('scheduled_at', $slot->copy()->utc())
+                    ->exists();
+
+                if (! $hasConflict && (! $candidate || $slot->lessThan($candidate))) {
                     $candidate = $slot;
                 }
             }

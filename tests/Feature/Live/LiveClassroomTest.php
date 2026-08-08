@@ -12,6 +12,7 @@ use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -120,4 +121,98 @@ it('lets the teacher enter before the class is live for setup', function () {
     $this->actingAs($this->teacher)
         ->postJson(route('webrtc.heartbeat', $this->session->id))
         ->assertOk();
+});
+
+it('starts and serves the platform room without an external meeting link', function () {
+    $this->session->update([
+        'status' => LiveSession::STATUS_SCHEDULED,
+        'started_at' => null,
+        'room_id' => null,
+    ]);
+
+    $this->actingAs($this->teacher)
+        ->patch(route('teacher.live-sessions.status', $this->session->id), [
+            'status' => LiveSession::STATUS_LIVE,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($this->session->fresh()->status)->toBe(LiveSession::STATUS_LIVE)
+        ->and($this->session->fresh()->started_at)->not->toBeNull();
+
+    $this->actingAs($this->student)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Live/LiveSessionRoom'));
+});
+
+it('does not reopen an ended class', function () {
+    $this->session->update([
+        'status' => LiveSession::STATUS_ENDED,
+        'ended_at' => now(),
+    ]);
+
+    $this->actingAs($this->teacher)
+        ->patch(route('teacher.live-sessions.status', $this->session->id), [
+            'status' => LiveSession::STATUS_LIVE,
+        ])
+        ->assertStatus(422);
+
+    expect($this->session->fresh()->status)->toBe(LiveSession::STATUS_ENDED);
+});
+
+it('requires the active group subscription on WebRTC requests', function () {
+    $otherGroup = TeachingGroup::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+    ]);
+
+    $this->student->subscriptions()->update([
+        'teaching_group_id' => $otherGroup->id,
+    ]);
+
+    $this->actingAs($this->student)
+        ->postJson(route('webrtc.heartbeat', $this->session->id))
+        ->assertForbidden();
+});
+
+it('schedules an internal room and blocks another class at the same time', function () {
+    $timezone = $this->group->timezone;
+    $date = Carbon::now($timezone)->addDay()->startOfDay();
+
+    while ($date->dayOfWeek !== (int) $this->group->day_of_week) {
+        $date->addDay();
+    }
+
+    $payload = [
+        'source_type' => 'group',
+        'teaching_group_id' => $this->group->id,
+        'scheduled_date' => $date->toDateString(),
+        'title' => 'حصة داخل المنصة',
+        'room_id' => null,
+    ];
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.live-sessions.store'), $payload)
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $scheduled = LiveSession::where('title', 'حصة داخل المنصة')->firstOrFail();
+    expect($scheduled->room_id)->toBeNull();
+
+    $otherGroup = TeachingGroup::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'day_of_week' => $this->group->day_of_week,
+        'start_time' => $this->group->start_time,
+        'end_time' => $this->group->end_time,
+    ]);
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.live-sessions.store'), [
+            ...$payload,
+            'teaching_group_id' => $otherGroup->id,
+            'title' => 'حصة متعارضة',
+        ])
+        ->assertStatus(422);
+
+    expect(LiveSession::where('title', 'حصة متعارضة')->exists())->toBeFalse();
 });

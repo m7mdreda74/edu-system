@@ -214,10 +214,14 @@ class WebRtcSignalingController extends Controller
     private function studentMayJoin(LiveSession $session, User $user): bool
     {
         if ($session->teaching_group_id) {
-            $group = $session->teachingGroup()->with('assignment')->first();
+            $group = $session->teachingGroup;
 
-            return ($group?->activeBookings()->where('student_id', $user->id)->exists() ?? false)
-                && $user->hasActiveSubscriptionToAssignment((int) $group?->teaching_assignment_id);
+            if (! $group) {
+                return false;
+            }
+
+            return $group->activeBookings()->where('student_id', $user->id)->exists()
+                && $user->hasActiveSubscriptionTo($group);
         }
 
         if ($session->private_session_slot_id) {

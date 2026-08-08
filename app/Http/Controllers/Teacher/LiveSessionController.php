@@ -127,7 +127,7 @@ class LiveSessionController extends Controller
             'scheduled_date' => ['nullable', 'date', 'after:today'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'room_id' => ['required', 'url', 'max:2048'],
+            'room_id' => ['nullable', 'url', 'max:2048'],
         ]);
 
         $group = null;
@@ -173,12 +173,11 @@ class LiveSessionController extends Controller
         abort_if($scheduledAt->isPast(), 422, 'موعد الحصة يجب أن يكون في المستقبل.');
 
         $duplicate = LiveSession::where('teacher_id', Auth::id())
+            ->whereIn('status', [LiveSession::STATUS_SCHEDULED, LiveSession::STATUS_LIVE])
             ->where('scheduled_at', $scheduledAt)
-            ->when($group, fn ($q) => $q->where('teaching_group_id', $group->id))
-            ->when($privateSlot, fn ($q) => $q->where('private_session_slot_id', $privateSlot->id))
             ->exists();
 
-        abort_if($duplicate, 422, 'يوجد بث مجدول بالفعل لهذا الموعد.');
+        abort_if($duplicate, 422, 'لديك حصة أخرى مجدولة في نفس الموعد.');
 
         LiveSession::create([
             'teacher_id' => Auth::id(),
@@ -186,7 +185,7 @@ class LiveSessionController extends Controller
             'private_session_slot_id' => $privateSlot?->id,
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
-            'room_id' => $validated['room_id'],
+            'room_id' => $validated['room_id'] ?? null,
             'scheduled_at' => $scheduledAt,
             'status' => LiveSession::STATUS_SCHEDULED,
         ]);
@@ -214,11 +213,27 @@ class LiveSessionController extends Controller
             ],
         ]);
 
-        if ($validated['status'] === LiveSession::STATUS_LIVE && ! filter_var($session->room_id, FILTER_VALIDATE_URL)) {
+        $allowedTransitions = [
+            LiveSession::STATUS_SCHEDULED => [LiveSession::STATUS_SCHEDULED, LiveSession::STATUS_LIVE],
+            LiveSession::STATUS_LIVE => [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED],
+            // Re-saving an ended session is how the teacher publishes a recording later.
+            LiveSession::STATUS_ENDED => [LiveSession::STATUS_ENDED],
+            LiveSession::STATUS_CANCELLED => [],
+        ];
+
+        abort_unless(
+            in_array($validated['status'], $allowedTransitions[$session->status] ?? [], true),
+            422,
+            'لا يمكن تنفيذ هذا الانتقال على حالة الحصة الحالية.',
+        );
+
+        if (filled($validated['recording_url'] ?? null) && $validated['status'] !== LiveSession::STATUS_ENDED) {
             throw ValidationException::withMessages([
-                'meeting_url' => 'أضف رابط الاجتماع قبل بدء الحصة.',
+                'recording_url' => 'يمكن إضافة التسجيل بعد إنهاء الحصة فقط.',
             ]);
         }
+
+        $statusChanged = $validated['status'] !== $session->status;
 
         if ($validated['status'] === LiveSession::STATUS_LIVE && ! $session->isLive()) {
             $session->started_at = now();
@@ -250,7 +265,7 @@ class LiveSessionController extends Controller
             }
         });
 
-        if (in_array($validated['status'], [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED], true)) {
+        if ($statusChanged && in_array($validated['status'], [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED], true)) {
             $session->load([
                 'teacher:id,name',
                 'teachingGroup:id,name,teaching_assignment_id',
@@ -274,12 +289,17 @@ class LiveSessionController extends Controller
         abort_unless($session->status === LiveSession::STATUS_SCHEDULED, 422, 'يمكن تعديل رابط حصة مجدولة فقط.');
 
         $data = $request->validate([
-            'meeting_url' => ['required', 'url', 'max:2048'],
+            'meeting_url' => ['nullable', 'url', 'max:2048'],
         ]);
 
-        $session->update(['room_id' => $data['meeting_url']]);
+        $session->update(['room_id' => $data['meeting_url'] ?? null]);
 
-        return back()->with('success', 'تم حفظ رابط الاجتماع.');
+        return back()->with(
+            'success',
+            filled($data['meeting_url'] ?? null)
+                ? 'تم حفظ رابط الاجتماع الخارجي.'
+                : 'ستُستخدم قاعة المنصة الداخلية لهذه الحصة.',
+        );
     }
 
     public function updateAttendance(Request $request, int $id): RedirectResponse

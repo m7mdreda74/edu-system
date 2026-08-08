@@ -126,7 +126,12 @@ async function sendHeartbeat() {
         active.forEach(p => {
             if (!knownParticipants.has(p.user_id)) {
                 knownParticipants.add(p.user_id);
-                initiateOffer(p);
+                // Exactly one side creates the offer. If both peers offer at
+                // once, each side already owns a connection and both offers
+                // are ignored (WebRTC glare), leaving them disconnected.
+                if (Number(props.user.id) < Number(p.user_id)) {
+                    initiateOffer(p);
+                }
             }
         });
 
@@ -209,7 +214,12 @@ async function initiateOffer(participant) {
     try {
         const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
         await pc.setLocalDescription(offer);
-        await sendSignal('offer', { sdp: offer.sdp, type: offer.type }, participant.user_id);
+        await sendSignal('offer', {
+            sdp: offer.sdp,
+            type: offer.type,
+            name: props.user.name,
+            is_teacher: props.user.isTeacher,
+        }, participant.user_id);
     } catch (e) {
         console.error('Error creating offer:', e);
     }
@@ -220,8 +230,10 @@ async function handleOffer(fromId, payload) {
     if (peerConnections[fromId]) return; // already connected
 
     // Find participant name from knownParticipants (might not know it yet)
-    const name = participants.value.find(p => p.userId === fromId)?.name ?? `مستخدم ${fromId}`;
-    const pc = createPeerConnection(fromId, name, false);
+    const name = payload.name
+        ?? participants.value.find(p => p.userId === fromId)?.name
+        ?? `مستخدم ${fromId}`;
+    const pc = createPeerConnection(fromId, name, !!payload.is_teacher);
 
     try {
         await pc.setRemoteDescription(new RTCSessionDescription({ type: payload.type, sdp: payload.sdp }));
