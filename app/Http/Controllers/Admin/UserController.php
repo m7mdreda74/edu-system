@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Services\ImageUploadService;
@@ -11,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
@@ -19,11 +21,15 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+    public function __construct(
+        private readonly ParentStudentLinkService $parentStudentLinks,
+    ) {}
+
     public function index(Request $request): Response
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
-            'role'   => ['nullable', 'string', 'in:admin,teacher,student'],
+            'role'   => ['nullable', 'string', 'in:admin,teacher,student,parent'],
         ]);
 
         $users = User::with('roles:name')
@@ -48,28 +54,42 @@ class UserController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $request->merge([
+            'phone' => trim((string) $request->input('phone')),
+            'parent_phone' => trim((string) $request->input('parent_phone')),
+        ]);
+
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'email'       => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
             'phone'       => ['required', 'string', 'max:20', 'unique:users'],
+            'parent_phone' => ['nullable', 'required_if:role,student', 'string', 'max:20', 'different:phone'],
             'password'    => ['required', 'string', 'min:8'],
             'role'        => ['required', 'string', 'in:admin,teacher,student,parent'],
             'grade_level' => ['nullable', 'exists:grade_levels,key'],
         ]);
 
-        $user = User::create([
-            'name'        => $validated['name'],
-            'email'       => $validated['email'],
-            'phone'       => $validated['phone'],
-            'password'    => $validated['password'], // hashed by cast
-            'grade_level' => ($validated['role'] === 'student') ? ($validated['grade_level'] ?? null) : null,
-            'is_active'   => true,
-            'commission_percent' => $validated['role'] === 'teacher'
-                ? (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20)
-                : null,
-        ]);
+        $user = DB::transaction(function () use ($validated): User {
+            $user = User::create([
+                'name'        => $validated['name'],
+                'email'       => $validated['email'],
+                'phone'       => $validated['phone'],
+                'password'    => $validated['password'], // hashed by cast
+                'grade_level' => ($validated['role'] === 'student') ? ($validated['grade_level'] ?? null) : null,
+                'is_active'   => true,
+                'commission_percent' => $validated['role'] === 'teacher'
+                    ? (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20)
+                    : null,
+            ]);
 
-        $user->assignRole($validated['role']);
+            $user->assignRole($validated['role']);
+
+            if ($validated['role'] === 'student') {
+                $this->parentStudentLinks->linkExistingParent($user, $validated['parent_phone']);
+            }
+
+            return $user;
+        });
 
         return back()->with('success', "تم إضافة المستخدم {$user->name} بنجاح.");
     }

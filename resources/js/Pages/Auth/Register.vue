@@ -9,6 +9,7 @@ const form = useForm({
     name:                  '',
     email:                 '',
     phone:                 '',
+    parent_phone:          '',
     password:              '',
     password_confirmation: '',
     grade_level:           '',
@@ -71,6 +72,7 @@ onStageChange();
 watch(() => form.role, (newRole) => {
     if (newRole !== 'student') {
         form.grade_level = null;
+        form.parent_phone = '';
     } else {
         onStageChange();
     }
@@ -185,6 +187,26 @@ const submit = () => form.post(route('register'));
                             required
                         />
                         <p v-if="form.errors.phone" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.phone }}</p>
+                    </div>
+
+                    <!-- Parent Phone Input -->
+                    <div v-if="form.role === 'student'" class="space-y-1.5">
+                        <label class="block text-xs font-bold text-white/95 mr-3" for="reg-parent-phone">
+                            رقم جوال ولي الأمر <span class="text-red-400">*</span>
+                        </label>
+                        <input
+                            id="reg-parent-phone"
+                            v-model="form.parent_phone"
+                            type="tel"
+                            inputmode="tel"
+                            class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
+                            :class="{ 'ring-2 ring-red-500': form.errors.parent_phone }"
+                            placeholder="نفس الرقم المسجل في حساب ولي الأمر"
+                            autocomplete="tel"
+                            required
+                        />
+                        <p class="text-white/55 text-[11px] mr-3">يجب أن يكون لولي الأمر حساب فعّال بهذا الرقم.</p>
+                        <p v-if="form.errors.parent_phone" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.parent_phone }}</p>
                     </div>
 
                     <!-- Stage + Grade Level + Track -->

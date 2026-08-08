@@ -40,6 +40,7 @@ const createForm = useForm({
     name: '',
     email: '',
     phone: '',
+    parent_phone: '',
     password: '',
     role: 'student',
     grade_level: '',
@@ -61,6 +62,7 @@ watch(() => createForm.role, (newRole) => {
         onStageChange();
     } else {
         createForm.grade_level = '';
+        createForm.parent_phone = '';
     }
 });
 
@@ -471,7 +473,7 @@ async function removeAvatar() {
         <!-- Create User Modal -->
         <div v-if="createUserModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="createUserModalOpen = false"></div>
-            <div class="relative bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-up">
+            <div class="relative max-h-[90vh] overflow-y-auto bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md animate-fade-up">
                 <form @submit.prevent="submitCreateUser">
                     <div class="p-6 space-y-4">
                         <h3 class="text-xl font-bold text-surface-900 dark:text-white">إضافة مستخدم جديد</h3>
@@ -495,6 +497,14 @@ async function removeAvatar() {
                             <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-phone">رقم الهاتف / الجوال</label>
                             <input id="create-phone" v-model="createForm.phone" type="text" class="input w-full text-sm" placeholder="مثال: +97433554858" required />
                             <p v-if="createForm.errors.phone" class="text-red-500 text-xs mt-1">{{ createForm.errors.phone }}</p>
+                        </div>
+
+                        <!-- Parent phone for Student -->
+                        <div v-if="createForm.role === 'student'">
+                            <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-parent-phone">رقم جوال ولي الأمر</label>
+                            <input id="create-parent-phone" v-model="createForm.parent_phone" type="tel" inputmode="tel" class="input w-full text-sm" placeholder="نفس الرقم المسجل بحساب ولي الأمر" required />
+                            <p class="mt-1 text-[11px] text-surface-400">يُستخدم لربط الطالب مباشرة بحساب ولي الأمر.</p>
+                            <p v-if="createForm.errors.parent_phone" class="text-red-500 text-xs mt-1">{{ createForm.errors.parent_phone }}</p>
                         </div>
 
                         <!-- Password -->
