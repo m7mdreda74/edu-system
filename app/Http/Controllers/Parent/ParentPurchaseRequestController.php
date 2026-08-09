@@ -9,6 +9,7 @@ use App\Domain\User\Models\ParentStudentLink;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use LogicException;
 
 class ParentPurchaseRequestController extends Controller
@@ -19,13 +20,15 @@ class ParentPurchaseRequestController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $parent = auth()->user();
+        /** @var \App\Domain\User\Models\User $parent */
+        $parent = Auth::user();
         $purchaseRequest = PurchaseRequest::findOrFail($id);
 
         try {
             // Verify link between parent and student
             $isLinked = ParentStudentLink::where('parent_user_id', $parent->id)
                 ->where('student_user_id', $purchaseRequest->student_user_id)
+                ->whereNotNull('verified_at')
                 ->exists();
 
             if (! $isLinked) {

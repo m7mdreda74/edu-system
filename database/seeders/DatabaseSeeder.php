@@ -44,6 +44,12 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        if (app()->environment('production')) {
+            throw new RuntimeException(
+                'Demo database seeding is disabled in production. Provision production data through an approved runbook.',
+            );
+        }
+
         $this->assertCurriculumExists();
 
         $this->step('🧹 تفريغ البيانات التجريبية (المنهج محفوظ)', fn () => $this->wipe());

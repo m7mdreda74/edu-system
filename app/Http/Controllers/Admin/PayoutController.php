@@ -11,10 +11,11 @@ use App\Domain\Payment\Models\TeacherPayout;
 use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Services\SecureStoredFileResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -124,7 +125,7 @@ class PayoutController extends Controller
                 'status' => $receiptPath ? 'paid' : 'pending',
                 'paid_at' => $receiptPath ? now() : null,
                 'receipt_path' => $receiptPath,
-                'paid_by' => $receiptPath ? auth()->id() : null,
+                'paid_by' => $receiptPath ? Auth::id() : null,
                 'notes' => $validated['notes'] ?? null,
             ]);
 
@@ -157,7 +158,7 @@ class PayoutController extends Controller
             'status' => 'paid',
             'paid_at' => now(),
             'receipt_path' => $request->file('receipt')->store('payout-receipts', 'local'),
-            'paid_by' => auth()->id(),
+            'paid_by' => Auth::id(),
             'notes' => $request->input('notes') ?? $payout->notes,
         ]);
 
@@ -176,11 +177,11 @@ class PayoutController extends Controller
         return back()->with('success', 'تم حذف تسوية الأرباح.');
     }
 
-    public function receipt(int $id)
+    public function receipt(int $id, SecureStoredFileResponse $files)
     {
         $payout = TeacherPayout::findOrFail($id);
         abort_unless($payout->receipt_path, 404);
 
-        return Storage::disk('local')->response($payout->receipt_path);
+        return $files->fromLocal($payout->receipt_path);
     }
 }

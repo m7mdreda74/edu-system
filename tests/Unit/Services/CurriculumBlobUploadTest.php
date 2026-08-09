@@ -73,6 +73,16 @@ it('issues a short lived hmac authorization with the complete upload scope', fun
             'kind' => CurriculumBlobUpload::KIND_BOOKLET,
             'target_id' => 99,
             'max_bytes' => 25 * 1024 * 1024,
+            'allowed_content_types' => [
+                'application/msword',
+                'application/pdf',
+                'application/vnd.oasis.opendocument.text',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'application/zip',
+                'image/jpeg',
+                'image/png',
+            ],
             'expires_at_ms' => 1785240300000,
         ])
         ->and($issued)->toMatchArray($payload);

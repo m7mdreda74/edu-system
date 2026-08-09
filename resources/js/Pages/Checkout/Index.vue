@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import { formatQAR, DAY_NAMES } from '@/lib/money';
@@ -11,7 +11,6 @@ const props = defineProps({
     manualMethods: { type: Array, default: () => [] },
 });
 
-const paymentMethod  = ref('gateway');   // gateway | manual
 const selectedManual = ref(null);
 const receiptFile    = ref(null);
 const couponCode     = ref('');
@@ -61,30 +60,26 @@ function onReceiptChange(event) {
 async function submit() {
     errorMessage.value = '';
 
-    if (paymentMethod.value === 'manual') {
-        if (!selectedManual.value) {
-            errorMessage.value = 'اختر وسيلة التحويل أولاً.';
-            return;
-        }
-        if (!receiptFile.value) {
-            errorMessage.value = 'ارفع صورة الإيصال.';
-            return;
-        }
+    if (!selectedManual.value) {
+        errorMessage.value = 'اختر وسيلة التحويل أولاً.';
+        return;
+    }
+    if (!receiptFile.value) {
+        errorMessage.value = 'ارفع صورة الإيصال.';
+        return;
     }
 
     processing.value = true;
 
     const formData = new FormData();
-    formData.append('payment_method', paymentMethod.value);
+    formData.append('payment_method', 'manual');
 
     if (couponCode.value.trim()) {
         formData.append('coupon_code', couponCode.value.trim());
     }
 
-    if (paymentMethod.value === 'manual') {
-        formData.append('selected_method', JSON.stringify(selectedManual.value));
-        formData.append('receipt', receiptFile.value);
-    }
+    formData.append('selected_method', JSON.stringify(selectedManual.value));
+    formData.append('receipt', receiptFile.value);
 
     try {
         const res = await axios.post(
@@ -126,39 +121,22 @@ async function submit() {
                     <div class="card p-5">
                         <h2 class="font-bold text-sm text-surface-900 dark:text-white mb-4">طريقة الدفع</h2>
 
-                        <div class="grid sm:grid-cols-2 gap-3">
-                            <button
-                                type="button"
-                                class="p-4 rounded-xl border-2 text-start transition-all"
-                                :class="paymentMethod === 'gateway'
-                                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30'
-                                    : 'border-surface-200 dark:border-surface-700 hover:border-surface-300'"
-                                @click="paymentMethod = 'gateway'"
-                            >
-                                <Icon name="payments" class="w-5 h-5 text-primary-600 mb-2" />
-                                <div class="font-bold text-xs text-surface-900 dark:text-white">بطاقة بنكية</div>
-                                <div class="text-[11px] text-surface-400 mt-0.5">دفع فوري وتفعيل مباشر</div>
-                            </button>
-
-                            <button
-                                v-if="manualMethods.length"
-                                type="button"
-                                class="p-4 rounded-xl border-2 text-start transition-all"
-                                :class="paymentMethod === 'manual'
-                                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30'
-                                    : 'border-surface-200 dark:border-surface-700 hover:border-surface-300'"
-                                @click="paymentMethod = 'manual'"
-                            >
-                                <Icon name="attachment" class="w-5 h-5 text-primary-600 mb-2" />
-                                <div class="font-bold text-xs text-surface-900 dark:text-white">تحويل بنكي</div>
-                                <div class="text-[11px] text-surface-400 mt-0.5">ارفع الإيصال للمراجعة</div>
-                            </button>
+                        <div class="rounded-xl border-2 border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 p-4 flex items-start gap-3">
+                            <Icon name="attachment" class="w-5 h-5 text-primary-600 shrink-0" />
+                            <div>
+                                <div class="font-bold text-xs text-surface-900 dark:text-white">تحويل بنكي فقط</div>
+                                <div class="text-[11px] text-surface-500 dark:text-surface-400 mt-1">حوّل المبلغ إلى أحد الحسابات التالية ثم ارفع صورة إثبات التحويل. لن يتفعّل الاشتراك إلا بعد مراجعة الأدمن.</div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Manual transfer details -->
-                    <div v-if="paymentMethod === 'manual'" class="card p-5 space-y-4">
+                    <div class="card p-5 space-y-4">
                         <h2 class="font-bold text-sm text-surface-900 dark:text-white">بيانات التحويل</h2>
+
+                        <div v-if="!manualMethods.length" class="alert-error">
+                            لا توجد وسيلة تحويل مضافة حالياً. تواصل مع إدارة المنصة.
+                        </div>
 
                         <div class="space-y-2">
                             <button
@@ -175,6 +153,8 @@ async function submit() {
                                 <div class="text-[11px] text-surface-500 dark:text-surface-400 font-latin" dir="ltr">
                                     {{ method.account_number }}
                                 </div>
+                                <div v-if="method.account_name" class="text-[11px] text-surface-500 mt-1">اسم المستفيد: {{ method.account_name }}</div>
+                                <div v-if="method.instructions" class="text-[11px] text-surface-500 mt-1 whitespace-pre-line">{{ method.instructions }}</div>
                             </button>
                         </div>
 
@@ -183,7 +163,7 @@ async function submit() {
                             <input
                                 id="receipt"
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/webp"
                                 class="input"
                                 @change="onReceiptChange"
                             />
@@ -283,10 +263,10 @@ async function submit() {
                     <button
                         type="button"
                         class="btn-primary w-full justify-center"
-                        :disabled="processing"
+                        :disabled="processing || !manualMethods.length"
                         @click="submit"
                     >
-                        {{ processing ? 'جارٍ المعالجة...' : (paymentMethod === 'manual' ? 'إرسال الإيصال' : 'ادفع الآن') }}
+                        {{ processing ? 'جارٍ رفع الإثبات...' : 'إرسال إثبات التحويل' }}
                     </button>
                 </aside>
             </div>

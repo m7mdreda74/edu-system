@@ -31,7 +31,24 @@ class WorksheetController extends Controller
         $worksheets = $group->worksheets()
             ->with(['material:id,title'])
             ->withCount('submissions')
-            ->get();
+            ->get()
+            ->each(fn (Worksheet $worksheet) => $worksheet->setAttribute(
+                'file_path',
+                filled($worksheet->file_path)
+                    ? route('learning.worksheet.download', $worksheet->id)
+                    : null,
+            ));
+
+        $submissions = WorksheetSubmission::whereIn('worksheet_id', $worksheets->pluck('id'))
+            ->with(['worksheet:id,title,max_score', 'student:id,name,email'])
+            ->latest('submitted_at')
+            ->get()
+            ->each(fn (WorksheetSubmission $submission) => $submission->setAttribute(
+                'submitted_file_path',
+                filled($submission->submitted_file_path)
+                    ? route('learning.submission.download', $submission->id)
+                    : null,
+            ));
 
         return Inertia::render('Teacher/Worksheets', [
             'group' => [
@@ -41,10 +58,7 @@ class WorksheetController extends Controller
             ],
             'worksheets'  => $worksheets,
             'materials'   => $group->materials()->get(['id', 'title']),
-            'submissions' => WorksheetSubmission::whereIn('worksheet_id', $worksheets->pluck('id'))
-                ->with(['worksheet:id,title,max_score', 'student:id,name,email'])
-                ->latest('submitted_at')
-                ->get(),
+            'submissions' => $submissions,
         ]);
     }
 
@@ -55,18 +69,29 @@ class WorksheetController extends Controller
         $validated = $request->validate([
             'lesson_id'           => ['nullable', 'exists:group_materials,id'],
             'title'               => ['required', 'string', 'max:255'],
-            'file'                => ['required', 'file', 'mimes:pdf,docx,png,jpg,jpeg', 'max:10240'],
+            'file'                => ['required', 'file', 'mimes:pdf,doc,docx,ppt,pptx,zip,png,jpg,jpeg', 'max:10240'],
             'type'                => ['required', 'string', 'in:study,homework'],
             'requires_submission' => ['required', 'boolean'],
             'due_date'            => ['nullable', 'date'],
             'max_score'           => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $validated['file_path'] = '/storage/' . $request->file('file')->store('worksheets', 'public');
+        $validated['file_path'] = 'private://' . $request->file('file')->store('worksheets', 'local');
 
-        // Homework inherits its lesson's unit; a loose study sheet falls back to
-        // the assignment's first unit.
-        $lessonUnitId = GroupMaterial::whereKey($validated['lesson_id'] ?? null)->value('curriculum_unit_id');
+        // Homework inherits its lesson's unit; reject a lesson belonging to a
+        // different teacher before using its unit ID.
+        $lessonUnitId = null;
+        if (! empty($validated['lesson_id'])) {
+            $lesson = GroupMaterial::with('unit')->findOrFail($validated['lesson_id']);
+            abort_unless(
+                $lesson->unit?->teaching_assignment_id === $group->teaching_assignment_id,
+                403,
+                'هذا الدرس لا ينتمي إلى جدولك.',
+            );
+            $lessonUnitId = $lesson->curriculum_unit_id;
+        }
+
+        // A loose study sheet falls back to the assignment's first unit.
 
         $validated['curriculum_unit_id'] = $lessonUnitId ?? CurriculumUnit::firstFor($group)->id;
 

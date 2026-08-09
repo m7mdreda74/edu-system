@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * "ملزمة شرح الدرس وهي ملف PDF أو Word أو أياً كان يرفعه المدرس" — the client
- * asked for no format restriction, so there is no mime whitelist here. Size is
- * the only limit; the file lands on the public disk and is served by path.
+ * Only safe document/archive/image formats are accepted. This prevents an
+ * uploaded HTML/SVG file from becoming same-origin script.
  */
 class UploadBookletRequest extends FormRequest
 {
@@ -29,7 +29,13 @@ class UploadBookletRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'booklet' => ['nullable', 'required_without:blob_url', 'file', 'max:'.self::MAX_KILOBYTES],
+            'booklet' => [
+                'nullable',
+                'required_without:blob_url',
+                'file',
+                'mimes:pdf,doc,docx,odt,ppt,pptx,zip,png,jpg,jpeg',
+                'max:'.self::MAX_KILOBYTES,
+            ],
             'blob_url' => ['nullable', 'required_without:booklet', 'url:https', 'max:2048'],
             'blob_pathname' => ['nullable', 'required_with:blob_url', 'string', 'max:1024'],
         ];

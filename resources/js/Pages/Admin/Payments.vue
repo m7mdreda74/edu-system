@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import { useConfirm } from '@/composables/useConfirm';
@@ -58,7 +58,7 @@ async function approvePayment(p) {
 async function rejectPayment(p) {
     const result = await confirm({
         title: 'رفض إيصال التحويل',
-        message: `سيتم إخطار الطالب برفض إيصاله.`,
+        message: `سيتم تسجيل سبب الرفض وإغلاق طلب التحويل.`,
         confirmLabel: 'رفض',
         cancelLabel: 'إلغاء',
         variant: 'danger',
@@ -110,7 +110,7 @@ async function rejectPayment(p) {
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الاشتراك</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">المبلغ</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التوزيع المالي</th>
-                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">البوابة</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">طريقة التحويل</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التاريخ</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التحقق والتحكم</th>
@@ -133,7 +133,7 @@ async function rejectPayment(p) {
                                 </td>
                                 <td class="p-4 text-xs"><div class="text-green-600">المدرس: {{ formatQAR(p.teacher_earnings) }}</div><div class="text-primary-600">المنصة: {{ formatQAR(p.platform_commission_amount) }} <span v-if="p.commission_percent !== null">({{ p.commission_percent }}%)</span></div></td>
                                 <td class="p-4">
-                                    <span class="badge-gray text-xs" :title="p.gateway_ref">{{ p.gateway }}</span>
+                                    <span class="badge-gray text-xs" :title="p.gateway_ref">{{ p.gateway === 'manual' ? p.gateway_ref : 'سجل قديم' }}</span>
                                 </td>
                                 <td class="p-4">
                                     <span :class="statusColors[p.status]">

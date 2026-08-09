@@ -25,6 +25,7 @@ class StudentPurchaseRequestController extends Controller
             'teaching_group_id' => ['required', 'integer', 'exists:teaching_groups,id'],
         ]);
 
+        /** @var \App\Domain\User\Models\User $user */
         $user  = Auth::user();
         $group = TeachingGroup::findOrFail($validated['teaching_group_id']);
 
@@ -33,7 +34,9 @@ class StudentPurchaseRequestController extends Controller
                 throw new LogicException('أنت مشترك في هذه المجموعة بالفعل.');
             }
 
-            $parentLink = ParentStudentLink::where('student_user_id', $user->id)->first();
+            $parentLink = ParentStudentLink::where('student_user_id', $user->id)
+                ->whereNotNull('verified_at')
+                ->first();
 
             if (! $parentLink) {
                 throw new LogicException('يجب ربط حسابك بحساب ولي الأمر أولاً عن طريق إدخال بريدك الإلكتروني في لوحة تحكم ولي الأمر.');

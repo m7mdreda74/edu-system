@@ -3,6 +3,16 @@ import { issueSignedToken, presignUrl } from '@vercel/blob';
 
 const ALLOWED_KINDS = new Set(['booklet', 'homework', 'exam']);
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const ALLOWED_CONTENT_TYPES = new Set([
+    'application/msword',
+    'application/pdf',
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/zip',
+    'image/jpeg',
+    'image/png',
+]);
 
 function parseBody(body) {
     if (typeof body === 'string') {
@@ -51,6 +61,8 @@ function verifyAuthorization(token, pathname) {
         || !Number.isInteger(payload.max_bytes)
         || payload.max_bytes < 1
         || payload.max_bytes > MAX_UPLOAD_BYTES
+        || !Array.isArray(payload.allowed_content_types)
+        || payload.allowed_content_types.some((contentType) => !ALLOWED_CONTENT_TYPES.has(contentType))
         || !Number.isInteger(payload.expires_at_ms)
         || payload.expires_at_ms <= Date.now()
     ) {
@@ -87,12 +99,14 @@ export default async function handler(request, response) {
             pathname,
             operations: ['put'],
             maximumSizeInBytes: authorization.max_bytes,
+            allowedContentTypes: authorization.allowed_content_types,
             validUntil: authorization.expires_at_ms,
         });
         const { presignedUrl } = await presignUrl(signedToken, {
             operation: 'put',
             pathname,
-            access: 'public',
+            access: 'private',
+            allowedContentTypes: authorization.allowed_content_types,
             addRandomSuffix: true,
             maximumSizeInBytes: authorization.max_bytes,
             validUntil: authorization.expires_at_ms,

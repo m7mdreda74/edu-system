@@ -135,12 +135,12 @@ class LearnController extends Controller
 
         abort_if(! $worksheet->requires_submission, 403, 'هذا الشيت لا يتطلب تسليماً.');
 
-        $path = $request->file('submitted_file')->store('submissions', 'public');
+        $path = $request->file('submitted_file')->store('submissions', 'local');
 
         WorksheetSubmission::updateOrCreate(
             ['worksheet_id' => $worksheet->id, 'student_id' => $user->id],
             [
-                'submitted_file_path' => '/storage/' . $path,
+                'submitted_file_path' => 'private://' . $path,
                 'submitted_at'        => now(),
                 // Resubmitting clears the previous grade.
                 'score'               => null,
@@ -320,7 +320,9 @@ class LearnController extends Controller
                 // The URL itself is never shipped — the player asks for a
                 // signed one — so the page only needs to know there is a video.
                 'has_video'        => filled($lesson->video_url),
-                'booklet_path'     => $lesson->attachment_path,
+                'booklet_path'     => filled($lesson->attachment_path)
+                    ? route('learning.material.download', $lesson->id)
+                    : null,
                 'is_completed'     => $isCompleted,
                 'watched_seconds'  => (int) ($seen->watched_seconds ?? 0),
                 'is_locked'        => ! $lesson->is_free_preview && ($unitLocked || ! $previousDone),
@@ -350,13 +352,17 @@ class LearnController extends Controller
         return [
             'id'                  => $sheet->id,
             'title'               => $sheet->title,
-            'file_path'           => $sheet->file_path,
+            'file_path'           => filled($sheet->file_path)
+                ? route('learning.worksheet.download', $sheet->id)
+                : null,
             'due_date'            => $sheet->due_date?->format('Y-m-d'),
             'max_score'           => $sheet->max_score,
             'requires_submission' => $sheet->requires_submission,
             'submission'          => $submission === null ? null : [
                 'id'               => $submission->id,
-                'file_path'        => $submission->submitted_file_path,
+                'file_path'        => filled($submission->submitted_file_path)
+                    ? route('learning.submission.download', $submission->id)
+                    : null,
                 'submitted_at'     => $submission->submitted_at?->toIso8601String(),
                 'score'            => $submission->score,
                 'teacher_feedback' => $submission->teacher_feedback,

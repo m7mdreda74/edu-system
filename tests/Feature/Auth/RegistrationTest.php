@@ -79,4 +79,20 @@ class RegistrationTest extends TestCase
         $response->assertSessionHasErrors('parent_phone');
         $this->assertDatabaseMissing('users', ['email' => 'another@example.com']);
     }
+
+    public function test_public_registration_cannot_create_a_teacher_account(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Unapproved Teacher',
+            'email' => 'unapproved-teacher@example.com',
+            'phone' => '50000005',
+            'role' => 'teacher',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertSessionHasErrors('role');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'unapproved-teacher@example.com']);
+    }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Application\Payment\Services\PaymentService;
 use App\Domain\Payment\Models\Coupon;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\Settings\Models\PlatformSetting;
@@ -12,28 +11,23 @@ use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use LogicException;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
- * Pays for one month of a subscription — either through a gateway or by
- * uploading a bank-transfer receipt for an admin to verify.
+ * Pays for one month of a subscription by uploading a bank-transfer receipt
+ * for an admin to verify.
  *
  * A parent may pay on behalf of a linked student; every entry point checks that
  * link before letting the payment through.
  */
 class CheckoutController extends Controller
 {
-    public function __construct(
-        private readonly PaymentService $paymentService,
-    ) {}
-
     public function show(int $subscriptionId): Response
     {
         $subscription = $this->authorizeSubscription($subscriptionId);
@@ -48,6 +42,9 @@ class CheckoutController extends Controller
             PlatformSetting::where('key', 'manual_payment_methods')->value('value') ?: '[]',
             true,
         );
+        $manualMethods = is_array($manualMethods)
+            ? array_values(array_filter($manualMethods, static fn (mixed $method): bool => is_array($method)))
+            : [];
 
         return Inertia::render('Checkout/Index', [
             'subscription'  => $this->presentSubscription($subscription),
@@ -59,54 +56,14 @@ class CheckoutController extends Controller
     {
         $validated = $request->validate([
             'coupon_code'     => ['nullable', 'string', 'max:50'],
-            'payment_method'  => ['nullable', 'string', 'in:gateway,manual'],
-            'selected_method' => ['required_if:payment_method,manual'],
-            'receipt'         => ['required_if:payment_method,manual', 'file', 'image', 'max:8192'],
+            'payment_method'  => ['required', 'string', 'in:manual'],
+            'selected_method' => ['required', 'string', 'json', 'max:2000'],
+            'receipt'         => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
         ]);
 
         $subscription = $this->authorizeSubscription($subscriptionId);
 
-        if (($validated['payment_method'] ?? 'gateway') === 'manual') {
-            return $this->processManualTransfer($request, $validated, $subscription);
-        }
-
-        try {
-            $result = $this->paymentService->initiateCheckout(
-                user:         $subscription->student,
-                subscription: $subscription,
-                couponCode:   $validated['coupon_code'] ?? null,
-            );
-
-            if ($request->wantsJson() || $request->ajax()) {
-                return response()->json(['redirect_url' => $result['redirect_url']]);
-            }
-
-            return Inertia::location($result['redirect_url']);
-        } catch (LogicException $e) {
-            return $this->fail($request, $e->getMessage());
-        }
-    }
-
-    public function success(Request $request): Response
-    {
-        // Final processing and activation happen strictly via gateway webhooks.
-        // The redirect is logged for the audit trail only.
-        Log::info('Payment success redirect callback received.', [
-            'payment_id' => $request->query('paymentId') ?? $request->query('payment_id'),
-            'ip'         => $request->ip(),
-            'user_id'    => Auth::id(),
-        ]);
-
-        return Inertia::render('Checkout/Success', [
-            'session_id' => $request->query('paymentId')
-                ?? $request->query('payment_id')
-                ?? $request->query('session_id'),
-        ]);
-    }
-
-    public function cancel(): Response
-    {
-        return Inertia::render('Checkout/Cancel');
+        return $this->processManualTransfer($request, $validated, $subscription);
     }
 
     public function checkCoupon(Request $request): JsonResponse
@@ -129,49 +86,6 @@ class CheckoutController extends Controller
             'discount_percent' => $coupon->discount_percent,
             'discounted_price' => $coupon->applyDiscount($subscription->monthly_price),
         ]);
-    }
-
-    // ─── Mock gateway (local development only) ────────────────────
-
-    public function mockGateway(string $ref): Response
-    {
-        $payment = Payment::with('subscription.assignment.subject', 'subscription.assignment.teacher')
-            ->where('gateway_ref', $ref)
-            ->firstOrFail();
-
-        return Inertia::render('Checkout/MockGateway', [
-            'payment'      => $payment,
-            'subscription' => $payment->subscription
-                ? $this->presentSubscription($payment->subscription)
-                : null,
-        ]);
-    }
-
-    public function mockComplete(string $ref): RedirectResponse
-    {
-        $gatewayName = $this->paymentService->getGateway()->getGatewayName();
-
-        $payload = $gatewayName === 'fatora'
-            ? json_encode([
-                'response_code' => '000',
-                'order_id'      => $ref,
-                'event'         => 'payment_completed',
-            ])
-            : json_encode([
-                'type' => 'checkout.session.completed',
-                'data' => ['object' => ['id' => $ref, 'payment_intent' => $ref]],
-            ]);
-
-        $this->paymentService->processWebhookEvent($payload);
-
-        return redirect()->route('checkout.success', ['session_id' => $ref]);
-    }
-
-    public function mockCancel(string $ref): RedirectResponse
-    {
-        Payment::where('gateway_ref', $ref)->firstOrFail()->update(['status' => Payment::STATUS_FAILED]);
-
-        return redirect()->route('checkout.cancel');
     }
 
     // ─── Internals ────────────────────────────────────────────────
@@ -199,6 +113,7 @@ class CheckoutController extends Controller
 
         $isLinkedParent = ParentStudentLink::where('parent_user_id', $user->id)
             ->where('student_user_id', $subscription->student_id)
+            ->whereNotNull('verified_at')
             ->exists();
 
         abort_unless($isLinkedParent, 403, 'غير مصرح لك بإتمام عملية الدفع لهذا الاشتراك.');
@@ -214,49 +129,84 @@ class CheckoutController extends Controller
                 throw new LogicException('هذا الاشتراك مفعّل بالفعل.');
             }
 
-            $selected = is_string($validated['selected_method'])
-                ? (json_decode($validated['selected_method'], true) ?: [])
-                : $validated['selected_method'];
+            $selected = json_decode($validated['selected_method'], true);
+
+            if (! is_array($selected)) {
+                throw new LogicException('بيانات وسيلة التحويل غير صالحة. حدّث الصفحة وحاول مرة أخرى.');
+            }
 
             $configured = json_decode(
                 PlatformSetting::where('key', 'manual_payment_methods')->value('value') ?: '[]',
                 true,
             );
+            $configured = is_array($configured)
+                ? array_values(array_filter($configured, static fn (mixed $method): bool => is_array($method)))
+                : [];
 
-            $method = collect($configured)->first(fn ($m) => ($m['name'] ?? null) === ($selected['name'] ?? null)
-                && ($m['account_number'] ?? null) === ($selected['account_number'] ?? null));
+            $method = collect($configured)->first(
+                static fn (array $method): bool => ($method['name'] ?? null) === ($selected['name'] ?? null)
+                    && ($method['account_number'] ?? null) === ($selected['account_number'] ?? null)
+                    && ($method['type'] ?? null) === ($selected['type'] ?? null),
+            );
 
             if (! $method) {
                 throw new LogicException('وسيلة التحويل المختارة غير متاحة. حدّث الصفحة وحاول مرة أخرى.');
             }
 
-            $originalAmount = $subscription->monthly_price;
-            $finalAmount    = $originalAmount;
-            $coupon         = null;
+            $payment = DB::transaction(function () use ($request, $validated, $subscription, $method): Payment {
+                /** @var Subscription $lockedSubscription */
+                $lockedSubscription = Subscription::query()
+                    ->lockForUpdate()
+                    ->findOrFail($subscription->id);
 
-            if (! empty($validated['coupon_code'])) {
-                /** @var Coupon|null $coupon */
-                $coupon = Coupon::where('code', strtoupper(trim($validated['coupon_code'])))->first();
-
-                if (! $coupon || ! $coupon->isUsable()) {
-                    throw new LogicException('كود الخصم غير صحيح أو منتهي الصلاحية.');
+                if ($lockedSubscription->status === Subscription::STATUS_ACTIVE) {
+                    throw new LogicException('هذا الاشتراك مفعّل بالفعل.');
                 }
 
-                $finalAmount = $coupon->applyDiscount($originalAmount);
-            }
+                if ($lockedSubscription->monthly_price <= 0) {
+                    throw new LogicException('هذا الاشتراك مجاني ولا يحتاج إلى دفع.');
+                }
 
-            $payment = Payment::create([
-                'user_id'         => $subscription->student_id,
-                'subscription_id' => $subscription->id,
-                'coupon_id'       => $coupon?->id,
-                'amount'          => $finalAmount,
-                'original_amount' => $originalAmount,
-                'currency'        => $subscription->currency ?? 'QAR',
-                'gateway'         => 'manual',
-                'gateway_ref'     => ($method['type'] ?? 'wallet') . ': ' . ($method['name'] ?? 'تحويل يدوي'),
-                'status'          => Payment::STATUS_PENDING_VERIFICATION,
-                'receipt_path'    => $request->file('receipt')->store('receipts', 'local'),
-            ]);
+                $hasPendingReceipt = Payment::query()
+                    ->where('user_id', $lockedSubscription->student_id)
+                    ->where('subscription_id', $lockedSubscription->id)
+                    ->where('status', Payment::STATUS_PENDING_VERIFICATION)
+                    ->exists();
+
+                if ($hasPendingReceipt) {
+                    throw new LogicException('يوجد إيصال تحويل قيد المراجعة لهذا الاشتراك بالفعل.');
+                }
+
+                $originalAmount = (int) $lockedSubscription->monthly_price;
+                $finalAmount = $originalAmount;
+                $coupon = null;
+
+                if (! empty($validated['coupon_code'])) {
+                    /** @var Coupon|null $coupon */
+                    $coupon = Coupon::where('code', strtoupper(trim($validated['coupon_code'])))
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $coupon || ! $coupon->isUsable()) {
+                        throw new LogicException('كود الخصم غير صحيح أو منتهي الصلاحية.');
+                    }
+
+                    $finalAmount = $coupon->applyDiscount($originalAmount);
+                }
+
+                return Payment::create([
+                    'user_id'         => $lockedSubscription->student_id,
+                    'subscription_id' => $lockedSubscription->id,
+                    'coupon_id'       => $coupon?->id,
+                    'amount'          => $finalAmount,
+                    'original_amount' => $originalAmount,
+                    'currency'        => $lockedSubscription->currency ?? 'QAR',
+                    'gateway'         => 'manual',
+                    'gateway_ref'     => ($method['type'] ?? 'wallet') . ': ' . ($method['name'] ?? 'تحويل يدوي'),
+                    'status'          => Payment::STATUS_PENDING_VERIFICATION,
+                    'receipt_path'    => $request->file('receipt')->store('receipts', 'local'),
+                ]);
+            });
 
             $payment->load(['user', 'subscription']);
 

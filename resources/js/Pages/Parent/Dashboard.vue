@@ -405,7 +405,7 @@ function submitReject() {
                                         <tr>
                                             <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">الاشتراك</th>
                                             <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">المبلغ</th>
-                                            <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">بوابة الدفع</th>
+                                            <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">طريقة التحويل</th>
                                             <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">التاريخ</th>
                                         </tr>
                                     </thead>
@@ -413,7 +413,7 @@ function submitReject() {
                                         <tr v-for="pay in selectedStudent.payments" :key="pay.id">
                                             <td class="px-6 py-4 font-bold text-surface-900 dark:text-white">{{ pay.subscription?.assignment?.subject?.name ?? "اشتراك" }}</td>
                                             <td class="px-6 py-4 font-semibold text-green-600 dark:text-green-400">{{ formatQAR(pay.amount) }}</td>
-                                            <td class="px-6 py-4 text-surface-500 uppercase">{{ pay.gateway }}</td>
+                                            <td class="px-6 py-4 text-surface-500">{{ pay.gateway === 'manual' ? pay.gateway_ref : 'سجل قديم' }}</td>
                                             <td class="px-6 py-4 text-xs text-surface-400">{{ new Date(pay.created_at).toLocaleDateString('ar') }}</td>
                                         </tr>
                                     </tbody>

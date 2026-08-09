@@ -23,10 +23,19 @@ class SettingsController extends Controller
         'home_stats_teachers',
     ];
 
+    private const DISABLED_PAYMENT_KEYS = [
+        'active_gateway',
+        'tap_publishable_key',
+        'tap_secret_key',
+        'fatora_api_key',
+    ];
+
     public function index(): Response
     {
         return Inertia::render('Admin/Settings', [
-            'dbSettings' => PlatformSetting::all(),
+            'dbSettings' => PlatformSetting::query()
+                ->whereNotIn('key', self::DISABLED_PAYMENT_KEYS)
+                ->get(),
         ]);
     }
 
@@ -41,7 +50,10 @@ class SettingsController extends Controller
         ]);
 
         $settings = collect($validated['settings'])
-            ->reject(fn (array $setting): bool => in_array($setting['key'], self::LIVE_STAT_KEYS, true));
+            ->reject(fn (array $setting): bool => in_array($setting['key'], [
+                ...self::LIVE_STAT_KEYS,
+                ...self::DISABLED_PAYMENT_KEYS,
+            ], true));
 
         foreach ($settings as $index => $setting) {
             if (
@@ -123,7 +135,10 @@ class SettingsController extends Controller
     public function sitePages(): Response
     {
         return Inertia::render('Admin/SitePages', [
-            'dbSettings' => PlatformSetting::all()->pluck('value', 'key')->toArray(),
+            'dbSettings' => PlatformSetting::query()
+                ->whereNotIn('key', self::DISABLED_PAYMENT_KEYS)
+                ->pluck('value', 'key')
+                ->toArray(),
         ]);
     }
 
@@ -135,7 +150,10 @@ class SettingsController extends Controller
 
         $timestamp = now();
         $rows = collect($validated['settings'])
-            ->reject(fn (mixed $value, string $key): bool => in_array($key, self::LIVE_STAT_KEYS, true))
+            ->reject(fn (mixed $value, string $key): bool => in_array($key, [
+                ...self::LIVE_STAT_KEYS,
+                ...self::DISABLED_PAYMENT_KEYS,
+            ], true))
             ->map(function (mixed $value, string $key) use ($timestamp): array {
                 $dbValue = is_array($value)
                     ? json_encode($value, JSON_UNESCAPED_UNICODE)

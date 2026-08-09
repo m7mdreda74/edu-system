@@ -15,8 +15,12 @@
             "dest": "/public/build/$1"
         },
         {
+            "src": "/storage/(avatars|thumbnails)/(.*)",
+            "dest": "/storage/$1/$2"
+        },
+        {
             "src": "/storage/(.*)",
-            "dest": "/storage/$1"
+            "dest": "/api/index.php"
         },
         {
             "src": "/images/(.*)",
@@ -25,6 +29,10 @@
         {
             "src": "/api/blob-upload",
             "dest": "/api/blob-upload.js"
+        },
+        {
+            "src": "/api/blob-download",
+            "dest": "/api/blob-download.js"
         },
         {
             "src": "/(.*)",
@@ -43,6 +51,7 @@
     ],
     "env": {
         "APP_ENV": "production",
+        "APP_DEBUG": "false",
         "CACHE_STORE": "file",
         "CACHE_PATH": "/tmp/framework/cache/data",
         "CACHE_LOCK_PATH": "/tmp/framework/cache/data",

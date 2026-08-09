@@ -22,7 +22,6 @@ class PlatformSettingsSeeder extends Seeder
         // Forced: the demo will not behave correctly without these.
         $operational = [
             'commission_percent' => '20',
-            'active_gateway' => 'stripe',
             'site_theme' => 'royal',
             'manual_payment_methods' => json_encode([
                 [

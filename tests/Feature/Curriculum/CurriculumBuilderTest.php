@@ -83,8 +83,8 @@ it('keeps another teacher out of the curriculum', function () {
         ->assertForbidden();
 });
 
-it('accepts open-format lesson files homework and a paper unit exam', function () {
-    Storage::fake('public');
+it('accepts safe lesson files homework and a paper unit exam', function () {
+    Storage::fake('local');
 
     $unit = CurriculumUnit::factory()->create([
         'teaching_assignment_id' => $this->assignment->id,
@@ -123,18 +123,18 @@ it('accepts open-format lesson files homework and a paper unit exam', function (
         ->where('type', Worksheet::TYPE_PAPER_EXAM)
         ->firstOrFail();
 
-    expect($lesson->attachment_path)->toStartWith('/storage/booklets/')
+    expect($lesson->attachment_path)->toStartWith('private://booklets/')
         ->and($homework->max_score)->toBe(20)
         ->and($homework->requires_submission)->toBeTrue()
         ->and($paperExam->max_score)->toBe(40);
 
-    Storage::disk('public')->assertExists(substr($lesson->attachment_path, strlen('/storage/')));
-    Storage::disk('public')->assertExists(substr($homework->file_path, strlen('/storage/')));
-    Storage::disk('public')->assertExists(substr($paperExam->file_path, strlen('/storage/')));
+    Storage::disk('local')->assertExists(substr($lesson->attachment_path, strlen('private://')));
+    Storage::disk('local')->assertExists(substr($homework->file_path, strlen('private://')));
+    Storage::disk('local')->assertExists(substr($paperExam->file_path, strlen('private://')));
 });
 
 it('does not write curriculum uploads to the read-only Vercel filesystem', function () {
-    Storage::fake('public');
+    Storage::fake('local');
     config()->set([
         'services.vercel_blob.enabled' => false,
         'services.vercel_blob.serverless' => true,
@@ -148,13 +148,13 @@ it('does not write curriculum uploads to the read-only Vercel filesystem', funct
 
     $this->actingAs($this->teacher)
         ->post(route('teacher.lessons.booklet', ['lesson' => $lesson->id]), [
-            'booklet' => UploadedFile::fake()->create('notes.pdf', 40, 'application/pdf'),
+            'booklet' => UploadedFile::fake()->create('lesson-notes.pdf', 40, 'application/pdf'),
         ])
         ->assertRedirect()
         ->assertSessionHasErrors('booklet');
 
     expect($lesson->refresh()->attachment_path)->toBeNull()
-        ->and(Storage::disk('public')->allFiles())->toBe([]);
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
 });
 
 it('authorizes and records a direct Blob booklet without touching the local disk', function () {

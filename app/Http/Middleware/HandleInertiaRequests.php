@@ -66,8 +66,6 @@ class HandleInertiaRequests extends Middleware
                     ->all(),
             ),
 
-            // Environment info for admin panel
-            'env' => app()->environment(),
         ];
     }
 }

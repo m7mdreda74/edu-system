@@ -76,22 +76,19 @@ const defaultSettings = [
     { key: 'footer_links', value: '[]', type: 'string' },
     { key: 'footer_social_links', value: '[]', type: 'string' },
 
-    // Payment Settings
-    { key: 'active_gateway', value: 'fatora', type: 'string' },
-    { key: 'tap_publishable_key', value: '', type: 'string' },
-    { key: 'tap_secret_key', value: '', type: 'string' },
-    { key: 'fatora_api_key', value: '', type: 'string' },
+    // Manual payment settings
     { key: 'manual_payment_methods', value: '[]', type: 'string' }
 ];
 
 const liveStatKeys = new Set(['home_stats_students', 'home_stats_courses', 'home_stats_teachers']);
+const disabledPaymentSettingKeys = new Set(['active_gateway', 'tap_publishable_key', 'tap_secret_key', 'fatora_api_key']);
 
 // Initialize settings by merging editable defaults with current DB values.
 // Homepage counters are calculated from the domain tables and never enter
 // this editor, even if an older deployment left their rows in the database.
 const settingsMap = new Map();
 defaultSettings.forEach(s => settingsMap.set(s.key, { ...s }));
-props.dbSettings.filter(s => !liveStatKeys.has(s.key)).forEach(s => {
+props.dbSettings.filter(s => !liveStatKeys.has(s.key) && !disabledPaymentSettingKeys.has(s.key)).forEach(s => {
     settingsMap.set(s.key, { ...s });
 });
 
@@ -154,12 +151,6 @@ const getSettingLabel = (key) => {
     if (key === 'platform_email') return 'البريد الإلكتروني الأساسي للمنصة (لإرسال الإشعارات)';
     if (key === 'commission_percent') return 'نسبة عمولة المنصة (%)';
 
-    // Payment Settings
-    if (key === 'active_gateway') return 'بوابة الدفع النشطة الحالية';
-    if (key === 'tap_publishable_key') return 'مفتاح Tap العام (Publishable Key)';
-    if (key === 'tap_secret_key') return 'مفتاح Tap السري (Secret Key)';
-    if (key === 'fatora_api_key') return 'مفتاح Fatora السري (API Key)';
-
     // Welcome Popup
     if (key === 'welcome_popup_active') return 'تفعيل النافذة الترحيبية المنبثقة';
     if (key === 'welcome_popup_title') return 'عنوان النافذة الترحيبية الرئيسي';
@@ -221,7 +212,7 @@ const tabs = [
     { id: 'youtube',    label: 'فيديوهات يوتيوب',        iconName: 'live' },
     { id: 'faqs',       label: 'الأسئلة الشائعة',        iconName: 'chat' },
     { id: 'results',    label: 'نتائج الطلاب',           iconName: 'student' },
-    { id: 'payment',    label: 'بوابات الدفع الإلكتروني',iconName: 'payments' },
+    { id: 'payment',    label: 'التحويلات وإثبات الدفع', iconName: 'payments' },
     { id: 'advanced',   label: 'إعدادات النظام المتقدمة', iconName: 'edit' },
 ];
 
@@ -395,15 +386,6 @@ const removeManualPayment = (i) => {
 // Filter out already categorized keys to show under advanced settings
 const jsonKeys = ['home_features', 'home_why_choose_us', 'home_youtube_videos', 'home_faqs', 'home_results'];
 
-const paymentSettings = computed(() => {
-    return {
-        active_gateway: getSetting('active_gateway'),
-        tap_publishable_key: getSetting('tap_publishable_key'),
-        tap_secret_key: getSetting('tap_secret_key'),
-        fatora_api_key: getSetting('fatora_api_key'),
-    };
-});
-
 const advancedSettings = computed(() => {
     return form.settings.filter(s => {
         const explicitKeys = [
@@ -423,7 +405,7 @@ const advancedSettings = computed(() => {
             'app_win_url', 'app_mac_url', 'app_ios_url', 'app_android_url', 'app_huawei_url',
             'home_features', 'home_why_choose_us', 'home_youtube_videos', 'home_faqs', 'home_results',
             'navbar_links', 'footer_links', 'footer_social_links',
-            'active_gateway', 'tap_publishable_key', 'tap_secret_key', 'fatora_api_key', 'manual_payment_methods'
+            'manual_payment_methods'
         ];
         if (explicitKeys.includes(s.key)) return false;
         return true;
@@ -1009,66 +991,19 @@ async function saveSettings() {
                         </div>
                     </div>
 
-                    <!-- Tab: Payment Gateways -->
+                    <!-- Tab: Manual transfers -->
                     <div v-if="activeTab === 'payment'" class="card p-6 space-y-6 animate-fade-in-up">
                         <div class="border-b border-surface-100 dark:border-surface-700 pb-3">
                             <h3 class="font-bold text-base text-surface-900 dark:text-white flex items-center gap-2">
                                 <Icon name="payments" class="w-5 h-5 text-primary-500" />
-                                <span>إعدادات بوابات الدفع الإلكتروني</span>
+                                <span>إعدادات التحويل وإثبات الدفع</span>
                             </h3>
-                            <p class="text-xs text-surface-500 mt-1">تحديد بوابة الدفع النشطة وإدخال مفاتيح الربط لتوجيه المدفوعات إلى حسابك مباشرة.</p>
+                            <p class="text-xs text-surface-500 mt-1">الدفع على المنصة يتم بالتحويل البنكي أو المحفظة فقط. يرفع الطالب إثبات التحويل، ولا يتفعّل الاشتراك إلا بعد قرار الأدمن.</p>
                         </div>
 
                         <div class="space-y-6">
-                            <!-- Active Gateway Select -->
-                            <div v-if="paymentSettings.active_gateway" class="space-y-2">
-                                <label class="block text-xs font-bold text-surface-700 dark:text-surface-300">
-                                    {{ getSettingLabel('active_gateway') }}
-                                </label>
-                                <select v-model="paymentSettings.active_gateway.value" class="input w-full" @change="isDirty = true">
-                                    <option value="fatora">فاتورة Fatora (قطر)</option>
-                                    <option value="tap">Tap Payments (الخليج والشرق الأوسط)</option>
-                                    <option value="stripe">Stripe</option>
-                                </select>
-                            </div>
-
-                            <!-- Fatora Settings Group -->
-                            <div v-if="paymentSettings.active_gateway?.value === 'fatora'" class="p-5 rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50/20 dark:bg-surface-900/10 space-y-4">
-                                <div class="flex items-center gap-2 text-sm font-bold text-surface-800 dark:text-surface-200">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                                    إعدادات بوابة Fatora
-                                </div>
-                                <div v-if="paymentSettings.fatora_api_key" class="space-y-1.5">
-                                    <label class="block text-[11px] font-bold text-surface-500">
-                                        {{ getSettingLabel('fatora_api_key') }}
-                                    </label>
-                                    <input v-model="paymentSettings.fatora_api_key.value" type="text" dir="ltr" class="input w-full text-xs font-mono" placeholder="E4B73..." @input="isDirty = true" />
-                                </div>
-                            </div>
-
-                            <!-- Tap Settings Group -->
-                            <div v-if="paymentSettings.active_gateway?.value === 'tap'" class="p-5 rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50/20 dark:bg-surface-900/10 space-y-4">
-                                <div class="flex items-center gap-2 text-sm font-bold text-surface-800 dark:text-surface-200">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                                    إعدادات بوابة Tap Payments
-                                </div>
-                                <div v-if="paymentSettings.tap_publishable_key" class="space-y-1.5">
-                                    <label class="block text-[11px] font-bold text-surface-500">
-                                        {{ getSettingLabel('tap_publishable_key') }}
-                                    </label>
-                                    <input v-model="paymentSettings.tap_publishable_key.value" type="text" dir="ltr" class="input w-full text-xs font-mono" placeholder="pk_test_..." @input="isDirty = true" />
-                                </div>
-                                <div v-if="paymentSettings.tap_secret_key" class="space-y-1.5">
-                                    <label class="block text-[11px] font-bold text-surface-500">
-                                        {{ getSettingLabel('tap_secret_key') }}
-                                    </label>
-                                    <input v-model="paymentSettings.tap_secret_key.value" type="text" dir="ltr" class="input w-full text-xs font-mono" placeholder="sk_test_..." @input="isDirty = true" />
-                                </div>
-                            </div>
-
-                            <!-- Stripe Info Group -->
-                            <div v-if="paymentSettings.active_gateway?.value === 'stripe'" class="p-5 rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50/20 dark:bg-surface-900/10 space-y-2 text-xs text-surface-500">
-                                يتم قراءة بيانات Stripe مباشرة من ملف الإعدادات البيئية الخاص بالسيرفر.
+                            <div class="rounded-2xl border border-primary-200 bg-primary-50/60 dark:border-primary-900 dark:bg-primary-950/30 p-4 text-xs text-primary-800 dark:text-primary-200">
+                                أضف الحسابات أو المحافظ التي سيحوّل إليها الطلاب. كل طلب سيظل قيد المراجعة حتى يطّلع الأدمن على الإثبات ويوافق عليه أو يرفضه.
                             </div>
 
                             <!-- Manual Payment Methods Group -->

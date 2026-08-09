@@ -1,0 +1,10 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Public media only. Learning, payment, chat, and submission files must
+    # come through an authorized controller instead of the storage directory.
+    RewriteRule ^(?:avatars|thumbnails)(?:/|$) - [L]
+    RewriteRule ^ - [R=404,L]
+</IfModule>

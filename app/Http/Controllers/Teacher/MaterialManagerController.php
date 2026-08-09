@@ -34,7 +34,15 @@ class MaterialManagerController extends Controller
                 'grade' => $group->assignment?->gradeLevel?->only(['key', 'name']),
             ],
             'materials' => $group->materials()->with('liveSession:id,lesson_id')->get()
-                ->each->setAppends(['is_live_recording']),
+                ->each(function (GroupMaterial $material): void {
+                    $material->setAttribute(
+                        'attachment_path',
+                        filled($material->attachment_path)
+                            ? route('learning.material.download', $material->id)
+                            : null,
+                    );
+                    $material->setAppends(['is_live_recording']);
+                }),
         ]);
     }
 
@@ -60,7 +68,7 @@ class MaterialManagerController extends Controller
         $validated['is_free_preview'] = (bool) ($validated['is_free_preview'] ?? false);
 
         if ($request->hasFile('attachment')) {
-            $validated['attachment_path'] = '/storage/'.$request->file('attachment')->store('materials', 'public');
+            $validated['attachment_path'] = 'private://'.$request->file('attachment')->store('materials', 'local');
         }
 
         unset($validated['attachment']);

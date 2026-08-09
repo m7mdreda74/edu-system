@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
+use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LessonQuestion;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class LessonQuestionController extends Controller
 {
@@ -16,6 +18,9 @@ class LessonQuestionController extends Controller
      */
     public function index(int $lessonId): JsonResponse
     {
+        $material = GroupMaterial::with('unit.assignment')->findOrFail($lessonId);
+        Gate::authorize('watch', $material);
+
         $questions = LessonQuestion::with(['user:id,name,avatar', 'replies.user:id,name,avatar'])
             ->where('lesson_id', $lessonId)
             ->whereNull('parent_id')
@@ -30,11 +35,21 @@ class LessonQuestionController extends Controller
      */
     public function store(Request $request, int $lessonId): JsonResponse
     {
+        $material = GroupMaterial::with('unit.assignment')->findOrFail($lessonId);
+        Gate::authorize('watch', $material);
+
         $validated = $request->validate([
             'content'         => ['required', 'string', 'max:2000'],
             'video_timestamp' => ['nullable', 'integer', 'min:0'],
             'parent_id'       => ['nullable', 'integer', 'exists:lesson_questions,id'],
         ]);
+
+        if ($validated['parent_id'] ?? null) {
+            LessonQuestion::whereKey($validated['parent_id'])
+                ->where('lesson_id', $lessonId)
+                ->whereNull('parent_id')
+                ->firstOrFail();
+        }
 
         $question = LessonQuestion::create([
             'user_id'         => $request->user()->id,

@@ -20,6 +20,7 @@ use App\Http\Controllers\Communication\NotificationController;
 use App\Http\Controllers\Cron\LiveSessionReminderController;
 use App\Http\Controllers\Cron\SubscriptionRenewalReminderController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\Learning\ProtectedFileController;
 use App\Http\Controllers\Live\LiveSessionRoomController;
 use App\Http\Controllers\Live\WebRtcSignalingController;
 use App\Http\Controllers\Parent\ParentDashboardController;
@@ -53,15 +54,18 @@ use App\Http\Controllers\Teacher\MaterialManagerController;
 use App\Http\Controllers\Teacher\QuizBuilderController;
 use App\Http\Controllers\Teacher\TeachingScheduleController;
 use App\Http\Controllers\Teacher\WorksheetController;
-use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
-Route::get('/health', HealthController::class)->name('health');
+Route::get('/health', HealthController::class)
+    ->name('health')
+    ->middleware('throttle:60,1');
 Route::get('/api/cron/subscription-renewal-reminders', SubscriptionRenewalReminderController::class)
-    ->name('cron.subscription-renewal-reminders');
+    ->name('cron.subscription-renewal-reminders')
+    ->middleware('throttle:10,1');
 Route::get('/api/cron/live-session-reminders', LiveSessionReminderController::class)
-    ->name('cron.live-session-reminders');
+    ->name('cron.live-session-reminders')
+    ->middleware('throttle:10,1');
 
 // ─── Public Browse Flow: grade → subject → teachers → profile ─────────────────
 Route::get('/', [HomeController::class,             'index'])->name('home');
@@ -78,7 +82,7 @@ Route::get('/our-apps', [HomeController::class, 'ourApps'])->name('our_apps');
 Route::get('/students-results', [HomeController::class, 'studentsResults'])->name('students_results');
 
 // ─── Authenticated Routes ──────────────────────────────────────────────────────
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -119,8 +123,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:10,1');
 });
 
+// Protected learning/chat files. The database path is never sent to the
+// browser; every download re-checks the current user's relationship.
+Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/learning/materials/{material}/file', [ProtectedFileController::class, 'material'])
+        ->name('learning.material.download');
+    Route::get('/learning/worksheets/{worksheet}/file', [ProtectedFileController::class, 'worksheet'])
+        ->name('learning.worksheet.download');
+    Route::get('/learning/submissions/{submission}/file', [ProtectedFileController::class, 'submission'])
+        ->name('learning.submission.download');
+    Route::get('/chat/attachments/{message}', [ProtectedFileController::class, 'chatAttachment'])
+        ->name('chat.attachment.download');
+});
+
 // ─── Student Routes ────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
+Route::middleware(['auth', 'active', 'verified', 'role:student'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // The student's own grade: every subject on their curriculum and its teachers
@@ -171,21 +188,14 @@ Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
 // Signed video stream endpoint (validated by Laravel signature)
 Route::get('/stream/{materialId}', [VideoUrlController::class, 'stream'])
     ->name('video.stream')
-    ->middleware('signed');
+    ->middleware(['auth', 'active', 'signed']);
 
 // ─── Checkout Routes ──────────────────────────────────────────────────────────
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/checkout/success', [CheckoutController::class, 'success'])->name('checkout.success');
-    Route::get('/checkout/cancel', [CheckoutController::class, 'cancel'])->name('checkout.cancel');
+Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::post('/checkout/coupon/check', [CheckoutController::class, 'checkCoupon'])
         ->name('checkout.coupon.check')
         ->middleware('throttle:15,1');
 
-    Route::get('/checkout/mock-gateway/{ref}', [CheckoutController::class, 'mockGateway'])->name('checkout.mock_gateway');
-    Route::post('/checkout/mock-gateway/{ref}/complete', [CheckoutController::class, 'mockComplete'])->name('checkout.mock_gateway.complete');
-    Route::post('/checkout/mock-gateway/{ref}/cancel', [CheckoutController::class, 'mockCancel'])->name('checkout.mock_gateway.cancel');
-
-    // Declared after the literal segments so "mock-gateway" is never read as an id.
     Route::get('/checkout/{subscription}', [CheckoutController::class, 'show'])->name('checkout.show')->whereNumber('subscription');
     Route::post('/checkout/{subscription}', [CheckoutController::class, 'process'])
         ->name('checkout.process')
@@ -193,14 +203,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:10,1');
 });
 
-// ─── Webhook Routes (NO auth, NO CSRF) ────────────────────────────────────────
-Route::withoutMiddleware(['web'])->group(function () {
-    Route::post('/webhooks/stripe', [WebhookController::class, 'stripe'])->name('webhooks.stripe');
-    Route::post('/webhooks/fatora', [WebhookController::class, 'fatora'])->name('webhooks.fatora');
-});
-
 // ─── Teacher Routes ────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
+Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('dashboard');
 
     // Curriculum builder — the syllabus hangs off the assignment, not the group,
@@ -269,7 +273,7 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
 });
 
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'active', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports');
     // Polled by the dashboard so its figures stay live without a page reload.
@@ -356,7 +360,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 });
 
 // ─── Parent Routes ────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'role:parent'])->prefix('parent')->name('parent.')->group(function () {
+Route::middleware(['auth', 'active', 'role:parent'])->prefix('parent')->name('parent.')->group(function () {
     Route::get('/dashboard', [ParentDashboardController::class, 'index'])->name('dashboard');
     Route::post('/link-student', [ParentDashboardController::class, 'linkStudent'])->name('link-student');
     Route::delete('/unlink-student/{id}', [ParentDashboardController::class, 'unlinkStudent'])->name('unlink-student');

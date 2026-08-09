@@ -17,13 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Trust Vercel's proxy so Laravel generates HTTPS URLs
         $middleware->trustProxies(at: '*');
         $middleware->web(append: [
+            \App\Http\Middleware\AddSecurityHeaders::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\LimitConcurrentSessions::class,
-        ]);
-
-        $middleware->validateCsrfTokens(except: [
-            'webhooks/*',
         ]);
 
         // ─── API Rate Limiting ─────────────────────────────────────────────
@@ -34,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'active'     => \App\Http\Middleware\EnsureUserIsActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

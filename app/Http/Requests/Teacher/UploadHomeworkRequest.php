@@ -31,7 +31,12 @@ class UploadHomeworkRequest extends FormRequest
         $alreadyExists = $this->lessonHasHomework();
 
         return [
-            'file' => [$alreadyExists ? 'nullable' : 'required_without:blob_url', 'file', 'max:'.UploadBookletRequest::MAX_KILOBYTES],
+            'file' => [
+                $alreadyExists ? 'nullable' : 'required_without:blob_url',
+                'file',
+                'mimes:pdf,doc,docx,ppt,pptx,zip,png,jpg,jpeg',
+                'max:'.UploadBookletRequest::MAX_KILOBYTES,
+            ],
             'blob_url' => [$alreadyExists ? 'nullable' : 'required_without:file', 'nullable', 'url:https', 'max:2048'],
             'blob_pathname' => ['nullable', 'required_with:blob_url', 'string', 'max:1024'],
             'title' => ['nullable', 'string', 'max:255'],

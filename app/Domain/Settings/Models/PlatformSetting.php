@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\Cache;
 
 class PlatformSetting extends Model
 {
+    private const HIDDEN_FROM_CLIENT_KEYS = [
+        'active_gateway',
+        'tap_publishable_key',
+        'tap_secret_key',
+        'fatora_api_key',
+    ];
+
     protected $fillable = [
         'key',
         'value',
@@ -23,7 +30,10 @@ class PlatformSetting extends Model
     public static function getAllCached(): array
     {
         return Cache::remember('platform_settings', now()->addMinute(), function () {
-            return self::all()->pluck('value', 'key')->toArray();
+            return self::query()
+                ->whereNotIn('key', self::HIDDEN_FROM_CLIENT_KEYS)
+                ->pluck('value', 'key')
+                ->toArray();
         });
     }
 

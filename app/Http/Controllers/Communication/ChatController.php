@@ -65,6 +65,7 @@ class ChatController extends Controller
                 ->where('conversation_id', $activeConversation->id)
                 ->orderBy('created_at')
                 ->get();
+            $this->decorateMessages($messages);
 
             ChatMessage::where('conversation_id', $activeConversation->id)
                 ->where('sender_id', '!=', $user->id)
@@ -184,7 +185,13 @@ class ChatController extends Controller
         $validated = $request->validate([
             'conversation_id' => ['required', 'exists:conversations,id'],
             'message'         => ['nullable', 'required_without:attachment', 'string', 'max:2000'],
-            'attachment'      => ['nullable', 'required_without:message', 'file', 'max:10240'],
+            'attachment'      => [
+                'nullable',
+                'required_without:message',
+                'file',
+                'mimes:pdf,doc,docx,ppt,pptx,zip,png,jpg,jpeg',
+                'max:10240',
+            ],
         ]);
 
         $user         = Auth::user();
@@ -193,7 +200,7 @@ class ChatController extends Controller
         abort_unless($this->isParticipant($conversation, $user), 403);
 
         $attachmentPath = $request->hasFile('attachment')
-            ? '/storage/' . $request->file('attachment')->store('chat_attachments', 'public')
+            ? 'private://' . $request->file('attachment')->store('chat_attachments', 'local')
             : null;
 
         $message = ChatMessage::create([
@@ -237,6 +244,7 @@ class ChatController extends Controller
         }
 
         $messages = $query->orderBy('created_at')->get();
+        $this->decorateMessages($messages);
 
         if ($messages->isNotEmpty()) {
             ChatMessage::where('conversation_id', $conversation->id)
@@ -324,6 +332,23 @@ class ChatController extends Controller
     private function isParticipant(Conversation $conversation, User $user): bool
     {
         return $conversation->participants()->where('users.id', $user->id)->exists();
+    }
+
+    private function decorateMessages(\Illuminate\Database\Eloquent\Collection $messages): void
+    {
+        $messages->each(function (ChatMessage $message): void {
+            $storedPath = $message->attachment_path;
+            $extension = strtolower((string) pathinfo((string) $storedPath, PATHINFO_EXTENSION));
+
+            $message->setAttribute('attachment_name', $storedPath ? basename((string) $storedPath) : null);
+            $message->setAttribute('attachment_is_image', in_array($extension, ['jpg', 'jpeg', 'png'], true));
+            $message->setAttribute(
+                'attachment_path',
+                filled($storedPath)
+                    ? route('chat.attachment.download', $message->id)
+                    : null,
+            );
+        });
     }
 
     private function attachParticipant(Conversation $conversation, User $user, string $role): void

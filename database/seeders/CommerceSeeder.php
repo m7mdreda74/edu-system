@@ -23,8 +23,8 @@ use Illuminate\Support\Collection;
  * Subscriptions and the money behind them.
  *
  * Every state is represented — active, awaiting payment, expired, cancelled —
- * along with card payments, a manual transfer waiting on an admin, and a failed
- * attempt, so the dashboards and the review queue all have something real.
+ * with manual transfers either waiting on an admin or already approved, so the
+ * dashboards and the review queue all have something real.
  */
 class CommerceSeeder extends Seeder
 {
@@ -152,18 +152,11 @@ class CommerceSeeder extends Seeder
 
     private function seedPaymentFor(Subscription $subscription, string $state, int $seed): void
     {
-        // A pending subscription is waiting on money. Split those between a
-        // bank transfer sitting in the admin's review queue and a card that
-        // was declined — the states land on `$seed % 6 === 3`, so discriminate
-        // on the next digit up rather than on parity, which never varies here.
-        [$status, $gateway] = match (true) {
-            $state === Subscription::STATUS_PENDING && $seed % 12 === 3
-                => [Payment::STATUS_PENDING_VERIFICATION, 'manual'],
-            $state === Subscription::STATUS_PENDING
-                => [Payment::STATUS_FAILED, 'stripe'],
-            default
-                => [Payment::STATUS_PAID, $seed % 3 === 0 ? 'fatora' : 'stripe'],
-        };
+        // Every seeded payment follows the production flow: a manual transfer
+        // is either waiting for admin verification or already approved.
+        [$status, $gateway] = $state === Subscription::STATUS_PENDING
+            ? [Payment::STATUS_PENDING_VERIFICATION, 'manual']
+            : [Payment::STATUS_PAID, 'manual'];
 
         $amount     = $subscription->monthly_price;
         $commission = self::DEFAULT_COMMISSION;
@@ -183,9 +176,7 @@ class CommerceSeeder extends Seeder
             'original_amount'            => $amount,
             'currency'                   => 'QAR',
             'gateway'                    => $gateway,
-            'gateway_ref'                => $gateway === 'manual'
-                ? 'bank: بنك قطر الوطني'
-                : 'pi_seed_' . $subscription->id,
+            'gateway_ref'                => 'bank: بنك قطر الوطني',
             'status'                     => $status,
             'paid_at'                    => $isPaid ? $subscription->period_start : null,
             'receipt_path'               => $gateway === 'manual' ? 'receipts/sample-transfer.jpg' : null,

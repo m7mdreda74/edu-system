@@ -285,7 +285,7 @@ onUnmounted(() => {
                                 <!-- Attachment Display -->
                                 <div v-if="msg.attachment_path" class="mt-1">
                                     <!-- Image Mimetype -->
-                                    <div v-if="isImage(msg.attachment_path)" class="rounded-xl overflow-hidden border border-surface-200 dark:border-surface-800 max-w-xs shadow-sm">
+                                    <div v-if="msg.attachment_is_image" class="rounded-xl overflow-hidden border border-surface-200 dark:border-surface-800 max-w-xs shadow-sm">
                                         <a :href="msg.attachment_path" target="_blank" class="block group relative">
                                             <img :src="msg.attachment_path" class="w-full h-auto max-h-48 object-cover group-hover:opacity-90 transition-opacity" />
                                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
@@ -301,7 +301,7 @@ onUnmounted(() => {
                                         </div>
                                         <div class="overflow-hidden min-w-0">
                                             <div class="text-xs font-bold text-surface-900 dark:text-white truncate">
-                                                {{ getFileName(msg.attachment_path) }}
+                                                {{ getFileName(msg.attachment_name || msg.attachment_path) }}
                                             </div>
                                             <a :href="msg.attachment_path" target="_blank" download class="text-[10px] text-primary-500 hover:underline font-semibold block mt-0.5">
                                                 تحميل الملف

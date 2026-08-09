@@ -62,23 +62,16 @@ class VideoUrlController extends Controller
      */
     public function stream(Request $request, int $materialId): RedirectResponse
     {
-        $material = GroupMaterial::findOrFail($materialId);
+        $material = GroupMaterial::with('unit.assignment')->findOrFail($materialId);
+        $user = $request->user();
 
-        // Prevent hotlinking by checking the Referer host matches our app domain.
-        $referer = $request->header('referer');
-
-        if ($referer) {
-            $allowedHost = parse_url(config('app.url'), PHP_URL_HOST);
-            $refererHost = parse_url($referer, PHP_URL_HOST);
-
-            if ($refererHost && $refererHost !== $allowedHost) {
-                abort(403, 'غير مسموح بالربط المباشر (Hotlinking blocked).');
-            }
-        }
+        abort_unless((int) $request->route('userId') === (int) $user->id, 403);
+        Gate::authorize('watch', $material);
 
         abort_if(! $material->video_url, 404, 'لا يوجد فيديو لهذه المادة.');
 
-        // Safe: clients only ever see the signed route, never the origin URL.
+        // The signed route is also bound to the authenticated user above; a
+        // copied URL cannot be replayed by another account.
         return redirect($material->video_url);
     }
 }

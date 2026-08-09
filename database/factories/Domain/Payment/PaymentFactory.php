@@ -22,9 +22,10 @@ class PaymentFactory extends Factory
             'amount'          => 50_000,
             'original_amount' => 50_000,
             'currency'        => 'QAR',
-            'gateway'         => 'stripe',
-            'gateway_ref'     => 'pi_test_' . $this->faker->unique()->uuid(),
-            'status'          => Payment::STATUS_PENDING,
+            'gateway'         => 'manual',
+            'gateway_ref'     => 'bank: حساب اختباري',
+            'status'          => Payment::STATUS_PENDING_VERIFICATION,
+            'receipt_path'    => 'receipts/test-receipt.jpg',
             'paid_at'         => null,
         ];
     }

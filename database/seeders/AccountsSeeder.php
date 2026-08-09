@@ -9,6 +9,7 @@ use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -69,6 +70,12 @@ class AccountsSeeder extends Seeder
 
     public function run(): void
     {
+        if (app()->environment('production')) {
+            throw new RuntimeException(
+                'Demo account seeding is disabled in production. Provision real accounts with unique credentials.',
+            );
+        }
+
         foreach (['admin', 'teacher', 'student', 'parent'] as $role) {
             Role::findOrCreate($role, 'web');
         }

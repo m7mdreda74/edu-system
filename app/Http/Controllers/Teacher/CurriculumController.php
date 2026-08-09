@@ -45,8 +45,10 @@ use Inertia\Response;
  */
 class CurriculumController extends Controller
 {
-    /** Uploads are stored on the public disk and referenced by this URL prefix. */
+    /** Legacy paths are still removable; new curriculum files are private. */
     private const PUBLIC_PREFIX = '/storage/';
+
+    private const PRIVATE_PREFIX = 'private://';
 
     public function __construct(
         private readonly CurriculumBlobUpload $blobUploads,
@@ -486,7 +488,9 @@ class CurriculumController extends Controller
             'video_url' => $lesson->video_url,
             'duration_seconds' => $lesson->duration_seconds,
             'is_free_preview' => $lesson->is_free_preview,
-            'booklet_path' => $lesson->attachment_path,
+            'booklet_path' => filled($lesson->attachment_path)
+                ? route('learning.material.download', $lesson->id)
+                : null,
             'has_video' => filled($lesson->video_url),
             'has_booklet' => filled($lesson->attachment_path),
             'is_live_recording' => $lesson->liveSession !== null,
@@ -527,7 +531,9 @@ class CurriculumController extends Controller
         return [
             'id' => $sheet->id,
             'title' => $sheet->title,
-            'file_path' => $sheet->file_path,
+            'file_path' => filled($sheet->file_path)
+                ? route('learning.worksheet.download', $sheet->id)
+                : null,
             'due_date' => $sheet->due_date?->format('Y-m-d'),
             'max_score' => $sheet->max_score,
             'requires_submission' => $sheet->requires_submission,
@@ -619,7 +625,7 @@ class CurriculumController extends Controller
                 ]);
             }
 
-            $stored = $request->file($fileField)->store($folder, 'public');
+            $stored = $request->file($fileField)->store($folder, 'local');
 
             if (! is_string($stored) || $stored === '') {
                 throw ValidationException::withMessages([
@@ -627,7 +633,7 @@ class CurriculumController extends Controller
                 ]);
             }
 
-            return self::PUBLIC_PREFIX.$stored;
+            return self::PRIVATE_PREFIX.$stored;
         }
 
         if (! $request->filled('blob_url')) {
@@ -654,8 +660,17 @@ class CurriculumController extends Controller
         if (
             $publicPath === null
             || $publicPath === $replacement
-            || ! str_starts_with($publicPath, self::PUBLIC_PREFIX)
         ) {
+            return;
+        }
+
+        if (str_starts_with($publicPath, self::PRIVATE_PREFIX)) {
+            Storage::disk('local')->delete(substr($publicPath, strlen(self::PRIVATE_PREFIX)));
+
+            return;
+        }
+
+        if (! str_starts_with($publicPath, self::PUBLIC_PREFIX)) {
             return;
         }
 

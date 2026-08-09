@@ -40,7 +40,9 @@ class RegisteredUserController extends Controller
             'phone'       => ['required', 'string', 'max:20', 'unique:users'],
             'parent_phone' => ['nullable', 'required_if:role,student', 'string', 'max:20', 'different:phone'],
             'password'    => ['required', 'confirmed', Rules\Password::defaults()],
-            'role'        => ['required', 'in:student,teacher,parent'],
+            // Teacher is a privileged role and must be assigned by an admin.
+            // Never trust a client-supplied role to create teaching access.
+            'role'        => ['required', 'in:student,parent'],
             'grade_level' => ['nullable', 'exists:grade_levels,key'],
         ]);
 

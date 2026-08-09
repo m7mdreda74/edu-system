@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Application\Payment\Services\PaymentService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -40,8 +39,10 @@ class ProcessWebhookJob implements ShouldQueue, ShouldBeUnique
         return md5($this->signature);
     }
 
-    public function handle(PaymentService $paymentService): void
+    public function handle(): void
     {
-        $paymentService->processWebhookEvent($this->payload);
+        // Legacy online-payment jobs are intentionally ignored. Manual
+        // transfers are completed only by an admin review action.
+        return;
     }
 }
