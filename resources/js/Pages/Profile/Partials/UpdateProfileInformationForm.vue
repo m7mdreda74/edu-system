@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -16,6 +17,7 @@ defineProps({
 
 const user = usePage().props.auth.user;
 const isTeacher = (user.roles ?? []).includes('teacher');
+const emailPrefix = ref((user.email ?? '').split('@')[0]);
 
 const form = useForm({
     name: user.name,
@@ -31,6 +33,11 @@ const form = useForm({
     years_experience: user.years_experience ?? null,
     _method: 'PATCH',
 });
+
+function submit() {
+    form.email = `${String(emailPrefix.value ?? '').trim().toLowerCase()}@altafawwuq.com`;
+    form.post(route('profile.update'), { forceFormData: true });
+}
 </script>
 
 <template>
@@ -48,7 +55,7 @@ const form = useForm({
         </header>
 
         <form
-            @submit.prevent="form.post(route('profile.update'), { forceFormData: true })"
+            @submit.prevent="submit"
             class="mt-6 space-y-6"
         >
             <!-- Avatar — read-only for teachers, whose photo the platform owns -->
@@ -96,14 +103,19 @@ const form = useForm({
             <div>
                 <InputLabel for="email" value="Email" />
 
-                <TextInput
-                    id="email"
-                    type="email"
-                    class="mt-1 block w-full"
-                    v-model="form.email"
-                    required
-                    autocomplete="username"
-                />
+                <div dir="ltr" class="mt-1 flex items-center overflow-hidden rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+                    <input
+                        id="email"
+                        v-model="emailPrefix"
+                        type="text"
+                        class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-gray-900 outline-none focus:ring-0 dark:text-gray-100"
+                        placeholder="username"
+                        required
+                        autocomplete="username"
+                    />
+                    <span class="shrink-0 px-3 text-sm font-semibold text-primary-700 dark:text-primary-300">@altafawwuq.com</span>
+                </div>
+                <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">نطاق البريد ثابت لحسابات المنصة.</p>
 
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>

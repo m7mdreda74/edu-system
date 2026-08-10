@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Rules\AltafawwuqEmail;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,13 +31,14 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->merge([
+            'email' => AltafawwuqEmail::normalize($request->input('email')),
             'phone' => trim((string) $request->input('phone')),
             'parent_phone' => trim((string) $request->input('parent_phone')),
         ]);
 
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
-            'email'       => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
+            'email'       => ['required', 'string', 'lowercase', 'email', 'max:255', new AltafawwuqEmail(), 'unique:users'],
             'phone'       => ['required', 'string', 'max:20', 'unique:users'],
             'parent_phone' => ['nullable', 'required_if:role,student', 'string', 'max:20', 'different:phone'],
             'password'    => ['required', 'confirmed', Rules\Password::defaults()],

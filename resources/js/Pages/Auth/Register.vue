@@ -16,6 +16,10 @@ const form = useForm({
     role:                  'student',
 });
 
+const emailPrefix = ref('');
+
+const platformEmail = (prefix) => `${String(prefix ?? '').trim().toLowerCase()}@altafawwuq.com`;
+
 const selectedStage = ref('secondary');
 const selectedTrack = ref(''); // only relevant for grade 11/12 secondary
 
@@ -78,7 +82,10 @@ watch(() => form.role, (newRole) => {
     }
 });
 
-const submit = () => form.post(route('register'));
+const submit = () => {
+    form.email = platformEmail(emailPrefix.value);
+    form.post(route('register'));
+};
 </script>
 
 <template>
@@ -160,15 +167,23 @@ const submit = () => form.post(route('register'));
                         <label class="block text-xs font-bold text-white/95 mr-3" for="reg-email">
                             البريد الإلكتروني <span class="text-red-400">*</span>
                         </label>
-                        <input
-                            id="reg-email"
-                            v-model="form.email"
-                            type="email"
-                            class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
+                        <div
+                            dir="ltr"
+                            class="flex items-center overflow-hidden rounded-full bg-white text-surface-900 border border-transparent focus-within:ring-4 focus-within:ring-primary-500/40 shadow-inner transition-all"
                             :class="{ 'ring-2 ring-red-500': form.errors.email }"
-                            placeholder="example@email.com"
-                            required
-                        />
+                        >
+                            <input
+                                id="reg-email"
+                                v-model="emailPrefix"
+                                type="text"
+                                class="min-w-0 flex-1 px-6 py-3 bg-transparent border-0 focus:outline-none focus:ring-0 placeholder-surface-400 text-xs font-semibold"
+                                placeholder="username"
+                                autocomplete="username"
+                                required
+                            />
+                            <span class="shrink-0 pe-5 text-xs font-bold text-primary-700">@altafawwuq.com</span>
+                        </div>
+                        <p class="text-white/60 text-[11px] mr-3">نطاق البريد ثابت لحسابات المنصة.</p>
                         <p v-if="form.errors.email" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.email }}</p>
                     </div>
 

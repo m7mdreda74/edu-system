@@ -25,7 +25,7 @@ class RegistrationTest extends TestCase
 
         $response = $this->post('/register', [
             'name' => 'Test User',
-            'email' => 'test@example.com',
+            'email' => 'test@altafawwuq.com',
             'phone' => '50000001',
             'parent_phone' => $parent->phone,
             'role' => 'student',
@@ -36,7 +36,7 @@ class RegistrationTest extends TestCase
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
 
-        $student = User::where('email', 'test@example.com')->firstOrFail();
+        $student = User::where('email', 'test@altafawwuq.com')->firstOrFail();
         $link = ParentStudentLink::where('student_user_id', $student->id)->firstOrFail();
 
         $this->assertSame($parent->id, $link->parent_user_id);
@@ -48,7 +48,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->post('/register', [
             'name' => 'Unlinked Student',
-            'email' => 'unlinked@example.com',
+            'email' => 'unlinked@altafawwuq.com',
             'phone' => '50000002',
             'parent_phone' => '59999999',
             'role' => 'student',
@@ -58,7 +58,7 @@ class RegistrationTest extends TestCase
 
         $response->assertSessionHasErrors('parent_phone');
         $this->assertGuest();
-        $this->assertDatabaseMissing('users', ['email' => 'unlinked@example.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'unlinked@altafawwuq.com']);
     }
 
     public function test_student_cannot_link_to_a_non_parent_account(): void
@@ -68,7 +68,7 @@ class RegistrationTest extends TestCase
 
         $response = $this->post('/register', [
             'name' => 'Another Student',
-            'email' => 'another@example.com',
+            'email' => 'another@altafawwuq.com',
             'phone' => '50000004',
             'parent_phone' => $notParent->phone,
             'role' => 'student',
@@ -77,14 +77,14 @@ class RegistrationTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('parent_phone');
-        $this->assertDatabaseMissing('users', ['email' => 'another@example.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'another@altafawwuq.com']);
     }
 
     public function test_public_registration_cannot_create_a_teacher_account(): void
     {
         $response = $this->post('/register', [
             'name' => 'Unapproved Teacher',
-            'email' => 'unapproved-teacher@example.com',
+            'email' => 'unapproved-teacher@altafawwuq.com',
             'phone' => '50000005',
             'role' => 'teacher',
             'password' => 'password',
@@ -93,6 +93,22 @@ class RegistrationTest extends TestCase
 
         $response->assertSessionHasErrors('role');
         $this->assertGuest();
-        $this->assertDatabaseMissing('users', ['email' => 'unapproved-teacher@example.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'unapproved-teacher@altafawwuq.com']);
+    }
+
+    public function test_registration_rejects_an_email_outside_the_platform_domain(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'External Email User',
+            'email' => 'external@example.com',
+            'phone' => '50000006',
+            'role' => 'parent',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertSessionHasErrors('email');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'external@example.com']);
     }
 }

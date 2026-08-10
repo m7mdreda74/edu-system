@@ -3,12 +3,20 @@
 namespace App\Http\Requests;
 
 use App\Models\User;
+use App\Rules\AltafawwuqEmail;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class ProfileUpdateRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'email' => AltafawwuqEmail::normalize($this->input('email')),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -26,6 +34,7 @@ class ProfileUpdateRequest extends FormRequest
                 'lowercase',
                 'email',
                 'max:255',
+                new AltafawwuqEmail(),
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
             // A teacher's photo appears on the public browse pages, so the
