@@ -64,7 +64,7 @@ const embedUrl = computed(() => {
     if (!activeVideoUrl.value) return '';
     const ytId = getYoutubeId(activeVideoUrl.value);
     if (ytId) {
-        return `https://www.youtube.com/embed/${ytId}?autoplay=1`;
+        return `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0`;
     }
     return activeVideoUrl.value;
 });
@@ -175,6 +175,7 @@ function closePopup() {
                         <!-- Video Player Iframe / Tag -->
                         <iframe v-if="!isDirectVideo && embedUrl" :src="embedUrl" 
                                 class="w-full h-full border-0" 
+                                referrerpolicy="strict-origin-when-cross-origin"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                                 allowfullscreen></iframe>
                                 

@@ -19,13 +19,12 @@ use Illuminate\Support\Facades\URL;
  *
  * Direct video URLs are NEVER exposed to the client. Instead a temporary signed
  * URL is generated server-side that expires in 15 minutes, preventing
- * hotlinking.
- *
- * For production: replace with Bunny Stream / CloudFront signed URLs.
+ * hotlinking. YouTube videos are proxied through our own server via
+ * YoutubeProxyController to eliminate ads and enable full Plyr control.
  */
 class VideoUrlController extends Controller
 {
-    private const URL_EXPIRY_MINUTES = 15;
+    private const URL_EXPIRY_MINUTES = 30;
 
     public function getSignedUrl(Request $request, int $materialId): JsonResponse
     {
@@ -36,10 +35,18 @@ class VideoUrlController extends Controller
 
         Gate::authorize('watch', $material);
 
-        if ($youtubeId = YouTubeUrl::videoId($material->video_url)) {
+        if (YouTubeUrl::videoId($material->video_url)) {
+            // Build a signed proxy URL so the browser streams through our
+            // server — no YouTube iframe, no ads, full Plyr control.
+            $signedUrl = URL::temporarySignedRoute(
+                'youtube.proxy.stream',
+                now()->addMinutes(self::URL_EXPIRY_MINUTES),
+                ['materialId' => $materialId, 'userId' => $user->id],
+            );
+
             return response()->json([
-                'provider' => 'youtube',
-                'video_id' => $youtubeId,
+                'provider'   => 'youtube_proxy',
+                'signed_url' => $signedUrl,
             ]);
         }
 
@@ -50,7 +57,7 @@ class VideoUrlController extends Controller
         );
 
         return response()->json([
-            'provider' => 'file',
+            'provider'   => 'file',
             'signed_url' => $signedUrl,
             'expires_in' => self::URL_EXPIRY_MINUTES * 60, // seconds
         ]);

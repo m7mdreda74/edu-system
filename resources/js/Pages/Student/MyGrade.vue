@@ -26,7 +26,7 @@ const playing = ref(null);
 function embed(url) {
     if (!url) return null;
     const youtube = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
-    if (youtube) return `https://www.youtube.com/embed/${youtube[1]}?autoplay=1&rel=0`;
+    if (youtube) return `https://www.youtube-nocookie.com/embed/${youtube[1]}?autoplay=1&rel=0`;
     const vimeo = url.match(/vimeo\.com\/(\d+)/);
     if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}?autoplay=1`;
     return url;
@@ -258,6 +258,7 @@ function subscribe(groupId) {
                             :src="embed(playing.intro_video_url)"
                             class="w-full h-full"
                             frameborder="0"
+                            referrerpolicy="strict-origin-when-cross-origin"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowfullscreen
                         ></iframe>

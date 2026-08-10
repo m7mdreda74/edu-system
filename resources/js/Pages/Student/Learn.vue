@@ -24,7 +24,6 @@ const treeOpen         = ref(true);
 const activeTab        = ref('description'); // description | files | questions
 const signedVideoUrl   = ref('');
 const videoProvider    = ref('');
-const youtubeVideoId   = ref('');
 const isVideoLoading   = ref(false);
 const lockNotice       = ref('');
 
@@ -349,7 +348,6 @@ watch(activeLessonId, async (lessonId) => {
     lastReportedSeconds  = 0;
     signedVideoUrl.value = '';
     videoProvider.value  = '';
-    youtubeVideoId.value = '';
     questions.value      = [];
 
     const lesson = activeLesson.value;
@@ -373,12 +371,10 @@ watch(activeLessonId, async (lessonId) => {
         const response = await axios.get(route('student.video.url', { materialId: lesson.id }));
         // The student may have clicked on while the request was in flight.
         if (activeLessonId.value !== lessonId) return;
-        videoProvider.value = response.data.provider ?? 'file';
-        if (videoProvider.value === 'youtube') {
-            youtubeVideoId.value = response.data.video_id;
-        } else {
-            signedVideoUrl.value = response.data.signed_url;
-        }
+        videoProvider.value  = response.data.provider ?? 'file';
+        // Both 'file' and 'youtube_proxy' providers return a signed_url
+        // that points to our server — never the raw external URL.
+        signedVideoUrl.value = response.data.signed_url ?? '';
     } catch (e) {
         console.error('Failed to get signed URL:', e.message);
     } finally {
@@ -388,12 +384,15 @@ watch(activeLessonId, async (lessonId) => {
     setTimeout(() => {
         if (videoRef.value) {
             player = new Plyr(videoRef.value, {
+                autoplay: false,
+                playsinline: true,
                 controls: [
                     'play-large', 'play', 'progress', 'current-time',
                     'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
                 ],
                 settings: ['captions', 'quality', 'speed', 'loop'],
                 speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+                keyboard: { focused: true, global: false },
             });
 
             player.on('play', onVideoPlay);
@@ -507,12 +506,12 @@ function uploadAnswer(sheetId) {
                         <div v-if="isVideoLoading" class="absolute inset-0 flex items-center justify-center bg-black/80 z-20">
                             <div class="flex flex-col items-center gap-3">
                                 <div class="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-                                <div class="text-xs text-surface-400">جاري تحميل تشفير الفيديو الآمن...</div>
+                                <div class="text-xs text-surface-400">جاري تجهيز مشغل الفيديو داخل المنصة...</div>
                             </div>
                         </div>
 
                         <!-- Dynamic Watermark overlay -->
-                        <div v-if="signedVideoUrl || youtubeVideoId"
+                        <div v-if="signedVideoUrl"
                              class="absolute pointer-events-none select-none z-10 transition-all duration-1000 text-[10px] sm:text-xs font-semibold text-white/10 dark:text-white/10 drop-shadow-sm flex flex-col items-center gap-0.5 bg-black/5 px-2 py-0.5 rounded"
                              :style="watermarkStyle"
                         >
@@ -520,16 +519,9 @@ function uploadAnswer(sheetId) {
                             <span>{{ $page.props.auth.user?.email }}</span>
                         </div>
 
-                        <div
-                            v-if="videoProvider === 'youtube' && youtubeVideoId"
-                            :key="`youtube-${activeLesson?.id}`"
-                            ref="videoRef"
-                            class="plyr__video-embed w-full h-full"
-                            data-plyr-provider="youtube"
-                            :data-plyr-embed-id="youtubeVideoId"
-                        ></div>
+                        <!-- Video Player: HTML5 + Plyr for all types (file & youtube_proxy) -->
                         <video
-                            v-else-if="signedVideoUrl"
+                            v-if="signedVideoUrl"
                             :key="activeLesson?.id"
                             ref="videoRef"
                             class="w-full h-full"

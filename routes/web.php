@@ -21,6 +21,7 @@ use App\Http\Controllers\Cron\LiveSessionReminderController;
 use App\Http\Controllers\Cron\SubscriptionRenewalReminderController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Learning\ProtectedFileController;
+use App\Http\Controllers\Learning\YoutubeProxyController;
 use App\Http\Controllers\Live\LiveSessionRoomController;
 use App\Http\Controllers\Live\WebRtcSignalingController;
 use App\Http\Controllers\Parent\ParentDashboardController;
@@ -188,6 +189,17 @@ Route::middleware(['auth', 'active', 'verified', 'role:student'])->group(functio
 // Signed video stream endpoint (validated by Laravel signature)
 Route::get('/stream/{materialId}', [VideoUrlController::class, 'stream'])
     ->name('video.stream')
+    ->middleware(['auth', 'active', 'signed']);
+
+// ── YouTube Proxy ─────────────────────────────────────────────────────────────
+// Resolves the direct proxy URL for a YouTube video lesson (returns JSON)
+Route::get('/materials/{materialId}/youtube-url', [YoutubeProxyController::class, 'resolveStreamUrl'])
+    ->name('youtube.proxy.resolve')
+    ->middleware(['auth', 'active']);
+
+// Signed proxy stream endpoint — pipes YouTube stream through our server
+Route::get('/youtube-stream/{materialId}', [YoutubeProxyController::class, 'stream'])
+    ->name('youtube.proxy.stream')
     ->middleware(['auth', 'active', 'signed']);
 
 // ─── Checkout Routes ──────────────────────────────────────────────────────────
