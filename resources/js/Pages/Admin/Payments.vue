@@ -170,7 +170,7 @@ async function rejectPayment(p) {
                                 </td>
                                 <td class="p-4 font-mono text-surface-400" :title="p.paid_at || p.created_at || ''">{{ formatCompactDate(p.paid_at || p.created_at) }}</td>
                                 <td class="data-table-actions p-3">
-                                    <div class="flex flex-nowrap items-center gap-1">
+                                    <div class="payment-actions flex flex-nowrap items-center gap-1">
                                         <button v-if="p.receipt_path" type="button" @click="selectedReceipt = route('admin.payments.receipt', p.id)" class="btn-outline payment-action-button flex items-center gap-1">
                                             <Icon name="eye" class="w-3 h-3 shrink-0" />
                                             <span>عرض الإيصال</span>
@@ -260,20 +260,26 @@ async function rejectPayment(p) {
     white-space: nowrap;
 }
 
+.payment-actions {
+    width: 100%;
+    justify-content: flex-start;
+    direction: rtl;
+}
+
 @media (min-width: 1280px) {
     .payments-table {
         table-layout: fixed;
     }
 
     .payment-col-id { width: 3.5%; }
-    .payment-col-student { width: 17%; }
+    .payment-col-student { width: 15.5%; }
     .payment-col-subscription { width: 10%; }
-    .payment-col-amount { width: 7.5%; }
-    .payment-col-split { width: 13%; }
-    .payment-col-method { width: 11%; }
-    .payment-col-status { width: 9%; }
-    .payment-col-date { width: 11%; }
-    .payment-col-actions { width: 18%; }
+    .payment-col-amount { width: 7%; }
+    .payment-col-split { width: 12%; }
+    .payment-col-method { width: 10%; }
+    .payment-col-status { width: 8.5%; }
+    .payment-col-date { width: 10.5%; }
+    .payment-col-actions { width: 23%; }
 }
 </style>
 
