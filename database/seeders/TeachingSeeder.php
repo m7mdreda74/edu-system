@@ -127,12 +127,13 @@ class TeachingSeeder extends Seeder
             return;
         }
 
-        foreach ([2, 4, 6, 9] as $daysAhead) {
+        foreach ([2, 4, 6, 9] as $slotIndex => $daysAhead) {
             PrivateSessionSlot::create([
                 'teaching_assignment_id' => $assignmentId,
                 'starts_at'              => now()->addDays($daysAhead)->setTime(20, 0),
                 'ends_at'                => now()->addDays($daysAhead)->setTime(21, 0),
                 'timezone'               => self::TIMEZONE,
+                'is_free_intro'          => $slotIndex === 0,
                 'status'                 => 'available',
             ]);
         }

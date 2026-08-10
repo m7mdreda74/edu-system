@@ -37,7 +37,8 @@ class DatabaseSeeder extends Seeder
         'worksheets', 'worksheet_submissions',
         'coupons', 'payments', 'invoices', 'teacher_payouts', 'payment_audit_logs',
         'reviews', 'conversations', 'conversation_participants', 'chat_messages',
-        'live_sessions', 'live_session_attendees',
+        'live_sessions', 'live_session_attendees', 'live_session_apologies', 'live_session_reminders',
+        'webrtc_participants', 'webrtc_signals',
         'parent_student_links', 'purchase_requests', 'private_lesson_requests', 'notifications',
         'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'roles', 'permissions',
     ];
@@ -58,6 +59,7 @@ class DatabaseSeeder extends Seeder
         $this->step('📚 المحتوى — مواد وخطط واختبارات وواجبات وحصص', fn () => $this->call(ContentSeeder::class));
         $this->step('💳 الاشتراكات والمدفوعات والكوبونات والتسويات', fn () => $this->call(CommerceSeeder::class));
         $this->step('💬 التفاعل — تقدّم ومحاولات وأسئلة ورسائل وتقييمات', fn () => $this->call(EngagementSeeder::class));
+        $this->step('🧪 الحالات التشغيلية — التجريبي والتذكيرات والاعتذارات وWebRTC', fn () => $this->call(OperationalSeeder::class));
         $this->step('⚙️  إعدادات المنصة',                            fn () => $this->call(PlatformSettingsSeeder::class));
 
         $this->flushCaches();
@@ -130,6 +132,11 @@ class DatabaseSeeder extends Seeder
             ['المحادثات',           $count('conversations')],
             ['طلبات الدروس الخاصة', $count('private_lesson_requests')],
             ['روابط ولي الأمر',     $count('parent_student_links')],
+            ['الاعتذارات والتعويضات', $count('live_session_apologies')],
+            ['تذكيرات الحصص',        $count('live_session_reminders')],
+            ['إشعارات الحسابات',     $count('notifications')],
+            ['مشاركو WebRTC',        $count('webrtc_participants')],
+            ['سجلات الدفع',          $count('payment_audit_logs')],
         ]);
 
         $this->command?->newLine();

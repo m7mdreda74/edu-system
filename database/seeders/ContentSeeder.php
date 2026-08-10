@@ -68,6 +68,7 @@ class ContentSeeder extends Seeder
         foreach ($titles as $position => $title) {
             $materials[] = GroupMaterial::create([
                 'curriculum_unit_id' => $unit->id,
+                'academic_term_id'   => $group->academic_term_id,
                 'title'              => $title,
                 'video_url'          => self::DEMO_VIDEO,
                 'duration_seconds'   => 60 * random_int(22, 58),
@@ -208,6 +209,17 @@ class ContentSeeder extends Seeder
             'due_date'            => now()->addWeeks(3)->toDateString(),
             'max_score'           => 30,
         ]);
+
+        Worksheet::create([
+            'curriculum_unit_id'  => $unit->id,
+            'lesson_id'           => null,
+            'title'               => "الاختبار الورقي — {$subject}",
+            'file_path'           => '/storage/worksheets/sample-paper-exam.pdf',
+            'type'                => Worksheet::TYPE_PAPER_EXAM,
+            'requires_submission' => true,
+            'due_date'            => now()->addMonth()->toDateString(),
+            'max_score'           => 50,
+        ]);
     }
 
     private function seedLiveSessions(TeachingGroup $group, string $subject, int $groupIndex): void
@@ -223,7 +235,7 @@ class ContentSeeder extends Seeder
         }
 
         // A finished one, with the recording published.
-        LiveSession::create([
+        $finished = LiveSession::create([
             'teacher_id'        => $teacherId,
             'teaching_group_id' => $group->id,
             'title'             => "حصة {$subject} — الوحدة الأولى",
@@ -234,10 +246,13 @@ class ContentSeeder extends Seeder
             'status'            => LiveSession::STATUS_ENDED,
             'recording_url'     => self::DEMO_VIDEO,
         ]);
+        $this->linkPlanLesson($group, 1, $finished->id);
+
+        $nextScheduledPosition = 2;
 
         // Every few groups, leave one running so the "join now" state is visible.
         if ($groupIndex % 5 === 0) {
-            LiveSession::create([
+            $live = LiveSession::create([
                 'teacher_id'        => $teacherId,
                 'teaching_group_id' => $group->id,
                 'title'             => "حصة {$subject} — مباشر الآن",
@@ -246,16 +261,26 @@ class ContentSeeder extends Seeder
                 'started_at'        => now()->subMinutes(20),
                 'status'            => LiveSession::STATUS_LIVE,
             ]);
+            $this->linkPlanLesson($group, 2, $live->id);
+            $nextScheduledPosition = 3;
         }
 
         foreach ([3, 10] as $daysAhead) {
-            LiveSession::create([
+            $scheduled = LiveSession::create([
                 'teacher_id'        => $teacherId,
                 'teaching_group_id' => $group->id,
                 'title'             => "حصة {$subject} — " . ($daysAhead === 3 ? 'الوحدة الثانية' : 'مراجعة عامة'),
                 'scheduled_at'      => now()->addDays($daysAhead)->setTime(17, 0),
                 'status'            => LiveSession::STATUS_SCHEDULED,
             ]);
+            $this->linkPlanLesson($group, $nextScheduledPosition++, $scheduled->id);
         }
+    }
+
+    private function linkPlanLesson(TeachingGroup $group, int $position, int $sessionId): void
+    {
+        $group->lessons()
+            ->where('position', $position)
+            ->update(['live_session_id' => $sessionId, 'status' => 'scheduled']);
     }
 }

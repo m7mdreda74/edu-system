@@ -230,6 +230,7 @@ class CommerceSeeder extends Seeder
 
             // Claim one of the teacher's open slots for this student.
             $slot = PrivateSessionSlot::where('teaching_assignment_id', $assignment->id)
+                ->where('is_free_intro', false)
                 ->where('status', 'available')
                 ->orderBy('starts_at')
                 ->first();
