@@ -26,7 +26,8 @@ class PayoutController extends Controller
     {
         $payouts = TeacherPayout::with('teacher:id,name,email,avatar')
             ->latest()
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         $teachers = User::role('teacher')->get(['id', 'name', 'email', 'commission_percent']);
         $paymentBalances = Payment::query()

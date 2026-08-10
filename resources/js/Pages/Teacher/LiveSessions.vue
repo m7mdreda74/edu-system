@@ -2,13 +2,26 @@
 import { useForm, router, Head } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { ref, computed } from 'vue';
+import { useClientPagination } from '@/composables/useClientPagination';
 
 const props = defineProps({
     sessions: { type: Array, required: true },
     assignments: { type: Array, required: true },
     attendanceReport: { type: Array, default: () => [] },
 });
+
+const {
+    data: paginatedSessions,
+    pagination: sessionsPagination,
+    setPage: setSessionsPage,
+} = useClientPagination(computed(() => props.sessions));
+const {
+    data: paginatedAttendance,
+    pagination: attendancePagination,
+    setPage: setAttendancePage,
+} = useClientPagination(computed(() => props.attendanceReport));
 
 const form = useForm({
     title:        '',
@@ -159,7 +172,7 @@ function formatDate(value) {
     <DashboardLayout>
         <Head title="الحصص المباشرة" />
 
-        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
+        <div class="dashboard-data-page">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2">
@@ -176,7 +189,7 @@ function formatDate(value) {
             <!-- List of Sessions -->
             <div class="card data-table-card">
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="w-full text-sm">
+                    <table class="data-table">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">عنوان الحصة / المجموعة</th>
@@ -184,11 +197,11 @@ function formatDate(value) {
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحضور</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الرابط/التسجيل</th>
-                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">إجراءات</th>
+                                <th class="data-table-actions text-start p-4 font-semibold text-surface-600 dark:text-surface-300">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-700">
-                            <tr v-for="session in sessions" :key="session.id" class="hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
+                            <tr v-for="session in paginatedSessions" :key="session.id" class="hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
                                 <td class="p-4">
                                     <div class="font-bold text-surface-900 dark:text-white text-base">{{ session.title }}</div>
                                     <div class="text-xs text-surface-500 mt-1">{{ session.teaching_group?.name || 'حصة خاصة' }}</div>
@@ -231,8 +244,8 @@ function formatDate(value) {
                                         <a :href="session.recording_url" target="_blank" class="text-accent-500 hover:underline text-xs block truncate max-w-[150px]">رابط التسجيل</a>
                                     </div>
                                 </td>
-                                <td class="p-4">
-                                    <div class="flex items-center gap-2">
+                                <td class="data-table-actions p-3">
+                                    <div class="flex max-w-[22rem] flex-wrap items-center gap-2">
                                         <button v-if="session.status === 'scheduled'" @click="openMeeting(session)" class="btn-sm btn-ghost text-primary-500">رابط الاجتماع</button>
                                         <button v-if="session.status === 'scheduled'" @click="updateStatus(session.id, 'live')" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">بدء الحصة</button>
                                         <button v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
@@ -251,6 +264,7 @@ function formatDate(value) {
                         </tbody>
                     </table>
                 </div>
+                <DataTablePagination :paginator="sessionsPagination" item-label="حصة" @page-change="setSessionsPage" />
             </div>
 
             <div class="card data-table-card">
@@ -262,7 +276,7 @@ function formatDate(value) {
                     <span class="text-xs text-surface-400">{{ attendanceReport.length }} سجل</span>
                 </div>
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="w-full text-sm">
+                    <table class="data-table">
                         <thead class="bg-surface-50 dark:bg-surface-800">
                             <tr>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الطالب</th>
@@ -274,7 +288,7 @@ function formatDate(value) {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-700">
-                            <tr v-for="row in attendanceReport" :key="row.id">
+                            <tr v-for="row in paginatedAttendance" :key="row.id">
                                 <td class="p-4">
                                     <div class="font-bold text-surface-900 dark:text-white">{{ row.student?.name || '—' }}</div>
                                     <div class="text-xs text-surface-400">{{ row.student?.email || '' }}</div>
@@ -294,6 +308,7 @@ function formatDate(value) {
                         </tbody>
                     </table>
                 </div>
+                <DataTablePagination :paginator="attendancePagination" item-label="سجل حضور" @page-change="setAttendancePage" />
             </div>
         </div>
 

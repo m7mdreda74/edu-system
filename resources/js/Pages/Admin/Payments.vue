@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
@@ -76,7 +77,7 @@ async function rejectPayment(p) {
     <DashboardLayout>
         <Head title="المدفوعات" />
 
-        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
+        <div class="dashboard-data-page">
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2">
@@ -102,7 +103,7 @@ async function rejectPayment(p) {
 
             <div class="card data-table-card">
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="w-full text-sm">
+                    <table class="data-table">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">#</th>
@@ -113,7 +114,7 @@ async function rejectPayment(p) {
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">طريقة التحويل</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التاريخ</th>
-                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التحقق والتحكم</th>
+                                <th class="data-table-actions text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التحقق والتحكم</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-700">
@@ -141,18 +142,19 @@ async function rejectPayment(p) {
                                     </span>
                                 </td>
                                 <td class="p-4 text-xs text-surface-400">{{ p.paid_at || p.created_at || '—' }}</td>
-                                <td class="p-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-2">
-                                        <button v-if="p.receipt_path" @click="selectedReceipt = route('admin.payments.receipt', p.id)" class="btn-outline text-xs py-1 px-2.5 flex items-center gap-1">
+                                <td class="data-table-actions p-3">
+                                    <div class="flex max-w-[20rem] flex-wrap items-center gap-2">
+                                        <button v-if="p.receipt_path" type="button" @click="selectedReceipt = route('admin.payments.receipt', p.id)" class="btn-outline text-xs py-1 px-2.5 flex items-center gap-1">
                                             <Icon name="eye" class="w-3.5 h-3.5 shrink-0" />
                                             <span>عرض الإيصال</span>
                                         </button>
                                         <template v-if="p.status === 'pending_verification'">
-                                            <button @click="approvePayment(p)" class="btn-primary text-xs py-1 px-2.5 flex items-center gap-1 bg-green-600 hover:bg-green-700 border-none">
+                                            <button type="button" @click="approvePayment(p)" class="btn-primary text-xs py-1 px-2.5 flex items-center gap-1 bg-green-600 hover:bg-green-700 border-none">
                                                 <Icon name="success" class="w-3.5 h-3.5 shrink-0" />
                                                 <span>موافقة</span>
                                             </button>
-                                            <button @click="rejectPayment(p)" class="btn-ghost text-xs py-1 px-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-1">
+                                            <button type="button" @click="rejectPayment(p)" class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700">
+                                                <Icon name="close" class="h-3.5 w-3.5 shrink-0" />
                                                 <span>رفض</span>
                                             </button>
                                         </template>
@@ -166,6 +168,7 @@ async function rejectPayment(p) {
                     <Icon name="payments" class="w-12 h-12 text-surface-400" />
                     <p>لا توجد مدفوعات</p>
                 </div>
+                <DataTablePagination :paginator="payments" item-label="عملية دفع" />
             </div>
 
             <!-- Receipt Modal Viewer -->

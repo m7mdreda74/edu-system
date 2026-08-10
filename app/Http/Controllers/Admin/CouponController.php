@@ -16,7 +16,8 @@ class CouponController extends Controller
     public function index(Request $request): Response
     {
         $coupons = Coupon::latest()
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('Admin/Coupons', [
             'coupons' => $coupons,
@@ -26,10 +27,10 @@ class CouponController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'code'             => ['required', 'string', 'max:50', 'unique:coupons,code'],
+            'code' => ['required', 'string', 'max:50', 'unique:coupons,code'],
             'discount_percent' => ['required', 'integer', 'between:1,100'],
-            'expires_at'       => ['nullable', 'date'],
-            'usage_limit'      => ['nullable', 'integer', 'min:1'],
+            'expires_at' => ['nullable', 'date'],
+            'usage_limit' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $validated['code'] = strtoupper($validated['code']);
@@ -44,7 +45,7 @@ class CouponController extends Controller
     public function toggle(int $id): RedirectResponse
     {
         $coupon = Coupon::findOrFail($id);
-        $coupon->update(['is_active' => !$coupon->is_active]);
+        $coupon->update(['is_active' => ! $coupon->is_active]);
 
         return back()->with('success', 'تم تعديل حالة الكوبون.');
     }

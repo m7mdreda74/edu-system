@@ -1,9 +1,11 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, useForm, router, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
+import { useClientPagination } from '@/composables/useClientPagination';
 
 const props = defineProps({
     group:       { type: Object, required: true },
@@ -31,6 +33,11 @@ const gradeForm = useForm({
 });
 
 const activeTab = ref('sheets'); // sheets | submissions
+const {
+    data: paginatedSubmissions,
+    pagination: submissionsPagination,
+    setPage: setSubmissionsPage,
+} = useClientPagination(computed(() => props.submissions));
 
 function openAddModal() {
     form.reset();
@@ -84,7 +91,7 @@ function submitGrade(subId, maxScore) {
     <DashboardLayout>
         <Head :title="'إدارة أوراق العمل - ' + group.name" />
 
-        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
+        <div class="dashboard-data-page">
             <!-- Header -->
             <div class="flex items-center justify-between gap-4">
                 <div>
@@ -164,7 +171,7 @@ function submitGrade(subId, maxScore) {
             <!-- Tab Content: Submissions List -->
             <div v-if="activeTab === 'submissions'" class="card data-table-card">
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="w-full text-sm">
+                    <table class="data-table">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
                                 <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">الطالب</th>
@@ -172,11 +179,11 @@ function submitGrade(subId, maxScore) {
                                 <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">تاريخ التسليم</th>
                                 <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">الدرجة</th>
                                 <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">التعليق والتقييم</th>
-                                <th class="text-center px-6 py-4 font-bold text-surface-700 dark:text-surface-300">إجراءات</th>
+                                <th class="data-table-actions text-center px-6 py-4 font-bold text-surface-700 dark:text-surface-300">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
-                            <tr v-for="sub in submissions" :key="sub.id" class="hover:bg-surface-50/50 dark:hover:bg-surface-800/20">
+                            <tr v-for="sub in paginatedSubmissions" :key="sub.id" class="hover:bg-surface-50/50 dark:hover:bg-surface-800/20">
                                 <td class="px-6 py-4">
                                     <div class="font-bold text-surface-900 dark:text-white">{{ sub.student?.name }}</div>
                                     <div class="text-xs text-surface-400">{{ sub.student?.email }}</div>
@@ -197,7 +204,7 @@ function submitGrade(subId, maxScore) {
                                 <td class="px-6 py-4 text-xs text-surface-500 max-w-xs truncate" :title="sub.teacher_feedback">
                                     {{ sub.teacher_feedback || '—' }}
                                 </td>
-                                <td class="px-6 py-4 text-center">
+                                <td class="data-table-actions px-6 py-4 text-center">
                                     <button @click="submitGrade(sub.id, sub.worksheet?.max_score)" 
                                             class="btn-primary btn-xs py-1.5 px-3 rounded-lg"
                                     >
@@ -214,6 +221,11 @@ function submitGrade(subId, maxScore) {
                     <h3 class="text-lg font-bold text-surface-800 dark:text-surface-200 mb-2">لا توجد تسليمات</h3>
                     <p class="text-sm">لم يقم الطلاب برفع أي حلول بعد</p>
                 </div>
+                <DataTablePagination
+                    :paginator="submissionsPagination"
+                    item-label="تسليم"
+                    @page-change="setSubmissionsPage"
+                />
             </div>
 
             <!-- Upload Modal -->

@@ -3,10 +3,11 @@ import { ref } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
-    coupons: { type: Array, required: true },
+    coupons: { type: Object, required: true },
 });
 
 const isModalOpen = ref(false);
@@ -52,7 +53,7 @@ async function deleteCoupon(id) {
     <DashboardLayout>
         <Head title="إدارة كوبونات الخصم" />
 
-        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
+        <div class="dashboard-data-page">
             <!-- Header -->
             <div class="flex items-center justify-between gap-4">
                 <div>
@@ -71,7 +72,7 @@ async function deleteCoupon(id) {
             <!-- Table -->
             <div class="card data-table-card">
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="w-full text-sm">
+                    <table class="data-table">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
                                 <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">رمز الكوبون</th>
@@ -80,11 +81,11 @@ async function deleteCoupon(id) {
                                 <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">عدد الاستخدامات</th>
                                 <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">تاريخ الانتهاء</th>
                                 <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">الحالة</th>
-                                <th class="text-center px-6 py-4 font-bold text-surface-700 dark:text-surface-300">إجراءات</th>
+                                <th class="data-table-actions text-center px-6 py-4 font-bold text-surface-700 dark:text-surface-300">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
-                            <tr v-for="coupon in coupons" :key="coupon.id" class="hover:bg-surface-50/50 dark:hover:bg-surface-800/20">
+                            <tr v-for="coupon in coupons.data" :key="coupon.id" class="hover:bg-surface-50/50 dark:hover:bg-surface-800/20">
                                 <td class="px-6 py-4 font-mono font-bold text-base text-primary-600 dark:text-primary-400">
                                     {{ coupon.code }}
                                 </td>
@@ -105,7 +106,7 @@ async function deleteCoupon(id) {
                                         {{ coupon.is_active ? 'نشط' : 'معطل' }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 text-center">
+                                <td class="data-table-actions px-6 py-4 text-center">
                                     <div class="flex items-center justify-center gap-2">
                                         <button @click="toggleStatus(coupon.id)" 
                                                 class="btn-outline btn-xs py-1.5 px-3 rounded-lg"
@@ -124,11 +125,12 @@ async function deleteCoupon(id) {
                     </table>
                 </div>
 
-                <div v-if="coupons.length === 0" class="p-16 text-center text-surface-400">
+                <div v-if="coupons.data.length === 0" class="flex-1 p-16 text-center text-surface-400">
                     <Icon name="payments" class="w-16 h-16 mx-auto text-surface-300 dark:text-surface-700 mb-4" />
                     <h3 class="text-lg font-bold text-surface-800 dark:text-surface-200 mb-2">لا توجد كوبونات خصم</h3>
                     <p class="text-sm">لم تقم بإنشاء أي كوبون خصم بعد</p>
                 </div>
+                <DataTablePagination :paginator="coupons" item-label="كوبون" />
             </div>
 
             <!-- Modal for Coupon Creation -->

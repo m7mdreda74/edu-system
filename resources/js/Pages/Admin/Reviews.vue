@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { debounce } from '@/lib/debounce';
 import { useConfirm } from '@/composables/useConfirm';
 
@@ -55,7 +56,7 @@ async function approveAll() {
     <Head title="تقييمات المعلمين" />
 
     <DashboardLayout>
-        <div class="space-y-6">
+        <div class="dashboard-data-page">
             <header class="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                     <h1 class="text-2xl font-black text-surface-900 dark:text-white">تقييمات المعلمين</h1>
@@ -159,20 +160,7 @@ async function approveAll() {
                     </div>
                 </article>
 
-                <!-- Pagination -->
-                <div v-if="reviews.links?.length > 3" class="card p-4 flex flex-wrap gap-1">
-                    <Link
-                        v-for="link in reviews.links"
-                        :key="link.label"
-                        :href="link.url ?? '#'"
-                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                        :class="[
-                            link.active ? 'bg-primary-600 text-white' : 'text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800',
-                            !link.url && 'opacity-40 pointer-events-none',
-                        ]"
-                        v-html="link.label"
-                    />
-                </div>
+                <DataTablePagination class="card" :paginator="reviews" item-label="تقييم" />
             </div>
 
             <div v-else class="card p-12 text-center">

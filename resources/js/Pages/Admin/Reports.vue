@@ -1,9 +1,12 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import StatCard from '@/Components/StatCard.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { formatQAR } from '@/lib/money';
+import { useClientPagination } from '@/composables/useClientPagination';
 
 const props = defineProps({
     filters: { type: Object, default: () => ({}) },
@@ -13,6 +16,17 @@ const props = defineProps({
     attendance: { type: Object, default: () => ({ data: [], links: [] }) },
     summary: { type: Object, default: () => ({}) },
 });
+
+const {
+    data: paginatedTeachers,
+    pagination: teachersPagination,
+    setPage: setTeachersPage,
+} = useClientPagination(computed(() => props.teachers));
+const {
+    data: paginatedGroups,
+    pagination: groupsPagination,
+    setPage: setGroupsPage,
+} = useClientPagination(computed(() => props.groups));
 
 function applyFilters(event) {
     const data = Object.fromEntries(new FormData(event.target).entries());
@@ -58,7 +72,7 @@ function printReport() {
     <DashboardLayout>
         <Head title="تقارير المنصة" />
 
-        <div class="space-y-6" dir="rtl">
+        <div class="dashboard-data-page" dir="rtl">
             <header class="flex flex-wrap items-start justify-between gap-4 print-hidden">
                 <div>
                     <h1 class="flex items-center gap-2 text-2xl font-black text-surface-900 dark:text-white">
@@ -121,7 +135,7 @@ function printReport() {
                     <span class="text-xs text-surface-400">{{ teachers.length }} مدرس</span>
                 </div>
                 <div class="table-wrap">
-                    <table class="report-table">
+                    <table class="report-table data-table">
                         <thead>
                             <tr>
                                 <th>المدرس</th>
@@ -133,7 +147,7 @@ function printReport() {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="teacher in teachers" :key="teacher.id">
+                            <tr v-for="teacher in paginatedTeachers" :key="teacher.id">
                                 <td class="font-bold">{{ teacher.name }}</td>
                                 <td>{{ teacher.subject?.name || '—' }}</td>
                                 <td>{{ teacher.teaching_assignments_count || 0 }}</td>
@@ -145,6 +159,7 @@ function printReport() {
                         </tbody>
                     </table>
                 </div>
+                <DataTablePagination class="print-hidden" :paginator="teachersPagination" item-label="معلم" @page-change="setTeachersPage" />
             </section>
 
             <section class="report-section">
@@ -153,7 +168,7 @@ function printReport() {
                     <span class="text-xs text-surface-400">وقت الدخول والخروج الفعلي</span>
                 </div>
                 <div class="table-wrap">
-                    <table class="report-table">
+                    <table class="report-table data-table">
                         <thead>
                             <tr>
                                 <th>الطالب</th>
@@ -185,15 +200,13 @@ function printReport() {
                         </tbody>
                     </table>
                 </div>
-                <nav v-if="attendance.links?.length > 3" class="mt-4 flex flex-wrap justify-center gap-2 print-hidden">
-                    <Link v-for="link in attendance.links" :key="`attendance-${link.label}`" :href="link.url || '#'" preserve-scroll class="rounded-xl px-3 py-2 text-sm" :class="[link.active ? 'bg-primary-500 text-white' : 'bg-surface-100 dark:bg-surface-800', !link.url ? 'pointer-events-none opacity-40' : '']" v-html="link.label" />
-                </nav>
+                <DataTablePagination class="print-hidden" :paginator="attendance" item-label="سجل حضور" />
             </section>
 
             <section class="report-section">
                 <h2 class="section-title mb-3">الحصص المباشرة</h2>
                 <div class="table-wrap">
-                    <table class="report-table">
+                    <table class="report-table data-table">
                         <thead>
                             <tr>
                                 <th>الحصة</th>
@@ -220,15 +233,13 @@ function printReport() {
                         </tbody>
                     </table>
                 </div>
-                <nav v-if="sessions.links?.length > 3" class="mt-4 flex flex-wrap justify-center gap-2 print-hidden">
-                    <Link v-for="link in sessions.links" :key="link.label" :href="link.url || '#'" preserve-scroll class="rounded-xl px-3 py-2 text-sm" :class="[link.active ? 'bg-primary-500 text-white' : 'bg-surface-100 dark:bg-surface-800', !link.url ? 'pointer-events-none opacity-40' : '']" v-html="link.label" />
-                </nav>
+                <DataTablePagination class="print-hidden" :paginator="sessions" item-label="حصة" />
             </section>
 
             <section class="report-section">
                 <h2 class="section-title mb-3">المجموعات والحجوزات</h2>
                 <div class="table-wrap">
-                    <table class="report-table">
+                    <table class="report-table data-table">
                         <thead>
                             <tr>
                                 <th>المجموعة</th>
@@ -241,7 +252,7 @@ function printReport() {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="group in groups" :key="group.id">
+                            <tr v-for="group in paginatedGroups" :key="group.id">
                                 <td class="font-bold">{{ group.name }}</td>
                                 <td>{{ group.assignment?.teacher?.name || '—' }}</td>
                                 <td>{{ group.assignment?.subject?.name || '—' }}</td>
@@ -254,6 +265,7 @@ function printReport() {
                         </tbody>
                     </table>
                 </div>
+                <DataTablePagination class="print-hidden" :paginator="groupsPagination" item-label="مجموعة" @page-change="setGroupsPage" />
             </section>
         </div>
     </DashboardLayout>

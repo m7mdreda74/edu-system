@@ -1,8 +1,9 @@
 <script setup>
 import { ref, watch } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { formatQAR } from '@/lib/money';
 import { debounce } from '@/lib/debounce';
 import { useConfirm } from '@/composables/useConfirm';
@@ -110,7 +111,7 @@ async function cancel(id) {
             <!-- Table -->
             <div class="card data-table-card">
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="w-full text-sm">
+                    <table class="data-table">
                         <thead class="bg-surface-50 dark:bg-surface-900 text-xs text-surface-500">
                             <tr>
                                 <th class="px-4 py-3 text-start font-bold">الطالب</th>
@@ -119,7 +120,7 @@ async function cancel(id) {
                                 <th class="px-4 py-3 text-start font-bold">السعر</th>
                                 <th class="px-4 py-3 text-start font-bold">الفترة</th>
                                 <th class="px-4 py-3 text-start font-bold">الحالة</th>
-                                <th class="px-4 py-3 text-start font-bold"></th>
+                                <th class="data-table-actions px-4 py-3 text-start font-bold">إجراءات</th>
                             </tr>
                         </thead>
 
@@ -152,7 +153,7 @@ async function cancel(id) {
                                         {{ statusLabels[sub.status] }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="data-table-actions px-4 py-3">
                                     <button
                                         v-if="sub.status === 'active' || sub.status === 'pending'"
                                         type="button"
@@ -174,20 +175,7 @@ async function cancel(id) {
                     </table>
                 </div>
 
-                <!-- Pagination -->
-                <div v-if="subscriptions.links?.length > 3" class="data-table-footer flex flex-wrap gap-1 p-4 border-t border-surface-100 dark:border-surface-800">
-                    <Link
-                        v-for="link in subscriptions.links"
-                        :key="link.label"
-                        :href="link.url ?? '#'"
-                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                        :class="[
-                            link.active ? 'bg-primary-600 text-white' : 'text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800',
-                            !link.url && 'opacity-40 pointer-events-none',
-                        ]"
-                        v-html="link.label"
-                    />
-                </div>
+                <DataTablePagination :paginator="subscriptions" item-label="اشتراك" />
             </div>
         </div>
     </DashboardLayout>

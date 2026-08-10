@@ -4,6 +4,7 @@ import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useDebounceFn } from '@vueuse/core';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
@@ -202,7 +203,7 @@ async function removeAvatar() {
     <DashboardLayout>
         <Head title="إدارة المستخدمين" />
 
-        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
+        <div class="dashboard-data-page">
 
             <!-- Header -->
             <div class="flex flex-wrap items-center justify-between gap-4">
@@ -245,7 +246,7 @@ async function removeAvatar() {
             <!-- Table -->
             <div class="card data-table-card">
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="w-full text-sm">
+                    <table class="data-table">
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">المستخدم</th>
@@ -253,7 +254,7 @@ async function removeAvatar() {
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التسجيلات</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">عمولة المنصة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
-                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">إجراء</th>
+                                <th class="data-table-actions text-start p-4 font-semibold text-surface-600 dark:text-surface-300">إجراء</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-700">
@@ -319,7 +320,8 @@ async function removeAvatar() {
                                         {{ user.is_active ? 'نشط' : 'معطّل' }}
                                     </span>
                                 </td>
-                                <td class="p-4 flex gap-2">
+                                <td class="data-table-actions p-4">
+                                    <div class="flex flex-wrap gap-2">
                                     <button
                                         @click="openPasswordModal(user)"
                                         class="text-xs px-3 py-1.5 rounded-lg font-medium bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-950/40 dark:text-primary-300 dark:hover:bg-primary-900/50 transition-colors"
@@ -343,6 +345,7 @@ async function removeAvatar() {
                                     >
                                         تعديل الدور
                                     </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -355,22 +358,7 @@ async function removeAvatar() {
                     <p>لا توجد نتائج</p>
                 </div>
 
-                <!-- Pagination -->
-                <div v-if="users.last_page > 1"
-                     class="data-table-footer p-4 border-t border-surface-100 dark:border-surface-700 flex gap-2 justify-center flex-wrap">
-                    <Link
-                        v-for="link in users.links" :key="link.label"
-                        :href="link.url ?? '#'"
-                        class="px-3 py-1.5 rounded-lg text-sm border transition-colors"
-                        :class="link.active
-                            ? 'bg-primary-600 text-white border-primary-600'
-                            : link.url
-                                ? 'border-surface-200 dark:border-surface-600 text-surface-600 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700'
-                                : 'opacity-40 cursor-not-allowed border-surface-200 dark:border-surface-600'"
-                    >
-                        <span v-html="link.label"></span>
-                    </Link>
-                </div>
+                <DataTablePagination :paginator="users" item-label="مستخدم" />
             </div>
         </div>
 

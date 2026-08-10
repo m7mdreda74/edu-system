@@ -1,12 +1,14 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import StatCard from '@/Components/StatCard.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { formatQAR } from '@/lib/money';
 import { debounce } from '@/lib/debounce';
 import { useConfirm } from '@/composables/useConfirm';
+import { useClientPagination } from '@/composables/useClientPagination';
 
 const props = defineProps({
     groups:       { type: Object, required: true },
@@ -18,6 +20,12 @@ const props = defineProps({
     terms:        { type: Array, default: () => [] },
     stats:        { type: Object, default: () => ({}) },
 });
+
+const {
+    data: paginatedAssignments,
+    pagination: assignmentsPagination,
+    setPage: setAssignmentsPage,
+} = useClientPagination(computed(() => props.assignments));
 
 const { confirm } = useConfirm();
 
@@ -210,29 +218,30 @@ async function destroyGroup(group) {
                     </p>
 
                     <div class="overflow-x-auto no-scrollbar">
-                        <table class="w-full text-sm">
+                        <table class="data-table">
                             <thead class="text-xs text-surface-500">
                                 <tr>
                                     <th class="p-3 text-start">المعلم</th>
                                     <th class="p-3 text-start">المادة والصف</th>
                                     <th class="p-3 text-start">البرايفيت</th>
                                     <th class="p-3 text-start">الحالة</th>
-                                    <th class="p-3"></th>
+                                    <th class="data-table-actions p-3 text-start">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
-                                <tr v-for="assignment in assignments" :key="assignment.id">
+                                <tr v-for="assignment in paginatedAssignments" :key="assignment.id">
                                     <td class="p-3 font-bold">{{ assignment.teacher?.name }}</td>
                                     <td class="p-3 text-xs">{{ assignment.subject?.name }} — {{ assignment.grade?.name }}</td>
                                     <td class="p-3 text-xs">
                                         {{ assignment.accepts_private ? formatQAR(assignment.private_monthly_price) : 'غير متاح' }}
                                     </td>
                                     <td class="p-3"><span :class="assignment.is_active ? 'badge-green' : 'badge-gray'">{{ assignment.is_active ? 'نشط' : 'متوقف' }}</span></td>
-                                    <td class="p-3"><button class="btn-ghost btn-sm" @click="editAssignment(assignment)">ضبط</button></td>
+                                    <td class="data-table-actions p-3"><button class="btn-ghost btn-sm" @click="editAssignment(assignment)">ضبط</button></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
+                    <DataTablePagination :paginator="assignmentsPagination" item-label="إسناد" @page-change="setAssignmentsPage" />
 
                     <form v-if="assignmentEdit.id" class="rounded-xl border border-primary-500/20 p-4 grid md:grid-cols-4 gap-3 items-end" @submit.prevent="updateAssignment">
                         <label class="flex items-center gap-2 text-sm">
@@ -303,7 +312,7 @@ async function destroyGroup(group) {
 
             <div class="card data-table-card">
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="w-full text-sm">
+                    <table class="data-table">
                         <thead class="bg-surface-50 dark:bg-surface-900 text-xs text-surface-500">
                             <tr>
                                 <th class="px-4 py-3 text-start">المجموعة</th>
@@ -312,7 +321,7 @@ async function destroyGroup(group) {
                                 <th class="px-4 py-3 text-start">السعر</th>
                                 <th class="px-4 py-3 text-start">الطلاب</th>
                                 <th class="px-4 py-3 text-start">الحالة</th>
-                                <th class="px-4 py-3"></th>
+                                <th class="data-table-actions px-4 py-3 text-start">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
@@ -330,7 +339,7 @@ async function destroyGroup(group) {
                                     <span v-else-if="group.is_full" class="badge-accent">مكتملة</span>
                                     <span v-else class="badge-green">مفعّلة</span>
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="data-table-actions px-4 py-3">
                                     <div class="flex gap-1">
                                         <button class="btn-ghost btn-sm" @click="editGroup(group); managementTab = 'groups'">تعديل</button>
                                         <button class="btn-ghost btn-sm" @click="toggle(group)">{{ group.is_active ? 'إيقاف' : 'تفعيل' }}</button>
@@ -345,16 +354,7 @@ async function destroyGroup(group) {
                     </table>
                 </div>
 
-                <div v-if="groups.links?.length > 3" class="data-table-footer flex flex-wrap gap-1 p-4 border-t border-surface-100 dark:border-surface-800">
-                    <Link
-                        v-for="link in groups.links"
-                        :key="link.label"
-                        :href="link.url ?? '#'"
-                        class="px-3 py-1.5 rounded-lg text-xs font-bold"
-                        :class="[link.active ? 'bg-primary-600 text-white' : 'text-surface-500', !link.url && 'opacity-40 pointer-events-none']"
-                        v-html="link.label"
-                    />
-                </div>
+                <DataTablePagination :paginator="groups" item-label="مجموعة" />
             </div>
         </div>
     </DashboardLayout>

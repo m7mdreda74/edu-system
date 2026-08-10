@@ -3,6 +3,8 @@ import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
+import { useClientPagination } from '@/composables/useClientPagination';
 
 const props = defineProps({
     gradeLevel: { type: Object, required: true },
@@ -23,15 +25,36 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
         teacher: assignment.teacher?.name,
     })),
 ));
+
+const {
+    data: paginatedSubjects,
+    pagination: subjectsPagination,
+    setPage: setSubjectsPage,
+} = useClientPagination(computed(() => props.subjects));
+const {
+    data: paginatedGroups,
+    pagination: groupsPagination,
+    setPage: setGroupsPage,
+} = useClientPagination(groups);
+const {
+    data: paginatedTeachers,
+    pagination: teachersPagination,
+    setPage: setTeachersPage,
+} = useClientPagination(computed(() => props.teachers));
+const {
+    data: paginatedStudents,
+    pagination: studentsPagination,
+    setPage: setStudentsPage,
+} = useClientPagination(computed(() => props.students));
 </script>
 
 <template>
     <DashboardLayout>
         <Head :title="`تفاصيل المرحلة: ${gradeLevel.name}`" />
 
-        <div class="w-full max-w-none px-2 md:px-4 py-4 md:py-6">
+        <div class="dashboard-data-page">
             <!-- Back & Header -->
-            <div class="mb-8">
+            <div>
                 <Link :href="route('admin.grade-levels')" class="flex items-center gap-2 text-sm text-surface-500 hover:text-primary-500 transition-colors mb-4">
                     <Icon name="arrow-right" class="w-4 h-4 rtl:rotate-180" />
                     <span>العودة للمراحل الدراسية</span>
@@ -51,7 +74,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
             </div>
 
             <!-- Stats Bar -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="card p-5 flex items-center gap-4">
                     <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center flex-shrink-0">
                         <Icon name="courses" class="w-6 h-6" />
@@ -91,7 +114,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
             </div>
 
             <!-- Tab Buttons -->
-            <div class="flex border-b border-surface-200 dark:border-surface-800 mb-6 overflow-x-auto whitespace-nowrap">
+            <div class="flex border-b border-surface-200 dark:border-surface-800 overflow-x-auto whitespace-nowrap">
                 <button @click="activeTab = 'subjects'" 
                         :class="[
                             'px-6 py-3 font-semibold text-sm border-b-2 transition-all duration-200',
@@ -135,12 +158,12 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
             </div>
 
             <!-- Tab Content -->
-            <div class="card p-6">
+            <div class="card data-table-card p-4 md:p-6">
                 <!-- 1. Subjects Tab -->
-                <div v-if="activeTab === 'subjects'">
+                <div v-if="activeTab === 'subjects'" class="flex flex-1 flex-col">
                     <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">المواد الدراسية المسجلة للمرحلة</h3>
-                    <div class="overflow-x-auto no-scrollbar" v-if="subjects.length > 0">
-                        <table class="table-app w-full text-start">
+                    <div class="data-table-scroll no-scrollbar" v-if="subjects.length > 0">
+                        <table class="table-app data-table text-start">
                             <thead>
                                 <tr>
                                     <th class="text-start">اسم المادة</th>
@@ -150,7 +173,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="subj in subjects" :key="subj.id" class="hover:bg-surface-50/50">
+                                <tr v-for="subj in paginatedSubjects" :key="subj.id" class="hover:bg-surface-50/50">
                                     <td class="font-bold text-surface-900 dark:text-white">
                                         <div class="flex items-center gap-2">
                                             <Icon :name="subj.icon || 'book'" class="w-4 h-4 text-primary-500" />
@@ -171,13 +194,14 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                     <div v-else class="text-center py-8 text-surface-500">
                         لا توجد مواد دراسية مرتبطة بهذه المرحلة حالياً.
                     </div>
+                    <DataTablePagination :paginator="subjectsPagination" item-label="مادة" @page-change="setSubjectsPage" />
                 </div>
 
                 <!-- 2. Groups Tab -->
-                <div v-if="activeTab === 'groups'">
+                <div v-if="activeTab === 'groups'" class="flex flex-1 flex-col">
                     <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">مجموعات التدريس في هذه المرحلة</h3>
-                    <div class="overflow-x-auto no-scrollbar" v-if="groups.length > 0">
-                        <table class="table-app w-full text-start">
+                    <div class="data-table-scroll no-scrollbar" v-if="groups.length > 0">
+                        <table class="table-app data-table text-start">
                             <thead>
                                 <tr>
                                     <th class="text-start">اسم المجموعة</th>
@@ -189,7 +213,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="group in groups" :key="group.id" class="hover:bg-surface-50/50">
+                                <tr v-for="group in paginatedGroups" :key="group.id" class="hover:bg-surface-50/50">
                                     <td class="font-bold text-surface-900 dark:text-white">
                                         {{ group.name }}
                                     </td>
@@ -209,13 +233,14 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                     <div v-else class="text-center py-8 text-surface-500">
                         لا توجد مجموعات تدريس في هذه المرحلة بعد.
                     </div>
+                    <DataTablePagination :paginator="groupsPagination" item-label="مجموعة" @page-change="setGroupsPage" />
                 </div>
 
                 <!-- 3. Teachers Tab -->
-                <div v-if="activeTab === 'teachers'">
+                <div v-if="activeTab === 'teachers'" class="flex flex-1 flex-col">
                     <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">أعضاء هيئة التدريس النشطين في المرحلة</h3>
-                    <div class="overflow-x-auto no-scrollbar" v-if="teachers.length > 0">
-                        <table class="table-app w-full text-start">
+                    <div class="data-table-scroll no-scrollbar" v-if="teachers.length > 0">
+                        <table class="table-app data-table text-start">
                             <thead>
                                 <tr>
                                     <th class="text-start">اسم المعلم</th>
@@ -224,7 +249,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="teacher in teachers" :key="teacher.id" class="hover:bg-surface-50/50">
+                                <tr v-for="teacher in paginatedTeachers" :key="teacher.id" class="hover:bg-surface-50/50">
                                     <td class="font-bold text-surface-900 dark:text-white">
                                         {{ teacher.name }}
                                     </td>
@@ -237,13 +262,14 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                     <div v-else class="text-center py-8 text-surface-500">
                         لا يوجد معلمون مسندون لهذه المرحلة حالياً.
                     </div>
+                    <DataTablePagination :paginator="teachersPagination" item-label="معلم" @page-change="setTeachersPage" />
                 </div>
 
                 <!-- 4. Students Tab -->
-                <div v-if="activeTab === 'students'">
+                <div v-if="activeTab === 'students'" class="flex flex-1 flex-col">
                     <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4">الطلاب المسجلين في هذه المرحلة</h3>
-                    <div class="overflow-x-auto no-scrollbar" v-if="students.length > 0">
-                        <table class="table-app w-full text-start">
+                    <div class="data-table-scroll no-scrollbar" v-if="students.length > 0">
+                        <table class="table-app data-table text-start">
                             <thead>
                                 <tr>
                                     <th class="text-start">اسم الطالب</th>
@@ -253,7 +279,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="student in students" :key="student.id" class="hover:bg-surface-50/50">
+                                <tr v-for="student in paginatedStudents" :key="student.id" class="hover:bg-surface-50/50">
                                     <td class="font-bold text-surface-900 dark:text-white">
                                         {{ student.name }}
                                     </td>
@@ -271,6 +297,7 @@ const groups = computed(() => props.assignments.flatMap(assignment =>
                     <div v-else class="text-center py-8 text-surface-500">
                         لا يوجد طلاب مقيدين في هذه المرحلة حالياً.
                     </div>
+                    <DataTablePagination :paginator="studentsPagination" item-label="طالب" @page-change="setStudentsPage" />
                 </div>
             </div>
         </div>

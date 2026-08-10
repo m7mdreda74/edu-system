@@ -1,9 +1,10 @@
 <script setup>
 import { ref } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import StatCard from '@/Components/StatCard.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { formatQAR } from '@/lib/money';
 
 const props = defineProps({
@@ -60,7 +61,7 @@ function formatDate(value) {
     <DashboardLayout>
         <Head title="اعتذارات الحصص" />
 
-        <div class="space-y-6">
+        <div class="dashboard-data-page">
             <header>
                 <h1 class="text-2xl font-black text-surface-900 dark:text-white flex items-center gap-2">
                     <Icon name="calendar" class="h-7 w-7 text-primary-500" />
@@ -135,20 +136,7 @@ function formatDate(value) {
                 لا توجد اعتذارات بهذه الحالة.
             </div>
 
-            <nav v-if="apologies.links?.length > 3" class="flex flex-wrap justify-center gap-2">
-                <Link
-                    v-for="link in apologies.links"
-                    :key="link.label"
-                    :href="link.url || '#'"
-                    preserve-scroll
-                    class="rounded-xl px-3 py-2 text-sm"
-                    :class="[
-                        link.active ? 'bg-primary-500 text-white' : 'bg-surface-100 dark:bg-surface-800',
-                        !link.url ? 'pointer-events-none opacity-40' : '',
-                    ]"
-                    v-html="link.label"
-                />
-            </nav>
+            <DataTablePagination class="card" :paginator="apologies" item-label="اعتذار" />
         </div>
 
         <div v-if="selected" class="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" @click.self="selected = null">

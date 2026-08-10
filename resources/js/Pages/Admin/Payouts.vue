@@ -3,10 +3,11 @@ import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
-    payouts: { type: Array, required: true },
+    payouts: { type: Object, required: true },
     teachers: { type: Array, required: true },
     balances: { type: Object, default: () => ({}) },
     defaultCommission: { type: Number, default: 20 },
@@ -60,7 +61,7 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
 <template>
     <DashboardLayout>
         <Head title="تصفية حسابات المدرسين" />
-        <div class="dashboard-data-page px-2 md:px-4 py-4 md:py-6">
+        <div class="dashboard-data-page">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2"><Icon name="earnings" class="w-8 h-8 text-primary-500" />تصفية حسابات المدرسين</h1>
@@ -87,10 +88,10 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
 
             <div class="card data-table-card">
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="w-full text-sm">
-                        <thead class="bg-surface-50 dark:bg-surface-800"><tr><th class="text-start p-4">المدرس</th><th class="text-start p-4">إجمالي الاشتراكات</th><th class="text-start p-4">المستحق قبل الخصم</th><th class="text-start p-4">خصم الحصص</th><th class="text-start p-4">الصافي</th><th class="text-start p-4">عمولة المنصة</th><th class="text-start p-4">الفترة</th><th class="text-start p-4">الحالة</th><th class="text-start p-4">الإجراءات</th></tr></thead>
+                    <table class="data-table">
+                        <thead class="bg-surface-50 dark:bg-surface-800"><tr><th class="text-start p-4">المدرس</th><th class="text-start p-4">إجمالي الاشتراكات</th><th class="text-start p-4">المستحق قبل الخصم</th><th class="text-start p-4">خصم الحصص</th><th class="text-start p-4">الصافي</th><th class="text-start p-4">عمولة المنصة</th><th class="text-start p-4">الفترة</th><th class="text-start p-4">الحالة</th><th class="data-table-actions text-start p-4">الإجراءات</th></tr></thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
-                            <tr v-for="payout in payouts" :key="payout.id">
+                            <tr v-for="payout in payouts.data" :key="payout.id">
                                 <td class="p-4"><b>{{ payout.teacher?.name }}</b><p class="text-xs text-surface-400">{{ payout.teacher?.email }}</p></td>
                                 <td class="p-4">{{ formatQAR(payout.gross_amount) }}</td>
                                 <td class="p-4">{{ formatQAR(payout.teacher_earnings ?? payout.amount) }}</td>
@@ -99,7 +100,7 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
                                 <td class="p-4 text-primary-600">{{ formatQAR(payout.platform_commission_amount) }}</td>
                                 <td class="p-4 text-xs">{{ payout.period_start }} — {{ payout.period_end }}</td>
                                 <td class="p-4"><span :class="payout.status === 'paid' ? 'badge-green' : 'badge-primary'">{{ statusLabel(payout) }}</span></td>
-                                <td class="p-4"><div class="flex flex-wrap gap-2">
+                                <td class="data-table-actions p-4"><div class="flex flex-wrap gap-2">
                                     <button v-if="payout.status !== 'paid'" @click="openPay(payout)" class="btn-primary btn-sm">رفع إثبات الدفع</button>
                                     <button v-if="payout.receipt_path" @click="selectedReceipt = route('admin.payouts.receipt', payout.id)" class="btn-outline btn-sm">عرض الإثبات</button>
                                     <button v-if="payout.status !== 'paid'" @click="deletePayout(payout.id)" class="btn-ghost btn-sm text-red-500">حذف</button>
@@ -108,7 +109,8 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
                         </tbody>
                     </table>
                 </div>
-                <p v-if="!payouts.length" class="p-12 text-center text-surface-400">لا توجد تصفيات حتى الآن.</p>
+                <p v-if="!payouts.data.length" class="flex-1 p-12 text-center text-surface-400">لا توجد تصفيات حتى الآن.</p>
+                <DataTablePagination :paginator="payouts" item-label="تصفية" />
             </div>
         </div>
 

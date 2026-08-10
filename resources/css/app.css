@@ -227,25 +227,64 @@
        card grows to the bottom of the viewport and keeps paging controls at
        its foot instead of leaving a large patch of page background. */
     .dashboard-data-page {
-        @apply w-full max-w-none flex flex-1 flex-col gap-6;
-        min-height: 100%;
+        @apply w-full max-w-none flex flex-1 flex-col gap-4;
+        min-height: calc(100dvh - 7rem);
     }
 
     .data-table-card {
         @apply w-full flex flex-1 flex-col overflow-hidden;
-        min-height: 18rem;
+        min-height: 22rem;
     }
 
     .data-table-scroll {
         @apply w-full flex-1 overflow-x-auto;
+        scrollbar-gutter: stable;
     }
 
     .data-table-footer {
         @apply mt-auto shrink-0;
     }
 
+    .data-table {
+        @apply w-full text-sm;
+        min-width: max-content;
+    }
+
+    .data-table thead th {
+        @apply whitespace-nowrap;
+    }
+
+    .data-table tbody > tr > td {
+        height: 3.5rem;
+        vertical-align: middle;
+    }
+
+    .data-table-actions {
+        @apply sticky z-10 min-w-36 bg-white dark:bg-surface-900;
+        inset-inline-end: 0;
+        box-shadow: 10px 0 18px -18px rgb(0 0 0 / 0.8);
+    }
+
+    thead .data-table-actions {
+        @apply z-20 bg-surface-50 dark:bg-surface-800;
+    }
+
+    .data-table tbody tr:hover .data-table-actions {
+        @apply bg-surface-50 dark:bg-surface-800;
+    }
+
+    .data-table-page-link {
+        @apply inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-surface-200 px-3 py-1.5 text-xs font-bold text-surface-600 transition-colors hover:bg-surface-50 disabled:cursor-not-allowed disabled:opacity-35 dark:border-surface-700 dark:text-surface-300 dark:hover:bg-surface-800;
+    }
+
+    .data-table-page-link-active {
+        @apply border-primary-600 bg-primary-600 text-white hover:bg-primary-700 dark:border-primary-500 dark:bg-primary-600 dark:text-white;
+    }
+
     @media (max-width: 767px) {
-        .data-table-card { min-height: 16rem; }
+        .dashboard-data-page { min-height: calc(100dvh - 5rem); }
+        .data-table-card { min-height: 18rem; }
+        .data-table tbody > tr > td { height: 3.25rem; }
     }
 
     /* ── Skeleton Loader ── */
@@ -357,6 +396,24 @@
     /* Hide scrollbar but keep scroll */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Wide dashboard tables need an obvious horizontal affordance on desktop. */
+    @media (pointer: fine) {
+        .data-table-scroll.no-scrollbar {
+            scrollbar-color: rgb(var(--surface-300)) transparent;
+            scrollbar-width: thin;
+        }
+
+        .data-table-scroll.no-scrollbar::-webkit-scrollbar {
+            display: block;
+            height: 0.4rem;
+        }
+
+        .data-table-scroll.no-scrollbar::-webkit-scrollbar-thumb {
+            background: rgb(var(--surface-300));
+            border-radius: 9999px;
+        }
+    }
 
     /* Clamp lines */
     .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
