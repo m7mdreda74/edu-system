@@ -19,18 +19,25 @@ final class YouTubeUrl
             return null;
         }
 
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            return null;
+        }
+
         $host = strtolower((string) $parts['host']);
         $host = str_starts_with($host, 'www.') ? substr($host, 4) : $host;
         $path = trim((string) ($parts['path'] ?? ''), '/');
         $candidate = null;
 
         if ($host === 'youtu.be') {
-            $candidate = explode('/', $path)[0] ?? null;
+            $segments = $path === '' ? [] : explode('/', $path);
+            $candidate = count($segments) === 1 ? $segments[0] : null;
         } elseif (in_array($host, ['youtube.com', 'm.youtube.com', 'youtube-nocookie.com'], true)) {
             if ($path === 'watch') {
                 parse_str((string) ($parts['query'] ?? ''), $query);
                 $candidate = $query['v'] ?? null;
-            } elseif (preg_match('#^(?:embed|shorts|live)/([^/]+)#', $path, $matches) === 1) {
+            } elseif (preg_match('#^(?:embed|shorts|live)/([^/]+)$#', $path, $matches) === 1) {
                 $candidate = $matches[1];
             }
         }

@@ -99,6 +99,13 @@ const paths = {
     arrowRight: `
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
     `,
+    'arrow-right': `
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+    `,
+    eye: `
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        <circle cx="12" cy="12" r="3" stroke-width="1.5" />
+    `,
     calculator: `
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
     `,
@@ -125,6 +132,29 @@ const paths = {
     `,
     globe: `
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2a2.5 2.5 0 002.5-2.5V10a2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    `,
+    facebook: `
+        <path fill="currentColor" stroke="none" d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5H17V4.1c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.5-4 4.1V10H8v3h2.6v8h2.9z" />
+    `,
+    instagram: `
+        <rect x="3" y="3" width="18" height="18" rx="5" stroke-width="1.5" />
+        <circle cx="12" cy="12" r="4.25" stroke-width="1.5" />
+        <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    `,
+    whatsapp: `
+        <path fill="currentColor" stroke="none" d="M12 2.5a9.5 9.5 0 0 0-8.2 14.3L2.5 21.5l4.85-1.3A9.5 9.5 0 1 0 12 2.5Zm0 17a7.45 7.45 0 0 1-3.79-1.03l-.27-.16-2.88.77.77-2.8-.18-.28A7.5 7.5 0 1 1 12 19.5Zm4.1-5.56c-.22-.11-1.3-.64-1.5-.71-.2-.07-.35-.11-.5.11-.15.22-.57.71-.7.85-.13.15-.26.17-.48.06-.22-.11-.94-.35-1.79-1.12-.66-.59-1.11-1.31-1.24-1.53-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.2-.68-1.64-.18-.43-.36-.37-.5-.38h-.43c-.15 0-.39.06-.59.28-.2.22-.77.75-.77 1.84s.79 2.14.9 2.29c.11.15 1.54 2.35 3.74 3.3.52.22.93.35 1.25.45.53.17 1.02.15 1.4.09.43-.06 1.3-.53 1.48-1.04.18-.51.18-.95.13-1.04-.05-.09-.2-.15-.42-.26Z" />
+    `,
+    youtube: `
+        <path fill="currentColor" stroke="none" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.9V8.1l6.8 3.9-6.8 3.9Z" />
+    `,
+    telegram: `
+        <path fill="currentColor" stroke="none" d="m21.6 3.5-19.2 7.4c-.9.35-.9 1.1-.16 1.38l4.92 1.82 1.89 5.76c.23.65.12.91.8.91.53 0 .76-.24 1.04-.52l2.39-2.32 4.97 3.67c.91.5 1.57.24 1.8-.84L23.2 4.5c.34-1.34-.51-1.95-1.6-1ZM9.08 13.77l9.53-6.01c.47-.28.9-.13.55.18l-7.9 7.13-.3 3.13-1.88-5.76Z" />
+    `,
+    linkedin: `
+        <path fill="currentColor" stroke="none" d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM2.75 10h4.46v11H2.75V10Zm7.25 0h4.27v1.5h.06c.59-1.12 2.04-2.3 4.2-2.3 4.49 0 5.32 2.95 5.32 6.79V21h-4.45v-4.44c0-1.06-.02-2.42-1.47-2.42-1.48 0-1.7 1.15-1.7 2.34V21H10V10Z" />
+    `,
+    tiktok: `
+        <path fill="currentColor" stroke="none" d="M15.5 3.1h2.8c.25 1.4 1.05 2.4 2.7 2.8v2.7c-1.05-.02-2.02-.27-2.9-.78v5.53a6.2 6.2 0 1 1-5.35-6.14v2.84a3.45 3.45 0 1 0 2.75 3.3V3.1Z" />
     `,
     certificate: `
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
@@ -155,7 +185,9 @@ const paths = {
     `,
 };
 
-const svgContent = computed(() => paths[props.name] || '');
+// Keep a visible fallback for custom/misspelled icon names coming from admin
+// settings instead of rendering an empty button in the footer.
+const svgContent = computed(() => paths[props.name] || paths.globe || '');
 </script>
 
 <template>

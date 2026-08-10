@@ -20,12 +20,19 @@ use Tests\TestCase;
 abstract class RecordedClassTestCase extends TestCase
 {
     public User $admin;
+
     public User $teacher;
+
     public User $student;
+
     public AcademicTerm $term;
+
     public TeachingAssignment $assignment;
+
     public TeachingGroup $group;
+
     public Subscription $subscription;
+
     public LiveSession $session;
 }
 
@@ -96,9 +103,16 @@ it('publishes a YouTube recording for in-platform playback and reserves deletion
         ->getJson(route('student.video.url', $material->id))
         ->assertOk()
         ->assertJson([
-            'provider' => 'youtube',
-            'video_id' => 'dQw4w9WgXcQ',
+            'provider' => 'youtube_proxy',
         ]);
+
+    $signedUrl = $this->actingAs($this->student)
+        ->getJson(route('student.video.url', $material->id))
+        ->json('signed_url');
+
+    expect($signedUrl)
+        ->toContain('/youtube-stream/'.$material->id)
+        ->not->toContain('youtu.be');
 
     $this->actingAs($this->teacher)
         ->delete(route('teacher.materials.destroy', $material->id))

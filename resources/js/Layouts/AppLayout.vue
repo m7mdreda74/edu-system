@@ -134,7 +134,7 @@ const socialLinks = computed(() => {
         { platform: 'facebook', url: '#', icon: 'facebook' },
         { platform: 'instagram', url: '#', icon: 'instagram' },
         { platform: 'whatsapp', url: '#', icon: 'whatsapp' },
-        { platform: 'youtube', url: '#', icon: 'live' },
+        { platform: 'youtube', url: '#', icon: 'youtube' },
     ];
 });
 
