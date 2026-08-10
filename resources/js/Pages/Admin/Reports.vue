@@ -274,12 +274,20 @@ function printReport() {
 <style>
 .report-section { @apply rounded-2xl border border-surface-200 bg-white p-5 shadow-sm dark:border-surface-800 dark:bg-surface-900; }
 .section-title { @apply text-lg font-black text-surface-900 dark:text-white; }
-.table-wrap { @apply overflow-x-auto; }
+.table-wrap {
+    @apply overflow-x-auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.table-wrap::-webkit-scrollbar { display: none; }
 .report-table { @apply min-w-full text-right text-sm; }
-.report-table th { @apply border-b border-surface-200 px-4 py-3 text-xs font-black text-surface-500 dark:border-surface-800; }
-.report-table td { @apply border-b border-surface-100 px-4 py-3 text-surface-700 dark:border-surface-800 dark:text-surface-300; }
+.report-table th { @apply border-b border-surface-200 px-2 py-2 text-xs font-black text-surface-500 dark:border-surface-800; }
+.report-table td { @apply border-b border-surface-100 px-2 py-2 text-surface-700 dark:border-surface-800 dark:text-surface-300; }
 .report-table tbody tr:last-child td { @apply border-b-0; }
 .empty-cell { @apply py-8 text-center text-surface-400; }
+@media (min-width: 1280px) {
+    .table-wrap { overflow-x: clip; }
+}
 @media print {
     .print-hidden, aside, header, nav { display: none !important; }
     body, main { background: white !important; color: #111827 !important; }
