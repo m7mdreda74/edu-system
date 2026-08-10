@@ -251,7 +251,7 @@
     }
 
     .data-table {
-        @apply w-full text-sm;
+        @apply w-full text-xs;
         min-width: max-content;
     }
 

@@ -28,6 +28,18 @@ function formatQAR(halala) {
     return `${formatted} ر.ق.`;
 }
 
+function formatCompactDate(value) {
+    if (!value) return '—';
+
+    return String(value).replace('T', ' ').slice(0, 16);
+}
+
+function formatTransferMethod(payment) {
+    if (payment.gateway !== 'manual') return 'سجل قديم';
+
+    return String(payment.gateway_ref || 'تحويل بنكي').replace(/^bank:\s*/i, '');
+}
+
 const statusColors = {
     paid:    'badge-green',
     pending: 'badge-primary',
@@ -103,7 +115,18 @@ async function rejectPayment(p) {
 
             <div class="card data-table-card">
                 <div class="data-table-scroll no-scrollbar">
-                    <table class="data-table">
+                    <table class="data-table payments-table">
+                        <colgroup>
+                            <col class="payment-col-id" />
+                            <col class="payment-col-student" />
+                            <col class="payment-col-subscription" />
+                            <col class="payment-col-amount" />
+                            <col class="payment-col-split" />
+                            <col class="payment-col-method" />
+                            <col class="payment-col-status" />
+                            <col class="payment-col-date" />
+                            <col class="payment-col-actions" />
+                        </colgroup>
                         <thead class="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
                             <tr>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">#</th>
@@ -121,40 +144,44 @@ async function rejectPayment(p) {
                             <tr v-for="p in payments.data" :key="p.id"
                                 class="hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
                                 :class="p.status === 'pending_verification' ? 'bg-amber-500/5 dark:bg-amber-500/5' : ''">
-                                <td class="p-4 text-surface-400 font-mono text-xs">{{ p.id }}</td>
-                                <td class="p-4">
-                                    <div class="font-semibold text-surface-800 dark:text-white">{{ p.user?.name }}</div>
-                                    <div class="text-xs text-surface-400">{{ p.user?.email }}</div>
+                                <td class="p-4 text-surface-400 font-mono">{{ p.id }}</td>
+                                <td class="p-4 payment-truncate" :title="`${p.user?.name || ''} — ${p.user?.email || ''}`">
+                                    <span class="font-semibold text-surface-800 dark:text-white">{{ p.user?.name }}</span>
+                                    <span v-if="p.user?.email" class="text-surface-400"> — {{ p.user.email }}</span>
                                 </td>
-                                <td class="p-4 text-surface-600 dark:text-surface-300 max-w-[180px]">
-                                    <div class="line-clamp-1">{{ p.subscription?.assignment?.subject?.name ?? "اشتراك" }}</div>
+                                <td class="p-4 payment-truncate text-surface-600 dark:text-surface-300" :title="p.subscription?.assignment?.subject?.name ?? 'اشتراك'">
+                                    {{ p.subscription?.assignment?.subject?.name ?? "اشتراك" }}
                                 </td>
                                 <td class="p-4 font-bold text-primary-700 dark:text-primary-400">
                                     {{ formatQAR(p.amount) }}
                                 </td>
-                                <td class="p-4 text-xs"><div class="text-green-600">المدرس: {{ formatQAR(p.teacher_earnings) }}</div><div class="text-primary-600">المنصة: {{ formatQAR(p.platform_commission_amount) }} <span v-if="p.commission_percent !== null">({{ p.commission_percent }}%)</span></div></td>
-                                <td class="p-4">
-                                    <span class="badge-gray text-xs" :title="p.gateway_ref">{{ p.gateway === 'manual' ? p.gateway_ref : 'سجل قديم' }}</span>
+                                <td class="p-4 payment-truncate" :title="`المدرس: ${formatQAR(p.teacher_earnings)} — المنصة: ${formatQAR(p.platform_commission_amount)}`">
+                                    <span class="text-green-600">مدرس: {{ formatQAR(p.teacher_earnings) }}</span>
+                                    <span class="mx-1 text-surface-400">|</span>
+                                    <span class="text-primary-600">منصة: {{ formatQAR(p.platform_commission_amount) }}<span v-if="p.commission_percent !== null"> ({{ p.commission_percent }}%)</span></span>
+                                </td>
+                                <td class="p-4 payment-truncate" :title="p.gateway_ref">
+                                    <span class="badge-gray payment-compact-badge">{{ formatTransferMethod(p) }}</span>
                                 </td>
                                 <td class="p-4">
-                                    <span :class="statusColors[p.status]">
+                                    <span class="payment-compact-badge" :class="statusColors[p.status]">
                                         {{ statusLabels[p.status] }}
                                     </span>
                                 </td>
-                                <td class="p-4 text-xs text-surface-400">{{ p.paid_at || p.created_at || '—' }}</td>
+                                <td class="p-4 font-mono text-surface-400" :title="p.paid_at || p.created_at || ''">{{ formatCompactDate(p.paid_at || p.created_at) }}</td>
                                 <td class="data-table-actions p-3">
-                                    <div class="flex max-w-[20rem] flex-wrap items-center gap-2">
-                                        <button v-if="p.receipt_path" type="button" @click="selectedReceipt = route('admin.payments.receipt', p.id)" class="btn-outline text-xs py-1 px-2.5 flex items-center gap-1">
-                                            <Icon name="eye" class="w-3.5 h-3.5 shrink-0" />
+                                    <div class="flex flex-nowrap items-center gap-1">
+                                        <button v-if="p.receipt_path" type="button" @click="selectedReceipt = route('admin.payments.receipt', p.id)" class="btn-outline payment-action-button flex items-center gap-1">
+                                            <Icon name="eye" class="w-3 h-3 shrink-0" />
                                             <span>عرض الإيصال</span>
                                         </button>
                                         <template v-if="p.status === 'pending_verification'">
-                                            <button type="button" @click="approvePayment(p)" class="btn-primary text-xs py-1 px-2.5 flex items-center gap-1 bg-green-600 hover:bg-green-700 border-none">
-                                                <Icon name="success" class="w-3.5 h-3.5 shrink-0" />
+                                            <button type="button" @click="approvePayment(p)" class="btn-primary payment-action-button flex items-center gap-1 bg-green-600 hover:bg-green-700 border-none">
+                                                <Icon name="success" class="w-3 h-3 shrink-0" />
                                                 <span>موافقة</span>
                                             </button>
-                                            <button type="button" @click="rejectPayment(p)" class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-700">
-                                                <Icon name="close" class="h-3.5 w-3.5 shrink-0" />
+                                            <button type="button" @click="rejectPayment(p)" class="payment-action-button inline-flex items-center gap-1 rounded-lg bg-red-600 font-bold text-white transition-colors hover:bg-red-700">
+                                                <Icon name="close" class="h-3 w-3 shrink-0" />
                                                 <span>رفض</span>
                                             </button>
                                         </template>
@@ -189,4 +216,64 @@ async function rejectPayment(p) {
         </div>
     </DashboardLayout>
 </template>
+
+<style scoped>
+.payments-table {
+    font-size: 0.625rem;
+}
+
+.payments-table th,
+.payments-table td {
+    padding-block: 0.25rem !important;
+    padding-inline: 0.375rem !important;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+}
+
+.payments-table tbody > tr > td {
+    height: 2.5rem;
+}
+
+.payment-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.payment-compact-badge {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 0.125rem 0.375rem !important;
+    font-size: 0.625rem !important;
+    line-height: 1rem;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.payment-action-button {
+    flex: none;
+    min-height: 1.5rem !important;
+    padding: 0.2rem 0.375rem !important;
+    font-size: 0.625rem !important;
+    line-height: 1rem;
+    white-space: nowrap;
+}
+
+@media (min-width: 1280px) {
+    .payments-table {
+        table-layout: fixed;
+    }
+
+    .payment-col-id { width: 3.5%; }
+    .payment-col-student { width: 17%; }
+    .payment-col-subscription { width: 10%; }
+    .payment-col-amount { width: 7.5%; }
+    .payment-col-split { width: 13%; }
+    .payment-col-method { width: 11%; }
+    .payment-col-status { width: 9%; }
+    .payment-col-date { width: 11%; }
+    .payment-col-actions { width: 18%; }
+}
+</style>
 
