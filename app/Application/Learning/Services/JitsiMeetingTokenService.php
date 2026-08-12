@@ -8,16 +8,23 @@ use App\Domain\User\Models\User;
 
 /**
  * Creates a short-lived room-scoped JWT for a Jitsi deployment configured
- * with token authentication. Public Jitsi deployments work without it.
+ * with token authentication. Local anonymous rooms work without it only when
+ * room authentication is explicitly disabled.
  */
 final class JitsiMeetingTokenService
 {
+    public function isConfigured(): bool
+    {
+        return trim((string) config('services.jitsi.app_id')) !== ''
+            && trim((string) config('services.jitsi.app_secret')) !== '';
+    }
+
     public function issue(User $user, bool $isTeacher, string $roomName, string $domain): ?string
     {
         $appId = trim((string) config('services.jitsi.app_id'));
         $appSecret = trim((string) config('services.jitsi.app_secret'));
 
-        if ($appId === '' || $appSecret === '') {
+        if (! $this->isConfigured()) {
             return null;
         }
 

@@ -7,9 +7,7 @@ use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Communication\Models\Conversation;
-use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
-use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Learning\Models\WorksheetSubmission;
 use App\Domain\Quiz\Models\Quiz;
@@ -25,6 +23,7 @@ use App\Domain\User\Models\User;
 use App\Notifications\GenericDatabaseNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -69,6 +68,14 @@ beforeEach(function (): void {
         'monthly_price' => 45_000,
         'capacity' => 10,
     ]);
+});
+
+it('does not expose self-service student linking', function (): void {
+    expect(Route::has('parent.link-student'))->toBeFalse();
+
+    $this->actingAs($this->parent)
+        ->post('/parent/link-student')
+        ->assertNotFound();
 });
 
 it('shows a linked parent attendance, assessment, quiz and payment-ready dashboard', function (): void {

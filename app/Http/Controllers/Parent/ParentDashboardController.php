@@ -196,6 +196,12 @@ class ParentDashboardController extends Controller
                     'subject' => $slot->assignment?->subject?->name,
                 ])->values();
 
+            $pendingPrivateAssignmentIds = PrivateLessonRequest::query()
+                ->where('student_id', $student->id)
+                ->where('status', 'pending')
+                ->pluck('teaching_assignment_id')
+                ->mapWithKeys(fn ($assignmentId): array => [(int) $assignmentId => true]);
+
             $privateAssignments = TeachingAssignment::with([
                 'subject:id,name',
                 'teacher:id,name,avatar,is_active',
@@ -216,10 +222,7 @@ class ParentDashboardController extends Controller
                         ->where('teaching_assignment_id', $assignment->id)
                         ->where('type', Subscription::TYPE_PRIVATE)
                         ->contains(fn (Subscription $subscription) => $subscription->isActive()),
-                    'has_pending_request' => PrivateLessonRequest::where('student_id', $student->id)
-                        ->where('teaching_assignment_id', $assignment->id)
-                        ->where('status', 'pending')
-                        ->exists(),
+                    'has_pending_request' => isset($pendingPrivateAssignmentIds[$assignment->id]),
                 ])->values();
 
             $studentData = [
@@ -246,6 +249,7 @@ class ParentDashboardController extends Controller
                 'payments' => Payment::where('user_id', $selectedStudentId)
                     ->with('subscription.assignment.subject:id,name')
                     ->latest()
+                    ->limit(100)
                     ->get(),
                 'quizAttempts' => $quizAttempts,
                 'attendance' => $attendance,
@@ -272,6 +276,7 @@ class ParentDashboardController extends Controller
                 'group.assignment.teacher:id,name',
             ])
             ->latest()
+            ->limit(100)
             ->get();
 
         return Inertia::render('Parent/Dashboard', [
@@ -279,33 +284,6 @@ class ParentDashboardController extends Controller
             'selectedStudent' => $studentData,
             'pendingRequests' => $pendingRequests,
         ]);
-    }
-
-    public function linkStudent(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'email' => ['required', 'email', 'exists:users,email'],
-            'relationship' => ['required', 'string', 'in:father,mother,guardian'],
-        ]);
-
-        $student = User::where('email', $validated['email'])->firstOrFail();
-
-        if (! $student->isStudent()) {
-            return back()->with('error', 'البريد الإلكتروني المدخل لا يخص حساب طالب.');
-        }
-
-        ParentStudentLink::firstOrCreate(
-            [
-                'parent_user_id' => Auth::id(),
-                'student_user_id' => $student->id,
-            ],
-            [
-                'relationship' => $validated['relationship'],
-                'verified_at' => now(),
-            ],
-        );
-
-        return back()->with('success', 'تم ربط حساب الابن/الابنة بنجاح.');
     }
 
     public function unlinkStudent(int $linkId): RedirectResponse

@@ -11,6 +11,8 @@ use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
+use App\Infrastructure\Payment\Gateways\FatoraGateway;
+use App\Infrastructure\Payment\Gateways\TapGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -93,6 +95,11 @@ it('removes online checkout routes and rejects an online payment payload', funct
         ->assertSessionHasErrors('payment_method');
 
     expect(Payment::count())->toBe(0);
+});
+
+it('fails closed for legacy gateway webhooks', function (): void {
+    expect(app(FatoraGateway::class)->verifyWebhookSignature('{}', 'invalid'))->toBeFalse()
+        ->and(app(TapGateway::class)->verifyWebhookSignature('{}', 'invalid'))->toBeFalse();
 });
 
 it('does not expose retired gateway settings to client pages', function (): void {

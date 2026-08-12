@@ -62,10 +62,10 @@ Route::get('/health', HealthController::class)
     ->middleware('throttle:60,1');
 Route::get('/api/cron/subscription-renewal-reminders', SubscriptionRenewalReminderController::class)
     ->name('cron.subscription-renewal-reminders')
-    ->middleware('throttle:10,1');
+    ->middleware(['throttle:10,1', 'cron.secret']);
 Route::get('/api/cron/live-session-reminders', LiveSessionReminderController::class)
     ->name('cron.live-session-reminders')
-    ->middleware('throttle:10,1');
+    ->middleware(['throttle:10,1', 'cron.secret']);
 
 // ─── Public Browse Flow: grade → subject → teachers → profile ─────────────────
 Route::get('/', [HomeController::class,             'index'])->name('home');
@@ -97,10 +97,6 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     // ─── Live Session Room ────────────────────────────────────────────────────
     Route::get('/live-sessions/{id}/room', [LiveSessionRoomController::class, 'show'])->name('live-sessions.room');
-    Route::post('/live-sessions/{id}/attendance/join', [LiveSessionRoomController::class, 'join'])
-        ->name('live-sessions.attendance.join');
-    Route::post('/live-sessions/{id}/attendance/leave', [LiveSessionRoomController::class, 'leave'])
-        ->name('live-sessions.attendance.leave');
 
     // ─── Material Q&A Forum ───────────────────────────────────────────────────
     Route::get('/materials/{materialId}/questions', [LessonQuestionController::class, 'index'])->name('materials.questions.index');
@@ -368,7 +364,6 @@ Route::middleware(['auth', 'active', 'role:admin'])->prefix('admin')->name('admi
 // ─── Parent Routes ────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'active', 'role:parent'])->prefix('parent')->name('parent.')->group(function () {
     Route::get('/dashboard', [ParentDashboardController::class, 'index'])->name('dashboard');
-    Route::post('/link-student', [ParentDashboardController::class, 'linkStudent'])->name('link-student');
     Route::delete('/unlink-student/{id}', [ParentDashboardController::class, 'unlinkStudent'])->name('unlink-student');
     Route::post('/purchase-requests/{id}/pay', [ParentDashboardController::class, 'payForRequest'])->name('purchase-requests.pay');
     Route::post('/purchase-requests/{id}/reject', [ParentPurchaseRequestController::class, 'reject'])->name('purchase-requests.reject');

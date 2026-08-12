@@ -20,16 +20,18 @@ class LimitConcurrentSessions
         $user = $request->user();
 
         if ($user) {
-            // Get all active sessions for this user ordered by last activity
-            $sessions = DB::table('sessions')
+            // Fetch only enough rows to decide whether an older session must
+            // be removed; the deletion remains scoped to this user.
+            $sessionIds = DB::table('sessions')
                 ->where('user_id', $user->id)
                 ->orderBy('last_activity', 'desc')
-                ->get();
+                ->limit(3)
+                ->pluck('id');
 
             // If sessions exceed 2, delete the older ones
-            if ($sessions->count() > 2) {
-                $sessionsToKeep = $sessions->take(2)->pluck('id')->toArray();
-                
+            if ($sessionIds->count() > 2) {
+                $sessionsToKeep = $sessionIds->take(2)->all();
+
                 DB::table('sessions')
                     ->where('user_id', $user->id)
                     ->whereNotIn('id', $sessionsToKeep)

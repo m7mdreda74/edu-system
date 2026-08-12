@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\LiveSession;
-use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -13,6 +12,7 @@ use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -62,7 +62,7 @@ beforeEach(function (): void {
     ]);
 });
 
-it('serves Jitsi details and records attendance only after the student joins', function (): void {
+it('serves Jitsi details without allowing a browser to self-record attendance', function (): void {
     $this->actingAs($this->student)
         ->get(route('live-sessions.room', $this->session->id))
         ->assertOk()
@@ -74,42 +74,8 @@ it('serves Jitsi details and records attendance only after the student joins', f
             ->where('jitsi.whiteboard.enabled', true)
             ->where('roomName', fn ($roomName) => str_starts_with($roomName, "altafawwuq-{$this->session->id}-")));
 
-    expect(LiveSessionAttendee::where('live_session_id', $this->session->id)
-        ->where('user_id', $this->student->id)
-        ->exists())->toBeFalse();
-
-    $this->actingAs($this->student)
-        ->postJson(route('live-sessions.attendance.join', $this->session->id))
-        ->assertOk()
-        ->assertJsonPath('ok', true);
-
-    expect(LiveSessionAttendee::where('live_session_id', $this->session->id)
-        ->where('user_id', $this->student->id)
-        ->whereNull('left_at')
-        ->exists())->toBeTrue();
-
-    $this->actingAs($this->student)
-        ->postJson(route('live-sessions.attendance.leave', $this->session->id))
-        ->assertOk()
-        ->assertJsonPath('ok', true);
-
-    expect(LiveSessionAttendee::where('live_session_id', $this->session->id)
-        ->where('user_id', $this->student->id)
-        ->whereNotNull('left_at')
-        ->exists())->toBeTrue();
-});
-
-it('rejects Jitsi attendance calls from a student without a confirmed seat', function (): void {
-    $outsider = User::factory()->create(['email_verified_at' => now()]);
-    $outsider->assignRole('student');
-
-    $this->actingAs($outsider)
-        ->postJson(route('live-sessions.attendance.join', $this->session->id))
-        ->assertForbidden();
-
-    $this->actingAs($outsider)
-        ->postJson(route('live-sessions.attendance.leave', $this->session->id))
-        ->assertForbidden();
+    expect(Route::has('live-sessions.attendance.join'))->toBeFalse()
+        ->and(Route::has('live-sessions.attendance.leave'))->toBeFalse();
 });
 
 it('lets the teacher enter a scheduled Jitsi room for setup without creating student attendance', function (): void {
@@ -123,13 +89,6 @@ it('lets the teacher enter a scheduled Jitsi room for setup without creating stu
             ->where('user.isTeacher', true)
             ->where('jitsi.whiteboard.enabled', true));
 
-    $this->actingAs($this->teacher)
-        ->postJson(route('live-sessions.attendance.join', $this->session->id))
-        ->assertOk();
-
-    expect(LiveSessionAttendee::where('live_session_id', $this->session->id)
-        ->where('user_id', $this->teacher->id)
-        ->exists())->toBeFalse();
 });
 
 it('starts and serves a Jitsi room without an external meeting link', function (): void {
@@ -175,7 +134,7 @@ it('does not reopen an ended class or serve its Jitsi room', function (): void {
     expect($this->session->fresh()->status)->toBe(LiveSession::STATUS_ENDED);
 });
 
-it('requires the active group subscription for Jitsi attendance', function (): void {
+it('requires the active group subscription for Jitsi entry', function (): void {
     $otherGroup = TeachingGroup::factory()->create([
         'teaching_assignment_id' => $this->assignment->id,
     ]);
@@ -185,8 +144,36 @@ it('requires the active group subscription for Jitsi attendance', function (): v
     ]);
 
     $this->actingAs($this->student)
-        ->postJson(route('live-sessions.attendance.join', $this->session->id))
+        ->get(route('live-sessions.room', $this->session->id))
         ->assertForbidden();
+});
+
+it('requires private JWT Jitsi configuration when authentication is enabled', function (): void {
+    config()->set('services.jitsi.require_auth', true);
+    config()->set('services.jitsi.domain', 'meet.jit.si');
+    config()->set('services.jitsi.app_id', null);
+    config()->set('services.jitsi.app_secret', null);
+
+    $this->actingAs($this->student)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertStatus(503);
+
+    config()->set('services.jitsi.app_id', 'altafawwuq');
+    config()->set('services.jitsi.app_secret', 'test-jitsi-secret');
+    config()->set('services.jitsi.domain', 'MEET.JIT.SI:443');
+
+    $this->actingAs($this->student)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertStatus(503);
+
+    config()->set('services.jitsi.domain', 'jitsi.example.test');
+
+    $this->actingAs($this->student)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('jitsi.domain', 'jitsi.example.test')
+            ->where('jitsi.jwt', fn ($jwt) => filled($jwt)));
 });
 
 it('schedules a Jitsi room, rejects legacy external links, and blocks another class at the same time', function (): void {

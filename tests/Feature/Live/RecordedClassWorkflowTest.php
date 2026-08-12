@@ -148,7 +148,7 @@ it('lets the teacher save the attendance roll and rejects students outside the c
         ->where('user_id', $this->student->id)->exists())->toBeTrue();
 });
 
-it('authorizes Jitsi entry, records attendance on its join event, and closes it when the class ends', function (): void {
+it('authorizes Jitsi entry while the teacher controls attendance and closes it when the class ends', function (): void {
     /** @var RecordedClassTestCase $this */
     $this->actingAs($this->student)
         ->get(route('live-sessions.room', $this->session->id))
@@ -158,16 +158,23 @@ it('authorizes Jitsi entry, records attendance on its join event, and closes it 
             ->where('jitsi.domain', 'meet.jit.si')
             ->where('jitsi.whiteboard.enabled', true));
 
-    $this->actingAs($this->student)
-        ->postJson(route('live-sessions.attendance.join', $this->session->id))
-        ->assertOk();
+    expect(LiveSessionAttendee::where('live_session_id', $this->session->id)
+        ->where('user_id', $this->student->id)
+        ->exists())->toBeFalse();
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.live-sessions.attendance', $this->session->id), [
+            'student_ids' => [$this->student->id],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
 
     $attendance = LiveSessionAttendee::where('live_session_id', $this->session->id)
         ->where('user_id', $this->student->id)
         ->firstOrFail();
 
     expect($attendance->joined_at)->not->toBeNull()
-        ->and($attendance->left_at)->toBeNull();
+        ->and($attendance->left_at)->not->toBeNull();
 
     $this->actingAs($this->teacher)
         ->patch(route('teacher.live-sessions.status', $this->session->id), [

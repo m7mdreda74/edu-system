@@ -306,14 +306,13 @@ class LiveSessionController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($session, $eligibleIds, $presentIds): void {
+        DB::transaction(function () use ($session, $presentIds): void {
             $joinedAt = $session->started_at ?? $session->scheduled_at ?? now();
             $leftAt = $session->ended_at ?? now();
 
             foreach ($presentIds as $studentId) {
-                // Keep automatic windows intact. This endpoint remains as a
-                // compatibility fallback for classes recorded before live
-                // heartbeats were enabled.
+                // Preserve an existing attendance record; otherwise the
+                // teacher's confirmed roll is the source of truth.
                 if (! LiveSessionAttendee::where('live_session_id', $session->id)
                     ->where('user_id', $studentId)
                     ->exists()) {

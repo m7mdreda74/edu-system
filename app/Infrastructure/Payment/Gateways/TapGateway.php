@@ -92,7 +92,7 @@ class TapGateway implements PaymentGatewayInterface
         ]);
 
         if ($response->failed()) {
-            Log::error('Tap charges API call failed: ' . $response->body());
+            Log::error('Tap charges API call failed.', ['status' => $response->status()]);
             throw new RuntimeException('Tap Payments API returned an error.');
         }
 
@@ -101,7 +101,7 @@ class TapGateway implements PaymentGatewayInterface
         $redirectUrl = $data['transaction']['url'] ?? '';
 
         if (empty($chargeId) || empty($redirectUrl)) {
-            Log::error('Tap response missing details: ' . json_encode($data));
+            Log::error('Tap response missing required fields.', ['status' => $response->status()]);
             throw new RuntimeException('Failed to initiate Tap checkout.');
         }
 
@@ -132,7 +132,7 @@ class TapGateway implements PaymentGatewayInterface
         $response = $http->get($this->baseUrl . '/charges/' . $transactionId);
 
         if ($response->failed()) {
-            Log::error('Tap retrieve charge API failed: ' . $response->body());
+            Log::error('Tap retrieve charge API failed.', ['status' => $response->status()]);
             return ['status' => 'failed'];
         }
 
@@ -148,8 +148,9 @@ class TapGateway implements PaymentGatewayInterface
 
     public function verifyWebhookSignature(string $payload, string $signature): bool
     {
-        // For testing, webhook events are accepted. Signature header verification is optional.
-        return true;
+        // Keep the currently disabled route fail-closed until provider-supported
+        // signature verification is implemented.
+        return false;
     }
 
     public function parseWebhookEvent(string $payload): array

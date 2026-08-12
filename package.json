@@ -25,7 +25,6 @@
         "vue": "^3.4.0"
     },
     "dependencies": {
-        "@pinia/nuxt": "^0.11.3",
         "@vercel/blob": "^2.4.0",
         "@vueuse/core": "^14.3.0",
         "pinia": "^3.0.4",

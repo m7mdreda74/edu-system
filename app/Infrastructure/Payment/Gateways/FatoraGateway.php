@@ -72,13 +72,13 @@ class FatoraGateway implements PaymentGatewayInterface
         ]);
 
         if ($response->failed()) {
-            Log::error('Fatora checkout API call failed: ' . $response->body());
+            Log::error('Fatora checkout API call failed.', ['status' => $response->status()]);
             throw new RuntimeException('Fatora API returned an error.');
         }
 
         $data = $response->json();
         if (strtolower($data['status'] ?? '') !== 'success') {
-            Log::error('Fatora checkout logic error: ' . json_encode($data));
+            Log::error('Fatora checkout logic error.', ['status' => $response->status()]);
             throw new RuntimeException('Fatora: ' . ($data['message'] ?? 'Unknown error'));
         }
 
@@ -111,13 +111,13 @@ class FatoraGateway implements PaymentGatewayInterface
         ]);
 
         if ($response->failed()) {
-            Log::error('Fatora verify API call failed: ' . $response->body());
+            Log::error('Fatora verify API call failed.', ['status' => $response->status()]);
             return ['status' => 'failed'];
         }
 
         $data = $response->json();
         if (strtolower($data['status'] ?? '') !== 'success') {
-            Log::error('Fatora verify logic error: ' . json_encode($data));
+            Log::error('Fatora verify logic error.', ['status' => $response->status()]);
             return ['status' => 'failed'];
         }
 
@@ -132,10 +132,9 @@ class FatoraGateway implements PaymentGatewayInterface
 
     public function verifyWebhookSignature(string $payload, string $signature): bool
     {
-        if (empty($this->apiKey)) {
-            return app()->isLocal();
-        }
-        return true;
+        // Keep the currently disabled route fail-closed until provider-supported
+        // signature verification is implemented.
+        return false;
     }
 
     public function parseWebhookEvent(string $payload): array

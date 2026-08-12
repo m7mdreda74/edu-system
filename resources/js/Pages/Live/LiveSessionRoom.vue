@@ -1,7 +1,6 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
-import axios from 'axios';
 
 const props = defineProps({
     session: { type: Object, required: true },
@@ -17,8 +16,6 @@ const roomError = ref('');
 const whiteboardNotice = ref('');
 
 let jitsiApi = null;
-let attendanceOpen = false;
-let attendanceClosing = false;
 let hasNavigated = false;
 let leaveFallbackTimer = null;
 
@@ -86,52 +83,9 @@ function whiteboardConfig() {
     return config;
 }
 
-async function startAttendance() {
-    if (props.user.isTeacher || attendanceOpen) return;
-
-    try {
-        await axios.post(route('live-sessions.attendance.join', props.session.id));
-        attendanceOpen = true;
-    } catch (error) {
-        console.error('Could not start live-session attendance.', error);
-    }
-}
-
-async function closeAttendance() {
-    if (props.user.isTeacher || !attendanceOpen || attendanceClosing) return;
-
-    attendanceClosing = true;
-    attendanceOpen = false;
-
-    try {
-        await axios.post(route('live-sessions.attendance.leave', props.session.id));
-    } catch (error) {
-        console.error('Could not close live-session attendance.', error);
-    } finally {
-        attendanceClosing = false;
-    }
-}
-
-function closeAttendanceWithBeacon() {
-    if (props.user.isTeacher || !attendanceOpen || attendanceClosing) return;
-
-    attendanceOpen = false;
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
-    if (csrfToken && navigator.sendBeacon) {
-        const payload = new FormData();
-        payload.append('_token', csrfToken);
-        navigator.sendBeacon(route('live-sessions.attendance.leave', props.session.id), payload);
-        return;
-    }
-
-    void axios.post(route('live-sessions.attendance.leave', props.session.id)).catch(() => {});
-}
-
 function handleConferenceJoined() {
     isLoading.value = false;
     isJoined.value = true;
-    void startAttendance();
 
     if (props.user.isTeacher) {
         jitsiApi?.executeCommand('subject', props.session.title);
@@ -144,7 +98,7 @@ function handleConferenceLeft() {
         leaveFallbackTimer = null;
     }
 
-    void closeAttendance().finally(() => returnToSchedule());
+    returnToSchedule();
 }
 
 function openWhiteboard() {
@@ -176,14 +130,13 @@ function openWhiteboard() {
 
 function leaveRoom() {
     if (!jitsiApi) {
-        void closeAttendance();
         returnToSchedule();
         return;
     }
 
     jitsiApi.executeCommand('hangup');
     leaveFallbackTimer = window.setTimeout(() => {
-        void closeAttendance().finally(() => returnToSchedule());
+        returnToSchedule();
     }, 1500);
 }
 
@@ -239,14 +192,9 @@ onMounted(async () => {
         roomError.value = 'تعذّر تحميل Jitsi. تأكد من اتصالك بالإنترنت ثم أعد المحاولة.';
         isLoading.value = false;
     }
-
-    window.addEventListener('beforeunload', closeAttendanceWithBeacon);
 });
 
 onBeforeUnmount(() => {
-    window.removeEventListener('beforeunload', closeAttendanceWithBeacon);
-    closeAttendanceWithBeacon();
-
     if (leaveFallbackTimer) {
         window.clearTimeout(leaveFallbackTimer);
     }
@@ -313,7 +261,7 @@ onBeforeUnmount(() => {
         </main>
 
         <footer class="jitsi-footer">
-            <span>يُسجّل حضور الطالب عند دخوله الفعلي إلى غرفة Jitsi.</span>
+            <span>يثبّت المعلم كشف حضور الحصة من لوحة الحصص.</span>
             <span>السبورة التفاعلية مشتركة بين المشاركين في الحصة.</span>
         </footer>
     </div>

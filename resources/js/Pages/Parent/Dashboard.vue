@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, useForm, router, Link } from '@inertiajs/vue3';
+import { Head, router, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import DataTablePagination from '@/Components/DataTablePagination.vue';
@@ -29,27 +29,7 @@ const {
     setPage: setPaymentsPage,
 } = useClientPagination(computed(() => props.selectedStudent?.payments ?? []));
 
-const isModalOpen = ref(false);
 const { confirm } = useConfirm();
-
-const form = useForm({
-    email: '',
-    relationship: 'father',
-});
-
-function openAddModal() {
-    form.reset();
-    isModalOpen.value = true;
-}
-
-function submitLink() {
-    form.post(route('parent.link-student'), {
-        onSuccess: () => {
-            isModalOpen.value = false;
-            form.reset();
-        }
-    });
-}
 
 async function unlinkStudent(id) {
     const ok = await confirm({
@@ -146,10 +126,6 @@ function submitReject() {
                     </h1>
                     <p class="text-surface-500 mt-1">عرض ومتابعة التقدم الدراسي ونتائج اختبارات الطلاب المرتبطين بك</p>
                 </div>
-                <button @click="openAddModal" class="btn-primary flex items-center gap-2">
-                    <Icon name="plus" class="w-4 h-4" />
-                    <span>ربط حساب ابن/ابنة</span>
-                </button>
             </div>
 
             <!-- Dashboard Layout Grid -->
@@ -180,7 +156,7 @@ function submitReject() {
                     </button>
 
                     <div v-if="links.length === 0" class="text-center py-10 text-surface-400">
-                        لم تقم بربط أي حساب طالب حتى الآن.
+                        سيظهر هنا الطلاب المرتبطون بحسابك عند إنشاء الحساب أو ربطه من الإدارة.
                     </div>
                 </div>
 
@@ -454,48 +430,6 @@ function submitReject() {
                     </div>
                 </div>
             </div>
-
-            <!-- Modal for linking -->
-            <Transition
-                enter-active-class="transition duration-200 ease-out"
-                enter-from-class="opacity-0 scale-95"
-                enter-to-class="opacity-100 scale-100"
-                leave-active-class="transition duration-150 ease-in"
-                leave-from-class="opacity-100 scale-100"
-                leave-to-class="opacity-0 scale-95"
-            >
-                <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
-                    <div class="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl w-full max-w-lg p-6 overflow-hidden shadow-2xl relative" dir="rtl">
-                        <div class="flex items-center justify-between mb-6">
-                            <h3 class="text-xl font-black text-surface-900 dark:text-white">ربط حساب ابن/ابنة جديد</h3>
-                            <button @click="isModalOpen = false" class="btn-ghost p-1 rounded-full">
-                                <Icon name="close" class="w-5 h-5 text-surface-500" />
-                            </button>
-                        </div>
-
-                        <form @submit.prevent="submitLink" class="space-y-4">
-                            <div>
-                                <label class="label mb-1">البريد الإلكتروني للطالب</label>
-                                <input v-model="form.email" type="email" required class="input text-start" placeholder="student@example.com" />
-                            </div>
-
-                            <div>
-                                <label class="label mb-1">صلة القرابة</label>
-                                <select v-model="form.relationship" required class="input">
-                                    <option value="father">أب (Father)</option>
-                                    <option value="mother">أم (Mother)</option>
-                                    <option value="guardian">ولي أمر (Guardian)</option>
-                                </select>
-                            </div>
-
-                            <div class="flex gap-3 pt-4">
-                                <button type="submit" :disabled="form.processing" class="btn-primary flex-1">ربط الحساب</button>
-                                <button type="button" @click="isModalOpen = false" class="btn-ghost flex-1">إلغاء</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </Transition>
 
             <!-- Modal for rejecting -->
             <Transition

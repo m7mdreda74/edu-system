@@ -6,10 +6,8 @@ namespace App\Http\Controllers\Live;
 
 use App\Application\Learning\Services\JitsiMeetingTokenService;
 use App\Domain\Learning\Models\LiveSession;
-use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -34,6 +32,14 @@ class LiveSessionRoomController extends Controller
         $isTeacher = $this->authorizeRoom($session, $user);
         $roomName = $this->roomName($session);
         $domain = $this->jitsiDomain();
+        $host = strtolower(rtrim(explode(':', $domain, 2)[0], '.'));
+
+        abort_unless(
+            ! (bool) config('services.jitsi.require_auth', true)
+                || ($host !== 'meet.jit.si' && $this->jitsiTokens->isConfigured()),
+            503,
+            'Jitsi must use a private token-authenticated deployment.',
+        );
 
         return Inertia::render('Live/LiveSessionRoom', [
             'session' => $session,
@@ -57,37 +63,6 @@ class LiveSessionRoomController extends Controller
                 ],
             ],
         ]);
-    }
-
-    /** Mark the real Jitsi join event, rather than merely opening the page. */
-    public function join(int $id): JsonResponse
-    {
-        $session = LiveSession::with(['teachingGroup', 'privateSessionSlot'])->findOrFail($id);
-        /** @var User $user */
-        $user = Auth::user();
-
-        if (! $this->authorizeRoom($session, $user)) {
-            $this->startAttendance($session, $user);
-        }
-
-        return response()->json(['ok' => true]);
-    }
-
-    /** Close the current attendance window when Jitsi reports a departure. */
-    public function leave(int $id): JsonResponse
-    {
-        $session = LiveSession::with(['teachingGroup', 'privateSessionSlot'])->findOrFail($id);
-        /** @var User $user */
-        $user = Auth::user();
-
-        if (! $this->authorizeRoom($session, $user)) {
-            LiveSessionAttendee::where('live_session_id', $session->id)
-                ->where('user_id', $user->id)
-                ->whereNull('left_at')
-                ->update(['left_at' => now(), 'updated_at' => now()]);
-        }
-
-        return response()->json(['ok' => true]);
     }
 
     /**
@@ -137,18 +112,6 @@ class LiveSessionRoomController extends Controller
         }
 
         return false;
-    }
-
-    private function startAttendance(LiveSession $session, User $user): void
-    {
-        LiveSessionAttendee::firstOrCreate(
-            [
-                'live_session_id' => $session->id,
-                'user_id' => $user->id,
-                'left_at' => null,
-            ],
-            ['joined_at' => now()],
-        );
     }
 
     private function roomName(LiveSession $session): string
