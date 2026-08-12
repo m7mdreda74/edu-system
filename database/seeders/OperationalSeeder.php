@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Seeds the operational states that are difficult to reach from a clean UI:
  * free introductions, reminders, teacher apologies, makeup classes,
- * deductions, notifications, and a small active WebRTC room.
+ * deductions and notifications.
  */
 class OperationalSeeder extends Seeder
 {
@@ -31,7 +31,6 @@ class OperationalSeeder extends Seeder
         $this->seedLiveSessionReminders();
         $this->seedRenewalReminder();
         $this->seedRoleNotifications();
-        $this->seedWebRtcRoom();
     }
 
     private function seedFreeIntroBooking(): void
@@ -145,7 +144,6 @@ class OperationalSeeder extends Seeder
                     'description'       => 'حصة تعويضية عن الموعد الملغى.',
                     'scheduled_at'      => $scheduledAt,
                     'status'            => LiveSession::STATUS_SCHEDULED,
-                    'room_id'           => $session->room_id,
                 ]);
 
                 DB::table('teaching_group_lessons')
@@ -291,67 +289,4 @@ class OperationalSeeder extends Seeder
         $admin?->notifications()->oldest()->first()?->markAsRead();
     }
 
-    private function seedWebRtcRoom(): void
-    {
-        $session = LiveSession::query()
-            ->with('teacher')
-            ->where('status', LiveSession::STATUS_LIVE)
-            ->whereNotNull('teaching_group_id')
-            ->orderBy('id')
-            ->first();
-
-        if (! $session) {
-            return;
-        }
-
-        $studentId = SessionBooking::query()
-            ->where('teaching_group_id', $session->teaching_group_id)
-            ->where('status', 'confirmed')
-            ->value('student_id');
-
-        if (! $studentId || ! $session->teacher) {
-            return;
-        }
-
-        $now = now();
-        DB::table('webrtc_participants')->insertOrIgnore([
-            [
-                'live_session_id' => $session->id,
-                'user_id'         => $session->teacher_id,
-                'name'            => $session->teacher->name,
-                'is_teacher'      => true,
-                'last_seen_at'    => $now,
-                'created_at'      => $now,
-                'updated_at'      => $now,
-            ],
-            [
-                'live_session_id' => $session->id,
-                'user_id'         => $studentId,
-                'name'            => (string) User::whereKey($studentId)->value('name'),
-                'is_teacher'      => false,
-                'last_seen_at'    => $now,
-                'created_at'      => $now,
-                'updated_at'      => $now,
-            ],
-        ]);
-
-        DB::table('webrtc_signals')->insert([
-            [
-                'live_session_id' => $session->id,
-                'from_user_id'    => $session->teacher_id,
-                'to_user_id'      => $studentId,
-                'type'            => 'join',
-                'payload'         => json_encode(['role' => 'teacher'], JSON_THROW_ON_ERROR),
-                'created_at'      => $now->copy()->subSeconds(3),
-            ],
-            [
-                'live_session_id' => $session->id,
-                'from_user_id'    => $studentId,
-                'to_user_id'      => $session->teacher_id,
-                'type'            => 'join',
-                'payload'         => json_encode(['role' => 'student'], JSON_THROW_ON_ERROR),
-                'created_at'      => $now,
-            ],
-        ]);
-    }
 }

@@ -4,18 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Live;
 
+use App\Application\Learning\Services\JitsiMeetingTokenService;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class LiveSessionRoomController extends Controller
 {
-    public function show(int $id): Response|RedirectResponse
+    public function __construct(private readonly JitsiMeetingTokenService $jitsiTokens)
+    {
+    }
+
+    public function show(int $id): Response
     {
         $session = LiveSession::with([
             'teacher:id,name',
@@ -26,39 +31,13 @@ class LiveSessionRoomController extends Controller
 
         /** @var User $user */
         $user = Auth::user();
-        $isTeacher = $session->teacher_id === $user->id;
-
-        abort_if($session->status === LiveSession::STATUS_CANCELLED, 403, 'تم إلغاء هذه الحصة بعد اعتذار المدرس.');
-
-        // Students can only enter after the teacher starts the broadcast.
-        abort_if(! $isTeacher && ! $session->isLive(), 403, 'الحصة لم تبدأ بعد.');
-
-        if (! $isTeacher) {
-            abort_unless($this->studentMayJoin($session, $user), 403, 'غير مصرح لك بدخول هذه الحصة.');
-        }
-
-        // Start the attendance window before handing students off to an
-        // external provider as well. The provider may not call our leave
-        // endpoint, so the session-end transition closes any open window.
-        if (filter_var($session->room_id, FILTER_VALIDATE_URL)) {
-            if (! $isTeacher) {
-                $this->startAttendance($session, $user);
-            }
-
-            return redirect()->away($session->room_id);
-        }
-
-        if (! $isTeacher) {
-            // A reconnect to the built-in fallback room starts a new
-            // attendance window instead of stretching the first window across
-            // a leave.
-            $this->startAttendance($session, $user);
-        }
+        $isTeacher = $this->authorizeRoom($session, $user);
+        $roomName = $this->roomName($session);
+        $domain = $this->jitsiDomain();
 
         return Inertia::render('Live/LiveSessionRoom', [
             'session' => $session,
-            // Unique and unguessable, so a room id cannot be brute-forced.
-            'roomName' => "Altafawwuq_Session_{$session->id}_".md5((string) $session->created_at),
+            'roomName' => $roomName,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -66,7 +45,74 @@ class LiveSessionRoomController extends Controller
                 'avatar' => $user->avatar,
                 'isTeacher' => $isTeacher,
             ],
+            'jitsi' => [
+                'domain' => $domain,
+                'jwt' => $this->jitsiTokens->issue($user, $isTeacher, $roomName, $domain),
+                'whiteboard' => [
+                    'enabled' => (bool) config('services.jitsi.whiteboard.enabled', true),
+                    'collabServerBaseUrl' => filled(config('services.jitsi.whiteboard.collab_server_base_url'))
+                        ? config('services.jitsi.whiteboard.collab_server_base_url')
+                        : null,
+                    'userLimit' => max(1, (int) config('services.jitsi.whiteboard.user_limit', 30)),
+                ],
+            ],
         ]);
+    }
+
+    /** Mark the real Jitsi join event, rather than merely opening the page. */
+    public function join(int $id): JsonResponse
+    {
+        $session = LiveSession::with(['teachingGroup', 'privateSessionSlot'])->findOrFail($id);
+        /** @var User $user */
+        $user = Auth::user();
+
+        if (! $this->authorizeRoom($session, $user)) {
+            $this->startAttendance($session, $user);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** Close the current attendance window when Jitsi reports a departure. */
+    public function leave(int $id): JsonResponse
+    {
+        $session = LiveSession::with(['teachingGroup', 'privateSessionSlot'])->findOrFail($id);
+        /** @var User $user */
+        $user = Auth::user();
+
+        if (! $this->authorizeRoom($session, $user)) {
+            LiveSessionAttendee::where('live_session_id', $session->id)
+                ->where('user_id', $user->id)
+                ->whereNull('left_at')
+                ->update(['left_at' => now(), 'updated_at' => now()]);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * @return bool True when the current user is the session teacher.
+     */
+    private function authorizeRoom(LiveSession $session, User $user): bool
+    {
+        abort_if($session->status === LiveSession::STATUS_CANCELLED, 403, 'تم إلغاء هذه الحصة بعد اعتذار المدرس.');
+
+        $isTeacher = $session->teacher_id === $user->id;
+
+        if ($isTeacher) {
+            abort_unless(
+                in_array($session->status, [LiveSession::STATUS_SCHEDULED, LiveSession::STATUS_LIVE], true),
+                403,
+                'لا يمكن فتح حصة انتهت.',
+            );
+
+            return true;
+        }
+
+        abort_if(! $session->isLive(), 403, 'الحصة لم تبدأ بعد.');
+        abort_unless($this->studentMayJoin($session, $user), 403, 'غير مصرح لك بدخول هذه الحصة.');
+
+        return false;
     }
 
     /**
@@ -90,7 +136,6 @@ class LiveSessionRoomController extends Controller
                 ->exists() ?? false;
         }
 
-        // Unattached session — nobody but the teacher belongs in it.
         return false;
     }
 
@@ -104,5 +149,27 @@ class LiveSessionRoomController extends Controller
             ],
             ['joined_at' => now()],
         );
+    }
+
+    private function roomName(LiveSession $session): string
+    {
+        $fingerprint = substr(hash_hmac('sha256', (string) $session->id, (string) config('app.key')), 0, 24);
+
+        return "altafawwuq-{$session->id}-{$fingerprint}";
+    }
+
+    private function jitsiDomain(): string
+    {
+        $domain = trim((string) config('services.jitsi.domain', 'meet.jit.si'));
+        $domain = preg_replace('#^https?://#i', '', $domain) ?? '';
+        $domain = trim($domain, '/');
+
+        abort_unless(
+            preg_match('/^[a-z0-9.-]+(?::[0-9]+)?$/i', $domain) === 1,
+            500,
+            'إعداد Jitsi غير صالح.',
+        );
+
+        return $domain;
     }
 }

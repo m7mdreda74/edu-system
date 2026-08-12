@@ -79,7 +79,6 @@ beforeEach(function (): void {
         'scheduled_at' => now()->subHour(),
         'started_at' => now()->subHour(),
         'status' => LiveSession::STATUS_LIVE,
-        'room_id' => 'https://meet.google.com/abc-defg-hij',
     ]);
 });
 
@@ -149,11 +148,19 @@ it('lets the teacher save the attendance roll and rejects students outside the c
         ->where('user_id', $this->student->id)->exists())->toBeTrue();
 });
 
-it('authorizes the platform join then redirects to the external meeting link', function (): void {
+it('authorizes Jitsi entry, records attendance on its join event, and closes it when the class ends', function (): void {
     /** @var RecordedClassTestCase $this */
     $this->actingAs($this->student)
         ->get(route('live-sessions.room', $this->session->id))
-        ->assertRedirect('https://meet.google.com/abc-defg-hij');
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Live/LiveSessionRoom')
+            ->where('jitsi.domain', 'meet.jit.si')
+            ->where('jitsi.whiteboard.enabled', true));
+
+    $this->actingAs($this->student)
+        ->postJson(route('live-sessions.attendance.join', $this->session->id))
+        ->assertOk();
 
     $attendance = LiveSessionAttendee::where('live_session_id', $this->session->id)
         ->where('user_id', $this->student->id)

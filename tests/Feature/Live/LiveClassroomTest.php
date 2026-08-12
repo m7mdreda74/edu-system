@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Domain\Learning\Models\LiveSession;
-use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
+use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -16,10 +16,9 @@ use Illuminate\Support\Carbon;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
-// Binds $this inside every Pest closure in this file to Tests\TestCase.
 uses(TestCase::class, RefreshDatabase::class);
 
-beforeEach(function () {
+beforeEach(function (): void {
     foreach (['admin', 'teacher', 'student', 'parent'] as $role) {
         Role::findOrCreate($role, 'web');
     }
@@ -28,8 +27,8 @@ beforeEach(function () {
     $this->teacher->assignRole('teacher');
 
     $this->assignment = TeachingAssignment::factory()->create([
-        'teacher_id'     => $this->teacher->id,
-        'subject_id'     => Subject::query()->firstOrFail()->id,
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => Subject::query()->firstOrFail()->id,
         'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
     ]);
 
@@ -41,41 +40,48 @@ beforeEach(function () {
     $this->student->assignRole('student');
 
     Subscription::factory()->active()->create([
-        'student_id'             => $this->student->id,
+        'student_id' => $this->student->id,
         'teaching_assignment_id' => $this->assignment->id,
-        'teaching_group_id'      => $this->group->id,
+        'teaching_group_id' => $this->group->id,
     ]);
 
     SessionBooking::create([
-        'student_id'        => $this->student->id,
+        'student_id' => $this->student->id,
         'teaching_group_id' => $this->group->id,
-        'status'            => 'confirmed',
-        'booked_at'         => now(),
+        'status' => 'confirmed',
+        'booked_at' => now(),
     ]);
 
     $this->session = LiveSession::create([
-        'teacher_id'       => $this->teacher->id,
+        'teacher_id' => $this->teacher->id,
         'teaching_group_id' => $this->group->id,
-        'title'            => 'مراجعة مباشرة',
-        'scheduled_at'     => now()->addHour(),
-        'started_at'       => now(),
-        'status'           => LiveSession::STATUS_LIVE,
+        'title' => 'مراجعة مباشرة',
+        'scheduled_at' => now()->addHour(),
+        'started_at' => now(),
+        'status' => LiveSession::STATUS_LIVE,
     ]);
 });
 
-it('records a subscribed student attendance window and exposes the user id to WebRTC', function () {
+it('serves Jitsi details and records attendance only after the student joins', function (): void {
     $this->actingAs($this->student)
         ->get(route('live-sessions.room', $this->session->id))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Live/LiveSessionRoom')
             ->where('user.id', $this->student->id)
-            ->where('user.isTeacher', false));
+            ->where('user.isTeacher', false)
+            ->where('jitsi.domain', 'meet.jit.si')
+            ->where('jitsi.whiteboard.enabled', true)
+            ->where('roomName', fn ($roomName) => str_starts_with($roomName, "altafawwuq-{$this->session->id}-")));
+
+    expect(LiveSessionAttendee::where('live_session_id', $this->session->id)
+        ->where('user_id', $this->student->id)
+        ->exists())->toBeFalse();
 
     $this->actingAs($this->student)
-        ->postJson(route('webrtc.heartbeat', $this->session->id))
+        ->postJson(route('live-sessions.attendance.join', $this->session->id))
         ->assertOk()
-        ->assertJsonPath('participants', []);
+        ->assertJsonPath('ok', true);
 
     expect(LiveSessionAttendee::where('live_session_id', $this->session->id)
         ->where('user_id', $this->student->id)
@@ -83,8 +89,9 @@ it('records a subscribed student attendance window and exposes the user id to We
         ->exists())->toBeTrue();
 
     $this->actingAs($this->student)
-        ->postJson(route('webrtc.leave', $this->session->id))
-        ->assertOk();
+        ->postJson(route('live-sessions.attendance.leave', $this->session->id))
+        ->assertOk()
+        ->assertJsonPath('ok', true);
 
     expect(LiveSessionAttendee::where('live_session_id', $this->session->id)
         ->where('user_id', $this->student->id)
@@ -92,23 +99,20 @@ it('records a subscribed student attendance window and exposes the user id to We
         ->exists())->toBeTrue();
 });
 
-it('rejects WebRTC traffic from a student without a confirmed seat', function () {
+it('rejects Jitsi attendance calls from a student without a confirmed seat', function (): void {
     $outsider = User::factory()->create(['email_verified_at' => now()]);
     $outsider->assignRole('student');
 
     $this->actingAs($outsider)
-        ->postJson(route('webrtc.heartbeat', $this->session->id))
+        ->postJson(route('live-sessions.attendance.join', $this->session->id))
         ->assertForbidden();
 
     $this->actingAs($outsider)
-        ->postJson(route('webrtc.signal', $this->session->id), [
-            'type'    => 'chat',
-            'payload' => ['text' => 'غير مصرح'],
-        ])
+        ->postJson(route('live-sessions.attendance.leave', $this->session->id))
         ->assertForbidden();
 });
 
-it('lets the teacher enter before the class is live for setup', function () {
+it('lets the teacher enter a scheduled Jitsi room for setup without creating student attendance', function (): void {
     $this->session->update(['status' => LiveSession::STATUS_SCHEDULED]);
 
     $this->actingAs($this->teacher)
@@ -116,18 +120,22 @@ it('lets the teacher enter before the class is live for setup', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->where('user.id', $this->teacher->id)
-            ->where('user.isTeacher', true));
+            ->where('user.isTeacher', true)
+            ->where('jitsi.whiteboard.enabled', true));
 
     $this->actingAs($this->teacher)
-        ->postJson(route('webrtc.heartbeat', $this->session->id))
+        ->postJson(route('live-sessions.attendance.join', $this->session->id))
         ->assertOk();
+
+    expect(LiveSessionAttendee::where('live_session_id', $this->session->id)
+        ->where('user_id', $this->teacher->id)
+        ->exists())->toBeFalse();
 });
 
-it('starts and serves the platform room without an external meeting link', function () {
+it('starts and serves a Jitsi room without an external meeting link', function (): void {
     $this->session->update([
         'status' => LiveSession::STATUS_SCHEDULED,
         'started_at' => null,
-        'room_id' => null,
     ]);
 
     $this->actingAs($this->teacher)
@@ -143,10 +151,12 @@ it('starts and serves the platform room without an external meeting link', funct
     $this->actingAs($this->student)
         ->get(route('live-sessions.room', $this->session->id))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->component('Live/LiveSessionRoom'));
+        ->assertInertia(fn ($page) => $page
+            ->component('Live/LiveSessionRoom')
+            ->where('jitsi.domain', 'meet.jit.si'));
 });
 
-it('does not reopen an ended class', function () {
+it('does not reopen an ended class or serve its Jitsi room', function (): void {
     $this->session->update([
         'status' => LiveSession::STATUS_ENDED,
         'ended_at' => now(),
@@ -158,10 +168,14 @@ it('does not reopen an ended class', function () {
         ])
         ->assertStatus(422);
 
+    $this->actingAs($this->teacher)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertForbidden();
+
     expect($this->session->fresh()->status)->toBe(LiveSession::STATUS_ENDED);
 });
 
-it('requires the active group subscription on WebRTC requests', function () {
+it('requires the active group subscription for Jitsi attendance', function (): void {
     $otherGroup = TeachingGroup::factory()->create([
         'teaching_assignment_id' => $this->assignment->id,
     ]);
@@ -171,11 +185,11 @@ it('requires the active group subscription on WebRTC requests', function () {
     ]);
 
     $this->actingAs($this->student)
-        ->postJson(route('webrtc.heartbeat', $this->session->id))
+        ->postJson(route('live-sessions.attendance.join', $this->session->id))
         ->assertForbidden();
 });
 
-it('schedules an internal room and blocks another class at the same time', function () {
+it('schedules a Jitsi room, rejects legacy external links, and blocks another class at the same time', function (): void {
     $timezone = $this->group->timezone;
     $date = Carbon::now($timezone)->addDay()->startOfDay();
 
@@ -187,8 +201,7 @@ it('schedules an internal room and blocks another class at the same time', funct
         'source_type' => 'group',
         'teaching_group_id' => $this->group->id,
         'scheduled_date' => $date->toDateString(),
-        'title' => 'حصة داخل المنصة',
-        'room_id' => null,
+        'title' => 'حصة Jitsi داخل المنصة',
     ];
 
     $this->actingAs($this->teacher)
@@ -196,8 +209,16 @@ it('schedules an internal room and blocks another class at the same time', funct
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
-    $scheduled = LiveSession::where('title', 'حصة داخل المنصة')->firstOrFail();
-    expect($scheduled->room_id)->toBeNull();
+    $scheduled = LiveSession::where('title', 'حصة Jitsi داخل المنصة')->firstOrFail();
+    expect(array_key_exists('room_id', $scheduled->getAttributes()))->toBeFalse();
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.live-sessions.store'), [
+            ...$payload,
+            'title' => 'رابط خارجي مرفوض',
+            'room_id' => 'https://meet.google.com/abc-defg-hij',
+        ])
+        ->assertSessionHasErrors('room_id');
 
     $otherGroup = TeachingGroup::factory()->create([
         'teaching_assignment_id' => $this->assignment->id,

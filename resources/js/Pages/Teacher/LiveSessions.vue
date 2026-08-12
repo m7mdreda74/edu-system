@@ -30,13 +30,11 @@ const form = useForm({
     teaching_group_id: '',
     private_session_slot_id: '',
     scheduled_date: '',
-    room_id:      '', // Optional Zoom/Meet link; empty uses the platform room.
 });
 
 const isModalOpen = ref(false);
 const actionModal = ref(null);
 const statusForm = useForm({ status: 'ended', recording_url: '' });
-const meetingForm = useForm({ meeting_url: '' });
 const attendanceForm = useForm({ student_ids: [] });
 const apologyForm = useForm({ reason: '' });
 const makeupForm = useForm({ scheduled_at: '' });
@@ -87,19 +85,6 @@ function submitEndSession() {
     statusForm.patch(route('teacher.live-sessions.status', actionModal.value.sessionId), {
         preserveScroll: true,
         onSuccess: () => { actionModal.value = null; statusForm.reset(); },
-    });
-}
-
-function openMeeting(session) {
-    meetingForm.reset();
-    meetingForm.meeting_url = session.room_id ?? '';
-    actionModal.value = { type: 'meeting', session };
-}
-
-function submitMeeting() {
-    meetingForm.patch(route('teacher.live-sessions.meeting-link', actionModal.value.session.id), {
-        preserveScroll: true,
-        onSuccess: () => { actionModal.value = null; meetingForm.reset(); },
     });
 }
 
@@ -179,7 +164,7 @@ function formatDate(value) {
                         <Icon name="live" class="w-8 h-8 text-primary-500" />
                         <span>الحصص المباشرة</span>
                     </h1>
-                    <p class="text-surface-500 mt-1">جدولة وبدء حصص البث داخل المنصة أو عبر Zoom وMeet</p>
+                    <p class="text-surface-500 mt-1">جدولة وبدء حصص مباشرة آمنة عبر Jitsi داخل المنصة</p>
                 </div>
                 <button @click="isModalOpen = true" class="btn-primary">
                     + جدولة حصة جديدة
@@ -196,7 +181,7 @@ function formatDate(value) {
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الموعد</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحضور</th>
-                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الرابط/التسجيل</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">Jitsi/التسجيل</th>
                                 <th class="data-table-actions text-start p-4 font-semibold text-surface-600 dark:text-surface-300">إجراءات</th>
                             </tr>
                         </thead>
@@ -237,7 +222,7 @@ function formatDate(value) {
                                 <td class="p-4">
                                     <div v-if="['scheduled', 'live'].includes(session.status)">
                                         <a :href="route('live-sessions.room', session.id)" target="_blank" class="text-primary-500 hover:underline text-xs block truncate max-w-[180px]">
-                                            {{ session.room_id ? 'دخول عبر رابط الاجتماع' : 'دخول قاعة المنصة' }}
+                                            دخول غرفة Jitsi
                                         </a>
                                     </div>
                                     <div v-if="session.recording_url">
@@ -246,7 +231,6 @@ function formatDate(value) {
                                 </td>
                                 <td class="data-table-actions p-3">
                                     <div class="flex max-w-[22rem] flex-wrap items-center gap-2">
-                                        <button v-if="session.status === 'scheduled'" @click="openMeeting(session)" class="btn-sm btn-ghost text-primary-500">رابط الاجتماع</button>
                                         <button v-if="session.status === 'scheduled'" @click="updateStatus(session.id, 'live')" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">بدء الحصة</button>
                                         <button v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
                                         <button v-if="session.status === 'live'" @click="updateStatus(session.id, 'ended')" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
@@ -332,21 +316,6 @@ function formatDate(value) {
                     <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
                         <button type="button" class="btn-ghost" :disabled="statusForm.processing" @click="actionModal = null">إلغاء</button>
                         <button type="submit" class="btn-primary" :disabled="statusForm.processing">{{ statusForm.processing ? 'جاري الحفظ...' : (actionModal.alreadyEnded ? 'نشر التسجيل' : 'تأكيد إنهاء الحصة') }}</button>
-                    </div>
-                </form>
-                <form v-else-if="actionModal.type === 'meeting'" @submit.prevent="submitMeeting">
-                    <div class="p-6">
-                        <h3 class="text-xl font-black text-surface-900 dark:text-white">رابط الاجتماع المباشر</h3>
-                        <p class="mt-2 text-sm leading-6 text-surface-500">اتركه فارغًا لاستخدام قاعة المنصة، أو ضع رابط Zoom أو Google Meet لتحويل الطلاب إليه.</p>
-                        <div class="mt-5">
-                            <label class="input-label">رابط الاجتماع</label>
-                            <input v-model="meetingForm.meeting_url" type="url" dir="ltr" class="input" placeholder="https://meet.google.com/... (اختياري)">
-                            <p v-if="meetingForm.errors.meeting_url" class="error-msg">{{ meetingForm.errors.meeting_url }}</p>
-                        </div>
-                    </div>
-                    <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
-                        <button type="button" class="btn-ghost" @click="actionModal = null">إلغاء</button>
-                        <button type="submit" class="btn-primary" :disabled="meetingForm.processing">حفظ الرابط</button>
                     </div>
                 </form>
                 <form v-else-if="actionModal.type === 'attendance'" @submit.prevent="submitAttendance">
@@ -458,13 +427,6 @@ function formatDate(value) {
                                 <label class="input-label">تاريخ تنفيذ حصة المجموعة</label>
                                 <input v-model="form.scheduled_date" type="date" class="input" required>
                                 <p class="text-[11px] text-surface-400 mt-1">اختار نفس يوم المجموعة، والساعة هتتحدد تلقائيًا من الجدول.</p>
-                            </div>
-
-                            <div>
-                                <label class="input-label">رابط اجتماع خارجي <span class="font-normal text-surface-400">(اختياري)</span></label>
-                                <input v-model="form.room_id" type="url" dir="ltr" class="input" placeholder="اتركه فارغًا لاستخدام قاعة المنصة">
-                                <p class="mt-1 text-[11px] text-surface-400">بدون رابط خارجي، ستعمل الحصة بالصوت والصورة داخل المنصة.</p>
-                                <p v-if="form.errors.room_id" class="error-msg">{{ form.errors.room_id }}</p>
                             </div>
 
                             <div>

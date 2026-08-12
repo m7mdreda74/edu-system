@@ -1,832 +1,592 @@
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
-import Whiteboard from '@/Components/Whiteboard.vue';
-import VideoRoom from '@/Components/VideoRoom.vue';
-import { useConfirm } from '@/composables/useConfirm';
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
+import axios from 'axios';
 
 const props = defineProps({
     session: { type: Object, required: true },
     roomName: { type: String, required: true },
     user: { type: Object, required: true },
+    jitsi: { type: Object, required: true },
 });
 
-const videoParticipantCount = ref(1);
-
-// Screen Recording state & logic
-const isRecording = ref(false);
-const recordingDuration = ref(0);
-let mediaRecorder = null;
-let recordedChunks = [];
-let durationInterval = null;
-const audioContext = ref(null);
-const videoRoomRef = ref(null);
-const { confirm } = useConfirm();
-
-// Legacy Jitsi controls are kept hidden while the native WebRTC room is used.
-// Defining their dormant state prevents the hidden template and teardown hook
-// from crashing the room before VideoRoom can mount.
-let jitsiApi = null;
 const jitsiContainer = ref(null);
-const isRoomLoading = ref(false);
-const lobbyEnabled = ref(false);
-const activeParticipants = ref([]);
-const lobbyParticipants = ref([]);
+const isLoading = ref(true);
+const isJoined = ref(false);
+const roomError = ref('');
+const whiteboardNotice = ref('');
 
-// ─── View Mode ────────────────────────────────────────────────────────────────
-// viewMode: 'video' | 'split' | 'whiteboard'
-const viewMode = ref('video');
-const whiteboardVisible = computed(() => viewMode.value === 'split' || viewMode.value === 'whiteboard');
-const videoVisible = computed(() => viewMode.value === 'split' || viewMode.value === 'video');
+let jitsiApi = null;
+let attendanceOpen = false;
+let attendanceClosing = false;
+let hasNavigated = false;
+let leaveFallbackTimer = null;
 
-function closeWhiteboard() { viewMode.value = 'video'; }
-function setViewMode(mode) { viewMode.value = mode; }
+function returnToSchedule() {
+    if (hasNavigated) return;
 
-const formattedDuration = computed(() => {
-    const mins = Math.floor(recordingDuration.value / 60);
-    const secs = recordingDuration.value % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-});
-
-async function startRecording() {
-    recordedChunks = [];
-    recordingDuration.value = 0;
-    
-    try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-            video: { displaySurface: "browser", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-        });
-
-        let micStream = null;
-        try {
-            micStream = await navigator.mediaDevices.getUserMedia({
-                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-            });
-        } catch (e) {
-            console.warn("Microphone access denied.", e);
-        }
-
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        audioContext.value = ctx;
-        const dest = ctx.createMediaStreamDestination();
-        let hasAudioTracks = false;
-
-        if (screenStream.getAudioTracks().length > 0) {
-            const screenSource = ctx.createMediaStreamSource(new MediaStream([screenStream.getAudioTracks()[0]]));
-            screenSource.connect(dest);
-            hasAudioTracks = true;
-        }
-        if (micStream && micStream.getAudioTracks().length > 0) {
-            const micSource = ctx.createMediaStreamSource(micStream);
-            micSource.connect(dest);
-            hasAudioTracks = true;
-        }
-
-        const tracks = [...screenStream.getVideoTracks()];
-        if (hasAudioTracks) tracks.push(...dest.stream.getAudioTracks());
-        const mixedStream = new MediaStream(tracks);
-
-        let options = { mimeType: 'video/webm;codecs=vp9,opus' };
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm;codecs=vp8,opus' };
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm' };
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/mp4' };
-
-        mediaRecorder = new MediaRecorder(mixedStream, options);
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data && event.data.size > 0) recordedChunks.push(event.data);
-        };
-        mediaRecorder.onstop = () => {
-            screenStream.getTracks().forEach(t => t.stop());
-            if (micStream) micStream.getTracks().forEach(t => t.stop());
-            if (audioContext.value && audioContext.value.state !== 'closed') audioContext.value.close();
-            clearInterval(durationInterval);
-            isRecording.value = false;
-
-            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `class-recording-${props.session.id}-${new Date().toISOString().slice(0,10)}.webm`;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
-            alert("تم إيقاف التسجيل وتنزيل ملف الحصة بنجاح!");
-        };
-
-        mediaRecorder.start(1000);
-        isRecording.value = true;
-        durationInterval = setInterval(() => { recordingDuration.value++; }, 1000);
-
-    } catch (err) {
-        console.error("Error starting recording:", err);
-        alert("لم يتم بدء التسجيل. يرجى التأكد من الموافقة على مشاركة الشاشة.");
-    }
-}
-
-function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-}
-
-function leaveRoom() {
+    hasNavigated = true;
     router.visit(props.user.isTeacher
         ? route('teacher.live-sessions')
         : route('student.schedule'));
 }
 
-// Moderation handlers
-function acceptLobby(id) {
-    if (jitsiApi) {
-        jitsiApi.executeCommand('lobbyAcceptAccess', id);
-        lobbyParticipants.value = lobbyParticipants.value.filter(p => p.id !== id);
-    }
+function externalApiUrl() {
+    return `https://${props.jitsi.domain}/external_api.js`;
 }
-function rejectLobby(id) {
-    if (jitsiApi) {
-        jitsiApi.executeCommand('lobbyRejectAccess', id);
-        lobbyParticipants.value = lobbyParticipants.value.filter(p => p.id !== id);
+
+function loadExternalApi() {
+    if (window.JitsiMeetExternalAPI) {
+        return Promise.resolve();
     }
-}
-async function kickStudent(id) {
-    if (!jitsiApi) return;
-    const ok = await confirm({
-        title: 'طرد الطالب',
-        message: 'هل تريد طرد هذا الطالب من الحصة؟',
-        confirmLabel: 'طرد',
-        variant: 'danger',
+
+    return new Promise((resolve, reject) => {
+        const selector = `script[data-jitsi-domain="${props.jitsi.domain}"]`;
+        let script = document.querySelector(selector);
+
+        const onLoad = () => {
+            script.dataset.loaded = 'true';
+            window.JitsiMeetExternalAPI
+                ? resolve()
+                : reject(new Error('Jitsi external API was not available after loading.'));
+        };
+        const onError = () => reject(new Error('Could not load the Jitsi external API.'));
+
+        if (script) {
+            if (script.dataset.loaded === 'true') {
+                onLoad();
+                return;
+            }
+
+            script.addEventListener('load', onLoad, { once: true });
+            script.addEventListener('error', onError, { once: true });
+            return;
+        }
+
+        script = document.createElement('script');
+        script.src = externalApiUrl();
+        script.async = true;
+        script.dataset.jitsiDomain = props.jitsi.domain;
+        script.addEventListener('load', onLoad, { once: true });
+        script.addEventListener('error', onError, { once: true });
+        document.head.appendChild(script);
     });
-    if (ok) {
-        jitsiApi.executeCommand('kickParticipant', id);
-        activeParticipants.value = activeParticipants.value.filter(p => p.id !== id);
+}
+
+function whiteboardConfig() {
+    const config = {
+        enabled: props.jitsi.whiteboard?.enabled === true,
+        userLimit: Number(props.jitsi.whiteboard?.userLimit || 30),
+    };
+
+    if (props.jitsi.whiteboard?.collabServerBaseUrl) {
+        config.collabServerBaseUrl = props.jitsi.whiteboard.collabServerBaseUrl;
+    }
+
+    return config;
+}
+
+async function startAttendance() {
+    if (props.user.isTeacher || attendanceOpen) return;
+
+    try {
+        await axios.post(route('live-sessions.attendance.join', props.session.id));
+        attendanceOpen = true;
+    } catch (error) {
+        console.error('Could not start live-session attendance.', error);
     }
 }
-function toggleLobbyMode() {
-    if (jitsiApi) {
-        lobbyEnabled.value = !lobbyEnabled.value;
-        jitsiApi.executeCommand('toggleLobby', lobbyEnabled.value);
+
+async function closeAttendance() {
+    if (props.user.isTeacher || !attendanceOpen || attendanceClosing) return;
+
+    attendanceClosing = true;
+    attendanceOpen = false;
+
+    try {
+        await axios.post(route('live-sessions.attendance.leave', props.session.id));
+    } catch (error) {
+        console.error('Could not close live-session attendance.', error);
+    } finally {
+        attendanceClosing = false;
     }
 }
-async function muteAllStudents() {
-    if (!jitsiApi) return;
-    const ok = await confirm({
-        title: 'كتم الجميع',
-        message: 'هل تريد كتم صوت الجميع؟',
-        confirmLabel: 'كتم',
-        variant: 'warning',
-    });
-    if (ok) jitsiApi.executeCommand('muteEveryone');
+
+function closeAttendanceWithBeacon() {
+    if (props.user.isTeacher || !attendanceOpen || attendanceClosing) return;
+
+    attendanceOpen = false;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    if (csrfToken && navigator.sendBeacon) {
+        const payload = new FormData();
+        payload.append('_token', csrfToken);
+        navigator.sendBeacon(route('live-sessions.attendance.leave', props.session.id), payload);
+        return;
+    }
+
+    void axios.post(route('live-sessions.attendance.leave', props.session.id)).catch(() => {});
 }
 
-// No external video SDK needed — VideoRoom.vue handles everything
+function handleConferenceJoined() {
+    isLoading.value = false;
+    isJoined.value = true;
+    void startAttendance();
 
-// Removed Jitsi — replaced by VideoRoom.vue (native WebRTC)
-function _unused() {
-    if (!window.JitsiMeetExternalAPI) return;
+    if (props.user.isTeacher) {
+        jitsiApi?.executeCommand('subject', props.session.title);
+    }
+}
 
+function handleConferenceLeft() {
+    if (leaveFallbackTimer) {
+        window.clearTimeout(leaveFallbackTimer);
+        leaveFallbackTimer = null;
+    }
+
+    void closeAttendance().finally(() => returnToSchedule());
+}
+
+function openWhiteboard() {
+    whiteboardNotice.value = '';
+
+    if (!jitsiApi) {
+        whiteboardNotice.value = 'جاري تجهيز غرفة Jitsi، جرّب مرة أخرى خلال لحظات.';
+        return;
+    }
+
+    if (!props.jitsi.whiteboard?.enabled) {
+        whiteboardNotice.value = 'السبورة غير مفعّلة في إعدادات Jitsi الحالية.';
+        return;
+    }
+
+    try {
+        const commands = jitsiApi.getSupportedCommands?.();
+        if (Array.isArray(commands) && !commands.includes('toggleWhiteboard')) {
+            whiteboardNotice.value = 'خادم Jitsi الحالي لا يدعم السبورة التفاعلية.';
+            return;
+        }
+
+        jitsiApi.executeCommand('toggleWhiteboard');
+    } catch (error) {
+        console.error('Could not open the Jitsi whiteboard.', error);
+        whiteboardNotice.value = 'تعذّر فتح السبورة التفاعلية.';
+    }
+}
+
+function leaveRoom() {
+    if (!jitsiApi) {
+        void closeAttendance();
+        returnToSchedule();
+        return;
+    }
+
+    jitsiApi.executeCommand('hangup');
+    leaveFallbackTimer = window.setTimeout(() => {
+        void closeAttendance().finally(() => returnToSchedule());
+    }, 1500);
+}
+
+function createMeeting() {
     const options = {
         roomName: props.roomName,
         parentNode: jitsiContainer.value,
         width: '100%',
         height: '100%',
+        lang: 'ar',
         userInfo: {
             email: props.user.email,
             displayName: props.user.name,
         },
         configOverwrite: {
-            // ── Startup ──────────────────────────────────────────────────
+            prejoinConfig: { enabled: false },
             startWithAudioMuted: !props.user.isTeacher,
             startWithVideoMuted: !props.user.isTeacher,
-            prejoinPageEnabled: false,         // no prejoin screen
-            requireDisplayName: false,         // don't prompt for name
-            enableWelcomePage: false,          // no welcome page
-            enableClosePage: false,            // no close page
-
-            // ── Branding / Identity ───────────────────────────────────
-            disableDeepLinking: true,          // no "open in app" prompts
-            disableThirdPartyRequests: false,
-            doNotStoreRoom: true,              // no local storage of room
-            hideParticipantsStats: true,
-
-            // ── Authentication ────────────────────────────────────────
-            enableUserRolesBasedOnToken: false,
-            enableAuthDomain: false,
-
-            // ── Toolbox / UI ──────────────────────────────────────────
-            toolbarConfig: {
-                initialTimeout: 20000,
-                timeout: 4000,
-                alwaysVisible: false,
-            },
-            disableInviteFunctions: true,      // hide invite button
-            disableRemoteMute: false,
-
-            // ── Notifications ─────────────────────────────────────────
-            disableJoinLeaveSounds: false,
-
-            // ── Subject (set after join via executeCommand) ───────────
-            subject: props.session.title,
-        },
-        interfaceConfigOverwrite: {
-            // ── Hide all Jitsi/8x8 branding ──────────────────────────
-            SHOW_JITSI_WATERMARK: false,
-            SHOW_WATERMARK_FOR_GUESTS: false,
-            SHOW_BRAND_WATERMARK: false,
-            SHOW_POWERED_BY: false,
-            GENERATE_ROOMNAMES_ON_WELCOME_PAGE: false,
-            DISPLAY_WELCOME_PAGE_CONTENT: false,
-            DISPLAY_WELCOME_PAGE_TOOLBAR_ADDITIONAL_CONTENT: false,
-
-            // ── App name override (so it shows منصة التفوق) ──────────
-            APP_NAME: 'منصة التفوق',
-            NATIVE_APP_NAME: 'منصة التفوق',
-            PROVIDER_NAME: 'التفوق',
-
-            // ── Language ──────────────────────────────────────────────
-            LANG_DETECTION: false,
-            DEFAULT_LANGUAGE: 'ar',
-
-            // ── Participants defaults ─────────────────────────────────
-            DEFAULT_REMOTE_DISPLAY_NAME: 'طالب',
-            DEFAULT_LOCAL_DISPLAY_NAME: props.user.name,
-            HIDE_INVITE_MORE_HEADER: true,
-
-            // ── Chrome/mobile extensions ─────────────────────────────
-            SHOW_CHROME_EXTENSION_BANNER: false,
-            MOBILE_APP_PROMO: false,
-
-            // ── Misc ──────────────────────────────────────────────────
-            RECENT_LIST_ENABLED: false,
-            AUTHENTICATION_ENABLE: false,
-            CLOSE_PAGE_GUEST_HINT: false,
-            VIDEO_QUALITY_LABEL_DISABLED: false,
-            DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
-
-            // ── Toolbar buttons (remove branding/external links) ──────
-            TOOLBAR_BUTTONS: [
-                'microphone', 'camera', 'desktop', 'fullscreen',
-                'fodeviceselection', 'hangup', 'chat',
-                'raisehand', 'videoquality', 'filmstrip',
-                'tileview', 'videobackgroundblur', 'settings',
-                'mute-everyone', 'shortcuts',
-            ],
-
-            // ── Settings sections (no profile/feedback external links)
-            SETTINGS_SECTIONS: ['devices', 'language', 'moderator'],
+            disableDeepLinking: true,
+            disableInviteFunctions: true,
+            doNotStoreRoom: true,
+            useHostPageLocalStorage: true,
+            whiteboard: whiteboardConfig(),
         },
     };
 
-    jitsiApi = new window.JitsiMeetExternalAPI('meet.jit.si', options);
-
-    isRoomLoading.value = false;
-
-    if (props.user.isTeacher) {
-        jitsiApi.executeCommand('subject', props.session.title);
-        jitsiApi.executeCommand('toggleLobby', lobbyEnabled.value);
-
-        jitsiApi.addEventListener('videoConferenceJoined', () => {
-            setTimeout(() => {
-                try {
-                    const list = jitsiApi.getParticipantsInfo();
-                    activeParticipants.value = list.map(p => ({ id: p.participantId, name: p.displayName || 'طالب مجهول' }));
-                } catch (e) { console.warn("Could not load participants:", e); }
-            }, 3000);
-        });
-        jitsiApi.addEventListener('participantJoined', (event) => {
-            if (!activeParticipants.value.some(p => p.id === event.id))
-                activeParticipants.value.push({ id: event.id, name: event.displayName || 'طالب مجهول' });
-        });
-        jitsiApi.addEventListener('participantLeft', (event) => {
-            activeParticipants.value = activeParticipants.value.filter(p => p.id !== event.id);
-        });
-        jitsiApi.addEventListener('lobbyParticipantJoined', (event) => {
-            if (!lobbyParticipants.value.some(p => p.id === event.id))
-                lobbyParticipants.value.push({ id: event.id, name: event.displayName || 'طالب ينتظر' });
-        });
-        jitsiApi.addEventListener('lobbyParticipantLeft', (event) => {
-            lobbyParticipants.value = lobbyParticipants.value.filter(p => p.id !== event.id);
-        });
+    if (props.jitsi.jwt) {
+        options.jwt = props.jitsi.jwt;
     }
+
+    jitsiApi = new window.JitsiMeetExternalAPI(props.jitsi.domain, options);
+    jitsiApi.addListener('videoConferenceJoined', handleConferenceJoined);
+    jitsiApi.addListener('videoConferenceLeft', handleConferenceLeft);
+    jitsiApi.addListener('readyToClose', handleConferenceLeft);
+    jitsiApi.addListener('errorOccurred', (event) => {
+        console.error('Jitsi room error.', event);
+        roomError.value = 'تعذّر الاتصال بغرفة Jitsi. تأكد من اتصالك بالإنترنت ثم أعد المحاولة.';
+        isLoading.value = false;
+    });
 }
 
+function retryRoom() {
+    window.location.reload();
+}
+
+onMounted(async () => {
+    try {
+        await nextTick();
+        await loadExternalApi();
+        createMeeting();
+    } catch (error) {
+        console.error('Could not initialise Jitsi.', error);
+        roomError.value = 'تعذّر تحميل Jitsi. تأكد من اتصالك بالإنترنت ثم أعد المحاولة.';
+        isLoading.value = false;
+    }
+
+    window.addEventListener('beforeunload', closeAttendanceWithBeacon);
+});
+
 onBeforeUnmount(() => {
-    if (jitsiApi) jitsiApi.dispose();
-    clearInterval(durationInterval);
+    window.removeEventListener('beforeunload', closeAttendanceWithBeacon);
+    closeAttendanceWithBeacon();
+
+    if (leaveFallbackTimer) {
+        window.clearTimeout(leaveFallbackTimer);
+    }
+
+    const api = jitsiApi;
+    jitsiApi = null;
+    api?.dispose();
 });
 </script>
 
 <template>
-    <div class="room-root" dir="rtl">
+    <div class="jitsi-room" dir="rtl">
         <Head :title="session.title" />
 
-        <!-- ═══ HEADER BAR ═══════════════════════════════════════════════════ -->
-        <div class="room-header">
-            <div class="flex items-center gap-4">
-                <Link :href="user.isTeacher ? route('teacher.live-sessions') : route('student.schedule')" class="btn-ghost p-2 text-surface-400 hover:text-white text-sm">
-                    ← عودة
-                </Link>
-                <div class="header-divider"></div>
+        <header class="jitsi-header">
+            <div class="session-heading">
+                <button type="button" class="back-button" @click="leaveRoom">
+                    <span aria-hidden="true">→</span>
+                    العودة
+                </button>
+                <span class="header-divider" aria-hidden="true"></span>
                 <div>
-                    <h1 class="font-bold text-base leading-tight text-white">{{ session.title }}</h1>
-                    <div class="text-xs text-primary-400">{{ session.teaching_group?.name || 'حصة مباشرة' }}</div>
+                    <h1>{{ session.title }}</h1>
+                    <p>{{ session.teaching_group?.name || 'حصة مباشرة خاصة' }}</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
-
-                <!-- View Mode Toggle (Teacher only) -->
-                <div v-if="user.isTeacher" class="view-mode-group">
-                    <button
-                        @click="setViewMode('video')"
-                        class="view-mode-btn"
-                        :class="{ active: viewMode === 'video' }"
-                        title="عرض الفيديو فقط"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M15 10l4.553-2.069A1 1 0 0121 8.871v6.258a1 1 0 01-1.447.894L15 14M4 8h9a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2z"/></svg>
-                        <span>كاميرا</span>
-                    </button>
-                    <button
-                        @click="setViewMode('split')"
-                        class="view-mode-btn"
-                        :class="{ active: viewMode === 'split' }"
-                        title="عرض مقسم — فيديو + سبورة"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></svg>
-                        <span>مقسم</span>
-                    </button>
-                    <button
-                        @click="setViewMode('whiteboard')"
-                        class="view-mode-btn"
-                        :class="{ active: viewMode === 'whiteboard' }"
-                        title="السبورة فقط"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path stroke-linecap="round" d="M8 20h8M12 16v4M7 8l3 3-3 3M13 11h4"/></svg>
-                        <span>سبورة</span>
-                    </button>
-                </div>
-
-                <!-- Recording Controls -->
-                <div v-if="user.isTeacher" class="flex items-center gap-2">
-                    <span v-if="isRecording" class="rec-badge">
-                        <span class="rec-dot"></span>
-                        REC {{ formattedDuration }}
-                    </span>
-                    <button v-if="!isRecording" @click="startRecording" class="header-btn header-btn-rec">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg>
-                        <span>تسجيل</span>
-                    </button>
-                    <button v-else @click="stopRecording" class="header-btn header-btn-stop">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>
-                        <span>إيقاف</span>
-                    </button>
-                </div>
-
-                <!-- LIVE Badge -->
-                <span class="live-badge">
-                    <span class="live-dot"></span>
-                    مباشر الآن
+            <div class="header-actions">
+                <button
+                    type="button"
+                    class="whiteboard-button"
+                    :disabled="!jitsi.whiteboard?.enabled"
+                    @click="openWhiteboard"
+                >
+                    <span aria-hidden="true">✎</span>
+                    السبورة التفاعلية
+                </button>
+                <span class="connection-status" :class="{ connected: isJoined }" aria-live="polite">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    {{ isJoined ? 'متصل عبر Jitsi' : 'جاري الاتصال' }}
                 </span>
             </div>
-        </div>
+        </header>
 
-        <!-- ═══ MAIN CONTENT ═════════════════════════════════════════════════ -->
-        <div class="room-body">
+        <main class="jitsi-stage">
+            <div ref="jitsiContainer" class="jitsi-container"></div>
 
-            <!-- ── VideoRoom (Native WebRTC) ──────────────────────────────── -->
-            <div
-                class="jitsi-panel"
-                :class="{
-                    'hidden':      viewMode === 'whiteboard',
-                    'split-panel': viewMode === 'split',
-                    'full-panel':  viewMode === 'video',
-                }"
-            >
-                <VideoRoom
-                    :session-id="session.id"
-                    :user="user"
-                    :session-title="session.title"
-                    @participant-count="(n) => videoParticipantCount = n"
-                    @leave="leaveRoom"
-                />
+            <div v-if="isLoading && !roomError" class="room-overlay" role="status" aria-live="polite">
+                <span class="loader" aria-hidden="true"></span>
+                <p>جاري تجهيز غرفة Jitsi…</p>
             </div>
 
-            <!-- ── Whiteboard Panel ─────────────────────────────────────────── -->
-            <div
-                v-show="whiteboardVisible"
-                class="whiteboard-panel"
-                :class="{
-                    'split-panel':     viewMode === 'split',
-                    'full-panel':      viewMode === 'whiteboard',
-                }"
-            >
-                <!-- Header strip -->
-                <div class="wb-panel-header">
-                    <div class="flex items-center gap-2">
-                        <span class="wb-panel-icon">📋</span>
-                        <span class="wb-panel-title">السبورة التفاعلية</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-surface-400">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4 text-emerald-400"><path stroke-linecap="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>استخدم زر "الشاشة" في الفيديو لمشاركة السبورة مع الطلاب</span>
-                    </div>
-                </div>
-
-                <!-- Whiteboard Component -->
-                <div class="wb-component-area">
-                    <Whiteboard @close="closeWhiteboard" />
+            <div v-if="roomError" class="room-overlay room-error" role="alert">
+                <div class="error-icon" aria-hidden="true">!</div>
+                <h2>تعذّر فتح الحصة</h2>
+                <p>{{ roomError }}</p>
+                <div class="error-actions">
+                    <button type="button" class="retry-button" @click="retryRoom">إعادة المحاولة</button>
+                    <button type="button" class="back-button secondary" @click="leaveRoom">العودة</button>
                 </div>
             </div>
 
-            <!-- ── Teacher Moderation Sidebar ──────────────────────────────── -->
-            <div v-if="user.isTeacher && viewMode === 'video'" class="moderation-sidebar" style="display:none">
-                <!-- Header -->
-                <div class="mod-header">
-                    <span>🛡️ لوحة الإشراف</span>
-                </div>
+            <p v-if="whiteboardNotice" class="whiteboard-notice" role="status">{{ whiteboardNotice }}</p>
+        </main>
 
-                <!-- Controls -->
-                <div class="mod-controls">
-                    <button
-                        @click="toggleLobbyMode"
-                        class="mod-btn"
-                        :class="lobbyEnabled ? 'mod-btn-green' : 'mod-btn-gray'"
-                    >
-                        <span>غرفة الانتظار</span>
-                        <span>{{ lobbyEnabled ? '🟢 نشطة' : '⚪ ملغاة' }}</span>
-                    </button>
-                    <button @click="muteAllStudents" class="mod-btn mod-btn-red">
-                        🔇 كتم الجميع
-                    </button>
-                </div>
-
-                <!-- Lobby -->
-                <div class="mod-section">
-                    <div class="mod-section-title">طلبات الدخول</div>
-                    <div v-if="!lobbyParticipants.length" class="mod-empty">لا توجد طلبات معلقة</div>
-                    <div v-else class="space-y-2">
-                        <div v-for="student in lobbyParticipants" :key="student.id" class="mod-student-card">
-                            <span class="truncate font-medium text-white text-xs max-w-[120px]">{{ student.name }}</span>
-                            <div class="flex gap-1">
-                                <button @click="acceptLobby(student.id)" class="mod-action-btn mod-accept">قبول</button>
-                                <button @click="rejectLobby(student.id)" class="mod-action-btn mod-reject">رفض</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Active Participants -->
-                <div class="mod-section flex-1 overflow-y-auto">
-                    <div class="mod-section-title">الطلاب المتصلون ({{ activeParticipants.length }})</div>
-                    <div v-if="!activeParticipants.length" class="mod-empty">لا يوجد طلاب متصلين</div>
-                    <div v-else class="space-y-1.5">
-                        <div v-for="student in activeParticipants" :key="student.id" class="mod-student-card">
-                            <span class="truncate text-surface-300 text-xs max-w-[140px]">{{ student.name }}</span>
-                            <button @click="kickStudent(student.id)" class="mod-action-btn mod-kick">طرد</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <footer class="jitsi-footer">
+            <span>يُسجّل حضور الطالب عند دخوله الفعلي إلى غرفة Jitsi.</span>
+            <span>السبورة التفاعلية مشتركة بين المشاركين في الحصة.</span>
+        </footer>
     </div>
 </template>
 
 <style scoped>
-/* ─── Root ────────────────────────────────────────────────────── */
-.room-root {
-    height: 100vh;
-    width: 100%;
+.jitsi-room {
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: #080a10;
-    color: white;
-    overflow: hidden;
+    color: #f8fafc;
+    background: #101728;
 }
 
-/* ─── Header ──────────────────────────────────────────────────── */
-.room-header {
-    height: 60px;
-    flex-shrink: 0;
-    background: rgba(10,12,20,0.98);
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+.jitsi-header {
+    min-height: 72px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20px;
-    gap: 16px;
-    backdrop-filter: blur(20px);
-    z-index: 30;
+    gap: 20px;
+    padding: 12px 24px;
+    background: #17213a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.session-heading,
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.session-heading h1 {
+    margin: 0;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.session-heading p {
+    margin: 4px 0 0;
+    color: #97b8ff;
+    font-size: 12px;
 }
 
 .header-divider {
     width: 1px;
-    height: 28px;
-    background: rgba(255,255,255,0.1);
+    height: 34px;
+    background: rgba(255, 255, 255, 0.15);
 }
 
-/* ─── View Mode Toggle ────────────────────────────────────────── */
-.view-mode-group {
-    display: flex;
+.back-button,
+.whiteboard-button,
+.retry-button {
+    display: inline-flex;
     align-items: center;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px;
-    padding: 3px;
-    gap: 2px;
-}
-
-.view-mode-btn {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 5px 10px;
-    border-radius: 9px;
-    border: none;
-    background: transparent;
-    color: rgba(255,255,255,0.45);
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 0 13px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
     cursor: pointer;
-    font-size: 11px;
-    font-weight: 600;
-    transition: all 0.18s ease;
-    font-family: 'Cairo', sans-serif;
+    transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.back-button {
+    color: #dbeafe;
+    background: transparent;
+    border-color: rgba(219, 234, 254, 0.2);
+}
+
+.back-button:hover,
+.back-button:focus-visible {
+    background: rgba(219, 234, 254, 0.1);
+}
+
+.back-button.secondary {
+    color: #334155;
+    border-color: #cbd5e1;
+}
+
+.whiteboard-button {
+    color: #fff;
+    background: #315fe9;
+    box-shadow: 0 5px 16px rgba(49, 95, 233, 0.28);
+}
+
+.whiteboard-button:hover:not(:disabled),
+.whiteboard-button:focus-visible:not(:disabled),
+.retry-button:hover,
+.retry-button:focus-visible {
+    transform: translateY(-1px);
+    background: #2551d8;
+}
+
+.whiteboard-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #cbd5e1;
+    font-size: 12px;
     white-space: nowrap;
 }
-.view-mode-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
-.view-mode-btn:hover {
-    color: rgba(255,255,255,0.8);
-    background: rgba(255,255,255,0.07);
-}
-.view-mode-btn.active {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
-    box-shadow: 0 2px 12px rgba(99,102,241,0.4);
-}
 
-/* ─── Recording ───────────────────────────────────────────────── */
-.rec-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 700;
-    color: #f87171;
-    animation: pulse-text 1.5s ease-in-out infinite;
-}
-.rec-dot {
-    width: 8px; height: 8px;
+.status-dot {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: #ef4444;
-    animation: pulse-dot 1s ease-in-out infinite;
-}
-@keyframes pulse-text { 0%,100%{opacity:1} 50%{opacity:0.6} }
-@keyframes pulse-dot  { 0%,100%{transform:scale(1)} 50%{transform:scale(1.4)} }
-
-.header-btn {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s;
-    font-family: 'Cairo', sans-serif;
-}
-.header-btn svg { width: 14px; height: 14px; }
-
-.header-btn-rec {
-    background: rgba(239,68,68,0.15);
-    color: #f87171;
-    border: 1px solid rgba(239,68,68,0.25);
-}
-.header-btn-rec:hover {
-    background: rgba(239,68,68,0.25);
-    transform: translateY(-1px);
-}
-.header-btn-stop {
-    background: rgba(100,116,139,0.2);
-    color: #94a3b8;
-    border: 1px solid rgba(100,116,139,0.2);
-}
-.header-btn-stop:hover { background: rgba(100,116,139,0.3); }
-
-/* ─── LIVE Badge ──────────────────────────────────────────────── */
-.live-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 700;
-    color: #34d399;
-    background: rgba(52,211,153,0.1);
-    border: 1px solid rgba(52,211,153,0.2);
-    padding: 5px 10px;
-    border-radius: 20px;
-    letter-spacing: 0.05em;
-}
-.live-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: #10b981;
-    box-shadow: 0 0 6px #10b981;
-    animation: pulse-dot 1.2s ease-in-out infinite;
+    background: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
 }
 
-/* ─── Body Layout ─────────────────────────────────────────────── */
-.room-body {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-    min-height: 0;
+.connected .status-dot {
+    background: #2dd4bf;
+    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15);
 }
 
-/* ─── Panels ──────────────────────────────────────────────────── */
-.jitsi-panel,
-.whiteboard-panel {
-    overflow: hidden;
-    transition: flex 0.35s cubic-bezier(0.4,0,0.2,1);
-}
-
-.hidden { display: none !important; }
-
-.full-panel  { flex: 1; }
-.split-panel { flex: 1; min-width: 0; }
-
-.jitsi-panel.full-panel  { height: 100%; }
-.jitsi-panel.split-panel { height: 100%; border-left: 2px solid rgba(99,102,241,0.3); }
-
-/* ─── Whiteboard Panel ────────────────────────────────────────── */
-.whiteboard-panel {
-    display: flex;
-    flex-direction: column;
-    background: #0F1117;
-}
-
-.wb-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 14px;
-    background: rgba(99,102,241,0.08);
-    border-bottom: 1px solid rgba(99,102,241,0.2);
-    flex-shrink: 0;
-}
-.wb-panel-icon { font-size: 16px; }
-.wb-panel-title { font-size: 13px; font-weight: 700; color: #a5b4fc; }
-
-.wb-component-area {
+.jitsi-stage {
+    position: relative;
     flex: 1;
     min-height: 0;
-    overflow: hidden;
+    padding: 16px;
 }
 
-/* ─── Loading Overlay ─────────────────────────────────────────── */
-.loading-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,0.8);
-    gap: 12px;
-    z-index: 20;
-}
-.loading-spinner {
-    width: 32px; height: 32px;
-    border: 3px solid rgba(99,102,241,0.2);
-    border-top-color: #6366f1;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ─── Moderation Sidebar ──────────────────────────────────────── */
-.moderation-sidebar {
-    width: 280px;
-    flex-shrink: 0;
-    background: rgba(10,12,20,0.95);
-    border-right: 1px solid rgba(255,255,255,0.06);
-    display: flex;
-    flex-direction: column;
-    font-size: 12px;
-    overflow: hidden;
-}
-
-.mod-header {
-    padding: 14px 16px;
-    font-weight: 700;
-    font-size: 13px;
-    color: white;
-    background: rgba(99,102,241,0.06);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    flex-shrink: 0;
-}
-
-.mod-controls {
-    padding: 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex-shrink: 0;
-}
-
-.mod-btn {
+.jitsi-container {
     width: 100%;
-    padding: 8px 12px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border: 1px solid transparent;
-    transition: all 0.15s;
-    font-family: 'Cairo', sans-serif;
-}
-.mod-btn-green {
-    background: rgba(52,211,153,0.08);
-    color: #6ee7b7;
-    border-color: rgba(52,211,153,0.15);
-}
-.mod-btn-green:hover { background: rgba(52,211,153,0.14); }
-.mod-btn-gray {
-    background: rgba(100,116,139,0.08);
-    color: #94a3b8;
-    border-color: rgba(100,116,139,0.15);
-}
-.mod-btn-red {
-    background: rgba(239,68,68,0.08);
-    color: #f87171;
-    border-color: rgba(239,68,68,0.15);
-    justify-content: center;
-}
-.mod-btn-red:hover { background: rgba(239,68,68,0.15); }
-
-.mod-section {
-    padding: 12px;
-    flex-shrink: 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.mod-section.flex-1 { flex: 1; overflow-y: auto; border-bottom: none; }
-
-.mod-section-title {
-    font-size: 10px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.3);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 8px;
+    height: 100%;
+    min-height: calc(100vh - 150px);
+    overflow: hidden;
+    border-radius: 14px;
+    background: #0b1120;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
 }
 
-.mod-empty {
-    font-size: 11px;
-    color: rgba(255,255,255,0.25);
-    text-align: center;
-    padding: 12px;
-    border: 1px dashed rgba(255,255,255,0.1);
-    border-radius: 8px;
-}
-
-.mod-student-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    padding: 7px 10px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 9px;
-}
-
-.mod-action-btn {
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 10px;
-    font-weight: 700;
-    cursor: pointer;
-    border: none;
-    transition: all 0.12s;
-    font-family: 'Cairo', sans-serif;
-}
-.mod-accept { background: #16a34a; color: white; }
-.mod-accept:hover { background: #15803d; }
-.mod-reject { background: #dc2626; color: white; }
-.mod-reject:hover { background: #b91c1c; }
-.mod-kick {
-    background: transparent;
-    color: #f87171;
-    border: 1px solid rgba(239,68,68,0.25);
-}
-.mod-kick:hover { background: rgba(239,68,68,0.1); }
-
-/* ─── Ensure Jitsi iframe fills ───────────────────────────────── */
-:deep(iframe) {
+.jitsi-container :deep(iframe) {
     width: 100% !important;
     height: 100% !important;
-    border: none !important;
+    border: 0 !important;
+}
+
+.room-overlay {
+    position: absolute;
+    inset: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: #cbd5e1;
+    text-align: center;
+    background: rgba(11, 17, 32, 0.96);
+    border-radius: 14px;
+}
+
+.loader {
+    width: 34px;
+    height: 34px;
+    border: 3px solid rgba(255, 255, 255, 0.18);
+    border-top-color: #60a5fa;
+    border-radius: 50%;
+    animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.room-error {
+    color: #334155;
+    background: #f8fafc;
+}
+
+.room-error h2,
+.room-error p {
+    margin: 0;
+}
+
+.room-error h2 {
+    color: #0f172a;
+    font-size: 20px;
+}
+
+.room-error p {
+    max-width: 440px;
+    line-height: 1.7;
+}
+
+.error-icon {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    color: #fff;
+    background: #ef4444;
+    border-radius: 50%;
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.error-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.retry-button {
+    color: #fff;
+    background: #315fe9;
+}
+
+.whiteboard-notice {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    max-width: min(420px, calc(100% - 60px));
+    margin: 0;
+    padding: 10px 14px;
+    color: #fef3c7;
+    background: rgba(120, 53, 15, 0.96);
+    border: 1px solid rgba(253, 230, 138, 0.35);
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.jitsi-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 24px;
+    color: #94a3b8;
+    font-size: 11px;
+    background: #121b2f;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 700px) {
+    .jitsi-header {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 12px 16px;
+    }
+
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .jitsi-stage {
+        padding: 8px;
+    }
+
+    .jitsi-container {
+        min-height: calc(100vh - 208px);
+        border-radius: 10px;
+    }
+
+    .room-overlay {
+        inset: 8px;
+        border-radius: 10px;
+    }
+
+    .jitsi-footer {
+        flex-direction: column;
+        padding: 9px 16px;
+    }
 }
 </style>

@@ -58,7 +58,6 @@ it('shows only the signed-in students upcoming confirmed classes', function (): 
         'title' => 'الحصة التي تخص الطالب',
         'scheduled_at' => now()->addDay(),
         'status' => LiveSession::STATUS_SCHEDULED,
-        'room_id' => 'https://meet.example.test/private-room',
     ]);
 
     LiveSession::create([

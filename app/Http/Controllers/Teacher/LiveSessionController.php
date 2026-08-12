@@ -127,7 +127,8 @@ class LiveSessionController extends Controller
             'scheduled_date' => ['nullable', 'date', 'after:today'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'room_id' => ['nullable', 'url', 'max:2048'],
+            // External meeting links were retired in favor of Jitsi rooms.
+            'room_id' => ['prohibited'],
         ]);
 
         $group = null;
@@ -185,7 +186,6 @@ class LiveSessionController extends Controller
             'private_session_slot_id' => $privateSlot?->id,
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
-            'room_id' => $validated['room_id'] ?? null,
             'scheduled_at' => $scheduledAt,
             'status' => LiveSession::STATUS_SCHEDULED,
         ]);
@@ -279,27 +279,6 @@ class LiveSessionController extends Controller
         }
 
         return back()->with('success', 'تم تحديث حالة الحصة.');
-    }
-
-    public function updateMeetingLink(Request $request, int $id): RedirectResponse
-    {
-        $session = LiveSession::findOrFail($id);
-
-        abort_if($session->teacher_id !== Auth::id(), 403, 'غير مصرح.');
-        abort_unless($session->status === LiveSession::STATUS_SCHEDULED, 422, 'يمكن تعديل رابط حصة مجدولة فقط.');
-
-        $data = $request->validate([
-            'meeting_url' => ['nullable', 'url', 'max:2048'],
-        ]);
-
-        $session->update(['room_id' => $data['meeting_url'] ?? null]);
-
-        return back()->with(
-            'success',
-            filled($data['meeting_url'] ?? null)
-                ? 'تم حفظ رابط الاجتماع الخارجي.'
-                : 'ستُستخدم قاعة المنصة الداخلية لهذه الحصة.',
-        );
     }
 
     public function updateAttendance(Request $request, int $id): RedirectResponse
@@ -420,7 +399,6 @@ class LiveSessionController extends Controller
                 'description' => 'تعويض عن الحصة الملغاة بتاريخ '.$original->scheduled_at?->format('Y-m-d H:i'),
                 'scheduled_at' => $scheduledAt,
                 'status' => LiveSession::STATUS_SCHEDULED,
-                'room_id' => $original->room_id,
             ]);
 
             TeachingGroupLesson::where('live_session_id', $original->id)

@@ -23,7 +23,6 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Learning\ProtectedFileController;
 use App\Http\Controllers\Learning\YoutubeProxyController;
 use App\Http\Controllers\Live\LiveSessionRoomController;
-use App\Http\Controllers\Live\WebRtcSignalingController;
 use App\Http\Controllers\Parent\ParentDashboardController;
 use App\Http\Controllers\Parent\ParentPrivateLessonRequestController;
 use App\Http\Controllers\Parent\ParentPurchaseRequestController;
@@ -98,14 +97,10 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     // ─── Live Session Room ────────────────────────────────────────────────────
     Route::get('/live-sessions/{id}/room', [LiveSessionRoomController::class, 'show'])->name('live-sessions.room');
-
-    // ─── WebRTC Signaling (HTTP Polling) ──────────────────────────────────────
-    Route::prefix('live-sessions/{id}/webrtc')->name('webrtc.')->group(function () {
-        Route::post('heartbeat', [WebRtcSignalingController::class, 'heartbeat'])->name('heartbeat');
-        Route::post('signal', [WebRtcSignalingController::class, 'signal'])->name('signal');
-        Route::get('poll', [WebRtcSignalingController::class, 'poll'])->name('poll');
-        Route::post('leave', [WebRtcSignalingController::class, 'leave'])->name('leave');
-    });
+    Route::post('/live-sessions/{id}/attendance/join', [LiveSessionRoomController::class, 'join'])
+        ->name('live-sessions.attendance.join');
+    Route::post('/live-sessions/{id}/attendance/leave', [LiveSessionRoomController::class, 'leave'])
+        ->name('live-sessions.attendance.leave');
 
     // ─── Material Q&A Forum ───────────────────────────────────────────────────
     Route::get('/materials/{materialId}/questions', [LessonQuestionController::class, 'index'])->name('materials.questions.index');
@@ -259,7 +254,6 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::get('/live-sessions', [LiveSessionController::class, 'index'])->name('live-sessions');
     Route::post('/live-sessions', [LiveSessionController::class, 'store'])->name('live-sessions.store');
     Route::patch('/live-sessions/{id}/status', [LiveSessionController::class, 'updateStatus'])->name('live-sessions.status');
-    Route::patch('/live-sessions/{id}/meeting-link', [LiveSessionController::class, 'updateMeetingLink'])->name('live-sessions.meeting-link');
     Route::post('/live-sessions/{id}/attendance', [LiveSessionController::class, 'updateAttendance'])->name('live-sessions.attendance');
     Route::post('/live-sessions/{id}/apology', [LiveSessionController::class, 'apologize'])->name('live-sessions.apologize');
     Route::post('/session-apologies/{id}/makeup', [LiveSessionController::class, 'scheduleMakeup'])->name('session-apologies.makeup');

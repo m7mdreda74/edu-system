@@ -15,6 +15,7 @@ class UserCreationTest extends TestCase
 
     public function test_admin_created_student_is_linked_to_the_parent_account(): void
     {
+        /** @var User $admin */
         $admin = User::factory()->create();
         $admin->assignRole('admin');
         $parent = User::factory()->create(['phone' => '51000000']);
@@ -45,6 +46,7 @@ class UserCreationTest extends TestCase
 
     public function test_admin_cannot_create_an_unlinked_student(): void
     {
+        /** @var User $admin */
         $admin = User::factory()->create();
         $admin->assignRole('admin');
 
@@ -63,6 +65,7 @@ class UserCreationTest extends TestCase
 
     public function test_admin_cannot_create_a_user_with_an_external_email_domain(): void
     {
+        /** @var User $admin */
         $admin = User::factory()->create();
         $admin->assignRole('admin');
 

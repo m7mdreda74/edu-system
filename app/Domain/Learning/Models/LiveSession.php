@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * A live WebRTC classroom. It belongs either to a weekly group or to a booked
+ * A live Jitsi classroom. It belongs either to a weekly group or to a booked
  * private slot — never to both.
  */
 class LiveSession extends Model
@@ -37,7 +37,6 @@ class LiveSession extends Model
         'started_at',
         'ended_at',
         'status',
-        'room_id',
         'recording_url',
         'is_published_as_lesson',
         'lesson_id',

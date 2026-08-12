@@ -71,4 +71,20 @@ return [
         'cron_secret' => env('CRON_SECRET'),
     ],
 
+    'jitsi' => [
+        // Use a self-hosted Jitsi domain in production. `meet.jit.si` is a
+        // convenient fallback for local development.
+        'domain' => env('JITSI_DOMAIN', 'meet.jit.si'),
+        // Leave these blank for an anonymous deployment. Configure both when
+        // the Jitsi server uses JWT/token authentication.
+        'app_id' => env('JITSI_APP_ID'),
+        'app_secret' => env('JITSI_APP_SECRET'),
+        'token_ttl' => (int) env('JITSI_TOKEN_TTL', 21600),
+        'whiteboard' => [
+            'enabled' => filter_var(env('JITSI_WHITEBOARD_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+            'collab_server_base_url' => env('JITSI_WHITEBOARD_COLLAB_SERVER'),
+            'user_limit' => (int) env('JITSI_WHITEBOARD_USER_LIMIT', 30),
+        ],
+    ],
+
 ];
