@@ -54,7 +54,7 @@ final class SecureStoredFileResponse
             'X-Content-Type-Options' => 'nosniff',
         ];
 
-        if (in_array($mime, ['image/gif', 'image/jpeg', 'image/png', 'image/webp'], true)) {
+        if (in_array($mime, ['image/gif', 'image/jpeg', 'image/png', 'image/webp', 'application/pdf'], true)) {
             $headers['Content-Disposition'] = 'inline; filename="'.$filename.'"';
             $response = response()->file($file, $headers);
         } else {

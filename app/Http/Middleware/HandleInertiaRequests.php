@@ -54,7 +54,8 @@ class HandleInertiaRequests extends Middleware
                 'error'   => fn () => $request->session()->get('error'),
             ],
 
-            // Dynamic platform settings (cached)
+            // Dynamic platform settings (cached). Sensitive and retired
+            // payment configuration is excluded by PlatformSetting itself.
             'settings' => fn () => PlatformSetting::getAllCached(),
 
             'grade_levels' => fn () => Cache::remember(

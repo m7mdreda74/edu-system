@@ -23,18 +23,6 @@ class PlatformSettingsSeeder extends Seeder
         $operational = [
             'commission_percent' => '20',
             'site_theme' => 'royal',
-            'manual_payment_methods' => json_encode([
-                [
-                    'type' => 'bank',
-                    'name' => 'بنك قطر الوطني (QNB)',
-                    'account_number' => 'QA58 QNBA 0000 0000 0000 1234 5678',
-                ],
-                [
-                    'type' => 'bank',
-                    'name' => 'مصرف قطر الإسلامي (QIB)',
-                    'account_number' => 'QA31 QISB 0000 0000 0000 8765 4321',
-                ],
-            ], JSON_UNESCAPED_UNICODE),
         ];
 
         foreach ($operational as $key => $value) {

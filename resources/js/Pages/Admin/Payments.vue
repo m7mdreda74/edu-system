@@ -35,9 +35,29 @@ function formatCompactDate(value) {
 }
 
 function formatTransferMethod(payment) {
-    if (payment.gateway !== 'manual') return 'سجل قديم';
+    if (payment.gateway === 'vodafone_cash') return 'فودافون كاش';
 
-    return String(payment.gateway_ref || 'تحويل بنكي').replace(/^bank:\s*/i, '');
+    return 'سجل سابق';
+}
+
+function canReview(payment) {
+    return ['vodafone_cash', 'manual'].includes(payment.gateway)
+        && payment.status === 'pending_verification';
+}
+
+function isPdfReceipt(payment) {
+    return String(payment.receipt_path ?? '').toLowerCase().endsWith('.pdf');
+}
+
+function viewReceipt(payment) {
+    const url = route('admin.payments.receipt', payment.id);
+
+    if (isPdfReceipt(payment)) {
+        window.open(url, '_blank', 'noopener');
+        return;
+    }
+
+    selectedReceipt.value = url;
 }
 
 const statusColors = {
@@ -134,7 +154,7 @@ async function rejectPayment(p) {
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الاشتراك</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">المبلغ</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التوزيع المالي</th>
-                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">طريقة التحويل</th>
+                                <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">طريقة التحويل / رقم المُحوِّل</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">الحالة</th>
                                 <th class="text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التاريخ</th>
                                 <th class="data-table-actions text-start p-4 font-semibold text-surface-600 dark:text-surface-300">التحقق والتحكم</th>
@@ -160,8 +180,9 @@ async function rejectPayment(p) {
                                     <span class="mx-1 text-surface-400">|</span>
                                     <span class="text-primary-600">منصة: {{ formatQAR(p.platform_commission_amount) }}<span v-if="p.commission_percent !== null"> ({{ p.commission_percent }}%)</span></span>
                                 </td>
-                                <td class="p-4 payment-truncate" :title="p.gateway_ref">
+                                <td class="p-4 payment-truncate" :title="p.sender_phone ? `فودافون كاش — من ${p.sender_phone}` : p.gateway_ref">
                                     <span class="badge-gray payment-compact-badge">{{ formatTransferMethod(p) }}</span>
+                                    <span v-if="p.sender_phone" class="block mt-1 text-[10px] text-surface-500 dark:text-surface-400 font-mono" dir="ltr">{{ p.sender_phone }}</span>
                                 </td>
                                 <td class="p-4">
                                     <span class="payment-compact-badge" :class="statusColors[p.status]">
@@ -171,11 +192,11 @@ async function rejectPayment(p) {
                                 <td class="p-4 font-mono text-surface-400" :title="p.paid_at || p.created_at || ''">{{ formatCompactDate(p.paid_at || p.created_at) }}</td>
                                 <td class="data-table-actions p-3">
                                     <div class="payment-actions flex flex-nowrap items-center gap-1">
-                                        <button v-if="p.receipt_path" type="button" @click="selectedReceipt = route('admin.payments.receipt', p.id)" class="btn-outline payment-action-button flex items-center gap-1">
+                                        <button v-if="p.receipt_path" type="button" @click="viewReceipt(p)" class="btn-outline payment-action-button flex items-center gap-1">
                                             <Icon name="eye" class="w-3 h-3 shrink-0" />
-                                            <span>عرض الإيصال</span>
+                                            <span>{{ isPdfReceipt(p) ? 'عرض الملف' : 'عرض الإيصال' }}</span>
                                         </button>
-                                        <template v-if="p.status === 'pending_verification'">
+                                        <template v-if="canReview(p)">
                                             <button type="button" @click="approvePayment(p)" class="btn-primary payment-action-button flex items-center gap-1 bg-green-600 hover:bg-green-700 border-none">
                                                 <Icon name="success" class="w-3 h-3 shrink-0" />
                                                 <span>موافقة</span>
@@ -276,9 +297,9 @@ async function rejectPayment(p) {
     .payment-col-subscription { width: 10%; }
     .payment-col-amount { width: 7%; }
     .payment-col-split { width: 12%; }
-    .payment-col-method { width: 10%; }
+    .payment-col-method { width: 12%; }
     .payment-col-status { width: 8.5%; }
-    .payment-col-date { width: 10.5%; }
+    .payment-col-date { width: 8.5%; }
     .payment-col-actions { width: 23%; }
 }
 </style>

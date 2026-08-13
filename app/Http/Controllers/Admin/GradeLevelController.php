@@ -44,8 +44,10 @@ class GradeLevelController extends Controller
             'stage'     => ['required', 'string', 'in:primary,preparatory,secondary,all'],
             'track'     => ['nullable', 'string', 'in:science,arts,technology'],
             'is_active' => ['sometimes', 'boolean'],
+            'vodafone_cash_number' => ['nullable', 'string', 'max:20', 'regex:/^(?:\+20|0020|0)1\d{9}$/'],
         ], [
             'key.regex' => 'يجب أن يحتوي رمز المرحلة على أحرف إنجليزية وأرقام وعلامة شرطة فقط بدون مسافات.',
+            'vodafone_cash_number.regex' => 'أدخل رقم فودافون كاش مصرياً صحيحاً مثل 01012345678.',
         ]);
 
         // Only secondary grades have tracks
@@ -109,6 +111,9 @@ class GradeLevelController extends Controller
             'stage'     => ['required', 'string', 'in:primary,preparatory,secondary,all'],
             'track'     => ['nullable', 'string', 'in:science,arts,technology'],
             'is_active' => ['sometimes', 'boolean'],
+            'vodafone_cash_number' => ['nullable', 'string', 'max:20', 'regex:/^(?:\+20|0020|0)1\d{9}$/'],
+        ], [
+            'vodafone_cash_number.regex' => 'أدخل رقم فودافون كاش مصرياً صحيحاً مثل 01012345678.',
         ]);
 
         if (($validated['stage'] ?? '') !== 'secondary') {

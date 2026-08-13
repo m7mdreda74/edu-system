@@ -14,6 +14,7 @@ class PlatformSetting extends Model
         'tap_publishable_key',
         'tap_secret_key',
         'fatora_api_key',
+        'manual_payment_methods',
     ];
 
     protected $fillable = [

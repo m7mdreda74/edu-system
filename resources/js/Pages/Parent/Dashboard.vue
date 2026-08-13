@@ -409,7 +409,12 @@ function submitReject() {
                                         <tr v-for="pay in paginatedPayments" :key="pay.id">
                                             <td class="px-6 py-4 font-bold text-surface-900 dark:text-white">{{ pay.subscription?.assignment?.subject?.name ?? "اشتراك" }}</td>
                                             <td class="px-6 py-4 font-semibold text-green-600 dark:text-green-400">{{ formatQAR(pay.amount) }}</td>
-                                            <td class="px-6 py-4 text-surface-500">{{ pay.gateway === 'manual' ? pay.gateway_ref : 'سجل قديم' }}</td>
+                                            <td class="px-6 py-4 text-surface-500">
+                                                <span v-if="pay.gateway === 'vodafone_cash'">
+                                                    فودافون كاش<span v-if="pay.sender_phone" dir="ltr"> — {{ pay.sender_phone }}</span>
+                                                </span>
+                                                <span v-else>تحويل سابق</span>
+                                            </td>
                                             <td class="px-6 py-4 text-xs text-surface-400">{{ new Date(pay.created_at).toLocaleDateString('ar') }}</td>
                                         </tr>
                                     </tbody>

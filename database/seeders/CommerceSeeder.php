@@ -152,11 +152,11 @@ class CommerceSeeder extends Seeder
 
     private function seedPaymentFor(Subscription $subscription, string $state, int $seed): void
     {
-        // Every seeded payment follows the production flow: a manual transfer
+        // Every seeded payment follows the production flow: a Vodafone Cash transfer
         // is either waiting for admin verification or already approved.
         [$status, $gateway] = $state === Subscription::STATUS_PENDING
-            ? [Payment::STATUS_PENDING_VERIFICATION, 'manual']
-            : [Payment::STATUS_PAID, 'manual'];
+            ? [Payment::STATUS_PENDING_VERIFICATION, Payment::GATEWAY_VODAFONE_CASH]
+            : [Payment::STATUS_PAID, Payment::GATEWAY_VODAFONE_CASH];
 
         $amount     = $subscription->monthly_price;
         $commission = self::DEFAULT_COMMISSION;
@@ -176,10 +176,11 @@ class CommerceSeeder extends Seeder
             'original_amount'            => $amount,
             'currency'                   => 'QAR',
             'gateway'                    => $gateway,
-            'gateway_ref'                => 'bank: بنك قطر الوطني',
+            'gateway_ref'                => 'Vodafone Cash: 01000000000',
+            'sender_phone'               => '01000000001',
             'status'                     => $status,
             'paid_at'                    => $isPaid ? $subscription->period_start : null,
-            'receipt_path'               => $gateway === 'manual' ? 'receipts/sample-transfer.jpg' : null,
+            'receipt_path'               => $gateway === Payment::GATEWAY_VODAFONE_CASH ? 'receipts/sample-transfer.jpg' : null,
             'commission_percent'         => $isPaid ? $commission : null,
             'platform_commission_amount' => $isPaid ? $platformCut : null,
             'teacher_earnings'           => $isPaid ? $amount - $platformCut : null,

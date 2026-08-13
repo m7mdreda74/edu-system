@@ -74,14 +74,11 @@ const defaultSettings = [
     // Navigation & social arrays
     { key: 'navbar_links', value: '[]', type: 'string' },
     { key: 'footer_links', value: '[]', type: 'string' },
-    { key: 'footer_social_links', value: '[]', type: 'string' },
-
-    // Manual payment settings
-    { key: 'manual_payment_methods', value: '[]', type: 'string' }
+    { key: 'footer_social_links', value: '[]', type: 'string' }
 ];
 
 const liveStatKeys = new Set(['home_stats_students', 'home_stats_courses', 'home_stats_teachers']);
-const disabledPaymentSettingKeys = new Set(['active_gateway', 'tap_publishable_key', 'tap_secret_key', 'fatora_api_key']);
+const disabledPaymentSettingKeys = new Set(['active_gateway', 'tap_publishable_key', 'tap_secret_key', 'fatora_api_key', 'manual_payment_methods']);
 
 // Initialize settings by merging editable defaults with current DB values.
 // Homepage counters are calculated from the domain tables and never enter
@@ -262,7 +259,6 @@ const aboutPillarsList = ref([]);
 const navbarLinksList = ref([]);
 const footerLinksList = ref([]);
 const socialLinksList = ref([]);
-const manualPaymentsList = ref([]);
 
 const initLists = () => {
     const f = getSetting('home_features');
@@ -295,8 +291,6 @@ const initLists = () => {
     const sl = getSetting('footer_social_links');
     socialLinksList.value = sl ? JSON.parse(sl.value || '[]') : [];
 
-    const mp = getSetting('manual_payment_methods');
-    manualPaymentsList.value = mp ? JSON.parse(mp.value || '[]') : [];
 };
 
 initLists();
@@ -363,24 +357,6 @@ const syncListsBeforeSubmit = () => {
     const sl = getSetting('footer_social_links');
     if (sl) sl.value = JSON.stringify(socialLinksList.value);
 
-    const mp = getSetting('manual_payment_methods');
-    if (mp) mp.value = JSON.stringify(manualPaymentsList.value);
-};
-
-const addManualPayment = () => {
-    manualPaymentsList.value.push({
-        type: 'wallet',
-        name: 'محفظة إلكترونية',
-        account_name: '',
-        account_number: '',
-        instructions: ''
-    });
-    isDirty.value = true;
-};
-
-const removeManualPayment = (i) => {
-    manualPaymentsList.value.splice(i, 1);
-    isDirty.value = true;
 };
 
 // Filter out already categorized keys to show under advanced settings
@@ -404,8 +380,7 @@ const advancedSettings = computed(() => {
             'footer_desc', 'app_title', 'app_badge', 'app_desc',
             'app_win_url', 'app_mac_url', 'app_ios_url', 'app_android_url', 'app_huawei_url',
             'home_features', 'home_why_choose_us', 'home_youtube_videos', 'home_faqs', 'home_results',
-            'navbar_links', 'footer_links', 'footer_social_links',
-            'manual_payment_methods'
+            'navbar_links', 'footer_links', 'footer_social_links'
         ];
         if (explicitKeys.includes(s.key)) return false;
         return true;
@@ -991,67 +966,18 @@ async function saveSettings() {
                         </div>
                     </div>
 
-                    <!-- Tab: Manual transfers -->
+                    <!-- Tab: Vodafone Cash -->
                     <div v-if="activeTab === 'payment'" class="card p-6 space-y-6 animate-fade-in-up">
                         <div class="border-b border-surface-100 dark:border-surface-700 pb-3">
                             <h3 class="font-bold text-base text-surface-900 dark:text-white flex items-center gap-2">
                                 <Icon name="payments" class="w-5 h-5 text-primary-500" />
-                                <span>إعدادات التحويل وإثبات الدفع</span>
+                                <span>فودافون كاش وإثبات الدفع</span>
                             </h3>
-                            <p class="text-xs text-surface-500 mt-1">الدفع على المنصة يتم بالتحويل البنكي أو المحفظة فقط. يرفع الطالب إثبات التحويل، ولا يتفعّل الاشتراك إلا بعد قرار الأدمن.</p>
+                            <p class="text-xs text-surface-500 mt-1">الدفع على المنصة يتم عبر فودافون كاش فقط. يرفع الطالب أو ولي الأمر رقم المحفظة المُرسِلة وإثبات التحويل، ولا يتفعّل الاشتراك إلا بعد قرار الأدمن.</p>
                         </div>
 
-                        <div class="space-y-6">
-                            <div class="rounded-2xl border border-primary-200 bg-primary-50/60 dark:border-primary-900 dark:bg-primary-950/30 p-4 text-xs text-primary-800 dark:text-primary-200">
-                                أضف الحسابات أو المحافظ التي سيحوّل إليها الطلاب. كل طلب سيظل قيد المراجعة حتى يطّلع الأدمن على الإثبات ويوافق عليه أو يرفضه.
-                            </div>
-
-                            <!-- Manual Payment Methods Group -->
-                            <div class="border-t border-surface-150 dark:border-surface-800 pt-6 mt-6">
-                                <div class="flex justify-between items-center mb-4">
-                                    <div>
-                                        <h4 class="font-bold text-sm text-surface-900 dark:text-white">وسائل الدفع اليدوية (الحسابات البنكية والمحافظ)</h4>
-                                        <p class="text-xs text-surface-400 mt-1">أدخل أرقام الحسابات البنكية أو أرقام الهواتف للمحافظ الإلكترونية ليقوم الطلاب بالتحويل يدوياً ورفع صورة الإيصال.</p>
-                                    </div>
-                                    <button type="button" @click="addManualPayment" class="btn-outline text-xs py-1.5 px-3 flex items-center gap-1">
-                                        <Icon name="plus" class="w-3.5 h-3.5" />
-                                        <span>إضافة وسيلة دفع</span>
-                                    </button>
-                                </div>
-
-                                <div class="space-y-4">
-                                    <div v-for="(method, idx) in manualPaymentsList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/20 dark:bg-surface-800/10 relative group space-y-3">
-                                        <button type="button" @click="removeManualPayment(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
-                                            <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
-                                            <span>حذف</span>
-                                        </button>
-
-                                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                            <div class="space-y-1">
-                                                <label class="block text-[10px] font-bold text-surface-500">نوع الوسيلة</label>
-                                                <select v-model="method.type" class="input w-full text-xs" @change="isDirty = true"><option value="wallet">محفظة إلكترونية</option><option value="bank">تحويل بنكي</option></select>
-                                            </div>
-                                            <div class="space-y-1">
-                                                <label class="block text-[10px] font-bold text-surface-500">اسم وسيلة الدفع</label>
-                                                <input v-model="method.name" type="text" class="input w-full text-xs" placeholder="مثال: فودافون كاش / بنك قطر الوطني" @input="isDirty = true" />
-                                            </div>
-                                            <div class="space-y-1">
-                                                <label class="block text-[10px] font-bold text-surface-500">اسم صاحب الحساب / المستفيد</label>
-                                                <input v-model="method.account_name" type="text" class="input w-full text-xs" placeholder="مثال: منصة التفوق التعليمية" @input="isDirty = true" />
-                                            </div>
-                                            <div class="space-y-1">
-                                                <label class="block text-[10px] font-bold text-surface-500">رقم الحساب / المحفظة / الـ IBAN</label>
-                                                <input v-model="method.account_number" type="text" class="input w-full text-xs font-mono" placeholder="مثال: 01012345678 أو IBAN..." @input="isDirty = true" />
-                                            </div>
-                                            <div class="space-y-1 md:col-span-3">
-                                                <label class="block text-[10px] font-bold text-surface-500">خطوات وتعليمات التحويل للطالب</label>
-                                                <textarea v-model="method.instructions" rows="2" class="input w-full text-xs" placeholder="اكتب الخطوات للطالب لإتمام التحويل ورفع إيصال الدفع..." @input="isDirty = true"></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div v-if="manualPaymentsList.length === 0" class="text-center py-6 text-surface-400 text-xs">لا توجد وسائل دفع يدوية مضافة حالياً.</div>
-                                </div>
-                            </div>
+                        <div class="rounded-2xl border border-primary-200 bg-primary-50/60 dark:border-primary-900 dark:bg-primary-950/30 p-4 text-xs text-primary-800 dark:text-primary-200">
+                            أرقام الاستلام تُضبط من صفحة <Link :href="route('admin.grade-levels')" class="font-black underline">المراحل الدراسية</Link>، بحيث يكون لكل مرحلة رقم فودافون كاش خاص بها. لا توجد أي وسائل دفع أخرى في المنصة.
                         </div>
                     </div>
 

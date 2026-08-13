@@ -7,12 +7,12 @@ import { formatQAR, DAY_NAMES } from '@/lib/money';
 import axios from 'axios';
 
 const props = defineProps({
-    subscription:  { type: Object, required: true },
-    manualMethods: { type: Array, default: () => [] },
+    subscription:       { type: Object, required: true },
+    vodafoneCashNumber: { type: String, default: null },
 });
 
-const selectedManual = ref(null);
 const receiptFile    = ref(null);
+const senderPhone    = ref('');
 const couponCode     = ref('');
 const couponState    = ref({ status: 'idle', message: '', discountedPrice: null });
 const processing     = ref(false);
@@ -60,25 +60,29 @@ function onReceiptChange(event) {
 async function submit() {
     errorMessage.value = '';
 
-    if (!selectedManual.value) {
-        errorMessage.value = 'اختر وسيلة التحويل أولاً.';
+    if (!props.vodafoneCashNumber) {
+        errorMessage.value = 'لم يتم ضبط رقم فودافون كاش لهذه المرحلة بعد. تواصل مع إدارة المنصة.';
+        return;
+    }
+    if (!senderPhone.value.trim()) {
+        errorMessage.value = 'اكتب رقم الهاتف الذي حوّلت منه أولاً.';
         return;
     }
     if (!receiptFile.value) {
-        errorMessage.value = 'ارفع صورة الإيصال.';
+        errorMessage.value = 'ارفع إثبات التحويل.';
         return;
     }
 
     processing.value = true;
 
     const formData = new FormData();
-    formData.append('payment_method', 'manual');
+    formData.append('payment_method', 'vodafone_cash');
+    formData.append('sender_phone', senderPhone.value.trim());
 
     if (couponCode.value.trim()) {
         formData.append('coupon_code', couponCode.value.trim());
     }
 
-    formData.append('selected_method', JSON.stringify(selectedManual.value));
     formData.append('receipt', receiptFile.value);
 
     try {
@@ -117,58 +121,59 @@ async function submit() {
                         <span>{{ errorMessage }}</span>
                     </div>
 
-                    <!-- Method picker -->
+                    <!-- Vodafone Cash only -->
                     <div class="card p-5">
                         <h2 class="font-bold text-sm text-surface-900 dark:text-white mb-4">طريقة الدفع</h2>
 
                         <div class="rounded-xl border-2 border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 p-4 flex items-start gap-3">
-                            <Icon name="attachment" class="w-5 h-5 text-primary-600 shrink-0" />
+                            <Icon name="payments" class="w-5 h-5 text-primary-600 shrink-0" />
                             <div>
-                                <div class="font-bold text-xs text-surface-900 dark:text-white">تحويل بنكي فقط</div>
-                                <div class="text-[11px] text-surface-500 dark:text-surface-400 mt-1">حوّل المبلغ إلى أحد الحسابات التالية ثم ارفع صورة إثبات التحويل. لن يتفعّل الاشتراك إلا بعد مراجعة الأدمن.</div>
+                                <div class="font-bold text-xs text-surface-900 dark:text-white">فودافون كاش فقط</div>
+                                <div class="text-[11px] text-surface-500 dark:text-surface-400 mt-1">حوّل المبلغ إلى رقم المرحلة الموضح بالأسفل، ثم اكتب رقم الهاتف الذي حوّلت منه وارفع إثبات التحويل. لن يتفعّل الاشتراك إلا بعد مراجعة الأدمن.</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Manual transfer details -->
+                    <!-- Vodafone Cash transfer details -->
                     <div class="card p-5 space-y-4">
-                        <h2 class="font-bold text-sm text-surface-900 dark:text-white">بيانات التحويل</h2>
+                        <h2 class="font-bold text-sm text-surface-900 dark:text-white">بيانات تحويل فودافون كاش</h2>
 
-                        <div v-if="!manualMethods.length" class="alert-error">
-                            لا توجد وسيلة تحويل مضافة حالياً. تواصل مع إدارة المنصة.
+                        <div v-if="!vodafoneCashNumber" class="alert-error">
+                            لم يتم ضبط رقم فودافون كاش لهذه المرحلة بعد. تواصل مع إدارة المنصة.
                         </div>
 
-                        <div class="space-y-2">
-                            <button
-                                v-for="(method, index) in manualMethods"
-                                :key="index"
-                                type="button"
-                                class="w-full p-3 rounded-xl border-2 text-start transition-all"
-                                :class="selectedManual === method
-                                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30'
-                                    : 'border-surface-200 dark:border-surface-700'"
-                                @click="selectedManual = method"
-                            >
-                                <div class="font-bold text-xs text-surface-900 dark:text-white">{{ method.name }}</div>
-                                <div class="text-[11px] text-surface-500 dark:text-surface-400 font-latin" dir="ltr">
-                                    {{ method.account_number }}
-                                </div>
-                                <div v-if="method.account_name" class="text-[11px] text-surface-500 mt-1">اسم المستفيد: {{ method.account_name }}</div>
-                                <div v-if="method.instructions" class="text-[11px] text-surface-500 mt-1 whitespace-pre-line">{{ method.instructions }}</div>
-                            </button>
-                        </div>
+                        <template v-else>
+                            <div class="rounded-xl border border-primary-200 bg-primary-50/60 p-4 dark:border-primary-900 dark:bg-primary-950/30">
+                                <p class="text-xs font-bold text-surface-900 dark:text-white">حوّل المبلغ إلى رقم فودافون كاش التالي:</p>
+                                <p class="mt-2 font-mono text-xl font-black tracking-wide text-primary-700 dark:text-primary-300" dir="ltr">{{ vodafoneCashNumber }}</p>
+                            </div>
 
-                        <div>
-                            <label for="receipt" class="input-label">صورة الإيصال</label>
-                            <input
-                                id="receipt"
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                class="input"
-                                @change="onReceiptChange"
-                            />
-                            <p class="input-hint">صورة واضحة للتحويل، بحد أقصى 8 ميجابايت.</p>
-                        </div>
+                            <div>
+                                <label for="sender-phone" class="input-label">رقم الهاتف الذي حوّلت منه</label>
+                                <input
+                                    id="sender-phone"
+                                    v-model="senderPhone"
+                                    type="tel"
+                                    inputmode="tel"
+                                    dir="ltr"
+                                    class="input font-mono"
+                                    placeholder="01012345678"
+                                />
+                                <p class="input-hint">اكتب رقم محفظة فودافون كاش المُرسِلة بصيغة 01012345678.</p>
+                            </div>
+
+                            <div>
+                                <label for="receipt" class="input-label">إثبات التحويل</label>
+                                <input
+                                    id="receipt"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                                    class="input"
+                                    @change="onReceiptChange"
+                                />
+                                <p class="input-hint">ارفع صورة واضحة أو ملف PDF، بحد أقصى 8 ميجابايت.</p>
+                            </div>
+                        </template>
                     </div>
 
                     <!-- Coupon -->
@@ -263,7 +268,7 @@ async function submit() {
                     <button
                         type="button"
                         class="btn-primary w-full justify-center"
-                        :disabled="processing || !manualMethods.length"
+                        :disabled="processing || !vodafoneCashNumber"
                         @click="submit"
                     >
                         {{ processing ? 'جارٍ رفع الإثبات...' : 'إرسال إثبات التحويل' }}

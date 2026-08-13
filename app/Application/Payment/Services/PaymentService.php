@@ -43,7 +43,7 @@ class PaymentService
                 return null;
             }
 
-            if ($payment->gateway !== 'manual' || $payment->status !== Payment::STATUS_PENDING_VERIFICATION) {
+            if (! $payment->requiresReceiptReview() || $payment->status !== Payment::STATUS_PENDING_VERIFICATION) {
                 return null;
             }
 

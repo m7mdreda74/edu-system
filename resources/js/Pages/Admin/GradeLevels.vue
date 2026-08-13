@@ -34,6 +34,7 @@ const form = useForm({
     stage: 'secondary',
     track: '',
     is_active: true,
+    vodafone_cash_number: '',
 });
 
 const showTrackFilter = computed(() => selectedStage.value === 'secondary');
@@ -76,6 +77,7 @@ function openEditModal(gradeLevel) {
     form.stage = gradeLevel.stage || 'secondary';
     form.track = gradeLevel.track || '';
     form.is_active = gradeLevel.is_active ? true : false;
+    form.vodafone_cash_number = gradeLevel.vodafone_cash_number || '';
     isModalOpen.value = true;
 }
 
@@ -209,6 +211,16 @@ async function deleteGradeLevel(id) {
                         </h3>
                         <p class="text-sm text-surface-400 mb-4">{{ gl.name_en || 'لا يوجد اسم إنجليزي' }}</p>
 
+                        <div class="mb-4 rounded-xl border border-primary-100 bg-primary-50/60 px-3 py-2 dark:border-primary-900/60 dark:bg-primary-950/25">
+                            <div class="flex items-center gap-1.5 text-[11px] font-bold text-primary-700 dark:text-primary-300">
+                                <Icon name="payments" class="h-3.5 w-3.5" />
+                                <span>فودافون كاش</span>
+                            </div>
+                            <p class="mt-1 font-mono text-xs text-surface-700 dark:text-surface-200" dir="ltr">
+                                {{ gl.vodafone_cash_number || 'لم يتم ضبط رقم التحويل' }}
+                            </p>
+                        </div>
+
                         <!-- Stats Counters -->
                         <div class="grid grid-cols-2 gap-2 mb-6">
                             <div class="bg-surface-50 dark:bg-surface-900/50 p-2.5 rounded-xl text-center border border-surface-100 dark:border-surface-800/40">
@@ -289,6 +301,13 @@ async function deleteGradeLevel(id) {
                             <label class="input-label mb-1">اسم المرحلة (بالإنجليزية - اختياري)</label>
                             <input v-model="form.name_en" type="text" class="input" placeholder="مثال: Grade 10" />
                             <p v-if="form.errors.name_en" class="text-red-500 text-xs mt-1">{{ form.errors.name_en }}</p>
+                        </div>
+
+                        <div>
+                            <label class="input-label mb-1">رقم فودافون كاش لاستلام تحويلات هذه المرحلة</label>
+                            <input v-model="form.vodafone_cash_number" type="tel" inputmode="tel" class="input font-mono" dir="ltr" placeholder="01012345678" />
+                            <p class="text-[10px] text-surface-400 mt-1">يظهر هذا الرقم فقط للطلاب أو أولياء الأمور المشتركين في هذه المرحلة.</p>
+                            <p v-if="form.errors.vodafone_cash_number" class="text-red-500 text-xs mt-1">{{ form.errors.vodafone_cash_number }}</p>
                         </div>
 
                         <div>

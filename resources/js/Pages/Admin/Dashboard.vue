@@ -287,7 +287,7 @@ const BADGE_LABELS = {
                             </div>
                         </div>
 
-                        <span class="badge-gray text-[9px] shrink-0 hidden sm:inline-flex">{{ payment.gateway }}</span>
+                        <span class="badge-gray text-[9px] shrink-0 hidden sm:inline-flex">{{ payment.gateway === 'vodafone_cash' ? 'فودافون كاش' : 'سجل سابق' }}</span>
                         <span class="text-[10px] text-surface-400 shrink-0 hidden md:block">{{ relative(payment.paid_at) }}</span>
                         <span class="text-xs font-black text-primary-700 dark:text-primary-400 shrink-0">
                             {{ formatQAR(payment.amount) }}

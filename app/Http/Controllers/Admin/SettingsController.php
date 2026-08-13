@@ -28,6 +28,7 @@ class SettingsController extends Controller
         'tap_publishable_key',
         'tap_secret_key',
         'fatora_api_key',
+        'manual_payment_methods',
     ];
 
     public function index(): Response

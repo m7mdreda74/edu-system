@@ -28,6 +28,9 @@ class Payment extends Model
     const STATUS_FAILED               = 'failed';
     const STATUS_REFUNDED             = 'refunded';
 
+    public const GATEWAY_VODAFONE_CASH = 'vodafone_cash';
+    public const GATEWAY_LEGACY_MANUAL = 'manual';
+
     protected $fillable = [
         'user_id',
         'subscription_id',
@@ -40,6 +43,7 @@ class Payment extends Model
         'currency',
         'gateway',
         'gateway_ref',
+        'sender_phone',
         'status',
         'receipt_path',
         'paid_at',
@@ -100,6 +104,18 @@ class Payment extends Model
     public function isPending(): bool
     {
         return $this->status === self::STATUS_PENDING;
+    }
+
+    /**
+     * Historic manual receipts remain reviewable so existing pending payments
+     * are not stranded after Vodafone Cash becomes the only new checkout path.
+     */
+    public function requiresReceiptReview(): bool
+    {
+        return in_array($this->gateway, [
+            self::GATEWAY_VODAFONE_CASH,
+            self::GATEWAY_LEGACY_MANUAL,
+        ], true);
     }
 
     /** Returns amount in main currency unit (e.g. QAR not halala) */

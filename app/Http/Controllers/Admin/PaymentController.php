@@ -37,7 +37,7 @@ class PaymentController extends Controller
         $approved = DB::transaction(function () use ($payment, $paymentService, $request): bool {
             $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
 
-            if ($lockedPayment->gateway !== 'manual' || $lockedPayment->status !== Payment::STATUS_PENDING_VERIFICATION) {
+            if (! $lockedPayment->requiresReceiptReview() || $lockedPayment->status !== Payment::STATUS_PENDING_VERIFICATION) {
                 return false;
             }
 
@@ -66,7 +66,7 @@ class PaymentController extends Controller
         $rejected = DB::transaction(function () use ($payment, $validated): bool {
             $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
 
-            if ($lockedPayment->gateway !== 'manual' || $lockedPayment->status !== Payment::STATUS_PENDING_VERIFICATION) {
+            if (! $lockedPayment->requiresReceiptReview() || $lockedPayment->status !== Payment::STATUS_PENDING_VERIFICATION) {
                 return false;
             }
 

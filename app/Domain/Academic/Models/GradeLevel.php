@@ -46,6 +46,7 @@ class GradeLevel extends Model
         'stage',
         'track',
         'is_active',
+        'vodafone_cash_number',
     ];
 
     protected function casts(): array

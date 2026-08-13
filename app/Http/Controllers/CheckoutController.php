@@ -6,7 +6,6 @@ namespace App\Http\Controllers;
 
 use App\Domain\Payment\Models\Coupon;
 use App\Domain\Payment\Models\Payment;
-use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
@@ -20,7 +19,7 @@ use LogicException;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
- * Pays for one month of a subscription by uploading a bank-transfer receipt
+ * Pays for one month of a subscription by uploading a Vodafone Cash receipt
  * for an admin to verify.
  *
  * A parent may pay on behalf of a linked student; every entry point checks that
@@ -38,32 +37,26 @@ class CheckoutController extends Controller
             ]);
         }
 
-        $manualMethods = json_decode(
-            PlatformSetting::where('key', 'manual_payment_methods')->value('value') ?: '[]',
-            true,
-        );
-        $manualMethods = is_array($manualMethods)
-            ? array_values(array_filter($manualMethods, static fn (mixed $method): bool => is_array($method)))
-            : [];
-
         return Inertia::render('Checkout/Index', [
-            'subscription'  => $this->presentSubscription($subscription),
-            'manualMethods' => $manualMethods,
+            'subscription'       => $this->presentSubscription($subscription),
+            'vodafoneCashNumber' => $subscription->assignment?->gradeLevel?->vodafone_cash_number,
         ]);
     }
 
     public function process(Request $request, int $subscriptionId): SymfonyResponse
     {
         $validated = $request->validate([
-            'coupon_code'     => ['nullable', 'string', 'max:50'],
-            'payment_method'  => ['required', 'string', 'in:manual'],
-            'selected_method' => ['required', 'string', 'json', 'max:2000'],
-            'receipt'         => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
+            'coupon_code'    => ['nullable', 'string', 'max:50'],
+            'payment_method' => ['required', 'string', 'in:vodafone_cash'],
+            'sender_phone'   => ['required', 'string', 'max:20', 'regex:/^(?:\+20|0020|0)1\d{9}$/'],
+            'receipt'        => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+        ], [
+            'sender_phone.regex' => 'أدخل رقم الهاتف الذي حوّلت منه بصيغة 01012345678.',
         ]);
 
         $subscription = $this->authorizeSubscription($subscriptionId);
 
-        return $this->processManualTransfer($request, $validated, $subscription);
+        return $this->processVodafoneCashPayment($request, $validated, $subscription);
     }
 
     public function checkCoupon(Request $request): JsonResponse
@@ -103,7 +96,7 @@ class CheckoutController extends Controller
             'student:id,name',
             'assignment.subject:id,name,icon',
             'assignment.teacher:id,name,avatar',
-            'assignment.gradeLevel:id,key,name',
+            'assignment.gradeLevel:id,key,name,vodafone_cash_number',
             'group.schedules',
         ])->findOrFail($subscriptionId);
 
@@ -121,43 +114,26 @@ class CheckoutController extends Controller
         return $subscription;
     }
 
-    /** Bank/wallet transfer: store the receipt and queue it for admin review. */
-    private function processManualTransfer(Request $request, array $validated, Subscription $subscription): SymfonyResponse
+    /** Vodafone Cash transfer: store the receipt and queue it for admin review. */
+    private function processVodafoneCashPayment(Request $request, array $validated, Subscription $subscription): SymfonyResponse
     {
         try {
             if ($subscription->status === Subscription::STATUS_ACTIVE) {
                 throw new LogicException('هذا الاشتراك مفعّل بالفعل.');
             }
 
-            $selected = json_decode($validated['selected_method'], true);
-
-            if (! is_array($selected)) {
-                throw new LogicException('بيانات وسيلة التحويل غير صالحة. حدّث الصفحة وحاول مرة أخرى.');
-            }
-
-            $configured = json_decode(
-                PlatformSetting::where('key', 'manual_payment_methods')->value('value') ?: '[]',
-                true,
-            );
-            $configured = is_array($configured)
-                ? array_values(array_filter($configured, static fn (mixed $method): bool => is_array($method)))
-                : [];
-
-            $method = collect($configured)->first(
-                static fn (array $method): bool => ($method['name'] ?? null) === ($selected['name'] ?? null)
-                    && ($method['account_number'] ?? null) === ($selected['account_number'] ?? null)
-                    && ($method['type'] ?? null) === ($selected['type'] ?? null),
-            );
-
-            if (! $method) {
-                throw new LogicException('وسيلة التحويل المختارة غير متاحة. حدّث الصفحة وحاول مرة أخرى.');
-            }
-
-            $payment = DB::transaction(function () use ($request, $validated, $subscription, $method): Payment {
+            $payment = DB::transaction(function () use ($request, $validated, $subscription): Payment {
                 /** @var Subscription $lockedSubscription */
                 $lockedSubscription = Subscription::query()
                     ->lockForUpdate()
                     ->findOrFail($subscription->id);
+
+                $lockedSubscription->loadMissing('assignment.gradeLevel:id,vodafone_cash_number');
+                $recipientPhone = $lockedSubscription->assignment?->gradeLevel?->vodafone_cash_number;
+
+                if (! is_string($recipientPhone) || ! preg_match('/^(?:\+20|0020|0)1\d{9}$/', $recipientPhone)) {
+                    throw new LogicException('لم يتم ضبط رقم فودافون كاش لهذه المرحلة الدراسية بعد. تواصل مع إدارة المنصة.');
+                }
 
                 if ($lockedSubscription->status === Subscription::STATUS_ACTIVE) {
                     throw new LogicException('هذا الاشتراك مفعّل بالفعل.');
@@ -201,8 +177,9 @@ class CheckoutController extends Controller
                     'amount'          => $finalAmount,
                     'original_amount' => $originalAmount,
                     'currency'        => $lockedSubscription->currency ?? 'QAR',
-                    'gateway'         => 'manual',
-                    'gateway_ref'     => ($method['type'] ?? 'wallet') . ': ' . ($method['name'] ?? 'تحويل يدوي'),
+                    'gateway'         => Payment::GATEWAY_VODAFONE_CASH,
+                    'gateway_ref'     => 'Vodafone Cash: ' . $recipientPhone,
+                    'sender_phone'    => $validated['sender_phone'],
                     'status'          => Payment::STATUS_PENDING_VERIFICATION,
                     'receipt_path'    => $request->file('receipt')->store('receipts', 'local'),
                 ]);
