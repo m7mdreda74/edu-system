@@ -18,20 +18,32 @@ use App\Domain\User\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 /**
  * Subscriptions and the money behind them.
  *
  * Every state is represented — active, awaiting payment, expired, cancelled —
- * with manual transfers either waiting on an admin or already approved, so the
+ * with Vodafone Cash transfers either waiting on an admin or already approved, so the
  * dashboards and the review queue all have something real.
  */
 class CommerceSeeder extends Seeder
 {
     private const DEFAULT_COMMISSION = 20;
 
+    private const VODAFONE_RECEIPT_IMAGE = 'receipts/demo-vodafone-cash-receipt.png';
+
+    private const VODAFONE_RECEIPT_PDF = 'receipts/demo-vodafone-cash-receipt.pdf';
+
+    private const PAYOUT_RECEIPT_IMAGE = 'payout-receipts/demo-payout-receipt.png';
+
+    private ?int $adminId = null;
+
     public function run(): void
     {
+        $this->adminId = User::role('admin')->value('id');
+        $this->seedReceiptFiles();
         $this->seedCoupons();
 
         $students = User::role('student')->get();
@@ -101,6 +113,60 @@ class CommerceSeeder extends Seeder
         }
     }
 
+    /**
+     * The database references these same small files from many demo payments.
+     * Keeping the files on the private disk lets the protected receipt screens
+     * work after seeding without generating thousands of duplicate uploads.
+     */
+    private function seedReceiptFiles(): void
+    {
+        $image = base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlZpA8AAAAASUVORK5CYII=',
+            true,
+        );
+
+        if ($image === false) {
+            throw new RuntimeException('Unable to create the demo receipt image.');
+        }
+
+        $disk = Storage::disk('local');
+        $disk->put(self::VODAFONE_RECEIPT_IMAGE, $image);
+        $disk->put(self::PAYOUT_RECEIPT_IMAGE, $image);
+        $disk->put(self::VODAFONE_RECEIPT_PDF, $this->demoReceiptPdf());
+    }
+
+    /** Create a small valid PDF so both image and PDF receipt viewers are exercised. */
+    private function demoReceiptPdf(): string
+    {
+        $stream = "BT\n/F1 16 Tf\n36 96 Td\n(Demo Vodafone Cash receipt) Tj\nET";
+        $objects = [
+            '<< /Type /Catalog /Pages 2 0 R >>',
+            '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+            '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+            "<< /Length ".strlen($stream)." >>\nstream\n{$stream}\nendstream",
+            '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+        ];
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [];
+
+        foreach ($objects as $index => $object) {
+            $number = $index + 1;
+            $offsets[$number] = strlen($pdf);
+            $pdf .= "{$number} 0 obj\n{$object}\nendobj\n";
+        }
+
+        $startXref = strlen($pdf);
+        $pdf .= "xref\n0 ".(count($objects) + 1)."\n0000000000 65535 f \n";
+
+        foreach ($offsets as $offset) {
+            $pdf .= sprintf('%010d 00000 n ', $offset)."\n";
+        }
+
+        return $pdf
+            . "trailer\n<< /Size ".(count($objects) + 1)." /Root 1 0 R >>\nstartxref\n{$startXref}\n%%EOF\n";
+    }
+
     private function seedSubscription(User $student, TeachingGroup $group, int $seed): void
     {
         // Cycle through the states so every dashboard branch has data.
@@ -152,15 +218,21 @@ class CommerceSeeder extends Seeder
 
     private function seedPaymentFor(Subscription $subscription, string $state, int $seed): void
     {
-        // Every seeded payment follows the production flow: a Vodafone Cash transfer
-        // is either waiting for admin verification or already approved.
-        [$status, $gateway] = $state === Subscription::STATUS_PENDING
-            ? [Payment::STATUS_PENDING_VERIFICATION, Payment::GATEWAY_VODAFONE_CASH]
-            : [Payment::STATUS_PAID, Payment::GATEWAY_VODAFONE_CASH];
+        $subscription->loadMissing(['assignment.teacher', 'assignment.gradeLevel']);
+
+        // New transfers start pending. A deterministic subset is then rejected
+        // so the admin review queue, rejection reason, and retry path all have
+        // useful demo data instead of only successful payments.
+        $isPending = $state === Subscription::STATUS_PENDING;
+        $isRejected = $isPending && $seed % 12 === 9;
+        $status = $isPending
+            ? Payment::STATUS_PENDING_VERIFICATION
+            : Payment::STATUS_PAID;
 
         $amount     = $subscription->monthly_price;
         $commission = self::DEFAULT_COMMISSION;
         $teacher    = $subscription->assignment?->teacher;
+        $paidAt     = $subscription->period_start?->copy()->addHours(2) ?? now()->subDay();
 
         if ($teacher?->commission_percent !== null) {
             $commission = $teacher->commission_percent;
@@ -168,6 +240,7 @@ class CommerceSeeder extends Seeder
 
         $platformCut = (int) floor(($amount * $commission) / 100);
         $isPaid      = $status === Payment::STATUS_PAID;
+        $recipientPhone = $this->vodafoneCashNumberFor($subscription);
 
         $payment = Payment::create([
             'user_id'                    => $subscription->student_id,
@@ -175,15 +248,18 @@ class CommerceSeeder extends Seeder
             'amount'                     => $amount,
             'original_amount'            => $amount,
             'currency'                   => 'QAR',
-            'gateway'                    => $gateway,
-            'gateway_ref'                => 'Vodafone Cash: 01000000000',
-            'sender_phone'               => '01000000001',
+            'gateway'                    => Payment::GATEWAY_VODAFONE_CASH,
+            'gateway_ref'                => 'Vodafone Cash: '.$recipientPhone,
+            'sender_phone'               => sprintf('0108%07d', ($seed % 9_999_999) + 1),
             'status'                     => $status,
-            'paid_at'                    => $isPaid ? $subscription->period_start : null,
-            'receipt_path'               => $gateway === Payment::GATEWAY_VODAFONE_CASH ? 'receipts/sample-transfer.jpg' : null,
+            'paid_at'                    => $isPaid ? $paidAt : null,
+            'receipt_path'               => $seed % 5 === 0 ? self::VODAFONE_RECEIPT_PDF : self::VODAFONE_RECEIPT_IMAGE,
             'commission_percent'         => $isPaid ? $commission : null,
             'platform_commission_amount' => $isPaid ? $platformCut : null,
             'teacher_earnings'           => $isPaid ? $amount - $platformCut : null,
+            'reviewed_by'                => $isPaid ? $this->adminId : null,
+            'reviewed_at'                => $isPaid ? $paidAt : null,
+            'review_notes'               => $isPaid ? 'تمت مطابقة تحويل فودافون كاش واعتماد الدفع.' : null,
         ]);
 
         if ($isPaid) {
@@ -193,6 +269,30 @@ class CommerceSeeder extends Seeder
                 'issued_at'      => $subscription->period_start,
             ]);
         }
+
+        if ($isRejected) {
+            // Transition rather than create directly as failed so the audit
+            // trail mirrors the real admin rejection workflow.
+            $payment->update([
+                'status'       => Payment::STATUS_FAILED,
+                'reviewed_by'  => $this->adminId,
+                'reviewed_at'  => now()->subHours(3),
+                'review_notes' => 'الإيصال التجريبي غير واضح. يمكن رفع إيصال جديد.',
+            ]);
+        }
+    }
+
+    private function vodafoneCashNumberFor(Subscription $subscription): string
+    {
+        $phone = $subscription->assignment?->gradeLevel?->vodafone_cash_number;
+
+        if (! is_string($phone) || preg_match('/^(?:\+20|0020|0)1\d{9}$/', $phone) !== 1) {
+            throw new RuntimeException(
+                'A Vodafone Cash number is required for every grade before demo payments are seeded.',
+            );
+        }
+
+        return $phone;
     }
 
     /**
@@ -274,7 +374,7 @@ class CommerceSeeder extends Seeder
             ->first();
     }
 
-    /** One settled payout per teacher, plus a pending one to review. */
+    /** A mix of settled and pending teacher payouts for the finance screens. */
     private function seedPayouts(): void
     {
         $admin = User::role('admin')->first();
@@ -302,9 +402,13 @@ class CommerceSeeder extends Seeder
                 'period_end'                 => Carbon::now()->startOfMonth()->subDay()->toDateString(),
                 'status'                     => $isPaid ? 'paid' : 'pending',
                 'paid_at'                    => $isPaid ? now()->subDays(3) : null,
+                'receipt_path'               => $isPaid ? self::PAYOUT_RECEIPT_IMAGE : null,
                 'paid_by'                    => $isPaid ? $admin?->id : null,
                 'notes'                      => $isPaid ? 'تحويل بنكي — الدفعة الشهرية.' : 'بانتظار المراجعة والتحويل.',
                 'teacher_acknowledged_at'    => $isPaid && $index % 4 === 0 ? now()->subDays(2) : null,
+                'teacher_acknowledgment_note' => $isPaid && $index % 4 === 0
+                    ? 'تم استلام التحويل بنجاح، شكرًا.'
+                    : null,
             ]);
         }
     }

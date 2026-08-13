@@ -56,10 +56,10 @@ class DatabaseSeeder extends Seeder
         $this->step('👤 الحسابات — أدمن ومعلمين وطلاب وأولياء أمور', fn () => $this->call(AccountsSeeder::class));
         $this->step('📅 جداول التدريس والمجموعات والمواعيد',        fn () => $this->call(TeachingSeeder::class));
         $this->step('📚 المحتوى — مواد وخطط واختبارات وواجبات وحصص', fn () => $this->call(ContentSeeder::class));
+        $this->step('⚙️  إعدادات المنصة وأرقام فودافون كاش',         fn () => $this->call(PlatformSettingsSeeder::class));
         $this->step('💳 الاشتراكات والمدفوعات والكوبونات والتسويات', fn () => $this->call(CommerceSeeder::class));
         $this->step('💬 التفاعل — تقدّم ومحاولات وأسئلة ورسائل وتقييمات', fn () => $this->call(EngagementSeeder::class));
-        $this->step('🧪 الحالات التشغيلية — التجريبي والتذكيرات والاعتذارات', fn () => $this->call(OperationalSeeder::class));
-        $this->step('⚙️  إعدادات المنصة',                            fn () => $this->call(PlatformSettingsSeeder::class));
+        $this->step('🧪 الحالات التشغيلية — Jitsi والتجريبي والتذكيرات والاعتذارات', fn () => $this->call(OperationalSeeder::class));
 
         $this->flushCaches();
         $this->report();
@@ -113,6 +113,7 @@ class DatabaseSeeder extends Seeder
 
         $this->command?->table(['المحتوى', 'العدد'], [
             ['الصفوف الدراسية',     $count('grade_levels')],
+            ['صفوف فودافون كاش المضبوطة', GradeLevel::whereNotNull('vodafone_cash_number')->count()],
             ['المواد',              $count('subjects')],
             ['روابط المنهج',        $count('grade_level_subject')],
             ['المعلمون',            DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')->where('roles.name', 'teacher')->count()],
@@ -127,6 +128,9 @@ class DatabaseSeeder extends Seeder
             ['الحصص المباشرة',      $count('live_sessions')],
             ['الاشتراكات',          $count('subscriptions')],
             ['المدفوعات',           $count('payments')],
+            ['إيصالات قيد المراجعة', DB::table('payments')->where('status', 'pending_verification')->count()],
+            ['إيصالات مرفوضة',       DB::table('payments')->where('status', 'failed')->count()],
+            ['غرف Jitsi المباشرة',   DB::table('live_sessions')->where('status', 'live')->count()],
             ['التقييمات',           $count('reviews')],
             ['المحادثات',           $count('conversations')],
             ['طلبات الدروس الخاصة', $count('private_lesson_requests')],

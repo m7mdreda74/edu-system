@@ -8,6 +8,7 @@ use App\Domain\Communication\Notifications\LiveSessionReminderNotification;
 use App\Domain\Communication\Notifications\SubscriptionRenewalReminderNotification;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionApology;
+use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Subscription\Models\Subscription;
@@ -30,6 +31,7 @@ class OperationalSeeder extends Seeder
         $this->seedApologyStates();
         $this->seedLiveSessionReminders();
         $this->seedRenewalReminder();
+        $this->seedJitsiDemoRooms();
         $this->seedRoleNotifications();
     }
 
@@ -253,6 +255,78 @@ class OperationalSeeder extends Seeder
             ->each(fn (User $parent) => $parent->notify(
                 new SubscriptionRenewalReminderNotification($subscription, $lastLessonAt),
             ));
+    }
+
+    /**
+     * Jitsi derives each room name from the live-session ID, so the useful
+     * demo state is a real authorized session — not a fake signalling row.
+     * The memorable student can open the group room immediately, while the
+     * private-session record gives a teacher a second Jitsi scheduling state.
+     */
+    private function seedJitsiDemoRooms(): void
+    {
+        $student = User::role('student')
+            ->where('email', 'student@altafawwuq.com')
+            ->first();
+
+        $subscription = $student
+            ? Subscription::active()
+                ->where('student_id', $student->id)
+                ->whereNotNull('teaching_group_id')
+                ->with(['group.assignment.teacher'])
+                ->orderBy('id')
+                ->first()
+            : null;
+
+        $group = $subscription?->group;
+        $teacher = $group?->assignment?->teacher;
+
+        if ($student && $group && $teacher) {
+            SessionBooking::firstOrCreate(
+                ['student_id' => $student->id, 'teaching_group_id' => $group->id],
+                ['status' => 'confirmed', 'booked_at' => now()->subDays(2)],
+            );
+
+            $session = LiveSession::firstOrCreate(
+                [
+                    'teaching_group_id' => $group->id,
+                    'title' => 'غرفة Jitsi تجريبية — ادخل الآن',
+                ],
+                [
+                    'teacher_id' => $teacher->id,
+                    'description' => 'غرفة مباشرة تجريبية جاهزة للحساب student@altafawwuq.com.',
+                    'scheduled_at' => now()->subMinutes(20),
+                    'started_at' => now()->subMinutes(20),
+                    'status' => LiveSession::STATUS_LIVE,
+                ],
+            );
+
+            LiveSessionAttendee::firstOrCreate(
+                ['live_session_id' => $session->id, 'user_id' => $student->id],
+                ['joined_at' => now()->subMinutes(16), 'left_at' => null],
+            );
+        }
+
+        $privateSlot = PrivateSessionSlot::query()
+            ->with(['assignment.teacher', 'booking'])
+            ->where('is_free_intro', false)
+            ->where('status', 'booked')
+            ->whereHas('booking', fn ($query) => $query->where('status', 'confirmed'))
+            ->orderBy('id')
+            ->first();
+
+        if ($privateSlot?->assignment?->teacher && $privateSlot->booking) {
+            LiveSession::firstOrCreate(
+                ['private_session_slot_id' => $privateSlot->id],
+                [
+                    'teacher_id' => $privateSlot->assignment->teacher_id,
+                    'title' => 'حصة خاصة عبر Jitsi',
+                    'description' => 'موعد خاص محجوز وجاهز لفتح غرفة Jitsi من لوحة المعلم.',
+                    'scheduled_at' => $privateSlot->starts_at,
+                    'status' => LiveSession::STATUS_SCHEDULED,
+                ],
+            );
+        }
     }
 
     private function seedRoleNotifications(): void
