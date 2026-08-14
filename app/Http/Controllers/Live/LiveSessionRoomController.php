@@ -43,6 +43,7 @@ class LiveSessionRoomController extends Controller
 
         return Inertia::render('Live/LiveSessionRoom', [
             'session' => $session,
+            'startedAt' => $session->started_at?->toIso8601String(),
             'roomName' => $roomName,
             'user' => [
                 'id' => $user->id,

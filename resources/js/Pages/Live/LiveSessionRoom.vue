@@ -1,9 +1,10 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
     session: { type: Object, required: true },
+    startedAt: { type: String, default: null },
     roomName: { type: String, required: true },
     user: { type: Object, required: true },
     jitsi: { type: Object, required: true },
@@ -14,12 +15,34 @@ const isLoading = ref(true);
 const isJoined = ref(false);
 const roomError = ref('');
 const whiteboardNotice = ref('');
+const elapsedSeconds = ref(0);
+
+const sessionDuration = computed(() => {
+    if (!props.startedAt) {
+        return 'لم تبدأ';
+    }
+
+    const hours = Math.floor(elapsedSeconds.value / 3600);
+    const minutes = Math.floor((elapsedSeconds.value % 3600) / 60).toString().padStart(2, '0');
+    const seconds = (elapsedSeconds.value % 60).toString().padStart(2, '0');
+
+    return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
+});
 
 let jitsiApi = null;
 let hasNavigated = false;
 let leaveFallbackTimer = null;
 let conferenceJoinTimeout = null;
 let resizeHandler = null;
+let sessionTimer = null;
+
+function updateSessionDuration() {
+    const startedAt = Date.parse(props.startedAt || '');
+
+    elapsedSeconds.value = Number.isNaN(startedAt)
+        ? 0
+        : Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+}
 
 function clearConferenceJoinTimeout() {
     if (conferenceJoinTimeout) {
@@ -177,6 +200,7 @@ function createMeeting() {
             disableInviteFunctions: true,
             doNotStoreRoom: true,
             useHostPageLocalStorage: true,
+            timeTimer: { enabled: false },
             whiteboard: whiteboardConfig(),
         },
         interfaceConfigOverwrite: {
@@ -220,6 +244,9 @@ function retryRoom() {
 }
 
 onMounted(async () => {
+    updateSessionDuration();
+    sessionTimer = window.setInterval(updateSessionDuration, 1000);
+
     try {
         await nextTick();
         await loadExternalApi();
@@ -233,6 +260,11 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     clearConferenceJoinTimeout();
+
+    if (sessionTimer) {
+        window.clearInterval(sessionTimer);
+        sessionTimer = null;
+    }
 
     if (resizeHandler) {
         window.removeEventListener('resize', resizeHandler);
@@ -267,6 +299,10 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="header-actions">
+                <div class="session-timer" :class="{ pending: !startedAt }" aria-live="polite">
+                    <span class="session-timer-label">مدة الحصة</span>
+                    <strong>{{ sessionDuration }}</strong>
+                </div>
                 <button
                     type="button"
                     class="whiteboard-button"
@@ -336,6 +372,10 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     gap: 14px;
+}
+
+.header-actions {
+    flex-wrap: wrap;
 }
 
 .session-heading h1 {
@@ -408,6 +448,30 @@ onBeforeUnmount(() => {
 .whiteboard-button:disabled {
     cursor: not-allowed;
     opacity: 0.5;
+}
+
+.session-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 0 12px;
+    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(147, 197, 253, 0.22);
+    border-radius: 10px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.session-timer strong {
+    color: #fff;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.session-timer.pending {
+    color: #fcd34d;
 }
 
 .connection-status {
