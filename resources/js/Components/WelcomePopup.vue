@@ -111,12 +111,12 @@ function closePopup() {
     <Transition name="fade">
         <div v-if="isOpen" 
              @click.self="closePopup"
-             class="fixed inset-0 z-55 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 cursor-pointer" 
+             class="modal-overlay z-55 bg-black/60 backdrop-blur-md cursor-pointer"
              dir="rtl"
         >
             
             <!-- Modal Body -->
-            <div class="relative w-full max-w-2xl bg-gradient-to-br from-primary-900 to-primary-950 text-white rounded-3xl p-8 md:p-10 shadow-2xl border border-primary-800 transform transition-all duration-300 scale-100 flex flex-col items-center cursor-default">
+            <div class="modal-panel relative w-full max-w-2xl bg-gradient-to-br from-primary-900 to-primary-950 text-white rounded-3xl p-8 md:p-10 shadow-2xl border border-primary-800 transform transition-all duration-300 scale-100 flex flex-col items-center cursor-default">
                 
                 <!-- Close Button -->
                 <button @click="closePopup" class="absolute top-6 left-6 text-white/70 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full">
@@ -163,9 +163,9 @@ function closePopup() {
             <Transition name="fade">
                 <div v-if="isVideoModalOpen" 
                      @click.self="closeVideoModal"
-                     class="fixed inset-0 z-60 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 cursor-pointer"
+                     class="modal-overlay z-60 bg-black/85 backdrop-blur-xl cursor-pointer"
                 >
-                    <div class="relative w-full max-w-3xl aspect-video bg-black rounded-3xl overflow-hidden border border-surface-800 shadow-2xl flex items-center justify-center cursor-default">
+                    <div class="modal-panel relative w-full max-w-3xl aspect-video bg-black rounded-3xl overflow-hidden border border-surface-800 shadow-2xl flex items-center justify-center cursor-default">
                         
                         <!-- Close Video Button -->
                         <button @click="closeVideoModal" class="absolute top-4 left-4 z-50 text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full">

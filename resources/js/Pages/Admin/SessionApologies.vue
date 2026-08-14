@@ -139,8 +139,8 @@ function formatDate(value) {
             <DataTablePagination class="card" :paginator="apologies" item-label="اعتذار" />
         </div>
 
-        <div v-if="selected" class="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" @click.self="selected = null">
-            <form class="card w-full max-w-lg space-y-4 p-6" @submit.prevent="submitDeduction">
+        <div v-if="selected" class="modal-overlay z-[70] bg-black/60" @click.self="selected = null">
+            <form class="modal-panel-compact card w-full max-w-lg space-y-4 p-6" @submit.prevent="submitDeduction">
                 <div>
                     <h2 class="text-xl font-black text-surface-900 dark:text-white">تسجيل خصم على {{ selected.teacher?.name }}</h2>
                     <p class="mt-1 text-sm text-surface-500">سيظهر الخصم في التسوية المالية التالية ولن يُطبّق مرتين.</p>

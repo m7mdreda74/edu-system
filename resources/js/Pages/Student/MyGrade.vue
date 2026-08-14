@@ -243,7 +243,7 @@ function subscribe(groupId) {
         <Teleport to="body">
             <div
                 v-if="playing"
-                class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+                class="modal-overlay z-[60] bg-black/80"
                 @click.self="playing = null"
             >
                 <div class="w-full max-w-3xl">

@@ -369,9 +369,9 @@ async function removeAvatar() {
         </div>
 
         <!-- Password reset modal -->
-        <div v-if="passwordModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div v-if="passwordModalOpen" class="modal-overlay z-50">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="passwordModalOpen = false"></div>
-            <form @submit.prevent="resetUserPassword" class="relative card p-6 w-full max-w-sm space-y-4">
+            <form @submit.prevent="resetUserPassword" class="relative modal-panel-compact card p-6 w-full max-w-sm space-y-4">
                 <div>
                     <h3 class="text-xl font-black text-surface-900 dark:text-white">تعيين كلمة مرور</h3>
                     <p class="text-xs text-surface-500 mt-1">
@@ -396,9 +396,9 @@ async function removeAvatar() {
         </div>
 
         <!-- Role Modal -->
-        <div v-if="commissionModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div v-if="commissionModalOpen" class="modal-overlay z-50">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="commissionModalOpen = false"></div>
-            <form @submit.prevent="updateCommission" class="relative card p-6 w-full max-w-sm space-y-4">
+            <form @submit.prevent="updateCommission" class="relative modal-panel-compact card p-6 w-full max-w-sm space-y-4">
                 <div>
                     <h3 class="text-xl font-black text-surface-900 dark:text-white">نسبة عمولة المنصة</h3>
                     <p class="text-xs text-surface-500 mt-1">للمدرس: {{ commissionUser?.name }} — تُثبت النسبة وقت كل اشتراك.</p>
@@ -416,9 +416,9 @@ async function removeAvatar() {
         </div>
 
         <!-- Role Modal -->
-        <div v-if="roleModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div v-if="roleModalOpen" class="modal-overlay z-50">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="roleModalOpen = false"></div>
-            <div class="relative bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-up">
+            <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-sm animate-fade-up">
                 <div class="p-6">
                     <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-4">تعديل دور المستخدم</h3>
                     <p class="text-sm text-surface-500 mb-4">اختر الصلاحية الجديدة للمستخدم <strong class="text-surface-800 dark:text-white">{{ editingUser?.name }}</strong>.</p>
@@ -465,9 +465,9 @@ async function removeAvatar() {
         </div>
 
         <!-- Create User Modal -->
-        <div v-if="createUserModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div v-if="createUserModalOpen" class="modal-overlay z-50">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="createUserModalOpen = false"></div>
-            <div class="relative max-h-[90vh] overflow-y-auto bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md animate-fade-up">
+            <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md animate-fade-up">
                 <form @submit.prevent="submitCreateUser">
                     <div class="p-6 space-y-4">
                         <h3 class="text-xl font-bold text-surface-900 dark:text-white">إضافة مستخدم جديد</h3>
@@ -556,10 +556,10 @@ async function removeAvatar() {
         </div>
 
         <!-- ── Teacher photo ─────────────────────────────────────── -->
-        <div v-if="avatarModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div v-if="avatarModalOpen" class="modal-overlay z-50">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="avatarModalOpen = false"></div>
 
-            <div class="relative bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md">
                 <form @submit.prevent="uploadAvatar">
                     <div class="p-6">
                         <h3 class="text-lg font-bold text-surface-900 dark:text-white">صورة المعلم</h3>

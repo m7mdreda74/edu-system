@@ -445,8 +445,8 @@ function submitReject() {
                 leave-from-class="opacity-100 scale-100"
                 leave-to-class="opacity-0 scale-95"
             >
-                <div v-if="isRejectModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm">
-                    <div class="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl w-full max-w-lg p-6 overflow-hidden shadow-2xl relative" dir="rtl">
+                <div v-if="isRejectModalOpen" class="modal-overlay z-50 bg-black/55 backdrop-blur-sm">
+                    <div class="modal-panel-compact bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative" dir="rtl">
                         <div class="flex items-center justify-between mb-6">
                             <h3 class="text-xl font-black text-surface-900 dark:text-white">رفض طلب الشراء</h3>
                             <button @click="isRejectModalOpen = false" class="btn-ghost p-1 rounded-full">
@@ -471,4 +471,3 @@ function submitReject() {
         </div>
     </DashboardLayout>
 </template>
-

@@ -220,8 +220,8 @@ async function rejectPayment(p) {
             </div>
 
             <!-- Receipt Modal Viewer -->
-            <div v-if="selectedReceipt" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/85 backdrop-blur-sm" @click="selectedReceipt = null">
-                <div class="relative max-w-2xl w-full bg-white dark:bg-surface-900 rounded-3xl p-6 shadow-2xl space-y-4" @click.stop>
+            <div v-if="selectedReceipt" class="modal-overlay z-50 bg-surface-950/85 backdrop-blur-sm" @click="selectedReceipt = null">
+                <div class="modal-panel-compact relative max-w-2xl w-full bg-white dark:bg-surface-900 rounded-3xl p-6 shadow-2xl space-y-4" @click.stop>
                     <div class="flex justify-between items-center border-b border-surface-150 dark:border-surface-800 pb-3">
                         <h3 class="font-bold text-base text-surface-900 dark:text-white flex items-center gap-2">
                             <Icon name="eye" class="w-5 h-5 text-amber-500" />

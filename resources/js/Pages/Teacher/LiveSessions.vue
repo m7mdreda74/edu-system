@@ -297,9 +297,9 @@ function formatDate(value) {
         </div>
 
         <!-- Session action modal -->
-        <div v-if="actionModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4" dir="rtl">
+        <div v-if="actionModal" class="modal-overlay z-[60]" dir="rtl">
             <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="actionModal = null"></div>
-            <div class="relative w-full max-w-md overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900 animate-fade-up">
+            <div class="relative modal-panel-compact w-full max-w-md rounded-2xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900 animate-fade-up">
                 <form v-if="actionModal.type === 'end'" @submit.prevent="submitEndSession">
                     <div class="p-6">
                         <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-500/10 text-accent-600">
@@ -375,9 +375,9 @@ function formatDate(value) {
         </div>
 
         <!-- Create Modal -->
-        <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div v-if="isModalOpen" class="modal-overlay z-50">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="isModalOpen = false"></div>
-            <div class="relative bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-up">
+            <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-lg animate-fade-up">
                 <form @submit.prevent="submit">
                     <div class="p-6">
                         <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-6">جدولة حصة مباشرة</h3>

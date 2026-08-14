@@ -183,6 +183,69 @@
         @apply card transition-all duration-300 ease-out;
     }
 
+    /* Shared modal layout. Keep tall forms inside the viewport instead of
+       centering them beyond the visible top and bottom edges. */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow-y: auto;
+        padding: 0.75rem;
+    }
+
+    .modal-panel {
+        max-height: calc(100dvh - 1.5rem);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    /* Forms are intentionally a little tighter so their complete action row
+       remains visible on laptop-sized viewports. */
+    .modal-panel-compact {
+        max-height: calc(100dvh - 1.5rem);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .modal-panel-compact.p-6,
+    .modal-panel-compact > .p-6,
+    .modal-panel-compact > form > .p-6,
+    .modal-panel-compact > form.p-6 {
+        padding: 1rem;
+    }
+
+    .modal-panel-compact .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0.75rem;
+    }
+
+    .modal-panel-compact .input {
+        padding-block: 0.5rem;
+    }
+
+    .modal-panel-compact .input-label {
+        margin-bottom: 0.25rem;
+    }
+
+    @media (min-width: 640px) {
+        .modal-overlay {
+            padding: 1rem;
+        }
+    }
+
+    @media (max-height: 800px) {
+        .modal-overlay {
+            align-items: flex-start;
+            padding-block: 0.5rem;
+        }
+
+        .modal-panel,
+        .modal-panel-compact {
+            max-height: calc(100dvh - 1rem);
+        }
+    }
+
     /* ── Inputs ── */
     .input {
         @apply w-full px-4 py-2.5 rounded-xl border border-surface-300

@@ -272,8 +272,8 @@ async function deleteGradeLevel(id) {
             </div>
 
             <!-- Modal Add/Edit -->
-            <div v-if="isModalOpen" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                <div class="bg-white dark:bg-surface-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-surface-200 dark:border-surface-800">
+            <div v-if="isModalOpen" class="modal-overlay bg-black/50 z-50 backdrop-blur-sm">
+                <div class="modal-panel-compact bg-white dark:bg-surface-900 rounded-3xl w-full max-w-md shadow-2xl border border-surface-200 dark:border-surface-800">
                     <div class="p-6 flex items-center justify-between border-b border-surface-100 dark:border-surface-800">
                         <h2 class="text-xl font-black text-surface-900 dark:text-white">
                             {{ editingGradeLevel ? 'تعديل المرحلة الدراسية' : 'إضافة مرحلة جديدة' }}

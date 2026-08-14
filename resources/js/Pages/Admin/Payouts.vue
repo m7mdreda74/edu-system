@@ -114,8 +114,8 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
             </div>
         </div>
 
-        <div v-if="createOpen" class="fixed inset-0 z-50 grid place-items-center p-4 bg-black/60">
-            <form @submit.prevent="submitPayout" class="card p-6 w-full max-w-lg space-y-4">
+        <div v-if="createOpen" class="modal-overlay z-50 bg-black/60">
+            <form @submit.prevent="submitPayout" class="modal-panel-compact card p-6 w-full max-w-lg space-y-4">
                 <h3 class="text-xl font-black">إنشاء تصفية من المعاملات المعتمدة</h3>
                 <select v-model="form.teacher_id" class="input" required><option value="" disabled>اختر المدرس</option><option v-for="teacher in teachers" :key="teacher.id" :value="teacher.id">{{ teacher.name }}</option></select>
                 <div v-if="selectedBalance" class="rounded-xl bg-surface-50 dark:bg-surface-800 p-3 text-sm space-y-1">
@@ -131,8 +131,8 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
             </form>
         </div>
 
-        <div v-if="payOpen" class="fixed inset-0 z-50 grid place-items-center p-4 bg-black/60">
-            <form @submit.prevent="submitPaymentProof" class="card p-6 w-full max-w-lg space-y-4">
+        <div v-if="payOpen" class="modal-overlay z-50 bg-black/60">
+            <form @submit.prevent="submitPaymentProof" class="modal-panel-compact card p-6 w-full max-w-lg space-y-4">
                 <h3 class="text-xl font-black">تأكيد تحويل {{ formatQAR(selectedPayout?.amount) }}</h3>
                 <div><label class="input-label">صورة إثبات التحويل</label><input type="file" accept="image/*" class="input" required @change="payForm.receipt = $event.target.files[0]" /><p v-if="payForm.errors.receipt" class="error-msg">{{ payForm.errors.receipt }}</p></div>
                 <textarea v-model="payForm.notes" class="input" placeholder="رقم العملية أو ملاحظات التحويل"></textarea>
@@ -140,7 +140,7 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
             </form>
         </div>
 
-        <div v-if="selectedReceipt" class="fixed inset-0 z-50 grid place-items-center p-4 bg-black/80" @click="selectedReceipt = null"><img :src="selectedReceipt" class="max-h-[85vh] max-w-3xl rounded-2xl object-contain" /></div>
+        <div v-if="selectedReceipt" class="modal-overlay z-50 bg-black/80" @click="selectedReceipt = null"><img :src="selectedReceipt" class="max-h-[85vh] max-w-3xl rounded-2xl object-contain" /></div>
     </DashboardLayout>
 </template>
 

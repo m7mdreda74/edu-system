@@ -392,8 +392,8 @@ onUnmounted(() => {
 
         <!-- New Chat Modal (For Teachers) -->
         <Transition enter-active-class="ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="ease-in duration-200" leave-from-class="opacity-100" leave-to-class="opacity-0">
-            <div v-if="showNewChatModal" class="fixed inset-0 bg-surface-950/70 dark:bg-black/80 flex items-center justify-center p-4 z-50 overflow-y-auto">
-                <div class="bg-white dark:bg-surface-900 w-full max-w-lg rounded-3xl overflow-hidden border border-surface-200 dark:border-surface-800 shadow-2xl relative" dir="rtl">
+            <div v-if="showNewChatModal" class="modal-overlay z-50 bg-surface-950/70 dark:bg-black/80">
+                <div class="modal-panel bg-white dark:bg-surface-900 w-full max-w-lg rounded-3xl border border-surface-200 dark:border-surface-800 shadow-2xl relative" dir="rtl">
                     <!-- Header -->
                     <div class="p-5 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between">
                         <div class="flex items-center gap-2">

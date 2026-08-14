@@ -92,11 +92,11 @@ function onKeydown(e) {
         >
             <div
                 v-if="confirmState.show"
-                class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+                class="modal-overlay z-[9999]"
                 @keydown="onKeydown"
             >
                 <div
-                    class="w-full max-w-md rounded-2xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900"
+                    class="modal-panel-compact w-full max-w-md rounded-2xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900"
                     dir="rtl"
                     role="alertdialog"
                     aria-modal="true"
