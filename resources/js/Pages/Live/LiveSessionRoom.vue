@@ -411,14 +411,18 @@ onBeforeUnmount(() => {
 
 .jitsi-stage {
     position: relative;
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-height: 0;
     padding: 16px;
 }
 
 .jitsi-container {
+    display: flex;
+    flex: 1 1 auto;
     width: 100%;
-    height: 100%;
+    height: auto;
     min-height: calc(100vh - 150px);
     overflow: hidden;
     border-radius: 14px;
@@ -427,8 +431,11 @@ onBeforeUnmount(() => {
 }
 
 .jitsi-container :deep(iframe) {
+    display: block !important;
+    flex: 1 1 auto;
     width: 100% !important;
     height: 100% !important;
+    min-height: 100% !important;
     border: 0 !important;
 }
 
