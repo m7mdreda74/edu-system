@@ -35,7 +35,7 @@ class LiveSessionRoomController extends Controller
         $host = strtolower(rtrim(explode(':', $domain, 2)[0], '.'));
 
         abort_unless(
-            ! (bool) config('services.jitsi.require_auth', true)
+            ! (bool) config('services.jitsi.require_auth', false)
                 || ($host !== 'meet.jit.si' && $this->jitsiTokens->isConfigured()),
             503,
             'Jitsi must use a private token-authenticated deployment.',
