@@ -22,13 +22,18 @@ class SecurityHardeningTest extends TestCase
 
     public function test_health_endpoint_has_baseline_security_headers_and_no_framework_version(): void
     {
+        $jitsiOrigin = 'https://' . trim((string) config('services.jitsi.domain', 'meet.jit.si'), '/');
+
         $response = $this->getJson('/health');
 
         $response->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
             ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
-            ->assertHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
+            ->assertHeader(
+                'Permissions-Policy',
+                sprintf('camera=(self "%s"), microphone=(self "%s"), geolocation=()', $jitsiOrigin, $jitsiOrigin),
+            );
 
         $this->assertArrayNotHasKey('version', $response->json());
     }

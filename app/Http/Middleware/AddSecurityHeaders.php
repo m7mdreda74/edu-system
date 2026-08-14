@@ -18,7 +18,16 @@ class AddSecurityHeaders
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->headers->set('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
+
+        $jitsiDomain = trim((string) config('services.jitsi.domain', 'meet.jit.si'));
+        $jitsiOrigin = str_starts_with($jitsiDomain, 'http://') || str_starts_with($jitsiDomain, 'https://')
+            ? rtrim($jitsiDomain, '/')
+            : 'https://' . trim($jitsiDomain, '/');
+
+        $response->headers->set(
+            'Permissions-Policy',
+            sprintf('camera=(self "%s"), microphone=(self "%s"), geolocation=()', $jitsiOrigin, $jitsiOrigin),
+        );
         $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');
 
         if ($request->isSecure()) {

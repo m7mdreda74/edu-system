@@ -37,6 +37,7 @@ let leaveFallbackTimer = null;
 let conferenceJoinTimeout = null;
 let resizeHandler = null;
 let sessionTimer = null;
+let iframePermissionTimer = null;
 let recordingMode = null;
 
 function updateSessionDuration() {
@@ -116,6 +117,48 @@ function whiteboardConfig() {
     }
 
     return config;
+}
+
+function configureJitsiFramePermissions() {
+    const iframe = jitsiApi?.getIFrame?.() || jitsiContainer.value?.querySelector('iframe');
+
+    if (!(iframe instanceof HTMLIFrameElement)) {
+        return;
+    }
+
+    iframe.setAttribute(
+        'allow',
+        'autoplay; camera; microphone; display-capture; fullscreen; speaker-selection',
+    );
+    iframe.setAttribute('allowfullscreen', 'true');
+}
+
+function scheduleJitsiFramePermissions() {
+    configureJitsiFramePermissions();
+
+    if (iframePermissionTimer) {
+        window.clearTimeout(iframePermissionTimer);
+    }
+
+    iframePermissionTimer = window.setTimeout(() => {
+        configureJitsiFramePermissions();
+        iframePermissionTimer = null;
+    }, 250);
+}
+
+function isMediaPermissionError(event) {
+    const details = typeof event === 'string' ? event : JSON.stringify(event || {});
+
+    return /permission[_ ]denied|notallowed|gum\.permission_denied/i.test(details);
+}
+
+function handleMediaPermissionError(event) {
+    if (!isMediaPermissionError(event)) {
+        toolNotice.value = 'تعذّر الوصول إلى الكاميرا أو الميكروفون. راجع إعدادات الأجهزة ثم حاول مرة أخرى.';
+        return;
+    }
+
+    toolNotice.value = 'المتصفح مانع الكاميرا والميكروفون. اضغط أيقونة القفل أو الكاميرا بجوار عنوان الموقع، اختر السماح، ثم أعد تحميل الصفحة.';
 }
 
 function handleConferenceJoined() {
@@ -312,14 +355,24 @@ function createMeeting() {
     }
 
     jitsiApi = new window.JitsiMeetExternalAPI(props.jitsi.domain, options);
+    scheduleJitsiFramePermissions();
     jitsiApi.addListener('videoConferenceJoined', handleConferenceJoined);
     jitsiApi.addListener('videoConferenceLeft', handleConferenceLeft);
     jitsiApi.addListener('readyToClose', handleConferenceLeft);
     jitsiApi.addListener('screenSharingStatusChanged', handleScreenSharingStatusChanged);
     jitsiApi.addListener('recordingStatusChanged', handleRecordingStatusChanged);
+    jitsiApi.addListener('cameraError', handleMediaPermissionError);
+    jitsiApi.addListener('micError', handleMediaPermissionError);
     jitsiApi.addListener('errorOccurred', (event) => {
         console.error('Jitsi room error.', event);
         clearConferenceJoinTimeout();
+
+        if (isMediaPermissionError(event)) {
+            handleMediaPermissionError(event);
+            isLoading.value = false;
+            return;
+        }
+
         roomError.value = 'تعذّر الاتصال بغرفة Jitsi. تأكد من اتصالك بالإنترنت ثم أعد المحاولة.';
         isLoading.value = false;
     });
@@ -370,6 +423,11 @@ onBeforeUnmount(() => {
 
     if (leaveFallbackTimer) {
         window.clearTimeout(leaveFallbackTimer);
+    }
+
+    if (iframePermissionTimer) {
+        window.clearTimeout(iframePermissionTimer);
+        iframePermissionTimer = null;
     }
 
     const api = jitsiApi;
