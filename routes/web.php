@@ -364,6 +364,7 @@ Route::middleware(['auth', 'active', 'role:admin'])->prefix('admin')->name('admi
 // ─── Parent Routes ────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'active', 'role:parent'])->prefix('parent')->name('parent.')->group(function () {
     Route::get('/dashboard', [ParentDashboardController::class, 'index'])->name('dashboard');
+    Route::post('/link-student', [ParentDashboardController::class, 'linkStudent'])->name('link-student');
     Route::delete('/unlink-student/{id}', [ParentDashboardController::class, 'unlinkStudent'])->name('unlink-student');
     Route::post('/purchase-requests/{id}/pay', [ParentDashboardController::class, 'payForRequest'])->name('purchase-requests.pay');
     Route::post('/purchase-requests/{id}/reject', [ParentPurchaseRequestController::class, 'reject'])->name('purchase-requests.reject');

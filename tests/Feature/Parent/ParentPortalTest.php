@@ -37,10 +37,11 @@ beforeEach(function (): void {
 
     $this->admin = User::factory()->create(['is_active' => true]);
     $this->admin->assignRole('admin');
-    $this->teacher = User::factory()->create(['is_active' => true]);
+    $this->teacher = User::factory()->create(['is_active' => true, 'phone' => '52000001']);
     $this->teacher->assignRole('teacher');
     $this->student = User::factory()->create([
         'email_verified_at' => now(),
+        'phone' => '52000000',
         'grade_level' => 'grade_12_science',
     ]);
     $this->student->assignRole('student');
@@ -70,12 +71,35 @@ beforeEach(function (): void {
     ]);
 });
 
-it('does not expose self-service student linking', function (): void {
-    expect(Route::has('parent.link-student'))->toBeFalse();
+it('lets a parent link an existing student by the student phone number', function (): void {
+    ParentStudentLink::where('parent_user_id', $this->parent->id)
+        ->where('student_user_id', $this->student->id)
+        ->delete();
+
+    expect(Route::has('parent.link-student'))->toBeTrue();
 
     $this->actingAs($this->parent)
-        ->post('/parent/link-student')
-        ->assertNotFound();
+        ->post(route('parent.link-student'), [
+            'student_phone' => $this->student->phone,
+            'relationship' => 'father',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('parent_student_links', [
+        'parent_user_id' => $this->parent->id,
+        'student_user_id' => $this->student->id,
+        'relationship' => 'father',
+    ]);
+});
+
+it('rejects a parent link request for a non-student phone', function (): void {
+    $this->actingAs($this->parent)
+        ->post(route('parent.link-student'), [
+            'student_phone' => $this->teacher->phone,
+            'relationship' => 'guardian',
+        ])
+        ->assertSessionHasErrors('student_phone');
 });
 
 it('shows a linked parent attendance, assessment, quiz and payment-ready dashboard', function (): void {

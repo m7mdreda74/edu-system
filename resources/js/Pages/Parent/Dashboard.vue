@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, router, Link } from '@inertiajs/vue3';
+import { Head, router, Link, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import DataTablePagination from '@/Components/DataTablePagination.vue';
@@ -30,6 +30,18 @@ const {
 } = useClientPagination(computed(() => props.selectedStudent?.payments ?? []));
 
 const { confirm } = useConfirm();
+
+const linkForm = useForm({
+    student_phone: '',
+    relationship: 'guardian',
+});
+
+function linkStudent() {
+    linkForm.post(route('parent.link-student'), {
+        preserveScroll: true,
+        onSuccess: () => linkForm.reset('student_phone'),
+    });
+}
 
 async function unlinkStudent(id) {
     const ok = await confirm({
@@ -132,6 +144,30 @@ function submitReject() {
             <div class="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-4">
                 <!-- Sidebar: Linked Students -->
                 <div class="lg:col-span-1 space-y-3">
+                    <div class="card p-4 border-primary-200 dark:border-primary-900/60 bg-primary-50/40 dark:bg-primary-950/20">
+                        <h3 class="font-bold text-sm text-surface-900 dark:text-white">ربط طالب بحسابك</h3>
+                        <p class="text-xs text-surface-500 mt-1 mb-3">اكتب رقم الجوال المسجل في حساب الطالب لربطه بك.</p>
+                        <form class="space-y-2" @submit.prevent="linkStudent">
+                            <input
+                                v-model="linkForm.student_phone"
+                                type="tel"
+                                inputmode="tel"
+                                autocomplete="tel"
+                                class="input w-full text-sm"
+                                placeholder="رقم جوال الطالب"
+                                required
+                            />
+                            <p v-if="linkForm.errors.student_phone" class="text-xs text-red-500">{{ linkForm.errors.student_phone }}</p>
+                            <select v-model="linkForm.relationship" class="input w-full text-sm" required>
+                                <option value="father">أب</option>
+                                <option value="mother">أم</option>
+                                <option value="guardian">ولي أمر</option>
+                            </select>
+                            <button type="submit" class="btn-primary btn-sm w-full" :disabled="linkForm.processing">
+                                {{ linkForm.processing ? 'جارٍ الربط...' : 'ربط الطالب' }}
+                            </button>
+                        </form>
+                    </div>
                     <h3 class="font-bold text-xs uppercase tracking-wider text-surface-400 mb-2">الأبناء المرتبطون</h3>
                     
                     <button v-for="link in links" :key="link.id" 
@@ -156,7 +192,7 @@ function submitReject() {
                     </button>
 
                     <div v-if="links.length === 0" class="text-center py-10 text-surface-400">
-                        سيظهر هنا الطلاب المرتبطون بحسابك عند إنشاء الحساب أو ربطه من الإدارة.
+                        استخدم نموذج الربط بالأعلى لإضافة حساب الطالب إلى حسابك.
                     </div>
                 </div>
 

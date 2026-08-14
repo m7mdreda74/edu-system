@@ -9,7 +9,6 @@ const form = useForm({
     name:                  '',
     email:                 '',
     phone:                 '',
-    parent_phone:          '',
     password:              '',
     password_confirmation: '',
     grade_level:           '',
@@ -76,7 +75,6 @@ onStageChange();
 watch(() => form.role, (newRole) => {
     if (newRole !== 'student') {
         form.grade_level = null;
-        form.parent_phone = '';
     } else {
         onStageChange();
     }
@@ -143,6 +141,33 @@ const submit = () => {
                     
                     <h1 class="text-xl font-bold text-center text-white mb-2">إنشاء حساب جديد</h1>
                     
+                    <!-- Account Type -->
+                    <div class="space-y-2">
+                        <p class="block text-xs font-bold text-white/95 mr-3">نوع الحساب</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                class="px-4 py-3 rounded-2xl text-xs font-bold transition-all border"
+                                :class="form.role === 'student'
+                                    ? 'bg-accent-500 text-white border-accent-500 shadow-lg'
+                                    : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'"
+                                @click="form.role = 'student'"
+                            >حساب طالب</button>
+                            <button
+                                type="button"
+                                class="px-4 py-3 rounded-2xl text-xs font-bold transition-all border"
+                                :class="form.role === 'parent'
+                                    ? 'bg-accent-500 text-white border-accent-500 shadow-lg'
+                                    : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'"
+                                @click="form.role = 'parent'"
+                            >حساب ولي أمر</button>
+                        </div>
+                        <p class="text-white/60 text-[11px] mr-3">
+                            ولي الأمر ينشئ حسابه أولًا، ثم يربط حساب الطالب من لوحة المتابعة باستخدام رقم جوال الطالب.
+                        </p>
+                        <p v-if="form.errors.role" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.role }}</p>
+                    </div>
+
                     <!-- Name Input -->
                     <div class="space-y-1.5">
                         <label class="block text-xs font-bold text-white/95 mr-3" for="reg-name">
@@ -204,28 +229,8 @@ const submit = () => {
                         <p v-if="form.errors.phone" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.phone }}</p>
                     </div>
 
-                    <!-- Parent Phone Input -->
-                    <div v-if="form.role === 'student'" class="space-y-1.5">
-                        <label class="block text-xs font-bold text-white/95 mr-3" for="reg-parent-phone">
-                            رقم جوال ولي الأمر <span class="text-red-400">*</span>
-                        </label>
-                        <input
-                            id="reg-parent-phone"
-                            v-model="form.parent_phone"
-                            type="tel"
-                            inputmode="tel"
-                            class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
-                            :class="{ 'ring-2 ring-red-500': form.errors.parent_phone }"
-                            placeholder="نفس الرقم المسجل في حساب ولي الأمر"
-                            autocomplete="tel"
-                            required
-                        />
-                        <p class="text-white/55 text-[11px] mr-3">يجب أن يكون لولي الأمر حساب فعّال بهذا الرقم.</p>
-                        <p v-if="form.errors.parent_phone" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.parent_phone }}</p>
-                    </div>
-
                     <!-- Stage + Grade Level + Track -->
-                    <div class="space-y-4">
+                    <div v-if="form.role === 'student'" class="space-y-4">
                         <!-- Row: Stage + Grade -->
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1.5">

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Parent;
 
 use App\Application\Scheduling\Services\SessionBookingService;
 use App\Application\Subscription\Services\SubscriptionService;
+use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Learning\Models\WorksheetSubmission;
@@ -291,6 +292,24 @@ class ParentDashboardController extends Controller
         ParentStudentLink::where('parent_user_id', Auth::id())->findOrFail($linkId)->delete();
 
         return back()->with('success', 'تم إلغاء ربط الحساب بنجاح.');
+    }
+
+    public function linkStudent(Request $request, ParentStudentLinkService $parentStudentLinks): RedirectResponse
+    {
+        $validated = $request->validate([
+            'student_phone' => ['required', 'string', 'max:20'],
+            'relationship' => ['required', 'string', 'in:father,mother,guardian'],
+        ]);
+
+        /** @var User $parent */
+        $parent = Auth::user();
+        $parentStudentLinks->linkExistingStudent(
+            $parent,
+            $validated['student_phone'],
+            $validated['relationship'],
+        );
+
+        return back()->with('success', 'تم ربط حساب الطالب بحسابك بنجاح.');
     }
 
     /**

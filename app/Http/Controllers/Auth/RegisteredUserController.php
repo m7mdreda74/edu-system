@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Rules\AltafawwuqEmail;
@@ -19,10 +18,6 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
-    public function __construct(
-        private readonly ParentStudentLinkService $parentStudentLinks,
-    ) {}
-
     public function create(): Response
     {
         return Inertia::render('Auth/Register');
@@ -33,14 +28,12 @@ class RegisteredUserController extends Controller
         $request->merge([
             'email' => AltafawwuqEmail::normalize($request->input('email')),
             'phone' => trim((string) $request->input('phone')),
-            'parent_phone' => trim((string) $request->input('parent_phone')),
         ]);
 
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'email'       => ['required', 'string', 'lowercase', 'email', 'max:255', new AltafawwuqEmail(), 'unique:users'],
             'phone'       => ['required', 'string', 'max:20', 'unique:users'],
-            'parent_phone' => ['nullable', 'required_if:role,student', 'string', 'max:20', 'different:phone'],
             'password'    => ['required', 'confirmed', Rules\Password::defaults()],
             // Teacher is a privileged role and must be assigned by an admin.
             // Never trust a client-supplied role to create teaching access.
@@ -59,10 +52,6 @@ class RegisteredUserController extends Controller
             ]);
 
             $user->assignRole($validated['role']);
-
-            if ($validated['role'] === 'student') {
-                $this->parentStudentLinks->linkExistingParent($user, $validated['parent_phone']);
-            }
 
             return $user;
         });
