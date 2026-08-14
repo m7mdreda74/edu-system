@@ -26,6 +26,7 @@ class UserCreationTest extends TestCase
             'email' => 'admin-created-student@altafawwuq.com',
             'phone' => '51000001',
             'parent_phone' => $parent->phone,
+            'grade_level' => 'grade_10',
             'password' => 'password',
             'role' => 'student',
         ]);
@@ -55,6 +56,7 @@ class UserCreationTest extends TestCase
             'email' => 'admin-unlinked@altafawwuq.com',
             'phone' => '51000002',
             'parent_phone' => '51999999',
+            'grade_level' => 'grade_10',
             'password' => 'password',
             'role' => 'student',
         ]);

@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -68,7 +69,17 @@ class UserController extends Controller
             'parent_phone' => ['nullable', 'required_if:role,student', 'string', 'max:20', 'different:phone'],
             'password'    => ['required', 'string', 'min:8'],
             'role'        => ['required', 'string', 'in:admin,teacher,student,parent'],
-            'grade_level' => ['nullable', 'exists:grade_levels,key'],
+            'grade_level' => [
+                'required_if:role,student',
+                'nullable',
+                Rule::exists('grade_levels', 'key')
+                    ->where(fn ($query) => $query
+                        ->where('is_active', true)
+                        ->where('key', '!=', 'all')),
+            ],
+        ], [
+            'grade_level.required_if' => 'اختر المرحلة والصف الدراسي للطالب.',
+            'grade_level.exists' => 'الصف الدراسي المختار غير متاح حالياً.',
         ]);
 
         $user = DB::transaction(function () use ($validated): User {

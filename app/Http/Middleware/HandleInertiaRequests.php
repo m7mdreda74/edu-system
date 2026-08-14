@@ -59,10 +59,13 @@ class HandleInertiaRequests extends Middleware
             'settings' => fn () => PlatformSetting::getAllCached(),
 
             'grade_levels' => fn () => Cache::remember(
-                'shared.active_grade_levels',
+                // Versioned so deployments never reuse a pre-stage/track payload.
+                'shared.active_grade_levels.v2',
                 now()->addHour(),
                 fn () => GradeLevel::where('is_active', true)
                     ->select('id', 'key', 'name', 'name_en', 'stage', 'track')
+                    ->orderByRaw("CASE stage WHEN 'primary' THEN 1 WHEN 'preparatory' THEN 2 WHEN 'secondary' THEN 3 ELSE 4 END")
+                    ->orderBy('id')
                     ->get()
                     ->all(),
             ),

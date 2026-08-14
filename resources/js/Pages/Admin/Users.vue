@@ -535,12 +535,14 @@ async function removeAvatar() {
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-grade">الصف الدراسي</label>
-                                <select id="create-grade" v-model="createForm.grade_level" class="input w-full text-sm" required>
+                                <select id="create-grade" v-model="createForm.grade_level" class="input w-full text-sm" :class="{ 'border-red-500': createForm.errors.grade_level }" :disabled="!filteredGradeLevels.length || createForm.processing" required>
                                     <option value="" disabled>اختر الصف...</option>
                                     <option v-for="gl in filteredGradeLevels" :key="gl.key" :value="gl.key">
                                         {{ gl.name }}
                                     </option>
                                 </select>
+                                <p v-if="createForm.errors.grade_level" class="mt-1 text-red-500 text-xs">{{ createForm.errors.grade_level }}</p>
+                                <p v-else-if="!filteredGradeLevels.length" class="mt-1 text-amber-600 text-xs">لا توجد صفوف متاحة لهذه المرحلة حالياً.</p>
                             </div>
                         </div>
                     </div>

@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,7 +39,17 @@ class RegisteredUserController extends Controller
             // Teacher is a privileged role and must be assigned by an admin.
             // Never trust a client-supplied role to create teaching access.
             'role'        => ['required', 'in:student,parent'],
-            'grade_level' => ['nullable', 'exists:grade_levels,key'],
+            'grade_level' => [
+                'required_if:role,student',
+                'nullable',
+                Rule::exists('grade_levels', 'key')
+                    ->where(fn ($query) => $query
+                        ->where('is_active', true)
+                        ->where('key', '!=', 'all')),
+            ],
+        ], [
+            'grade_level.required_if' => 'اختر المرحلة والصف الدراسي للطالب.',
+            'grade_level.exists' => 'الصف الدراسي المختار غير متاح حالياً.',
         ]);
 
         $user = DB::transaction(function () use ($validated): User {

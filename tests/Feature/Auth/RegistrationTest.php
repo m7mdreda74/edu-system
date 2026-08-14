@@ -24,6 +24,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@altafawwuq.com',
             'phone' => '50000001',
             'role' => 'student',
+            'grade_level' => 'grade_10',
             'password' => 'password',
             'password_confirmation' => 'password',
         ]);
@@ -36,6 +37,21 @@ class RegistrationTest extends TestCase
         $this->assertDatabaseMissing('parent_student_links', [
             'student_user_id' => $student->id,
         ]);
+    }
+
+    public function test_student_registration_requires_an_active_grade(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Student Without Grade',
+            'email' => 'student-without-grade@altafawwuq.com',
+            'phone' => '50000007',
+            'role' => 'student',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertSessionHasErrors('grade_level');
+        $this->assertGuest();
     }
 
     public function test_parent_can_create_a_parent_account(): void

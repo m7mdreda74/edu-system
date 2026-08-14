@@ -236,7 +236,7 @@ const submit = () => {
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-bold text-white/95 mr-3" for="reg-stage">المرحلة الدراسية</label>
                                 <div class="relative">
-                                    <select id="reg-stage" v-model="selectedStage" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" @change="onStageChange">
+                                    <select id="reg-stage" v-model="selectedStage" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" :disabled="form.processing" @change="onStageChange">
                                         <option value="primary">المرحلة الابتدائية</option>
                                         <option value="preparatory">المرحلة الإعدادية</option>
                                         <option value="secondary">المرحلة الثانوية</option>
@@ -246,13 +246,15 @@ const submit = () => {
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-bold text-white/95 mr-3" for="reg-grade">الصف الدراسي</label>
                                 <div class="relative">
-                                    <select id="reg-grade" v-model="form.grade_level" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" required>
+                                    <select id="reg-grade" v-model="form.grade_level" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" :class="{ 'ring-2 ring-red-500': form.errors.grade_level }" :disabled="!filteredGradeLevels.length || form.processing" required>
                                         <option value="" disabled>اختر الصف...</option>
                                         <option v-for="gl in filteredGradeLevels" :key="gl.key" :value="gl.key">
                                             {{ gl.name }}
                                         </option>
                                     </select>
                                 </div>
+                                <p v-if="form.errors.grade_level" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.grade_level }}</p>
+                                <p v-else-if="!filteredGradeLevels.length" class="text-amber-300 text-xs mr-3 mt-1">لا توجد صفوف متاحة لهذه المرحلة حالياً.</p>
                             </div>
                         </div>
 

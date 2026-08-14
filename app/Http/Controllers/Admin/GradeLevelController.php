@@ -12,6 +12,7 @@ use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -56,6 +57,7 @@ class GradeLevelController extends Controller
         }
 
         GradeLevel::create($validated);
+        $this->clearGradeLevelCaches();
 
         return back()->with('success', 'تم إضافة المرحلة الدراسية بنجاح.');
     }
@@ -121,6 +123,7 @@ class GradeLevelController extends Controller
         }
 
         $gl->update($validated);
+        $this->clearGradeLevelCaches();
 
         return back()->with('success', 'تم تحديث المرحلة الدراسية بنجاح.');
     }
@@ -134,7 +137,14 @@ class GradeLevelController extends Controller
         }
 
         $gl->delete();
+        $this->clearGradeLevelCaches();
 
         return back()->with('success', 'تم حذف المرحلة الدراسية بنجاح.');
+    }
+
+    private function clearGradeLevelCaches(): void
+    {
+        Cache::forget('shared.active_grade_levels.v2');
+        Cache::forget('home.grades');
     }
 }
