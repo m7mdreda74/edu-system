@@ -373,5 +373,9 @@ Route::middleware(['auth', 'active', 'role:parent'])->prefix('parent')->name('pa
 });
 
 require __DIR__.'/auth.php';
-R o u t e : : g e t ( ' / r u n - p r o d - m i g r a t i o n s - s e e d ' ,   f u n c t i o n   ( )   {   \ I l l u m i n a t e \ S u p p o r t \ F a c a d e s \ A r t i s a n : : c a l l ( ' m i g r a t e ' ,   [ ' - - f o r c e '   = >   t r u e ] ) ;   \ I l l u m i n a t e \ S u p p o r t \ F a c a d e s \ A r t i s a n : : c a l l ( ' d b : s e e d ' ,   [ ' - - f o r c e '   = >   t r u e ] ) ;   r e t u r n   ' M i g r a t e d   a n d   s e e d e d   s u c c e s s f u l l y ! ' ;   } ) ;  
- 
+
+Route::get('/run-prod-migrations-seed', function () {
+    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
+    return 'Migrated and seeded successfully!';
+});
