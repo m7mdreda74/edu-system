@@ -19,6 +19,7 @@ let jitsiApi = null;
 let hasNavigated = false;
 let leaveFallbackTimer = null;
 let conferenceJoinTimeout = null;
+let resizeHandler = null;
 
 function clearConferenceJoinTimeout() {
     if (conferenceJoinTimeout) {
@@ -151,12 +152,18 @@ function leaveRoom() {
     }, 1500);
 }
 
+function jitsiFrameHeight() {
+    const containerHeight = jitsiContainer.value?.getBoundingClientRect().height || 0;
+
+    return Math.max(320, Math.floor(containerHeight || window.innerHeight - 150));
+}
+
 function createMeeting() {
     const options = {
         roomName: props.roomName,
         parentNode: jitsiContainer.value,
         width: '100%',
-        height: '100%',
+        height: jitsiFrameHeight(),
         lang: 'ar',
         userInfo: {
             email: props.user.email,
@@ -171,6 +178,13 @@ function createMeeting() {
             doNotStoreRoom: true,
             useHostPageLocalStorage: true,
             whiteboard: whiteboardConfig(),
+        },
+        interfaceConfigOverwrite: {
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            SHOW_BRAND_WATERMARK: false,
+            SHOW_POWERED_BY: false,
+            SHOW_CHROME_EXTENSION_BANNER: false,
         },
     };
 
@@ -188,6 +202,10 @@ function createMeeting() {
         roomError.value = 'تعذّر الاتصال بغرفة Jitsi. تأكد من اتصالك بالإنترنت ثم أعد المحاولة.';
         isLoading.value = false;
     });
+
+    resizeHandler = () => jitsiApi?.resizeHeight?.(jitsiFrameHeight());
+    window.addEventListener('resize', resizeHandler);
+
     conferenceJoinTimeout = window.setTimeout(() => {
         if (isJoined.value || roomError.value) return;
 
@@ -215,6 +233,11 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     clearConferenceJoinTimeout();
+
+    if (resizeHandler) {
+        window.removeEventListener('resize', resizeHandler);
+        resizeHandler = null;
+    }
 
     if (leaveFallbackTimer) {
         window.clearTimeout(leaveFallbackTimer);
@@ -434,8 +457,7 @@ onBeforeUnmount(() => {
     display: block !important;
     flex: 1 1 auto;
     width: 100% !important;
-    height: 100% !important;
-    min-height: 100% !important;
+    min-height: 320px !important;
     border: 0 !important;
 }
 
