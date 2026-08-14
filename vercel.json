@@ -52,7 +52,7 @@
     "env": {
         "APP_ENV": "production",
         "APP_DEBUG": "false",
-        "JITSI_DOMAIN": "meet.ffmuc.net",
+        "JITSI_DOMAIN": "meet.guifi.net",
         "JITSI_REQUIRE_AUTH": "false",
         "CACHE_STORE": "file",
         "CACHE_PATH": "/tmp/framework/cache/data",

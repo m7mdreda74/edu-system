@@ -79,9 +79,9 @@ return [
         // the Jitsi server uses JWT/token authentication.
         'app_id' => env('JITSI_APP_ID'),
         'app_secret' => env('JITSI_APP_SECRET'),
-        // Anonymous `meet.jit.si` is the fallback when no private JWT
-        // deployment is configured. Set JITSI_REQUIRE_AUTH=true together
-        // with JITSI_APP_ID and JITSI_APP_SECRET for a private deployment.
+        // Keep this false for a public/anonymous Jitsi deployment. Set it
+        // true together with JITSI_APP_ID and JITSI_APP_SECRET for a private
+        // token-authenticated deployment.
         'require_auth' => filter_var(env('JITSI_REQUIRE_AUTH', false), FILTER_VALIDATE_BOOLEAN),
         'token_ttl' => (int) env('JITSI_TOKEN_TTL', 21600),
         'whiteboard' => [

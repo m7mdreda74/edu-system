@@ -18,6 +18,14 @@ const whiteboardNotice = ref('');
 let jitsiApi = null;
 let hasNavigated = false;
 let leaveFallbackTimer = null;
+let conferenceJoinTimeout = null;
+
+function clearConferenceJoinTimeout() {
+    if (conferenceJoinTimeout) {
+        window.clearTimeout(conferenceJoinTimeout);
+        conferenceJoinTimeout = null;
+    }
+}
 
 function returnToSchedule() {
     if (hasNavigated) return;
@@ -84,6 +92,7 @@ function whiteboardConfig() {
 }
 
 function handleConferenceJoined() {
+    clearConferenceJoinTimeout();
     isLoading.value = false;
     isJoined.value = true;
 
@@ -93,6 +102,8 @@ function handleConferenceJoined() {
 }
 
 function handleConferenceLeft() {
+    clearConferenceJoinTimeout();
+
     if (leaveFallbackTimer) {
         window.clearTimeout(leaveFallbackTimer);
         leaveFallbackTimer = null;
@@ -173,9 +184,17 @@ function createMeeting() {
     jitsiApi.addListener('readyToClose', handleConferenceLeft);
     jitsiApi.addListener('errorOccurred', (event) => {
         console.error('Jitsi room error.', event);
+        clearConferenceJoinTimeout();
         roomError.value = 'تعذّر الاتصال بغرفة Jitsi. تأكد من اتصالك بالإنترنت ثم أعد المحاولة.';
         isLoading.value = false;
     });
+    conferenceJoinTimeout = window.setTimeout(() => {
+        if (isJoined.value || roomError.value) return;
+
+        roomError.value = 'تعذر الاتصال بغرفة Jitsi خلال 30 ثانية. تحقق من الإنترنت ثم أعد المحاولة.';
+        isLoading.value = false;
+        conferenceJoinTimeout = null;
+    }, 30000);
 }
 
 function retryRoom() {
@@ -195,6 +214,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    clearConferenceJoinTimeout();
+
     if (leaveFallbackTimer) {
         window.clearTimeout(leaveFallbackTimer);
     }
