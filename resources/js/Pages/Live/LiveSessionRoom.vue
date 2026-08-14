@@ -14,8 +14,10 @@ const jitsiContainer = ref(null);
 const isLoading = ref(true);
 const isJoined = ref(false);
 const roomError = ref('');
-const whiteboardNotice = ref('');
+const toolNotice = ref('');
 const elapsedSeconds = ref(0);
+const isScreenSharing = ref(false);
+const isRecording = ref(false);
 
 const sessionDuration = computed(() => {
     if (!props.startedAt) {
@@ -35,6 +37,7 @@ let leaveFallbackTimer = null;
 let conferenceJoinTimeout = null;
 let resizeHandler = null;
 let sessionTimer = null;
+let recordingMode = null;
 
 function updateSessionDuration() {
     const startedAt = Date.parse(props.startedAt || '');
@@ -127,6 +130,9 @@ function handleConferenceJoined() {
 
 function handleConferenceLeft() {
     clearConferenceJoinTimeout();
+    isScreenSharing.value = false;
+    isRecording.value = false;
+    recordingMode = null;
 
     if (leaveFallbackTimer) {
         window.clearTimeout(leaveFallbackTimer);
@@ -136,30 +142,108 @@ function handleConferenceLeft() {
     returnToSchedule();
 }
 
+function handleScreenSharingStatusChanged(event) {
+    isScreenSharing.value = event?.on === true;
+}
+
+function handleRecordingStatusChanged(event) {
+    if (event?.error) {
+        toolNotice.value = 'تعذّر بدء التسجيل على خادم Jitsi الحالي.';
+    }
+
+    if (event?.mode === 'local' || recordingMode === 'local') {
+        isRecording.value = event?.on === true;
+
+        if (!isRecording.value) {
+            recordingMode = null;
+        }
+    }
+}
+
+function commandSupported(command) {
+    const commands = jitsiApi?.getSupportedCommands?.();
+
+    return !Array.isArray(commands) || commands.includes(command);
+}
+
+function toggleScreenShare() {
+    toolNotice.value = '';
+
+    if (!jitsiApi || !isJoined.value) {
+        toolNotice.value = 'جاري تجهيز غرفة Jitsi، جرّب مشاركة الشاشة بعد الاتصال.';
+        return;
+    }
+
+    if (!commandSupported('toggleShareScreen')) {
+        toolNotice.value = 'مشاركة الشاشة غير مدعومة في المتصفح أو خادم Jitsi الحالي.';
+        return;
+    }
+
+    try {
+        jitsiApi.executeCommand('toggleShareScreen');
+    } catch (error) {
+        console.error('Could not toggle screen sharing.', error);
+        toolNotice.value = 'تعذّرت مشاركة الشاشة. اسمح للمتصفح بمشاركة الشاشة ثم حاول مرة أخرى.';
+    }
+}
+
+function toggleRecording() {
+    toolNotice.value = '';
+
+    if (!jitsiApi || !isJoined.value) {
+        toolNotice.value = 'جاري تجهيز غرفة Jitsi، جرّب التسجيل بعد الاتصال.';
+        return;
+    }
+
+    try {
+        if (isRecording.value) {
+            jitsiApi.executeCommand('stopRecording', 'local', false);
+            return;
+        }
+
+        if (!commandSupported('startRecording')) {
+            toolNotice.value = 'التسجيل غير مدعوم في خادم Jitsi الحالي.';
+            return;
+        }
+
+        recordingMode = 'local';
+        jitsiApi.executeCommand('startRecording', {
+            mode: 'local',
+            onlySelf: false,
+            shouldShare: false,
+        });
+        toolNotice.value = 'سيتم حفظ التسجيل محليًا على جهاز المدرس عند إيقافه.';
+    } catch (error) {
+        recordingMode = null;
+        console.error('Could not toggle local recording.', error);
+        toolNotice.value = 'تعذّر بدء التسجيل. قد لا يدعم خادم Jitsi التسجيل المحلي.';
+    }
+}
+
 function openWhiteboard() {
-    whiteboardNotice.value = '';
+    toolNotice.value = '';
 
     if (!jitsiApi) {
-        whiteboardNotice.value = 'جاري تجهيز غرفة Jitsi، جرّب مرة أخرى خلال لحظات.';
+        toolNotice.value = 'جاري تجهيز غرفة Jitsi، جرّب مرة أخرى خلال لحظات.';
         return;
     }
 
     if (!props.jitsi.whiteboard?.enabled) {
-        whiteboardNotice.value = 'السبورة غير مفعّلة في إعدادات Jitsi الحالية.';
+        toolNotice.value = 'السبورة غير مفعّلة في إعدادات Jitsi الحالية.';
         return;
     }
 
     try {
         const commands = jitsiApi.getSupportedCommands?.();
         if (Array.isArray(commands) && !commands.includes('toggleWhiteboard')) {
-            whiteboardNotice.value = 'خادم Jitsi الحالي لا يدعم السبورة التفاعلية.';
+            toolNotice.value = 'خادم Jitsi الحالي لا يدعم السبورة التفاعلية.';
             return;
         }
 
         jitsiApi.executeCommand('toggleWhiteboard');
     } catch (error) {
         console.error('Could not open the Jitsi whiteboard.', error);
-        whiteboardNotice.value = 'تعذّر فتح السبورة التفاعلية.';
+        toolNotice.value = 'تعذّر فتح السبورة التفاعلية.';
     }
 }
 
@@ -167,6 +251,10 @@ function leaveRoom() {
     if (!jitsiApi) {
         returnToSchedule();
         return;
+    }
+
+    if (isRecording.value) {
+        jitsiApi.executeCommand('stopRecording', 'local', false);
     }
 
     jitsiApi.executeCommand('hangup');
@@ -200,6 +288,13 @@ function createMeeting() {
             disableInviteFunctions: true,
             doNotStoreRoom: true,
             useHostPageLocalStorage: true,
+            localRecording: {
+                disable: false,
+                notifyAllParticipants: true,
+            },
+            recordings: {
+                recordAudioAndVideo: true,
+            },
             timeTimer: { enabled: false },
             whiteboard: whiteboardConfig(),
         },
@@ -220,6 +315,8 @@ function createMeeting() {
     jitsiApi.addListener('videoConferenceJoined', handleConferenceJoined);
     jitsiApi.addListener('videoConferenceLeft', handleConferenceLeft);
     jitsiApi.addListener('readyToClose', handleConferenceLeft);
+    jitsiApi.addListener('screenSharingStatusChanged', handleScreenSharingStatusChanged);
+    jitsiApi.addListener('recordingStatusChanged', handleRecordingStatusChanged);
     jitsiApi.addListener('errorOccurred', (event) => {
         console.error('Jitsi room error.', event);
         clearConferenceJoinTimeout();
@@ -299,6 +396,28 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="header-actions">
+                <template v-if="user.isTeacher">
+                    <button
+                        type="button"
+                        class="classroom-tool-button"
+                        :class="{ active: isScreenSharing }"
+                        :disabled="!isJoined"
+                        @click="toggleScreenShare"
+                    >
+                        <span aria-hidden="true">▣</span>
+                        {{ isScreenSharing ? 'إيقاف مشاركة الشاشة' : 'مشاركة الشاشة / PDF' }}
+                    </button>
+                    <button
+                        type="button"
+                        class="classroom-tool-button recording-button"
+                        :class="{ active: isRecording }"
+                        :disabled="!isJoined"
+                        @click="toggleRecording"
+                    >
+                        <span aria-hidden="true">●</span>
+                        {{ isRecording ? 'إيقاف التسجيل' : 'تسجيل الحصة' }}
+                    </button>
+                </template>
                 <div class="session-timer" :class="{ pending: !startedAt }" aria-live="polite">
                     <span class="session-timer-label">مدة الحصة</span>
                     <strong>{{ sessionDuration }}</strong>
@@ -337,7 +456,7 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <p v-if="whiteboardNotice" class="whiteboard-notice" role="status">{{ whiteboardNotice }}</p>
+            <p v-if="toolNotice" class="tool-notice" role="status">{{ toolNotice }}</p>
         </main>
 
         <footer class="jitsi-footer">
@@ -399,6 +518,7 @@ onBeforeUnmount(() => {
 
 .back-button,
 .whiteboard-button,
+.classroom-tool-button,
 .retry-button {
     display: inline-flex;
     align-items: center;
@@ -437,8 +557,27 @@ onBeforeUnmount(() => {
     box-shadow: 0 5px 16px rgba(49, 95, 233, 0.28);
 }
 
+.classroom-tool-button {
+    color: #dbeafe;
+    background: rgba(37, 81, 216, 0.2);
+    border-color: rgba(147, 197, 253, 0.28);
+}
+
+.classroom-tool-button.active {
+    color: #fff;
+    background: #2563eb;
+    border-color: #60a5fa;
+}
+
+.recording-button.active {
+    background: #b91c1c;
+    border-color: #fca5a5;
+}
+
 .whiteboard-button:hover:not(:disabled),
 .whiteboard-button:focus-visible:not(:disabled),
+.classroom-tool-button:hover:not(:disabled),
+.classroom-tool-button:focus-visible:not(:disabled),
 .retry-button:hover,
 .retry-button:focus-visible {
     transform: translateY(-1px);
@@ -446,6 +585,11 @@ onBeforeUnmount(() => {
 }
 
 .whiteboard-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.classroom-tool-button:disabled {
     cursor: not-allowed;
     opacity: 0.5;
 }
@@ -595,7 +739,7 @@ onBeforeUnmount(() => {
     background: #315fe9;
 }
 
-.whiteboard-notice {
+.tool-notice {
     position: absolute;
     bottom: 30px;
     right: 30px;
