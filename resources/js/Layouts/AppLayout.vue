@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/authStore';
 import Icon from '@/Components/Icon.vue';
 import BrandLogo from '@/Components/BrandLogo.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
+import ValidationErrorBanner from '@/Components/ValidationErrorBanner.vue';
 import axios from 'axios';
 
 const authStore = useAuthStore();
@@ -130,12 +131,7 @@ const socialLinks = computed(() => {
             }
         } catch (e) {}
     }
-    return [
-        { platform: 'facebook', url: '#', icon: 'facebook' },
-        { platform: 'instagram', url: '#', icon: 'instagram' },
-        { platform: 'whatsapp', url: '#', icon: 'whatsapp' },
-        { platform: 'youtube', url: '#', icon: 'youtube' },
-    ];
+    return [];
 });
 
 const isActive = (link) => {
@@ -300,6 +296,7 @@ const isActive = (link) => {
 
         <!-- ── Flash Messages ─────────────────────────────────────── -->
         <div class="fixed top-20 start-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 space-y-2 pointer-events-none">
+            <ValidationErrorBanner />
             <Transition enter-active-class="animate-fade-up" leave-active-class="animate-fade-in">
                 <div v-if="$page.props.flash?.success" class="alert-success shadow-card pointer-events-auto flex items-center gap-2">
                     <Icon name="success" class="w-5 h-5 text-green-500 shrink-0" />
@@ -335,7 +332,7 @@ const isActive = (link) => {
                             </div>
                         </div>
                         <p class="text-sm text-surface-400 leading-relaxed">
-                            {{ $page.props.settings?.footer_desc ?? 'منصة تعليمية متخصصة في مواد المرحلة الثانوية، نحو مستقبل أفضل لكل طالب.' }}
+                            {{ $page.props.settings?.footer_desc ?? 'منصة تعليمية قطرية تربط الطالب بأفضل المعلمين — اختر صفك، شاهد طريقة الشرح، واحجز مع من يناسبك.' }}
                         </p>
                     </div>
                     <div>

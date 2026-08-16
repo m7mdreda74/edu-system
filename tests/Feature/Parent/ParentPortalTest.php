@@ -19,6 +19,7 @@ use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
+use App\Domain\Subscription\Models\PurchaseRequest;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use App\Notifications\GenericDatabaseNotification;
@@ -101,6 +102,25 @@ it('rejects a parent link request for a non-student phone', function (): void {
             'relationship' => 'guardian',
         ])
         ->assertSessionHasErrors('student_phone');
+});
+
+it('lets a parent reject a pending purchase request and removes it from the pending state', function (): void {
+    $request = PurchaseRequest::create([
+        'student_user_id' => $this->student->id,
+        'parent_user_id' => $this->parent->id,
+        'teaching_group_id' => $this->group->id,
+        'status' => PurchaseRequest::STATUS_PENDING,
+    ]);
+
+    $this->actingAs($this->parent)
+        ->post(route('parent.purchase-requests.reject', $request->id), [
+            'notes' => 'لا أريد التجديد الآن.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($request->fresh()->status)->toBe(PurchaseRequest::STATUS_REJECTED)
+        ->and($request->fresh()->notes)->toBe('لا أريد التجديد الآن.');
 });
 
 it('lets one parent select different children and charges the selected child', function (): void {

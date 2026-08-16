@@ -19,6 +19,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 class LiveSession extends Model
 {
+    /** A live room is stale after the longest supported class plus a buffer. */
+    private const LIVE_WINDOW_HOURS = 12;
+
     public const STATUS_SCHEDULED = 'scheduled';
 
     public const STATUS_LIVE = 'live';
@@ -90,7 +93,9 @@ class LiveSession extends Model
 
     public function isLive(): bool
     {
-        return $this->status === self::STATUS_LIVE;
+        return $this->status === self::STATUS_LIVE
+            && $this->started_at !== null
+            && $this->started_at->greaterThanOrEqualTo(now()->subHours(self::LIVE_WINDOW_HOURS));
     }
 
     public function isPrivate(): bool
@@ -117,7 +122,11 @@ class LiveSession extends Model
     public function scopeUpcoming(Builder $query): Builder
     {
         return $query->where(function (Builder $query): void {
-            $query->where('status', self::STATUS_LIVE)
+            $query->where(function (Builder $live): void {
+                $live->where('status', self::STATUS_LIVE)
+                    ->whereNotNull('started_at')
+                    ->where('started_at', '>=', now()->subHours(self::LIVE_WINDOW_HOURS));
+            })
                 ->orWhere(function (Builder $scheduled): void {
                     $scheduled->where('status', self::STATUS_SCHEDULED)
                         ->where('scheduled_at', '>=', now());

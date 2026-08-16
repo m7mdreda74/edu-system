@@ -6,6 +6,7 @@ import Icon from '@/Components/Icon.vue';
 import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { useClientPagination } from '@/composables/useClientPagination';
+import { formatQAR as formatMoney } from '@/lib/money';
 
 const props = defineProps({
     links:           { type: Array, required: true },
@@ -58,11 +59,14 @@ function selectStudent(studentId) {
 }
 
 function formatQAR(halala) {
-    const formatted = new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format((halala ?? 0) / 100);
-    return `${formatted} ر.ق.`;
+    return formatMoney(halala ?? 0);
+}
+
+function subscriptionStatusLabel(subscription) {
+    if (subscription.is_active) return 'نشط';
+    if (subscription.status === 'pending') return 'بانتظار الدفع';
+    if (subscription.status === 'cancelled') return 'ملغي';
+    return 'منتهي';
 }
 
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -105,22 +109,35 @@ function contactAdmin() {
 const rejectNotes = ref('');
 const activeRejectRequestId = ref(null);
 const isRejectModalOpen = ref(false);
+const rejectForm = useForm({ notes: '' });
+const payingRequestId = ref(null);
 
 function openRejectModal(requestId) {
     activeRejectRequestId.value = requestId;
     rejectNotes.value = '';
+    rejectForm.reset();
+    rejectForm.clearErrors();
     isRejectModalOpen.value = true;
 }
 
 function submitReject() {
-    router.post(route('parent.purchase-requests.reject', { id: activeRejectRequestId.value }), {
-        notes: rejectNotes.value
-    }, {
+    rejectForm.notes = rejectNotes.value;
+    rejectForm.post(route('parent.purchase-requests.reject', { id: activeRejectRequestId.value }), {
+        preserveScroll: true,
         onSuccess: () => {
             isRejectModalOpen.value = false;
             activeRejectRequestId.value = null;
             rejectNotes.value = '';
+            rejectForm.reset();
         }
+    });
+}
+
+function payForRequest(requestId) {
+    payingRequestId.value = requestId;
+    router.post(route('parent.purchase-requests.pay', { id: requestId }), {}, {
+        preserveScroll: true,
+        onFinish: () => { payingRequestId.value = null; },
     });
 }
 </script>
@@ -230,11 +247,13 @@ function submitReject() {
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        <Link :href="route('parent.purchase-requests.pay', { id: req.id })"
-                                              class="btn-primary btn-sm flex items-center gap-1.5"
+                                        <button type="button"
+                                                class="btn-primary btn-sm flex items-center gap-1.5"
+                                                :disabled="payingRequestId === req.id"
+                                                @click="payForRequest(req.id)"
                                         >
-                                            <span>دفع الآن</span>
-                                        </Link>
+                                            <span>{{ payingRequestId === req.id ? 'جارٍ التحضير...' : 'دفع الآن' }}</span>
+                                        </button>
                                         <button @click="openRejectModal(req.id)"
                                                 class="btn-outline btn-sm text-xs text-red-500 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/40"
                                         >
@@ -286,7 +305,7 @@ function submitReject() {
                                     <div class="flex flex-wrap items-center justify-between gap-3">
                                         <div>
                                             <p class="font-bold">{{ subscription.subject?.name }} — {{ subscription.group?.name ?? 'حصص برايفت' }}</p>
-                                            <p class="text-xs text-surface-500 mt-1">المدرس: {{ subscription.teacher?.name }} · {{ subscription.status === 'active' ? 'نشط' : 'بانتظار الدفع' }}</p>
+                                            <p class="text-xs text-surface-500 mt-1">المدرس: {{ subscription.teacher?.name }} · {{ subscriptionStatusLabel(subscription) }}</p>
                                         </div>
                                         <div class="text-end">
                                             <p class="font-black">{{ formatQAR(subscription.monthly_price) }}</p>
@@ -296,7 +315,7 @@ function submitReject() {
                                     <div class="flex flex-wrap gap-2 mt-3">
                                         <button class="btn-outline btn-sm" @click="contactTeacher(subscription.assignment_id)">مراسلة المدرس</button>
                                         <Link v-if="subscription.status === 'pending'" :href="route('checkout.show', subscription.id)" class="btn-primary btn-sm">إكمال الدفع</Link>
-                                        <Link v-else-if="['active', 'expired'].includes(subscription.status)" :href="route('subscriptions.renewal.show', subscription.id)" class="btn-accent btn-sm">تجديد الاشتراك</Link>
+                                        <Link v-else-if="subscription.is_active || subscription.status === 'expired'" :href="route('subscriptions.renewal.show', subscription.id)" class="btn-accent btn-sm">تجديد الاشتراك</Link>
                                     </div>
                                 </div>
                                 <p v-if="!selectedStudent.subscriptions.length" class="text-sm text-surface-500">لا توجد اشتراكات للطالب حتى الآن.</p>
@@ -504,10 +523,11 @@ function submitReject() {
                             <div>
                                 <label class="label mb-1">سبب الرفض (اختياري)</label>
                                 <textarea v-model="rejectNotes" class="input h-24 p-3" placeholder="اكتب سبب الرفض هنا..."></textarea>
+                                <p v-if="rejectForm.errors.notes" class="error-msg mt-1">{{ rejectForm.errors.notes }}</p>
                             </div>
 
                             <div class="flex gap-3 pt-4">
-                                <button type="submit" class="btn-primary flex-1 bg-red-600 hover:bg-red-700 focus:ring-red-500/40">تأكيد الرفض</button>
+                                <button type="submit" :disabled="rejectForm.processing" class="btn-primary flex-1 bg-red-600 hover:bg-red-700 focus:ring-red-500/40">{{ rejectForm.processing ? 'جارٍ الرفض...' : 'تأكيد الرفض' }}</button>
                                 <button type="button" @click="isRejectModalOpen = false" class="btn-ghost flex-1">إلغاء</button>
                             </div>
                         </form>

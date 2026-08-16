@@ -38,6 +38,11 @@ class SecurityHardeningTest extends TestCase
         $this->assertArrayNotHasKey('version', $response->json());
     }
 
+    public function test_public_production_migration_seed_endpoint_does_not_exist(): void
+    {
+        $this->get('/run-prod-migrations-seed')->assertNotFound();
+    }
+
     public function test_inactive_users_cannot_log_in_or_keep_an_existing_session(): void
     {
         $inactive = User::factory()->create([

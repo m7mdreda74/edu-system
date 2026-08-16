@@ -95,6 +95,24 @@ it('serves Jitsi details and advertises server attendance endpoints', function (
         ->and(Route::has('live-sessions.attendance.leave'))->toBeTrue();
 });
 
+it('does not expose a stale live room after its live window has elapsed', function (): void {
+    $this->session->update([
+        'scheduled_at' => now()->subDays(20),
+        'started_at' => now()->subDays(20),
+    ]);
+
+    expect($this->session->fresh()->isLive())->toBeFalse();
+
+    $this->actingAs($this->student)
+        ->get(route('student.schedule'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('sessions', []));
+
+    $this->actingAs($this->student)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertForbidden();
+});
+
 it('records a student live-room visit and notifies the linked parent', function (): void {
     Notification::fake();
 

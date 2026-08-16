@@ -4,6 +4,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/authStore';
 import Icon from '@/Components/Icon.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
+import ValidationErrorBanner from '@/Components/ValidationErrorBanner.vue';
 import ConfirmDialog from '@/Components/ConfirmDialog.vue';
 
 
@@ -255,8 +256,9 @@ const isActive = (name) => {
                 </div>
             </header>
 
-            <!-- Flash Messages -->
+            <!-- Flash and validation messages -->
             <div class="fixed top-20 left-6 z-55 w-full max-w-sm px-4 space-y-2 pointer-events-none">
+                <ValidationErrorBanner />
                 <Transition enter-active-class="transition ease-out duration-300 transform"
                             enter-from-class="-translate-y-4 opacity-0 scale-95"
                             enter-to-class="translate-y-0 opacity-100 scale-100"

@@ -65,6 +65,10 @@ class ProfileUpdateRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'name.required' => 'يرجى إدخال الاسم.',
+            'email.required' => 'يرجى إدخال البريد الإلكتروني.',
+            'email.email' => 'يرجى إدخال بريد إلكتروني صحيح.',
+            'email.unique' => 'هذا البريد الإلكتروني مستخدم بالفعل.',
             'avatar.prohibited' => 'الصورة الشخصية للمعلم تُحدَّد من قبل إدارة المنصة.',
         ];
     }

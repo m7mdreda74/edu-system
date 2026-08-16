@@ -52,7 +52,7 @@ class SubscriptionController extends Controller
                 return [
                     'id' => $subscription->id,
                     'type' => $subscription->type,
-                    'status' => $subscription->status,
+                    'status' => $subscription->effectiveStatus(),
                     'monthly_price' => $subscription->monthly_price,
                     'currency' => $subscription->currency,
                     'period_start' => $subscription->period_start?->toDateString(),

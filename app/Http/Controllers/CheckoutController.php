@@ -31,7 +31,7 @@ class CheckoutController extends Controller
     {
         $subscription = $this->authorizeSubscription($subscriptionId);
 
-        if ($subscription->status === Subscription::STATUS_ACTIVE) {
+        if ($subscription->isActive()) {
             return Inertia::render('Checkout/AlreadySubscribed', [
                 'subscription' => $this->presentSubscription($subscription),
             ]);
@@ -118,7 +118,7 @@ class CheckoutController extends Controller
     private function processVodafoneCashPayment(Request $request, array $validated, Subscription $subscription): SymfonyResponse
     {
         try {
-            if ($subscription->status === Subscription::STATUS_ACTIVE) {
+            if ($subscription->isActive()) {
                 throw new LogicException('هذا الاشتراك مفعّل بالفعل.');
             }
 
@@ -135,7 +135,7 @@ class CheckoutController extends Controller
                     throw new LogicException('لم يتم ضبط رقم فودافون كاش لهذه المرحلة الدراسية بعد. تواصل مع إدارة المنصة.');
                 }
 
-                if ($lockedSubscription->status === Subscription::STATUS_ACTIVE) {
+                if ($lockedSubscription->isActive()) {
                     throw new LogicException('هذا الاشتراك مفعّل بالفعل.');
                 }
 
@@ -194,6 +194,10 @@ class CheckoutController extends Controller
             $message = 'تم رفع الإيصال بنجاح. سيتم مراجعته وتفعيل الاشتراك خلال لحظات.';
 
             if ($request->wantsJson() || $request->ajax()) {
+                // The Vue checkout redirects after this JSON response. Flash the
+                // confirmation first so the destination page can show it.
+                $request->session()->flash('success', $message);
+
                 return response()->json([
                     'success'      => true,
                     'redirect_url' => route('student.my-classes'),
@@ -224,7 +228,7 @@ class CheckoutController extends Controller
         return [
             'id'            => $subscription->id,
             'type'          => $subscription->type,
-            'status'        => $subscription->status,
+            'status'        => $subscription->effectiveStatus(),
             'label'         => $subscription->label(),
             'monthly_price' => $subscription->monthly_price,
             'currency'      => $subscription->currency,

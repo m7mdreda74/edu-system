@@ -85,7 +85,7 @@ function submit() {
             </div>
 
             <div>
-                <InputLabel for="name" value="Name" />
+                <InputLabel for="name" value="الاسم" />
 
                 <TextInput
                     id="name"
@@ -101,7 +101,7 @@ function submit() {
             </div>
 
             <div>
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" value="البريد الإلكتروني" />
 
                 <div dir="ltr" class="mt-1 flex items-center overflow-hidden rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
                     <input
@@ -196,14 +196,14 @@ function submit() {
 
             <div v-if="mustVerifyEmail && user.email_verified_at === null">
                 <p class="mt-2 text-sm text-gray-800">
-                    Your email address is unverified.
+                    بريدك الإلكتروني غير مُفعّل.
                     <Link
                         :href="route('verification.send')"
                         method="post"
                         as="button"
                         class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     >
-                        Click here to re-send the verification email.
+                        اضغط هنا لإعادة إرسال رسالة التفعيل.
                     </Link>
                 </p>
 
@@ -211,12 +211,12 @@ function submit() {
                     v-show="status === 'verification-link-sent'"
                     class="mt-2 text-sm font-medium text-green-600"
                 >
-                    A new verification link has been sent to your email address.
+                    تم إرسال رابط تفعيل جديد إلى بريدك الإلكتروني.
                 </div>
             </div>
 
             <div class="flex items-center gap-4">
-                <PrimaryButton :disabled="form.processing">Save</PrimaryButton>
+                <PrimaryButton :disabled="form.processing">حفظ</PrimaryButton>
 
                 <Transition
                     enter-active-class="transition ease-in-out"
@@ -228,7 +228,7 @@ function submit() {
                         v-if="form.recentlySuccessful"
                         class="text-sm text-gray-600"
                     >
-                        Saved.
+                        تم الحفظ.
                     </p>
                 </Transition>
             </div>

@@ -385,9 +385,3 @@ Route::middleware(['auth', 'active', 'role:parent'])->prefix('parent')->name('pa
 });
 
 require __DIR__.'/auth.php';
-
-Route::get('/run-prod-migrations-seed', function () {
-    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-    \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
-    return 'Migrated and seeded successfully!';
-});

@@ -96,7 +96,9 @@ async function submit() {
             window.location.href = res.data.redirect_url;
         }
     } catch (e) {
-        errorMessage.value = e.response?.data?.error ?? 'حدث خطأ أثناء إتمام العملية.';
+        const validationErrors = e.response?.data?.errors ?? {};
+        const firstValidationError = Object.values(validationErrors).flat()[0];
+        errorMessage.value = firstValidationError ?? e.response?.data?.error ?? 'حدث خطأ أثناء إتمام العملية.';
     } finally {
         processing.value = false;
     }

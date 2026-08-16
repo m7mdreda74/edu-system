@@ -448,3 +448,16 @@ it('shows the student their classes', function () {
             ->has('subscriptions', 1)
             ->where('subscriptions.0.is_active', true));
 });
+
+it('does not report a subscription as active after its paid day ends', function () {
+    $subscription = $this->service->activate($this->service->openForGroup($this->student, $this->group));
+    $subscription->update(['period_end' => today()]);
+
+    expect($subscription->fresh()->isActive())->toBeTrue()
+        ->and($subscription->fresh()->effectiveStatus())->toBe(Subscription::STATUS_ACTIVE);
+
+    $subscription->update(['period_end' => today()->subDay()]);
+
+    expect($subscription->fresh()->isActive())->toBeFalse()
+        ->and($subscription->fresh()->effectiveStatus())->toBe(Subscription::STATUS_EXPIRED);
+});

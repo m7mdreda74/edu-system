@@ -5,6 +5,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
+import { formatQAR as formatMoney } from '@/lib/money';
 
 const props = defineProps({
     payouts: { type: Object, required: true },
@@ -22,7 +23,7 @@ const payForm = useForm({ receipt: null, notes: '' });
 const { confirm } = useConfirm();
 
 const selectedBalance = computed(() => props.balances[String(form.teacher_id)] ?? props.balances[form.teacher_id] ?? null);
-const formatQAR = value => `${new Intl.NumberFormat('ar-QA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((value ?? 0) / 100)} ر.ق.`;
+const formatQAR = value => formatMoney(value ?? 0);
 
 function submitPayout() {
     form.post(route('admin.payouts.store'), { forceFormData: true, onSuccess: () => { createOpen.value = false; form.reset(); } });

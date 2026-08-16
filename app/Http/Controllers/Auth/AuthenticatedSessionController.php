@@ -52,6 +52,10 @@ class AuthenticatedSessionController extends Controller
             return redirect()->intended(route('teacher.dashboard', absolute: false));
         }
 
+        if ($user->isParent()) {
+            return redirect()->intended(route('parent.dashboard', absolute: false));
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

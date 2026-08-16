@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Application\Subscription\Services\SubscriptionService;
 use App\Domain\Academic\Models\GradeLevel;
+use App\Domain\Payment\Models\Coupon;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -146,6 +147,53 @@ it('stores one Vodafone Cash receipt and keeps the subscription pending until ad
         ->assertSessionHas('error');
 
     expect(Payment::count())->toBe(1);
+});
+
+it('keeps the checkout success message when the Vue client submits JSON', function (): void {
+    Storage::fake('local');
+    Notification::fake();
+
+    $response = $this->actingAs($this->student)
+        ->withHeaders([
+            'Accept' => 'application/json',
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+        ->post(route('checkout.process', $this->subscription->id), vodafoneCashPayload());
+
+    $response->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('redirect_url', route('student.my-classes'));
+
+    $response->assertSessionHas('success', 'تم رفع الإيصال بنجاح. سيتم مراجعته وتفعيل الاشتراك خلال لحظات.');
+});
+
+it('filters the admin payment list by the selected status', function (): void {
+    Payment::factory()->create([
+        'user_id' => $this->student->id,
+        'subscription_id' => $this->subscription->id,
+        'status' => Payment::STATUS_PENDING_VERIFICATION,
+    ]);
+    Payment::factory()->failed()->create([
+        'user_id' => $this->student->id,
+        'subscription_id' => $this->subscription->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.payments', ['status' => Payment::STATUS_PENDING_VERIFICATION]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('filters.status', Payment::STATUS_PENDING_VERIFICATION)
+            ->where('payments.data', fn ($payments) => count($payments) === 1
+                && $payments[0]['status'] === Payment::STATUS_PENDING_VERIFICATION));
+});
+
+it('keeps a coupon valid through its configured calendar day', function (): void {
+    $today = Coupon::factory()->create(['expires_at' => today()]);
+    $yesterday = Coupon::factory()->create(['expires_at' => today()->subDay()]);
+
+    expect($today->isUsable())->toBeTrue()
+        ->and($yesterday->isExpired())->toBeTrue()
+        ->and($yesterday->isUsable())->toBeFalse();
 });
 
 it('accepts a PDF transfer proof and rejects a checkout when the grade has no receiving number', function (): void {

@@ -20,7 +20,7 @@ class GroupMaterialFactory extends Factory
             'order'              => 1,
             // Overriding `order` renames the lesson with it.
             'title'              => fn (array $attributes) => 'الدرس ' . ArabicOrdinal::masculine((int) $attributes['order']),
-            'video_url'          => 'https://example.com/lesson.mp4',
+            'video_url'          => null,
             'duration_seconds'   => 600,
             'is_free_preview'    => false,
         ];

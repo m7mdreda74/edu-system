@@ -19,6 +19,11 @@ class CouponController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $coupons->getCollection()->each(function (Coupon $coupon): void {
+            $coupon->setAttribute('is_expired', $coupon->isExpired());
+            $coupon->setAttribute('is_usable', $coupon->isUsable());
+        });
+
         return Inertia::render('Admin/Coupons', [
             'coupons' => $coupons,
         ]);

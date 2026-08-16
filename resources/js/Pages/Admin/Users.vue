@@ -20,6 +20,7 @@ const search = ref(props.filters.search ?? '');
 const role   = ref(props.filters.role ?? '');
 
 const debouncedSearch = useDebounceFn(() => applyFilters(), 300);
+const togglingUserIds = ref(new Set());
 
 function applyFilters() {
     router.get(route('admin.users'), {
@@ -29,9 +30,18 @@ function applyFilters() {
 }
 
 function toggleActive(userId) {
+    togglingUserIds.value = new Set(togglingUserIds.value).add(userId);
     router.patch(route('admin.users.toggle', { id: userId }), {}, {
-        onSuccess: () => {},
+        // Re-fetch the paginated collection after every toggle. Keeping the
+        // previous page state here can leave the button showing the old state
+        // after the first request, making the second click appear to be a no-op.
+        preserveState: false,
         preserveScroll: true,
+        onFinish: () => {
+            const next = new Set(togglingUserIds.value);
+            next.delete(userId);
+            togglingUserIds.value = next;
+        },
     });
 }
 
@@ -336,13 +346,14 @@ async function removeAvatar() {
                                     </button>
                                     <button
                                         @click="toggleActive(user.id)"
+                                        :disabled="togglingUserIds.has(user.id)"
                                         class="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
                                         :class="user.is_active
                                             ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/50 dark:text-red-400'
                                             : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-950/50 dark:text-green-400'"
                                         :id="`toggle-user-${user.id}`"
                                     >
-                                        {{ user.is_active ? 'تعطيل' : 'تفعيل' }}
+                                        {{ togglingUserIds.has(user.id) ? 'جارٍ التحديث...' : (user.is_active ? 'تعطيل' : 'تفعيل') }}
                                     </button>
 
                                     <button
@@ -499,7 +510,7 @@ async function removeAvatar() {
 
                         <!-- Parent phone for Student -->
                         <div v-if="createForm.role === 'student'">
-                            <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-parent-phone">رقم جوال ولي الأمر</label>
+                            <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-parent-phone">رقم جوال ولي الأمر <span class="text-red-500">*</span></label>
                             <input id="create-parent-phone" v-model="createForm.parent_phone" type="tel" inputmode="tel" class="input w-full text-sm" placeholder="نفس الرقم المسجل بحساب ولي الأمر" required />
                             <p class="mt-1 text-[11px] text-surface-400">يُستخدم لربط الطالب مباشرة بحساب ولي الأمر.</p>
                             <p v-if="createForm.errors.parent_phone" class="text-red-500 text-xs mt-1">{{ createForm.errors.parent_phone }}</p>

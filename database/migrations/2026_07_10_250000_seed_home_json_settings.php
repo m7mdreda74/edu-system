@@ -31,11 +31,7 @@ return new class extends Migration
             ["icon" => "settings", "title" => "تقنية متطورة", "desc" => "منصة آمنة وتفاعلية وسلسة خالية تماماً من التعقيدات وتدعم كافة الأجهزة الذكية."]
         ];
 
-        $videos = [
-            ["title" => "طريقة التحضير لامتحانات الثانوية العامة في قطر", "url" => "https://youtube.com", "thumbnail" => "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&q=80"],
-            ["title" => "مراجعة شاملة لمادة الفيزياء — الفصل الدراسي الثاني", "url" => "https://youtube.com", "thumbnail" => "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&q=80"],
-            ["title" => "أسهل طريقة لفهم الكيمياء العضوية بالتفصيل", "url" => "https://youtube.com", "thumbnail" => "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=500&q=80"]
-        ];
+        $videos = [];
 
         $faqs = [
             ["q" => "ما هي المراحل الدراسية التي تستهدفها منصة التفوق؟", "a" => "تستهدف المنصة بشكل رئيسي طلاب المرحلة الثانوية (الصف العاشر، الحادي عشر، والثاني عشر / التوجيهي) في دولة قطر."],
@@ -54,7 +50,7 @@ return new class extends Migration
             ['key' => 'home_why_choose_us',   'value' => json_encode($whyUs, JSON_UNESCAPED_UNICODE),           'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'home_youtube_videos',  'value' => json_encode($videos, JSON_UNESCAPED_UNICODE),          'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'home_faqs',            'value' => json_encode($faqs, JSON_UNESCAPED_UNICODE),            'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'footer_desc',          'value' => 'منصة تعليمية متخصصة في مواد المرحلة الثانوية، نحو مستقبل أفضل لكل طالب.', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
+            ['key' => 'footer_desc',          'value' => 'منصة تعليمية قطرية تربط الطالب بأفضل المعلمين — اختر صفك، شاهد طريقة الشرح، واحجز مع من يناسبك.', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'contact_email',        'value' => 'support@altafawwuq.com',                             'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
         ]);
     }

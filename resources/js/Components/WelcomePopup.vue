@@ -47,7 +47,7 @@ const items = computed(() => {
 });
 
 const bottomLabel = computed(() => settings.value.welcome_popup_bottom_label || 'للمزيد الإطلاع على دليل المستخدم');
-const bottomUrl = computed(() => settings.value.welcome_popup_bottom_url || '#');
+const bottomUrl = computed(() => settings.value.welcome_popup_bottom_url || null);
 
 // Video Overlay Player State
 const activeVideoUrl = ref(null);

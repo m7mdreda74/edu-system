@@ -30,6 +30,23 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
+    public function test_parent_login_and_guest_pages_use_the_parent_dashboard(): void
+    {
+        $parent = User::factory()->create();
+        $parent->assignRole('parent');
+
+        $response = $this->post('/login', [
+            'login_field' => $parent->email,
+            'password' => 'password',
+        ]);
+
+        $response->assertRedirect(route('parent.dashboard', absolute: false));
+
+        $this->actingAs($parent)
+            ->get('/register')
+            ->assertRedirect(route('parent.dashboard'));
+    }
+
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();

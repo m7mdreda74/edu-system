@@ -42,7 +42,10 @@ class Coupon extends Model
 
     public function isExpired(): bool
     {
-        return $this->expires_at !== null && $this->expires_at->isPast();
+        // The admin form accepts a calendar date, so the coupon remains valid
+        // through the selected day and expires at its end rather than at
+        // midnight when the timestamp was cast from YYYY-MM-DD.
+        return $this->expires_at !== null && $this->expires_at->copy()->endOfDay()->isPast();
     }
 
     public function isExhausted(): bool

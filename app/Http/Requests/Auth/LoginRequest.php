@@ -33,6 +33,14 @@ class LoginRequest extends FormRequest
         ];
     }
 
+    public function messages(): array
+    {
+        return [
+            'login_field.required' => 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف.',
+            'password.required' => 'يرجى إدخال كلمة المرور.',
+        ];
+    }
+
     /**
      * Attempt to authenticate the request's credentials.
      *
@@ -55,7 +63,7 @@ class LoginRequest extends FormRequest
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'login_field' => trans('auth.failed'),
+                'login_field' => 'بيانات تسجيل الدخول غير صحيحة.',
             ]);
         }
 
@@ -78,10 +86,8 @@ class LoginRequest extends FormRequest
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'login_field' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
+            'login_field' => 'تم تجاوز عدد محاولات تسجيل الدخول. حاول مرة أخرى بعد '
+                . ceil($seconds / 60) . ' دقيقة.',
         ]);
     }
 

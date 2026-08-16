@@ -22,8 +22,6 @@ class AccountsSeeder extends Seeder
 {
     public const PASSWORD = 'password';
 
-    private const DEMO_VIDEO = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-
     /** Arabic male names */
     private const MALE_NAMES = [
         'محمد رضا', 'عبدالرحمن سعد', 'فهد المري', 'سلطان الهاجري', 'علي الجابر',
@@ -113,7 +111,7 @@ class AccountsSeeder extends Seeder
                 'years_experience'      => $definition['experience'],
                 'is_featured'           => $definition['featured'] ?? false,
                 'commission_percent'    => $definition['commission'],
-                'intro_video_url'       => self::DEMO_VIDEO,
+                'intro_video_url'       => null,
                 'intro_video_thumbnail' => null,
             ]);
         }

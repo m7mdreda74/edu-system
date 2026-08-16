@@ -88,11 +88,7 @@ const youtubeVideos = computed(() => {
     } catch (e) {
         console.warn('Failed to parse home_youtube_videos settings JSON:', e);
     }
-    return [
-        { title: 'طريقة التحضير لامتحانات الثانوية العامة في قطر', url: 'https://youtube.com', thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&q=80' },
-        { title: 'مراجعة شاملة لمادة الفيزياء — الفصل الدراسي الثاني', url: 'https://youtube.com', thumbnail: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&q=80' },
-        { title: 'أسهل طريقة لفهم الكيمياء العضوية بالتفصيل', url: 'https://youtube.com', thumbnail: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=500&q=80' }
-    ];
+    return [];
 });
 
 const parsedFaqs = computed(() => {
@@ -331,7 +327,7 @@ const gradeGroups = computed(() => {
         </section>
 
         <!-- ── Student Results Section ───────────────────────────── -->
-        <section class="section bg-transparent">
+        <section v-if="youtubeVideos.length" class="section bg-transparent">
             <div class="container-app">
                 <div class="text-center mb-12 max-w-2xl mx-auto">
                     <span class="badge bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 mb-3 inline-block">تميز ونتائج استثنائية</span>

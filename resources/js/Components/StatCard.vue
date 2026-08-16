@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import Icon from '@/Components/Icon.vue';
+import { formatQAR } from '@/lib/money';
 
 const props = defineProps({
     label:  { type: String, required: true },
@@ -26,7 +27,7 @@ const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const display = computed(() => {
     if (typeof props.value === 'string') return props.value;
     return props.money
-        ? `${formatter.format((props.value ?? 0) / 100)} ر.ق.`
+        ? formatQAR(props.value ?? 0)
         : formatter.format(props.value ?? 0);
 });
 

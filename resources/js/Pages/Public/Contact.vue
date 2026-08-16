@@ -101,7 +101,7 @@ function handleSubmit() {
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">البريد الإلكتروني</label>
-                                    <input v-model="form.email" type="email" class="input py-2 text-sm w-full" placeholder="username@example.com">
+                                    <input v-model="form.email" type="email" class="input py-2 text-sm w-full" placeholder="اكتب بريدك الإلكتروني">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">رقم الهاتف *</label>

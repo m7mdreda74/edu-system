@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Teacher;
 
 use App\Domain\Learning\Models\GroupMaterial;
-use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Http\Controllers\Controller;
@@ -47,10 +46,7 @@ class DashboardController extends Controller
             'stats' => [
                 'assignments' => $assignmentIds->count(),
                 'total_groups' => $groups->count(),
-                'active_students' => SessionBooking::whereIn('teaching_group_id', $groupIds)
-                    ->where('status', 'confirmed')
-                    ->distinct('student_id')
-                    ->count('student_id'),
+                'active_students' => Auth::user()->activeStudentsCount(),
                 'lessons' => collect($materialCounts)->sum(),
             ],
             'groups' => $groups,

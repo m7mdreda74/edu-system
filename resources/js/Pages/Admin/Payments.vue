@@ -5,6 +5,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
+import { formatQAR as formatMoney } from '@/lib/money';
 
 const props = defineProps({
     payments: { type: Object, required: true },
@@ -17,15 +18,11 @@ const selectedReceipt = ref(null);
 
 function applyFilters() {
     router.get(route('admin.payments'), { status: status.value || undefined },
-        { preserveState: true, replace: true });
+        { preserveState: false, preserveScroll: true, replace: true });
 }
 
 function formatQAR(halala) {
-    const formatted = new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-    }).format((halala ?? 0) / 100);
-    return `${formatted} ر.ق.`;
+    return formatMoney(halala ?? 0);
 }
 
 function formatCompactDate(value) {
@@ -51,13 +48,7 @@ function isPdfReceipt(payment) {
 
 function viewReceipt(payment) {
     const url = route('admin.payments.receipt', payment.id);
-
-    if (isPdfReceipt(payment)) {
-        window.open(url, '_blank', 'noopener');
-        return;
-    }
-
-    selectedReceipt.value = url;
+    selectedReceipt.value = { url, isPdf: isPdfReceipt(payment) };
 }
 
 const statusColors = {
@@ -229,8 +220,8 @@ async function rejectPayment(p) {
                         </h3>
                         <button @click="selectedReceipt = null" class="btn-ghost p-1.5 rounded-lg text-surface-400 hover:text-surface-700">✕</button>
                     </div>
-                    <div class="w-full max-h-[70vh] rounded-2xl overflow-hidden bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 p-2">
-                        <img :src="selectedReceipt" class="w-full max-h-[65vh] object-contain mx-auto rounded-xl" />
+                    <div class="w-full h-[70vh] rounded-2xl overflow-hidden bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 p-2">
+                        <iframe :src="selectedReceipt.url" class="w-full h-full rounded-xl border-0" title="إيصال التحويل"></iframe>
                     </div>
                 </div>
             </div>

@@ -148,19 +148,28 @@ class DashboardController extends Controller
 
         $year  = $isSqlite ? "strftime('%Y', paid_at)" : 'YEAR(paid_at)';
         $month = $isSqlite ? "strftime('%m', paid_at)" : 'MONTH(paid_at)';
+        $start = now()->startOfMonth()->subMonths(5);
 
-        return Payment::where('status', Payment::STATUS_PAID)
-            ->where('paid_at', '>=', now()->subMonths(6)->startOfMonth())
+        $rows = Payment::where('status', Payment::STATUS_PAID)
+            ->where('paid_at', '>=', $start)
             ->selectRaw("{$year} as y, {$month} as m, SUM(amount) as total, COUNT(*) as payments")
             ->groupBy('y', 'm')
             ->orderBy('y')
             ->orderBy('m')
             ->get()
-            ->map(fn ($row) => [
-                'label'    => now()->setYear((int) $row->y)->setMonth((int) $row->m)->translatedFormat('M Y'),
-                'amount'   => (int) $row->total,
-                'payments' => (int) $row->payments,
-            ])
+            ->keyBy(fn ($row) => sprintf('%04d-%02d', (int) $row->y, (int) $row->m));
+
+        return collect(range(0, 5))
+            ->map(function (int $offset) use ($start, $rows): array {
+                $month = $start->copy()->addMonths($offset);
+                $row = $rows->get($month->format('Y-m'));
+
+                return [
+                    'label'    => $month->translatedFormat('M Y'),
+                    'amount'   => (int) ($row?->total ?? 0),
+                    'payments' => (int) ($row?->payments ?? 0),
+                ];
+            })
             ->all();
     }
 

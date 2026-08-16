@@ -21,12 +21,12 @@ use Illuminate\Database\Seeder;
  *
  * Live sessions are spread across all three states — one already finished with
  * a recording, one running now, and a couple still scheduled — so every branch
- * of the classroom UI has something to render.
+ * of the classroom UI has something to render. Media URLs remain empty until
+ * an admin or teacher provides real platform content; demo data must not point
+ * students at unrelated third-party videos.
  */
 class ContentSeeder extends Seeder
 {
-    private const DEMO_VIDEO = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-
     public function run(): void
     {
         $groups = TeachingGroup::with('assignment.subject')->get();
@@ -70,7 +70,7 @@ class ContentSeeder extends Seeder
                 'curriculum_unit_id' => $unit->id,
                 'academic_term_id'   => $group->academic_term_id,
                 'title'              => $title,
-                'video_url'          => self::DEMO_VIDEO,
+                'video_url'          => null,
                 'duration_seconds'   => 60 * random_int(22, 58),
                 'order'              => $position + 1,
                 // The opener is the free sample a visitor can watch.
@@ -244,7 +244,7 @@ class ContentSeeder extends Seeder
             'started_at'        => now()->subDays(7),
             'ended_at'          => now()->subDays(7)->addMinutes(90),
             'status'            => LiveSession::STATUS_ENDED,
-            'recording_url'     => self::DEMO_VIDEO,
+            'recording_url'     => null,
         ]);
         $this->linkPlanLesson($group, 1, $finished->id);
 

@@ -110,7 +110,18 @@ class Subscription extends Model
     {
         return $this->status === self::STATUS_ACTIVE
             && $this->period_end !== null
-            && ! $this->period_end->isPast();
+            && ! $this->period_end->copy()->endOfDay()->isPast();
+    }
+
+    /**
+     * Status for screens and reports. A stale active row must not look active
+     * after its paid period has ended, even before the expiry job runs.
+     */
+    public function effectiveStatus(): string
+    {
+        return $this->status === self::STATUS_ACTIVE && ! $this->isActive()
+            ? self::STATUS_EXPIRED
+            : $this->status;
     }
 
     public function isPending(): bool

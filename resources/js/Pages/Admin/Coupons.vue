@@ -102,8 +102,8 @@ async function deleteCoupon(id) {
                                     {{ coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString('ar') : 'مستمر' }}
                                 </td>
                                 <td class="px-6 py-4">
-                                    <span :class="coupon.is_active ? 'badge-green' : 'badge-gray'">
-                                        {{ coupon.is_active ? 'نشط' : 'معطل' }}
+                                    <span :class="coupon.is_usable ? 'badge-green' : 'badge-gray'">
+                                        {{ coupon.is_expired ? 'منتهي' : (coupon.is_active ? 'نشط' : 'معطل') }}
                                     </span>
                                 </td>
                                 <td class="data-table-actions px-6 py-4 text-center">

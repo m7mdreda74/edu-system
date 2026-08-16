@@ -17,7 +17,7 @@ defineProps({
             <header class="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                     <h1 class="text-2xl font-black text-surface-900 dark:text-white">
-                        أهلاً، {{ $page.props.auth.user?.name?.split(' ')[0] }}
+                        أهلاً، {{ $page.props.auth.user?.name }}
                     </h1>
                     <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
                         مساحتك الأكاديمية لإدارة المنهج والشرح والواجبات والاختبارات

@@ -8,6 +8,7 @@ use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\Scheduling\Models\SessionBooking;
+use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
@@ -194,11 +195,23 @@ class User extends Authenticatable
         return round((float) ($this->reviewsReceived()->where('is_approved', true)->avg('rating') ?? 0), 1);
     }
 
-    /** Distinct students currently subscribed to any of this teacher's groups. */
+    /** Distinct students with a confirmed group or private booking for this teacher. */
     public function activeStudentsCount(): int
     {
-        return Subscription::active()
-            ->whereIn('teaching_assignment_id', $this->teachingAssignments()->select('id'))
+        $assignmentIds = $this->teachingAssignments()->select('id');
+        $groupIds = TeachingGroup::query()
+            ->whereIn('teaching_assignment_id', $assignmentIds)
+            ->select('id');
+        $privateSlotIds = PrivateSessionSlot::query()
+            ->whereIn('teaching_assignment_id', $assignmentIds)
+            ->select('id');
+
+        return SessionBooking::query()
+            ->where('status', 'confirmed')
+            ->where(function ($query) use ($groupIds, $privateSlotIds): void {
+                $query->whereIn('teaching_group_id', $groupIds)
+                    ->orWhereIn('private_session_slot_id', $privateSlotIds);
+            })
             ->distinct('student_id')
             ->count('student_id');
     }

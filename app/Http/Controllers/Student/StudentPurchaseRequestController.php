@@ -39,7 +39,7 @@ class StudentPurchaseRequestController extends Controller
                 ->first();
 
             if (! $parentLink) {
-                throw new LogicException('يجب ربط حسابك بحساب ولي الأمر أولاً عن طريق إدخال بريدك الإلكتروني في لوحة تحكم ولي الأمر.');
+                throw new LogicException('يجب ربط حسابك بحساب ولي الأمر أولاً. اطلب من ولي أمرك تسجيل الدخول وإضافة رقم هاتفك من لوحة التحكم.');
             }
 
             $alreadyPending = PurchaseRequest::where('student_user_id', $user->id)

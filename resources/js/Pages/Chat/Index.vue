@@ -161,15 +161,20 @@ async function fetchNewMessages() {
 function sendMessage() {
     if (!form.message.trim() && !form.attachment) return;
     if (!form.conversation_id) return;
+
+    const draftMessage = form.message;
+    // Clear the composer immediately so the interface reflects the send
+    // action; restore the draft only if the request is rejected.
+    form.reset('message');
     
     form.post(route('chat.send'), {
         preserveScroll: true,
         forceFormData: true,
         onSuccess: () => {
-            form.reset('message');
             clearAttachment();
             fetchNewMessages(); // Immediately fetch instead of waiting for interval
-        }
+        },
+        onError: () => { form.message = draftMessage; },
     });
 }
 
@@ -367,6 +372,7 @@ onUnmounted(() => {
                                 <!-- Text Input -->
                                 <input v-model="form.message" 
                                        type="text" 
+                                       @keydown.enter.prevent="sendMessage"
                                        class="input flex-1 py-3 px-4 bg-white dark:bg-surface-950 rounded-full border border-surface-200 dark:border-surface-800" 
                                        placeholder="اكتب رسالتك هنا..." 
                                        autocomplete="off">

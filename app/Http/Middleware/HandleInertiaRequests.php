@@ -35,6 +35,7 @@ class HandleInertiaRequests extends Middleware
                     'id'          => $user->id,
                     'name'        => $user->name,
                     'email'       => $user->email,
+                    'email_verified_at' => $user->email_verified_at?->toIso8601String(),
                     'avatar'      => $user->avatar,
                     'grade_level' => $user->grade_level,
                     'roles'       => $user->getRoleNames()->toArray(),

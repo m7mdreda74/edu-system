@@ -11,11 +11,11 @@ const badge = computed(() => settings.value.app_badge || 'تطبيقات الت�
 const title = computed(() => settings.value.app_title || 'حمّل تطبيقات المنصة');
 const desc = computed(() => settings.value.app_desc || 'لضمان تجربة تعليمية سلسة وخالية من الانقطاع وبث فيديوهات فائق السرعة، حمّل تطبيقات منصة التفوق المخصصة لأجهزة الكمبيوتر والهواتف الذكية.');
 
-const winUrl = computed(() => settings.value.app_win_url || '#');
-const macUrl = computed(() => settings.value.app_mac_url || '#');
-const iosUrl = computed(() => settings.value.app_ios_url || '#');
-const androidUrl = computed(() => settings.value.app_android_url || '#');
-const huaweiUrl = computed(() => settings.value.app_huawei_url || '#');
+const winUrl = computed(() => settings.value.app_win_url || null);
+const macUrl = computed(() => settings.value.app_mac_url || null);
+const iosUrl = computed(() => settings.value.app_ios_url || null);
+const androidUrl = computed(() => settings.value.app_android_url || null);
+const huaweiUrl = computed(() => settings.value.app_huawei_url || null);
 </script>
 
 <template>
@@ -48,14 +48,15 @@ const huaweiUrl = computed(() => settings.value.app_huawei_url || '#');
                             </p>
                         </div>
                         <div class="space-y-3">
-                            <a :href="winUrl" class="btn-primary w-full py-2.5 flex items-center justify-center gap-2 transition-transform duration-200 hover:scale-102">
+                            <a v-if="winUrl" :href="winUrl" class="btn-primary w-full py-2.5 flex items-center justify-center gap-2 transition-transform duration-200 hover:scale-102">
                                 <Icon name="globe" class="w-4 h-4 text-white" />
                                 <span>تنزيل لنظام ويندوز (Windows App)</span>
                             </a>
-                            <a :href="macUrl" class="btn-outline w-full py-2.5 flex items-center justify-center gap-2 transition-transform duration-200 hover:scale-102">
+                            <a v-if="macUrl" :href="macUrl" class="btn-outline w-full py-2.5 flex items-center justify-center gap-2 transition-transform duration-200 hover:scale-102">
                                 <Icon name="globe" class="w-4 h-4" />
                                 <span>تنزيل لنظام ماك (macOS App)</span>
                             </a>
+                            <p v-if="!winUrl && !macUrl" class="text-xs text-surface-400 text-center py-2">روابط تطبيقات الكمبيوتر ستُضاف عند تجهيزها.</p>
                         </div>
                     </div>
 
@@ -71,18 +72,19 @@ const huaweiUrl = computed(() => settings.value.app_huawei_url || '#');
                             </p>
                         </div>
                         <div class="grid grid-cols-1 gap-2.5">
-                            <a :href="iosUrl" class="btn-outline w-full py-2 flex items-center justify-center gap-2 text-xs">
+                            <a v-if="iosUrl" :href="iosUrl" class="btn-outline w-full py-2 flex items-center justify-center gap-2 text-xs">
                                 <Icon name="globe" class="w-4 h-4" />
                                 <span>متوفر على Apple App Store</span>
                             </a>
-                            <a :href="androidUrl" class="btn-outline w-full py-2 flex items-center justify-center gap-2 text-xs">
+                            <a v-if="androidUrl" :href="androidUrl" class="btn-outline w-full py-2 flex items-center justify-center gap-2 text-xs">
                                 <Icon name="globe" class="w-4 h-4" />
                                 <span>متوفر على Google Play Store</span>
                             </a>
-                            <a :href="huaweiUrl" class="btn-outline w-full py-2 flex items-center justify-center gap-2 text-xs">
+                            <a v-if="huaweiUrl" :href="huaweiUrl" class="btn-outline w-full py-2 flex items-center justify-center gap-2 text-xs">
                                 <Icon name="globe" class="w-4 h-4" />
                                 <span>متوفر على Huawei AppGallery</span>
                             </a>
+                            <p v-if="!iosUrl && !androidUrl && !huaweiUrl" class="text-xs text-surface-400 text-center py-2">روابط تطبيقات الهاتف ستُضاف عند تجهيزها.</p>
                         </div>
                     </div>
 

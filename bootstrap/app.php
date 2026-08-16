@@ -14,6 +14,29 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Authenticated parents, teachers, and admins must not be sent to the
+        // student-only /dashboard when they revisit a guest page such as
+        // /register. That otherwise becomes a misleading 403 page.
+        \Illuminate\Auth\Middleware\RedirectIfAuthenticated::redirectUsing(
+            function (Request $request): string {
+                $user = $request->user();
+
+                if ($user?->isAdmin()) {
+                    return route('admin.dashboard');
+                }
+
+                if ($user?->isTeacher()) {
+                    return route('teacher.dashboard');
+                }
+
+                if ($user?->isParent()) {
+                    return route('parent.dashboard');
+                }
+
+                return route('dashboard');
+            },
+        );
+
         // Trust Vercel's proxy so Laravel generates HTTPS URLs
         $middleware->trustProxies(at: '*');
         $middleware->web(append: [

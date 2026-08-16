@@ -9,6 +9,7 @@ use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Scheduling\Models\TeachingGroupSchedule;
+use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -71,6 +72,41 @@ it('reaches every admin screen', function () {
     foreach ($screens as $screen) {
         $this->actingAs($this->admin)->get(route($screen))->assertOk();
     }
+});
+
+it('prints the complete admin report datasets without pagination', function () {
+    /** @var AdminControlTestCase $this */
+    $this->actingAs($this->admin)
+        ->get(route('admin.reports', ['print' => 1]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('printMode', true)
+            ->where('sessions.meta.current_page', 1)
+            ->where('sessions.meta.total', 0)
+            ->where('attendance.meta.current_page', 1)
+            ->where('attendance.meta.total', 0)
+            ->has('teachers', 1)
+            ->has('groups', 1));
+});
+
+it('treats stale active subscriptions as expired in admin screens', function () {
+    /** @var AdminControlTestCase $this */
+    $stale = Subscription::factory()->active()->create([
+        'student_id' => $this->student->id,
+        'teaching_assignment_id' => $this->assignment->id,
+        'teaching_group_id' => $this->group->id,
+        'period_end' => now()->subDay(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.subscriptions', ['status' => 'expired']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('subscriptions.total', 1)
+            ->where('subscriptions.data.0.id', $stale->id)
+            ->where('subscriptions.data.0.status', Subscription::STATUS_EXPIRED)
+            ->where('stats.active', 0)
+            ->where('stats.expired', 1));
 });
 
 it('keeps every admin screen away from non-admins', function () {
@@ -388,6 +424,16 @@ it('loads every live dashboard figure in one database round trip', function () {
         ->assertOk();
 
     expect($statsQueries)->toHaveCount(1);
+});
+
+it('keeps zero-value months in the six-month revenue chart', function () {
+    /** @var AdminControlTestCase $this */
+    $this->actingAs($this->admin)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('revenueChart', fn ($chart) => count($chart) === 6
+                && collect($chart)->every(fn ($month) => $month['amount'] === 0 && $month['payments'] === 0)));
 });
 
 it('counts a pending review in the action queue', function () {
