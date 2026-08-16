@@ -17,7 +17,7 @@ class TeachingGroupFactory extends Factory
         return [
             'teaching_assignment_id' => TeachingAssignment::factory(),
             'name'                   => 'مجموعة ' . $this->faker->unique()->numberBetween(1, 9999),
-            'capacity'               => 20,
+            'capacity'               => 5,
             'monthly_price'          => 45_000,
             'currency'               => 'QAR',
             'day_of_week'            => 0,

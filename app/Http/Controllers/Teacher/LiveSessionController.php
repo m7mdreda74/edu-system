@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Application\Subscription\Services\SubscriptionRenewalReminderService;
+use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Communication\Notifications\AdminLiveSessionStatusNotification;
 use App\Domain\Communication\Notifications\LiveSessionStartedNotification;
 use App\Domain\Communication\Notifications\SessionApologySubmittedNotification;
 use App\Domain\Communication\Notifications\SessionScheduleChangedNotification;
+use App\Domain\Communication\Notifications\StudentLiveSessionActivityNotification;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionApology;
@@ -22,6 +25,7 @@ use App\Domain\Scheduling\Models\TeachingGroupLesson;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Support\YouTubeUrl;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\Notification;
@@ -39,6 +43,11 @@ use Inertia\Response;
  */
 class LiveSessionController extends Controller
 {
+    public function __construct(
+        private readonly SubscriptionRenewalReminderService $renewalReminders,
+        private readonly ParentStudentLinkService $parentStudentLinks,
+    ) {}
+
     public function index(): Response
     {
         $teacherId = Auth::id();
@@ -214,7 +223,8 @@ class LiveSessionController extends Controller
         ]);
 
         $allowedTransitions = [
-            LiveSession::STATUS_SCHEDULED => [LiveSession::STATUS_SCHEDULED, LiveSession::STATUS_LIVE],
+            // A scheduled class becomes live only after the teacher joins its room.
+            LiveSession::STATUS_SCHEDULED => [LiveSession::STATUS_SCHEDULED],
             LiveSession::STATUS_LIVE => [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED],
             // Re-saving an ended session is how the teacher publishes a recording later.
             LiveSession::STATUS_ENDED => [LiveSession::STATUS_ENDED],
@@ -244,14 +254,23 @@ class LiveSessionController extends Controller
 
         $session->status = $validated['status'];
 
-        if (isset($validated['recording_url'])) {
+        if (filled($validated['recording_url'] ?? null)) {
             $session->recording_url = $validated['recording_url'];
         }
 
-        DB::transaction(function () use ($session): void {
+        $studentsForcedOutIds = [];
+
+        DB::transaction(function () use ($session, &$studentsForcedOutIds): void {
             $session->save();
 
             if ($session->status === LiveSession::STATUS_ENDED && $session->ended_at) {
+                $studentsForcedOutIds = LiveSessionAttendee::query()
+                    ->where('live_session_id', $session->id)
+                    ->whereNull('left_at')
+                    ->where('user_id', '!=', $session->teacher_id)
+                    ->pluck('user_id')
+                    ->all();
+
                 LiveSessionAttendee::where('live_session_id', $session->id)
                     ->whereNull('left_at')
                     ->update([
@@ -266,19 +285,170 @@ class LiveSessionController extends Controller
         });
 
         if ($statusChanged && in_array($validated['status'], [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED], true)) {
-            $session->load([
-                'teacher:id,name',
-                'teachingGroup:id,name,teaching_assignment_id',
-                'teachingGroup.assignment.subject:id,name',
-                'attendees:id,live_session_id,user_id',
-            ]);
+            $this->notifyAdminsAboutStatus($session, $validated['status']);
+        }
 
-            foreach (User::role('admin')->get() as $admin) {
-                $admin->notify(new AdminLiveSessionStatusNotification($session, $validated['status']));
-            }
+        if ($statusChanged && $validated['status'] === LiveSession::STATUS_ENDED) {
+            $this->notifyParentsAboutStudentIds(
+                $session,
+                $studentsForcedOutIds,
+                StudentLiveSessionActivityNotification::ACTIVITY_LEFT,
+            );
+            $this->notifyParentsAboutSessionActivity(
+                $session,
+                StudentLiveSessionActivityNotification::ACTIVITY_ENDED,
+            );
+            $this->renewalReminders->sendForEndedSession($session);
         }
 
         return back()->with('success', 'تم تحديث حالة الحصة.');
+    }
+
+    /** Start a class only after the teacher has connected to its room. */
+    public function startFromRoom(int $id): JsonResponse
+    {
+        $started = false;
+        $session = DB::transaction(function () use ($id, &$started): LiveSession {
+            $session = LiveSession::query()->lockForUpdate()->findOrFail($id);
+
+            abort_if($session->teacher_id !== Auth::id(), 403, 'غير مصرح.');
+            abort_unless(
+                in_array($session->status, [LiveSession::STATUS_SCHEDULED, LiveSession::STATUS_LIVE], true),
+                422,
+                'لا يمكن بدء هذه الحصة من الغرفة.',
+            );
+
+            if ($session->status === LiveSession::STATUS_SCHEDULED) {
+                $session->update([
+                    'status' => LiveSession::STATUS_LIVE,
+                    'started_at' => now(),
+                    'ended_at' => null,
+                ]);
+                $started = true;
+            }
+
+            return $session->fresh();
+        });
+
+        if ($started) {
+            $this->notifyAttendees($session);
+            $this->notifyAdminsAboutStatus($session, LiveSession::STATUS_LIVE);
+        }
+
+        return response()->json([
+            'status' => $session->status,
+            'started_at' => $session->started_at?->toIso8601String(),
+        ]);
+    }
+
+    /** End a class from inside the room; only its teacher can call this. */
+    public function endFromRoom(int $id): JsonResponse
+    {
+        $ended = false;
+        $studentsForcedOutIds = [];
+        $session = DB::transaction(function () use ($id, &$ended, &$studentsForcedOutIds): LiveSession {
+            $session = LiveSession::query()->lockForUpdate()->findOrFail($id);
+
+            abort_if($session->teacher_id !== Auth::id(), 403, 'غير مصرح.');
+            abort_unless(
+                in_array($session->status, [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED], true),
+                422,
+                'لا يمكن إنهاء هذه الحصة الآن.',
+            );
+
+            if ($session->status === LiveSession::STATUS_LIVE) {
+                $session->update([
+                    'status' => LiveSession::STATUS_ENDED,
+                    'ended_at' => now(),
+                ]);
+                $ended = true;
+
+                $studentsForcedOutIds = LiveSessionAttendee::query()
+                    ->where('live_session_id', $session->id)
+                    ->whereNull('left_at')
+                    ->where('user_id', '!=', $session->teacher_id)
+                    ->pluck('user_id')
+                    ->all();
+
+                LiveSessionAttendee::where('live_session_id', $session->id)
+                    ->whereNull('left_at')
+                    ->update([
+                        'left_at' => $session->ended_at,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            return $session->fresh();
+        });
+
+        if ($ended) {
+            $this->notifyAdminsAboutStatus($session, LiveSession::STATUS_ENDED);
+            $this->notifyParentsAboutStudentIds(
+                $session,
+                $studentsForcedOutIds,
+                StudentLiveSessionActivityNotification::ACTIVITY_LEFT,
+            );
+            $this->notifyParentsAboutSessionActivity(
+                $session,
+                StudentLiveSessionActivityNotification::ACTIVITY_ENDED,
+            );
+            $this->renewalReminders->sendForEndedSession($session);
+        }
+
+        return response()->json([
+            'status' => $session->status,
+            'ended_at' => $session->ended_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Save the server-side Jitsi recording link emitted after a file recording
+     * finishes. The browser never needs to download or re-upload the video.
+     */
+    public function storeRecordingLink(Request $request, int $id): JsonResponse
+    {
+        $session = LiveSession::findOrFail($id);
+
+        abort_if($session->teacher_id !== Auth::id(), 403, 'غير مصرح.');
+        abort_unless(
+            in_array($session->status, [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED], true),
+            422,
+            'لا يمكن حفظ تسجيل لحصة لم تبدأ أو انتهت.',
+        );
+
+        $validated = $request->validate([
+            'recording_url' => ['required', 'url', 'max:2048'],
+        ]);
+
+        abort_unless(
+            $this->isAllowedJitsiRecordingUrl($validated['recording_url']),
+            422,
+            'رابط التسجيل صادر من خادم غير معتمد.',
+        );
+
+        $sessionId = $session->id;
+
+        DB::transaction(function () use ($sessionId, $validated): void {
+            $session = LiveSession::query()->lockForUpdate()->findOrFail($sessionId);
+
+            if ($session->is_published_as_lesson && $session->lesson_id) {
+                return;
+            }
+
+            $session->recording_url = $validated['recording_url'];
+            $session->save();
+
+            if ($session->status === LiveSession::STATUS_ENDED) {
+                $this->publishRecording($session);
+            }
+        });
+
+        $session->refresh();
+
+        return response()->json([
+            'saved' => filled($session->recording_url),
+            'published' => (bool) $session->is_published_as_lesson,
+        ]);
     }
 
     public function updateAttendance(Request $request, int $id): RedirectResponse
@@ -439,7 +609,7 @@ class LiveSessionController extends Controller
             ->get(['id', 'name', 'email']);
     }
 
-    /** Publish the YouTube recording once and permanently link it to its live class. */
+    /** Publish a completed recording once and permanently link it to its live class. */
     private function publishRecording(LiveSession $session): void
     {
         if ($session->is_published_as_lesson && $session->lesson_id) {
@@ -492,6 +662,32 @@ class LiveSessionController extends Controller
         ]);
     }
 
+    private function isAllowedJitsiRecordingUrl(string $url): bool
+    {
+        $parts = parse_url($url);
+
+        if (
+            ! is_array($parts)
+            || strtolower((string) ($parts['scheme'] ?? '')) !== 'https'
+            || ! isset($parts['host'])
+            || isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['port'])
+        ) {
+            return false;
+        }
+
+        $jitsiHost = strtolower(rtrim(explode(':', (string) config('services.jitsi.domain'), 2)[0], '.'));
+        $allowedHosts = collect(config('services.jitsi.recording.allowed_hosts', []))
+            ->map(fn (mixed $host): string => strtolower(rtrim((string) $host, '.')))
+            ->filter()
+            ->push($jitsiHost)
+            ->unique()
+            ->all();
+
+        return in_array(strtolower(rtrim((string) $parts['host'], '.')), $allowedHosts, true);
+    }
+
     /** Everyone holding a confirmed seat in this session gets a ping. */
     private function notifyAttendees(LiveSession $session): void
     {
@@ -510,6 +706,20 @@ class LiveSessionController extends Controller
         }
     }
 
+    private function notifyAdminsAboutStatus(LiveSession $session, string $status): void
+    {
+        $session->load([
+            'teacher:id,name',
+            'teachingGroup:id,name,teaching_assignment_id',
+            'teachingGroup.assignment.subject:id,name',
+            'attendees:id,live_session_id,user_id',
+        ]);
+
+        foreach (User::role('admin')->get() as $admin) {
+            $admin->notify(new AdminLiveSessionStatusNotification($session, $status));
+        }
+    }
+
     private function notifyStudents(LiveSession $session, Notification $notification): void
     {
         $studentIds = SessionBooking::where('status', 'confirmed')
@@ -519,6 +729,35 @@ class LiveSessionController extends Controller
 
         foreach (User::whereIn('id', $studentIds)->get() as $student) {
             $student->notify($notification);
+        }
+    }
+
+    private function notifyParentsAboutSessionActivity(LiveSession $session, string $activity): void
+    {
+        $this->notifyParentsAboutStudents($session, $this->eligibleStudents($session), $activity);
+    }
+
+    private function notifyParentsAboutStudentIds(LiveSession $session, array $studentIds, string $activity): void
+    {
+        if ($studentIds === []) {
+            return;
+        }
+
+        $this->notifyParentsAboutStudents(
+            $session,
+            User::query()->whereIn('id', $studentIds)->get(['id', 'name', 'email']),
+            $activity,
+        );
+    }
+
+    /** @param Collection<int, User> $students */
+    private function notifyParentsAboutStudents(LiveSession $session, Collection $students, string $activity): void
+    {
+        foreach ($students as $student) {
+            $this->parentStudentLinks->notifyLinkedParents(
+                $student,
+                new StudentLiveSessionActivityNotification($session, $student, $activity),
+            );
         }
     }
 }

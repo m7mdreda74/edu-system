@@ -243,6 +243,8 @@ it('stores a timed multiple choice exam and enforces its answer key', function (
 });
 
 it('awards the configured points and keeps the pass result percentage-based', function () {
+    Notification::fake();
+
     $unit = CurriculumUnit::factory()->create([
         'teaching_assignment_id' => $this->assignment->id,
         'academic_term_id' => $this->term->id,
@@ -294,6 +296,14 @@ it('awards the configured points and keeps the pass result percentage-based', fu
     ]);
     $student = User::factory()->create(['email_verified_at' => now()]);
     $student->assignRole('student');
+    $parent = User::factory()->create(['email_verified_at' => now()]);
+    $parent->assignRole('parent');
+    ParentStudentLink::create([
+        'parent_user_id' => $parent->id,
+        'student_user_id' => $student->id,
+        'relationship' => 'father',
+        'verified_at' => now(),
+    ]);
     Subscription::factory()->active()->create([
         'student_id' => $student->id,
         'teaching_assignment_id' => $this->assignment->id,
@@ -320,6 +330,14 @@ it('awards the configured points and keeps the pass result percentage-based', fu
             'total_points' => 10,
             'passed' => true,
         ]);
+
+    Notification::assertSentTo($parent, GenericDatabaseNotification::class, function ($notification) use ($parent, $student): bool {
+        $data = $notification->toArray($parent);
+
+        return str_contains($data['message'], $student->name)
+            && str_contains($data['message'], '90%')
+            && $data['link'] === route('parent.dashboard', ['student_id' => $student->id]);
+    });
 
     expect(QuizAttempt::findOrFail($attemptId))
         ->earned_points->toBe(9)
@@ -380,6 +398,55 @@ it('sends a paper unit exam grade and teacher feedback to the student and verifi
         ->score->toBe(34)
         ->teacher_feedback->toBe('مستوى ممتاز مع مراجعة السؤال الأخير.')
         ->graded_at->not->toBeNull();
+});
+
+it('sends homework grades to every verified parent too', function () {
+    Notification::fake();
+
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $this->term->id,
+    ]);
+    $homework = Worksheet::create([
+        'curriculum_unit_id' => $unit->id,
+        'title' => 'واجب الدرس الأول',
+        'file_path' => '/storage/homework/unit-one.pdf',
+        'type' => Worksheet::TYPE_HOMEWORK,
+        'requires_submission' => true,
+        'max_score' => 20,
+    ]);
+    $student = User::factory()->create();
+    $student->assignRole('student');
+    $parent = User::factory()->create();
+    $parent->assignRole('parent');
+    ParentStudentLink::create([
+        'parent_user_id' => $parent->id,
+        'student_user_id' => $student->id,
+        'relationship' => 'mother',
+        'verified_at' => now(),
+    ]);
+    $submission = WorksheetSubmission::create([
+        'worksheet_id' => $homework->id,
+        'student_id' => $student->id,
+        'submitted_file_path' => '/storage/submissions/homework-answer.pdf',
+        'submitted_at' => now(),
+    ]);
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.worksheets.grade', $submission->id), [
+            'score' => 18,
+            'teacher_feedback' => 'أداء ممتاز.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    Notification::assertSentTo($parent, GenericDatabaseNotification::class, function ($notification) use ($parent): bool {
+        $data = $notification->toArray($parent);
+
+        return $data['title'] === 'تقييم واجب جديد'
+            && str_contains($data['message'], '18/20')
+            && str_contains($data['message'], 'أداء ممتاز');
+    });
 });
 
 it('withholds exam questions until a subscribed student starts inside the availability window', function () {

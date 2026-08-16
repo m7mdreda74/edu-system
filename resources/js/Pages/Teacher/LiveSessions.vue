@@ -231,7 +231,7 @@ function formatDate(value) {
                                 </td>
                                 <td class="data-table-actions p-3">
                                     <div class="flex max-w-[22rem] flex-wrap items-center gap-2">
-                                        <button v-if="session.status === 'scheduled'" @click="updateStatus(session.id, 'live')" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">بدء الحصة</button>
+                                        <a v-if="session.status === 'scheduled'" :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">دخول وبدء الحصة</a>
                                         <button v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
                                         <button v-if="session.status === 'live'" @click="updateStatus(session.id, 'ended')" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
                                         <button v-if="session.status === 'ended' && !session.recording_url" @click="updateStatus(session.id, 'ended')" class="btn-sm btn-primary">إضافة التسجيل</button>
@@ -306,9 +306,9 @@ function formatDate(value) {
                             <Icon name="live" class="h-6 w-6" />
                         </div>
                         <h3 class="text-xl font-black text-surface-900 dark:text-white">{{ actionModal.alreadyEnded ? 'إضافة تسجيل الحصة' : 'إنهاء الحصة المباشرة' }}</h3>
-                        <p class="mt-2 text-sm leading-6 text-surface-500">أضف رابط تسجيل الحصة على YouTube ليظهر للطلاب داخل المنصة، أو اتركه فارغًا إذا لم تُسجّل هذه الحصة.</p>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">عند إيقاف التسجيل من غرفة Jitsi سيُحفظ الرابط تلقائيًا ويظهر للطلاب داخل المنصة. اترك الحقل فارغًا؛ استخدمه فقط لتسجيل قديم تم رفعه يدويًا.</p>
                         <div class="mt-5">
-                            <label class="input-label">رابط تسجيل الحصة <span v-if="!actionModal.alreadyEnded" class="font-normal text-surface-400">(اختياري)</span></label>
+                            <label class="input-label">رابط تسجيل قديم <span class="font-normal text-surface-400">(اختياري)</span></label>
                             <input v-model="statusForm.recording_url" type="url" dir="ltr" class="input" :required="actionModal.alreadyEnded" placeholder="https://youtube.com/watch?v=...">
                             <p v-if="statusForm.errors.recording_url" class="mt-1 text-xs text-red-500">{{ statusForm.errors.recording_url }}</p>
                         </div>

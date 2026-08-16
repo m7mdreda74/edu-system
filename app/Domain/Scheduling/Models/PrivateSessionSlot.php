@@ -21,6 +21,6 @@ class PrivateSessionSlot extends Model
     }
 
     public function assignment(): BelongsTo { return $this->belongsTo(TeachingAssignment::class, 'teaching_assignment_id'); }
-    public function booking(): HasOne { return $this->hasOne(SessionBooking::class); }
+    public function booking(): HasOne { return $this->hasOne(SessionBooking::class)->latestOfMany(); }
     public function isAvailable(): bool { return $this->status === 'available' && $this->starts_at->isFuture() && ! $this->booking()->where('status', 'confirmed')->exists(); }
 }

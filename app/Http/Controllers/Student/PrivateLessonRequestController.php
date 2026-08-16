@@ -21,12 +21,10 @@ class PrivateLessonRequestController extends Controller
 {
     public function store(Request $request, int $assignmentId): RedirectResponse
     {
-        $validated = $request->validate([
-            'note' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $request->validate([]);
 
         try {
-            [$privateRequest, $conversation] = DB::transaction(function () use ($assignmentId, $validated): array {
+            [$privateRequest, $conversation] = DB::transaction(function () use ($assignmentId): array {
                 $student = Auth::user();
                 $assignment = TeachingAssignment::with(['teacher:id,name,is_active', 'subject:id,name'])
                     ->lockForUpdate()
@@ -81,13 +79,11 @@ class PrivateLessonRequestController extends Controller
                     'student_id' => $student->id,
                     'teaching_assignment_id' => $assignment->id,
                     'conversation_id' => $conversation->id,
-                    'student_note' => $validated['note'] ?? null,
+                    'student_note' => null,
                     'status' => PrivateLessonRequest::STATUS_PENDING,
                 ]);
 
-                $message = trim((string) ($validated['note'] ?? ''));
-                $message = 'أرغب في حجز حصص برايفت، وأود الاتفاق على الموعد المناسب.'
-                    .($message !== '' ? "\n\nالأوقات أو الملاحظات المفضلة: {$message}" : '');
+                $message = 'أرغب في حجز حصص برايفت. أرجو مراجعة المواعيد المنشورة وإتاحة الحجز.';
 
                 ChatMessage::create([
                     'conversation_id' => $conversation->id,
@@ -112,7 +108,7 @@ class PrivateLessonRequestController extends Controller
         return redirect()
             ->route('chat.index', ['conversation' => $conversation->id])
             ->with('success', $privateRequest->wasRecentlyCreated
-                ? 'تم إرسال طلب البرايفت. اتفق الآن مع المدرس على الموعد المناسب.'
-                : 'لديك طلب برايفت قائم بالفعل؛ يمكنك متابعة الاتفاق مع المدرس.');
+                ? 'تم إرسال طلب البرايفت للمدرس.'
+                : 'لديك طلب برايفت قائم بالفعل؛ يمكنك متابعة الرسائل.');
     }
 }

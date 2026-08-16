@@ -195,7 +195,7 @@ class TeachingGroupController extends Controller
             'teaching_assignment_id' => ['required', 'integer', 'exists:teaching_assignments,id'],
             'academic_term_id' => ['nullable', 'integer', 'exists:academic_terms,id'],
             'name' => ['required', 'string', 'max:100'],
-            'capacity' => ['required', 'integer', 'min:1', 'max:1000'],
+            'capacity' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'monthly_price_qar' => ['required', 'numeric', 'min:0', 'max:1000000'],
             'timezone' => ['nullable', 'timezone'],
         ]);
@@ -213,7 +213,7 @@ class TeachingGroupController extends Controller
             'teaching_assignment_id' => $assignment->id,
             'academic_term_id' => $data['academic_term_id'] ?? null,
             'name' => $data['name'],
-            'capacity' => $data['capacity'],
+            'capacity' => $data['capacity'] ?? 5,
             'monthly_price' => $groupPrice,
             'currency' => 'QAR',
             // Administrative shell only. The teacher publishes the real

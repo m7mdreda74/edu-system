@@ -7,9 +7,22 @@ namespace App\Application\User\Services;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Notifications\Notification;
 
 class ParentStudentLinkService
 {
+    public function notifyLinkedParents(User $student, Notification $notification): void
+    {
+        ParentStudentLink::query()
+            ->with('parent:id,name')
+            ->where('student_user_id', $student->id)
+            ->whereNotNull('verified_at')
+            ->get()
+            ->pluck('parent')
+            ->filter()
+            ->each(fn (User $parent) => $parent->notify($notification));
+    }
+
     /** Link an active student to the parent who initiated the request. */
     public function linkExistingStudent(
         User $parent,

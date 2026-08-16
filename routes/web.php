@@ -97,6 +97,10 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     // ─── Live Session Room ────────────────────────────────────────────────────
     Route::get('/live-sessions/{id}/room', [LiveSessionRoomController::class, 'show'])->name('live-sessions.room');
+    Route::post('/live-sessions/{id}/attendance/join', [LiveSessionRoomController::class, 'joinAttendance'])
+        ->name('live-sessions.attendance.join');
+    Route::post('/live-sessions/{id}/attendance/leave', [LiveSessionRoomController::class, 'leaveAttendance'])
+        ->name('live-sessions.attendance.leave');
 
     // ─── Material Q&A Forum ───────────────────────────────────────────────────
     Route::get('/materials/{materialId}/questions', [LessonQuestionController::class, 'index'])->name('materials.questions.index');
@@ -137,9 +141,10 @@ Route::middleware(['auth', 'active', 'verified', 'role:student'])->group(functio
 
     Route::get('/my-schedule', [ScheduleController::class, 'index'])->name('student.schedule');
 
-    // Group subscriptions, plus teacher-led agreement requests for private tuition.
+    // Group/private subscriptions, plus the legacy agreement request for private tuition.
     Route::get('/my-classes', [SubscriptionController::class, 'index'])->name('student.my-classes');
     Route::post('/subscribe/group/{groupId}', [SubscriptionController::class, 'subscribeToGroup'])->name('student.subscribe.group')->middleware('throttle:15,1');
+    Route::post('/subscribe/private/{assignmentId}', [SubscriptionController::class, 'subscribeToPrivate'])->name('student.subscribe.private')->middleware('throttle:15,1');
     Route::post('/private-lesson-requests/{assignmentId}', [PrivateLessonRequestController::class, 'store'])
         ->name('student.private-lesson-requests.store')
         ->middleware('throttle:10,1');
@@ -250,6 +255,11 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::get('/live-sessions', [LiveSessionController::class, 'index'])->name('live-sessions');
     Route::post('/live-sessions', [LiveSessionController::class, 'store'])->name('live-sessions.store');
     Route::patch('/live-sessions/{id}/status', [LiveSessionController::class, 'updateStatus'])->name('live-sessions.status');
+    Route::post('/live-sessions/{id}/start', [LiveSessionController::class, 'startFromRoom'])->name('live-sessions.start');
+    Route::post('/live-sessions/{id}/end', [LiveSessionController::class, 'endFromRoom'])->name('live-sessions.end');
+    Route::post('/live-sessions/{id}/recording', [LiveSessionController::class, 'storeRecordingLink'])
+        ->name('live-sessions.recording')
+        ->middleware('throttle:10,1');
     Route::post('/live-sessions/{id}/attendance', [LiveSessionController::class, 'updateAttendance'])->name('live-sessions.attendance');
     Route::post('/live-sessions/{id}/apology', [LiveSessionController::class, 'apologize'])->name('live-sessions.apologize');
     Route::post('/session-apologies/{id}/makeup', [LiveSessionController::class, 'scheduleMakeup'])->name('session-apologies.makeup');
@@ -257,7 +267,6 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     // Academic lesson planning for groups configured by the administration.
     Route::get('/teaching-schedule', [TeachingScheduleController::class, 'index'])->name('teaching-schedule');
     Route::post('/teaching-schedule/groups/{id}/schedules', [TeachingScheduleController::class, 'storeGroupSchedule'])->name('teaching-schedule.groups.schedules.store');
-    Route::patch('/teaching-schedule/groups/{id}/capacity', [TeachingScheduleController::class, 'updateGroupCapacity'])->name('teaching-schedule.groups.capacity');
     Route::delete('/teaching-schedule/group-schedules/{id}', [TeachingScheduleController::class, 'destroyGroupSchedule'])->name('teaching-schedule.group-schedules.destroy');
     Route::post('/free-intro-sessions', [TeacherFreeIntroSessionController::class, 'store'])->name('free-intro-sessions.store');
     Route::delete('/free-intro-sessions/{id}', [TeacherFreeIntroSessionController::class, 'destroy'])->name('free-intro-sessions.destroy');
@@ -369,6 +378,8 @@ Route::middleware(['auth', 'active', 'role:parent'])->prefix('parent')->name('pa
     Route::post('/purchase-requests/{id}/pay', [ParentDashboardController::class, 'payForRequest'])->name('purchase-requests.pay');
     Route::post('/purchase-requests/{id}/reject', [ParentPurchaseRequestController::class, 'reject'])->name('purchase-requests.reject');
     Route::post('/groups/{groupId}/subscribe', [ParentDashboardController::class, 'subscribeToGroup'])->name('groups.subscribe');
+    Route::post('/private/{assignmentId}/subscribe', [ParentDashboardController::class, 'subscribeToPrivate'])->name('private.subscribe');
+    Route::post('/private-session-slots/{slotId}/book', [ParentDashboardController::class, 'bookPrivateSlot'])->name('private-slots.book');
     Route::post('/free-intro-sessions/{slotId}', [ParentDashboardController::class, 'bookFreeIntro'])->name('free-intro-sessions.book');
     Route::post('/private-lesson-requests/{assignmentId}', [ParentPrivateLessonRequestController::class, 'store'])->name('private-lesson-requests.store');
 });

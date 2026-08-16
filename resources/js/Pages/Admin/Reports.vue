@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -10,6 +10,7 @@ import { useClientPagination } from '@/composables/useClientPagination';
 
 const props = defineProps({
     filters: { type: Object, default: () => ({}) },
+    printMode: { type: Boolean, default: false },
     teachers: { type: Array, default: () => [] },
     groups: { type: Array, default: () => [] },
     sessions: { type: Object, default: () => ({ data: [], links: [] }) },
@@ -64,8 +65,30 @@ function statusClass(status) {
 }
 
 function printReport() {
-    window.print();
+    router.get(route('admin.reports'), {
+        start_date: props.filters.start_date || '',
+        end_date: props.filters.end_date || '',
+        teacher_id: props.filters.teacher_id || '',
+        status: props.filters.status || '',
+        print: 1,
+    }, {
+        preserveState: true,
+        replace: true,
+        onSuccess: () => nextTick(() => window.print()),
+    });
 }
+
+const printFilterSummary = computed(() => {
+    const teacher = props.teachers.find((item) => String(item.id) === String(props.filters.teacher_id || ''));
+    const values = [
+        props.filters.start_date ? `من ${props.filters.start_date}` : 'من بداية البيانات',
+        props.filters.end_date ? `إلى ${props.filters.end_date}` : 'حتى آخر البيانات',
+        teacher ? `المدرس: ${teacher.name}` : 'كل المدرسين',
+        props.filters.status ? `الحالة: ${statusLabel(props.filters.status)}` : 'كل حالات الحصص',
+    ];
+
+    return values.join(' — ');
+});
 </script>
 
 <template>
@@ -73,6 +96,13 @@ function printReport() {
         <Head title="تقارير المنصة" />
 
         <div class="dashboard-data-page" dir="rtl">
+            <div v-if="printMode" class="print-only report-print-header">
+                <h1>تقرير منصة التفوق</h1>
+                <p>تقارير المدرسين والمجموعات والحصص والحضور والحجوزات</p>
+                <p>الفلاتر المطبقة: {{ printFilterSummary }}</p>
+                <p>تاريخ الطباعة: {{ formatDate(new Date().toISOString()) }}</p>
+            </div>
+
             <header class="flex flex-wrap items-start justify-between gap-4 print-hidden">
                 <div>
                     <h1 class="flex items-center gap-2 text-2xl font-black text-surface-900 dark:text-white">
@@ -147,7 +177,7 @@ function printReport() {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="teacher in paginatedTeachers" :key="teacher.id">
+                            <tr v-for="teacher in (printMode ? teachers : paginatedTeachers)" :key="teacher.id">
                                 <td class="font-bold">{{ teacher.name }}</td>
                                 <td>{{ teacher.subject?.name || '—' }}</td>
                                 <td>{{ teacher.teaching_assignments_count || 0 }}</td>
@@ -252,7 +282,7 @@ function printReport() {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="group in paginatedGroups" :key="group.id">
+                            <tr v-for="group in (printMode ? groups : paginatedGroups)" :key="group.id">
                                 <td class="font-bold">{{ group.name }}</td>
                                 <td>{{ group.assignment?.teacher?.name || '—' }}</td>
                                 <td>{{ group.assignment?.subject?.name || '—' }}</td>
@@ -285,13 +315,24 @@ function printReport() {
 .report-table td { @apply border-b border-surface-100 px-2 py-2 text-surface-700 dark:border-surface-800 dark:text-surface-300; }
 .report-table tbody tr:last-child td { @apply border-b-0; }
 .empty-cell { @apply py-8 text-center text-surface-400; }
+.print-only { display: none; }
 @media (min-width: 1280px) {
     .table-wrap { overflow-x: clip; }
 }
 @media print {
     .print-hidden, aside, header, nav { display: none !important; }
+    .print-only { display: block !important; }
+    html, body, #app, .h-screen, main { height: auto !important; min-height: 0 !important; overflow: visible !important; }
     body, main { background: white !important; color: #111827 !important; }
-    .report-section { break-inside: avoid; box-shadow: none !important; border-color: #d1d5db !important; margin-bottom: 18px; }
+    .dashboard-data-page { width: 100% !important; max-width: none !important; padding: 0 !important; }
+    .report-print-header { margin-bottom: 20px; border-bottom: 2px solid #111827; padding-bottom: 12px; }
+    .report-print-header h1 { font-size: 22px; font-weight: 900; margin: 0 0 6px; }
+    .report-print-header p { margin: 3px 0; font-size: 11px; }
+    .table-wrap { overflow: visible !important; }
+    .report-section { break-inside: auto; page-break-inside: auto; box-shadow: none !important; border-color: #d1d5db !important; margin-bottom: 18px; }
+    .report-section h2 { break-after: avoid; page-break-after: avoid; }
+    .report-table thead { display: table-header-group; }
+    .report-table tr { break-inside: avoid; page-break-inside: avoid; }
     .report-table td, .report-table th { color: #111827 !important; border-color: #d1d5db !important; }
 }
 </style>

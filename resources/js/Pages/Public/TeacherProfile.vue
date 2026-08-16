@@ -29,7 +29,6 @@ const activeAssignment = computed(
 );
 
 const playingVideo = ref(false);
-const privateNote = ref('');
 
 const embedUrl = computed(() => {
     const url = props.teacher.intro_video_url;
@@ -58,16 +57,14 @@ function subscribeToGroup(groupId) {
     });
 }
 
-function requestPrivateLessons(assignmentId) {
+function subscribeToPrivate(assignmentId) {
     if (!authUser.value) {
         router.visit(route('login'));
         return;
     }
 
     subscribing.value = `private-${assignmentId}`;
-    router.post(route('student.private-lesson-requests.store', { assignmentId }), {
-        note: privateNote.value,
-    }, {
+    router.post(route('student.subscribe.private', { assignmentId }), {}, {
         onFinish: () => (subscribing.value = null),
     });
 }
@@ -342,48 +339,52 @@ const otherTeachersUrl = computed(() => (
                                     {{ formatMonthly(activeAssignment.private_monthly_price) }}
                                 </div>
 
-                                <div v-if="activeAssignment.has_private_subscription" class="space-y-2">
-                                    <p class="text-xs font-bold text-surface-700 dark:text-surface-200">اختر موعدًا متاحًا</p>
-                                    <button
+                                <div class="space-y-2">
+                                    <p class="text-xs font-bold text-surface-700 dark:text-surface-200">المواعيد المنشورة من المدرس</p>
+                                    <div
                                         v-for="slot in activeAssignment.private_slots"
                                         :key="slot.id"
-                                        type="button"
-                                        class="btn-outline btn-sm w-full justify-center"
-                                        :disabled="subscribing === `slot-${slot.id}`"
-                                        @click="bookPrivateSlot(slot.id)"
+                                        class="flex items-center justify-between gap-2 rounded-xl border border-surface-200 dark:border-surface-700 px-3 py-2"
                                     >
-                                        {{ subscribing === `slot-${slot.id}` ? 'جارٍ الحجز...' : formatDateTime(slot.starts_at) }}
-                                    </button>
-                                    <p v-if="!activeAssignment.private_slots?.length" class="text-xs text-surface-400">لا توجد مواعيد برايفيت متاحة حاليًا.</p>
+                                        <span class="text-xs">{{ formatDateTime(slot.starts_at) }}</span>
+                                        <button
+                                            v-if="activeAssignment.has_private_subscription"
+                                            type="button"
+                                            class="btn-outline btn-sm"
+                                            :disabled="subscribing === `slot-${slot.id}`"
+                                            @click="bookPrivateSlot(slot.id)"
+                                        >
+                                            {{ subscribing === `slot-${slot.id}` ? 'جارٍ الحجز...' : 'احجز الموعد' }}
+                                        </button>
+                                        <span v-else class="text-[11px] text-surface-400">يتاح الحجز بعد الاشتراك</span>
+                                    </div>
+                                    <p v-if="!activeAssignment.private_slots?.length" class="text-xs text-surface-400">لا توجد مواعيد برايفيت منشورة حاليًا.</p>
                                 </div>
 
                                 <Link
-                                    v-else-if="activeAssignment.private_request?.conversation_id"
-                                    :href="route('chat.index', { conversation: activeAssignment.private_request.conversation_id })"
-                                    class="btn-accent btn-sm w-full justify-center"
+                                    v-if="activeAssignment.private_subscription?.status === 'pending'"
+                                    :href="route('checkout.show', activeAssignment.private_subscription.id)"
+                                    class="btn-primary btn-sm w-full justify-center"
                                 >
-                                    متابعة الاتفاق مع المدرس
+                                    إكمال دفع اشتراك البرايفيت
                                 </Link>
+                                <button
+                                    v-else-if="!activeAssignment.has_private_subscription"
+                                    type="button"
+                                    class="btn-accent btn-sm w-full justify-center"
+                                    :disabled="subscribing === `private-${activeAssignment.id}`"
+                                    @click="subscribeToPrivate(activeAssignment.id)"
+                                >
+                                    {{ subscribing === `private-${activeAssignment.id}` ? 'جارٍ التحويل للدفع...' : 'اشترك برايفيت ثم اختر الموعد' }}
+                                </button>
 
-                                <template v-else>
-                                    <label class="input-label" for="private-note">الأوقات المناسبة لك (اختياري)</label>
-                                    <textarea
-                                        id="private-note"
-                                        v-model="privateNote"
-                                        class="input min-h-20 mb-3"
-                                        maxlength="1000"
-                                        placeholder="مثال: الأحد والثلاثاء بعد الساعة 6 مساءً"
-                                    ></textarea>
-
-                                    <button
-                                        type="button"
-                                        class="btn-accent btn-sm w-full justify-center"
-                                        :disabled="subscribing === `private-${activeAssignment.id}`"
-                                        @click="requestPrivateLessons(activeAssignment.id)"
-                                    >
-                                        {{ subscribing === `private-${activeAssignment.id}` ? '...' : 'قدّم طلب حجز برايفت' }}
-                                    </button>
-                                </template>
+                                <Link
+                                    v-if="!activeAssignment.has_private_subscription && activeAssignment.private_request?.conversation_id"
+                                    :href="route('chat.index', { conversation: activeAssignment.private_request.conversation_id })"
+                                    class="btn-ghost btn-sm w-full justify-center"
+                                >
+                                    متابعة الرسائل
+                                </Link>
                             </template>
 
                             <p v-else class="text-xs text-surface-400">

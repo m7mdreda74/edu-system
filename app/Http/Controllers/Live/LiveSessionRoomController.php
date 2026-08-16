@@ -5,18 +5,23 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Live;
 
 use App\Application\Learning\Services\JitsiMeetingTokenService;
+use App\Application\User\Services\ParentStudentLinkService;
+use App\Domain\Communication\Notifications\StudentLiveSessionActivityNotification;
 use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class LiveSessionRoomController extends Controller
 {
-    public function __construct(private readonly JitsiMeetingTokenService $jitsiTokens)
-    {
-    }
+    public function __construct(
+        private readonly JitsiMeetingTokenService $jitsiTokens,
+        private readonly ParentStudentLinkService $parentStudentLinks,
+    ) {}
 
     public function show(int $id): Response
     {
@@ -33,6 +38,7 @@ class LiveSessionRoomController extends Controller
         $roomName = $this->roomName($session);
         $domain = $this->jitsiDomain();
         $host = strtolower(rtrim(explode(':', $domain, 2)[0], '.'));
+        $whiteboard = $this->whiteboardConfig($domain);
 
         abort_unless(
             ! (bool) config('services.jitsi.require_auth', false)
@@ -55,15 +61,114 @@ class LiveSessionRoomController extends Controller
             'jitsi' => [
                 'domain' => $domain,
                 'jwt' => $this->jitsiTokens->issue($user, $isTeacher, $roomName, $domain),
-                'whiteboard' => [
-                    'enabled' => (bool) config('services.jitsi.whiteboard.enabled', true),
-                    'collabServerBaseUrl' => filled(config('services.jitsi.whiteboard.collab_server_base_url'))
-                        ? config('services.jitsi.whiteboard.collab_server_base_url')
-                        : null,
-                    'userLimit' => max(1, (int) config('services.jitsi.whiteboard.user_limit', 30)),
+                'whiteboard' => $whiteboard,
+                'recording' => [
+                    'enabled' => (bool) config('services.jitsi.recording.enabled', true),
+                    'mode' => 'file',
                 ],
             ],
         ]);
+    }
+
+    public function joinAttendance(int $id): JsonResponse
+    {
+        $session = LiveSession::with([
+            'teachingGroup',
+            'privateSessionSlot',
+        ])->findOrFail($id);
+
+        /** @var User $user */
+        $user = Auth::user();
+        $this->authorizeStudentAttendance($session, $user, true);
+
+        $attendee = LiveSessionAttendee::query()
+            ->where('live_session_id', $session->id)
+            ->where('user_id', $user->id)
+            ->whereNull('left_at')
+            ->latest('joined_at')
+            ->first();
+
+        if (! $attendee) {
+            $attendee = LiveSessionAttendee::create([
+                'live_session_id' => $session->id,
+                'user_id' => $user->id,
+                'joined_at' => now(),
+            ]);
+
+            $this->parentStudentLinks->notifyLinkedParents(
+                $user,
+                new StudentLiveSessionActivityNotification(
+                    $session,
+                    $user,
+                    StudentLiveSessionActivityNotification::ACTIVITY_JOINED,
+                ),
+            );
+        }
+
+        return response()->json([
+            'joined' => true,
+            'attendee_id' => $attendee->id,
+        ]);
+    }
+
+    public function leaveAttendance(int $id): JsonResponse
+    {
+        $session = LiveSession::with([
+            'teachingGroup',
+            'privateSessionSlot',
+        ])->findOrFail($id);
+
+        /** @var User $user */
+        $user = Auth::user();
+        $this->authorizeStudentAttendance($session, $user, false);
+
+        $attendee = LiveSessionAttendee::query()
+            ->where('live_session_id', $session->id)
+            ->where('user_id', $user->id)
+            ->whereNull('left_at')
+            ->latest('joined_at')
+            ->first();
+
+        if ($attendee) {
+            $attendee->update(['left_at' => now()]);
+
+            $this->parentStudentLinks->notifyLinkedParents(
+                $user,
+                new StudentLiveSessionActivityNotification(
+                    $session,
+                    $user,
+                    StudentLiveSessionActivityNotification::ACTIVITY_LEFT,
+                ),
+            );
+        }
+
+        return response()->json(['left' => true]);
+    }
+
+    /**
+     * Jitsi needs a collaboration backend in addition to the feature flag.
+     * The public meet.jit.si deployment exposes that backend on its own host;
+     * self-hosted deployments must provide their public proxy URL explicitly.
+     *
+     * @return array{enabled: bool, collabServerBaseUrl: string|null, userLimit: int}
+     */
+    private function whiteboardConfig(string $domain): array
+    {
+        $collabServerBaseUrl = trim((string) config('services.jitsi.whiteboard.collab_server_base_url'));
+        $host = strtolower(rtrim(explode(':', $domain, 2)[0], '.'));
+
+        if ($collabServerBaseUrl === '' && $host === 'meet.jit.si') {
+            $collabServerBaseUrl = 'https://meet.jit.si';
+        }
+
+        return [
+            'enabled' => (bool) config('services.jitsi.whiteboard.enabled', true)
+                && $collabServerBaseUrl !== '',
+            'collabServerBaseUrl' => $collabServerBaseUrl !== ''
+                ? rtrim($collabServerBaseUrl, '/')
+                : null,
+            'userLimit' => max(1, (int) config('services.jitsi.whiteboard.user_limit', 30)),
+        ];
     }
 
     /**
@@ -89,6 +194,20 @@ class LiveSessionRoomController extends Controller
         abort_unless($this->studentMayJoin($session, $user), 403, 'غير مصرح لك بدخول هذه الحصة.');
 
         return false;
+    }
+
+    private function authorizeStudentAttendance(LiveSession $session, User $user, bool $joining): void
+    {
+        abort_if($session->teacher_id === $user->id || ! $user->hasRole('student'), 403, 'غير مصرح لك بتسجيل حضور هذه الحصة.');
+        abort_if($session->status === LiveSession::STATUS_CANCELLED, 403, 'تم إلغاء هذه الحصة.');
+        abort_unless(
+            $joining
+                ? $session->isLive()
+                : in_array($session->status, [LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED], true),
+            403,
+            $joining ? 'الحصة لم تبدأ بعد.' : 'لا يمكن تسجيل الخروج من هذه الحصة الآن.',
+        );
+        abort_unless($this->studentMayJoin($session, $user), 403, 'غير مصرح لك بهذه الحصة.');
     }
 
     /**

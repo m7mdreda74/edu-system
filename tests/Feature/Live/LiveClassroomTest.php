@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
+use App\Domain\Communication\Notifications\StudentLiveSessionActivityNotification;
 use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
+use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -39,6 +43,16 @@ beforeEach(function (): void {
     $this->student = User::factory()->create(['email_verified_at' => now()]);
     $this->student->assignRole('student');
 
+    $this->parent = User::factory()->create(['email_verified_at' => now()]);
+    $this->parent->assignRole('parent');
+
+    ParentStudentLink::create([
+        'parent_user_id' => $this->parent->id,
+        'student_user_id' => $this->student->id,
+        'relationship' => 'father',
+        'verified_at' => now(),
+    ]);
+
     Subscription::factory()->active()->create([
         'student_id' => $this->student->id,
         'teaching_assignment_id' => $this->assignment->id,
@@ -62,7 +76,7 @@ beforeEach(function (): void {
     ]);
 });
 
-it('serves Jitsi details without allowing a browser to self-record attendance', function (): void {
+it('serves Jitsi details and advertises server attendance endpoints', function (): void {
     $this->actingAs($this->student)
         ->get(route('live-sessions.room', $this->session->id))
         ->assertOk()
@@ -72,10 +86,50 @@ it('serves Jitsi details without allowing a browser to self-record attendance', 
             ->where('user.isTeacher', false)
             ->where('jitsi.domain', 'meet.jit.si')
             ->where('jitsi.whiteboard.enabled', true)
+            ->where('jitsi.whiteboard.collabServerBaseUrl', 'https://meet.jit.si')
+            ->where('jitsi.recording.enabled', true)
+            ->where('jitsi.recording.mode', 'file')
             ->where('roomName', fn ($roomName) => str_starts_with($roomName, "altafawwuq-{$this->session->id}-")));
 
-    expect(Route::has('live-sessions.attendance.join'))->toBeFalse()
-        ->and(Route::has('live-sessions.attendance.leave'))->toBeFalse();
+    expect(Route::has('live-sessions.attendance.join'))->toBeTrue()
+        ->and(Route::has('live-sessions.attendance.leave'))->toBeTrue();
+});
+
+it('records a student live-room visit and notifies the linked parent', function (): void {
+    Notification::fake();
+
+    $this->actingAs($this->student)
+        ->postJson(route('live-sessions.attendance.join', $this->session->id))
+        ->assertOk()
+        ->assertJson(['joined' => true]);
+
+    $attendee = LiveSessionAttendee::where('live_session_id', $this->session->id)
+        ->where('user_id', $this->student->id)
+        ->firstOrFail();
+
+    expect($attendee->joined_at)->not->toBeNull()
+        ->and($attendee->left_at)->toBeNull();
+
+    Notification::assertSentTo(
+        $this->parent,
+        StudentLiveSessionActivityNotification::class,
+        fn (StudentLiveSessionActivityNotification $notification): bool =>
+            $notification->activity === StudentLiveSessionActivityNotification::ACTIVITY_JOINED,
+    );
+
+    $this->actingAs($this->student)
+        ->postJson(route('live-sessions.attendance.leave', $this->session->id))
+        ->assertOk()
+        ->assertJson(['left' => true]);
+
+    expect($attendee->fresh()->left_at)->not->toBeNull();
+
+    Notification::assertSentTo(
+        $this->parent,
+        StudentLiveSessionActivityNotification::class,
+        fn (StudentLiveSessionActivityNotification $notification): bool =>
+            $notification->activity === StudentLiveSessionActivityNotification::ACTIVITY_LEFT,
+    );
 });
 
 it('lets the teacher enter a scheduled Jitsi room for setup without creating student attendance', function (): void {
@@ -87,8 +141,85 @@ it('lets the teacher enter a scheduled Jitsi room for setup without creating stu
         ->assertInertia(fn ($page) => $page
             ->where('user.id', $this->teacher->id)
             ->where('user.isTeacher', true)
-            ->where('jitsi.whiteboard.enabled', true));
+            ->where('jitsi.whiteboard.enabled', true)
+            ->where('jitsi.whiteboard.collabServerBaseUrl', 'https://meet.jit.si')
+            ->where('jitsi.recording.enabled', true)
+            ->where('jitsi.recording.mode', 'file'));
 
+});
+
+it('does not advertise an unusable whiteboard for an unconfigured self-hosted Jitsi server', function (): void {
+    config()->set('services.jitsi.domain', 'jitsi.example.test');
+    config()->set('services.jitsi.whiteboard.collab_server_base_url', null);
+
+    $this->actingAs($this->student)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('jitsi.whiteboard.enabled', false)
+            ->where('jitsi.whiteboard.collabServerBaseUrl', null));
+});
+
+it('lets only the teacher start from the room and end the live class', function (): void {
+    Notification::fake();
+
+    $this->session->update([
+        'status' => LiveSession::STATUS_SCHEDULED,
+        'started_at' => null,
+        'ended_at' => null,
+    ]);
+
+    $this->actingAs($this->student)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertForbidden();
+
+    $this->actingAs($this->teacher)
+        ->patch(route('teacher.live-sessions.status', $this->session->id), [
+            'status' => LiveSession::STATUS_LIVE,
+        ])
+        ->assertStatus(422);
+
+    $this->actingAs($this->teacher)
+        ->postJson(route('teacher.live-sessions.start', $this->session->id))
+        ->assertOk()
+        ->assertJsonPath('status', LiveSession::STATUS_LIVE);
+
+    expect($this->session->fresh()->status)->toBe(LiveSession::STATUS_LIVE)
+        ->and($this->session->fresh()->started_at)->not->toBeNull();
+
+    $this->actingAs($this->student)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertOk();
+
+    $this->session->attendees()->create([
+        'user_id' => $this->student->id,
+        'joined_at' => now(),
+    ]);
+
+    $this->actingAs($this->student)
+        ->postJson(route('teacher.live-sessions.end', $this->session->id))
+        ->assertForbidden();
+
+    $this->actingAs($this->teacher)
+        ->postJson(route('teacher.live-sessions.end', $this->session->id))
+        ->assertOk()
+        ->assertJsonPath('status', LiveSession::STATUS_ENDED);
+
+    expect($this->session->fresh()->status)->toBe(LiveSession::STATUS_ENDED);
+
+    Notification::assertSentTo(
+        $this->parent,
+        StudentLiveSessionActivityNotification::class,
+        fn (StudentLiveSessionActivityNotification $notification): bool =>
+            $notification->activity === StudentLiveSessionActivityNotification::ACTIVITY_LEFT,
+    );
+
+    Notification::assertSentTo(
+        $this->parent,
+        StudentLiveSessionActivityNotification::class,
+        fn (StudentLiveSessionActivityNotification $notification): bool =>
+            $notification->activity === StudentLiveSessionActivityNotification::ACTIVITY_ENDED,
+    );
 });
 
 it('starts and serves a Jitsi room without an external meeting link', function (): void {
@@ -98,11 +229,9 @@ it('starts and serves a Jitsi room without an external meeting link', function (
     ]);
 
     $this->actingAs($this->teacher)
-        ->patch(route('teacher.live-sessions.status', $this->session->id), [
-            'status' => LiveSession::STATUS_LIVE,
-        ])
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
+        ->postJson(route('teacher.live-sessions.start', $this->session->id))
+        ->assertOk()
+        ->assertJsonPath('status', LiveSession::STATUS_LIVE);
 
     expect($this->session->fresh()->status)->toBe(LiveSession::STATUS_LIVE)
         ->and($this->session->fresh()->started_at)->not->toBeNull();

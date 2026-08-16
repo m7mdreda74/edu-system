@@ -5,17 +5,25 @@ declare(strict_types=1);
 namespace App\Application\Subscription\Services;
 
 use App\Domain\Communication\Notifications\SubscriptionRenewalReminderNotification;
-use App\Domain\Scheduling\Models\PrivateSessionSlot;
+use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Subscription\Models\Subscription;
-use App\Domain\User\Models\ParentStudentLink;
+use App\Application\User\Services\ParentStudentLinkService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class SubscriptionRenewalReminderService
 {
+    public const LESSONS_PER_MONTH = 8;
+
+    public const REMINDER_AFTER_LESSONS = 7;
+
+    public function __construct(
+        private readonly ParentStudentLinkService $parentStudentLinks,
+    ) {}
+
     /**
-     * Notify active subscribers when only one class occurrence remains inside
-     * their current billing period.
+     * Notify active subscribers after the seventh completed class in their
+     * current eight-class billing period.
      */
     public function sendDueReminders(): int
     {
@@ -34,9 +42,14 @@ class SubscriptionRenewalReminderService
             ->orderBy('id')
             ->chunkById(100, function ($subscriptions) use (&$sent): void {
                 foreach ($subscriptions as $subscription) {
-                    $lastLessonAt = $this->soleRemainingLessonAt($subscription);
+                    $completedLessons = $this->completedLessonCount($subscription);
+                    $lastLessonAt = $this->lastCompletedLessonAt($subscription);
 
-                    if ($lastLessonAt && $this->notify($subscription, $lastLessonAt)) {
+                    if (
+                        $completedLessons >= self::REMINDER_AFTER_LESSONS
+                        && $lastLessonAt
+                        && $this->notify($subscription, $lastLessonAt, $completedLessons)
+                    ) {
                         $sent++;
                     }
                 }
@@ -45,102 +58,115 @@ class SubscriptionRenewalReminderService
         return $sent;
     }
 
-    public function soleRemainingLessonAt(Subscription $subscription, ?Carbon $now = null): ?Carbon
+    /**
+     * Run the same check immediately after a teacher ends a live session.
+     * The scheduled cron remains a safe fallback for sessions ended outside
+     * the normal teacher room flow.
+     */
+    public function sendForEndedSession(LiveSession $session): int
+    {
+        if ($session->status !== LiveSession::STATUS_ENDED) {
+            return 0;
+        }
+
+        $session->loadMissing(['privateSessionSlot']);
+
+        if (! $session->teaching_group_id && ! $session->privateSessionSlot) {
+            return 0;
+        }
+
+        $subscriptions = Subscription::query()
+            ->with([
+                'student:id,name',
+                'assignment.subject:id,name',
+                'assignment.teacher:id,name',
+                'group.schedules',
+            ])
+            ->where('status', Subscription::STATUS_ACTIVE)
+            ->whereNull('renewal_reminder_sent_at')
+            ->whereDate('period_end', '>=', now()->toDateString())
+            ->where(function ($query) use ($session): void {
+                if ($session->teaching_group_id) {
+                    $query->where(function ($group) use ($session): void {
+                        $group
+                            ->where('type', Subscription::TYPE_GROUP)
+                            ->where('teaching_group_id', $session->teaching_group_id);
+                    });
+                }
+
+                if ($session->privateSessionSlot) {
+                    $query->orWhere(function ($private) use ($session): void {
+                        $private
+                            ->where('type', Subscription::TYPE_PRIVATE)
+                            ->where('teaching_assignment_id', $session->privateSessionSlot->teaching_assignment_id);
+                    });
+                }
+            })
+            ->get();
+
+        $sent = 0;
+
+        foreach ($subscriptions as $subscription) {
+            $completedLessons = $this->completedLessonCount($subscription);
+            $lastLessonAt = $this->lastCompletedLessonAt($subscription);
+
+            if (
+                $completedLessons >= self::REMINDER_AFTER_LESSONS
+                && $lastLessonAt
+                && $this->notify($subscription, $lastLessonAt, $completedLessons)
+            ) {
+                $sent++;
+            }
+        }
+
+        return $sent;
+    }
+
+    public function completedLessonCount(Subscription $subscription, ?Carbon $now = null): int
+    {
+        return $this->completedLessonsQuery($subscription, $now)->count();
+    }
+
+    public function lastCompletedLessonAt(Subscription $subscription, ?Carbon $now = null): ?Carbon
+    {
+        $lesson = $this->completedLessonsQuery($subscription, $now)
+            ->latest('ended_at')
+            ->first(['ended_at', 'scheduled_at']);
+
+        if (! $lesson) {
+            return null;
+        }
+
+        return ($lesson->ended_at ?? $lesson->scheduled_at)?->copy();
+    }
+
+    private function completedLessonsQuery(Subscription $subscription, ?Carbon $now = null)
     {
         $now ??= now();
-
-        if ($subscription->type === Subscription::TYPE_GROUP && $subscription->group) {
-            return $this->soleRemainingGroupLessonAt($subscription, $now);
-        }
-
-        if ($subscription->type === Subscription::TYPE_PRIVATE) {
-            return $this->soleRemainingPrivateLessonAt($subscription, $now);
-        }
-
-        return null;
-    }
-
-    private function soleRemainingGroupLessonAt(Subscription $subscription, Carbon $now): ?Carbon
-    {
-        $group = $subscription->group;
-        $timezone = $group->timezone ?: config('app.timezone');
-        $localNow = $now->copy()->setTimezone($timezone);
-        $periodEnd = Carbon::parse($subscription->period_end->toDateString(), $timezone)->endOfDay();
-
-        if ($localNow->greaterThan($periodEnd)) {
-            return null;
-        }
-
-        $schedules = $group->schedules
-            ->map(fn ($schedule): array => [
-                'day' => (int) $schedule->day_of_week,
-                'time' => (string) $schedule->start_time,
-            ])
-            ->values()
-            ->all();
-
-        if ($schedules === []) {
-            $schedules[] = [
-                'day' => (int) $group->day_of_week,
-                'time' => (string) $group->start_time,
-            ];
-        }
-
-        $remaining = [];
-        $date = $localNow->copy()->startOfDay();
-        $guardEnd = $localNow->copy()->addDays(62)->endOfDay();
-
-        while ($date->lessThanOrEqualTo($periodEnd) && $date->lessThanOrEqualTo($guardEnd)) {
-            foreach ($schedules as $schedule) {
-                if ($date->dayOfWeek !== $schedule['day']) {
-                    continue;
-                }
-
-                $occurrence = $date->copy()->setTimeFromTimeString($schedule['time']);
-
-                if ($occurrence->greaterThan($localNow) && $occurrence->lessThanOrEqualTo($periodEnd)) {
-                    $remaining[] = $occurrence;
-
-                    if (count($remaining) > 1) {
-                        return null;
-                    }
-                }
-            }
-
-            $date->addDay();
-        }
-
-        return isset($remaining[0]) ? $remaining[0]->copy() : null;
-    }
-
-    private function soleRemainingPrivateLessonAt(Subscription $subscription, Carbon $now): ?Carbon
-    {
+        $periodStart = $subscription->period_start->copy()->startOfDay();
         $periodEnd = $subscription->period_end->copy()->endOfDay();
 
-        $remaining = PrivateSessionSlot::query()
-            ->where('teaching_assignment_id', $subscription->teaching_assignment_id)
-            ->where('status', 'booked')
-            ->where('starts_at', '>', $now)
-            ->where('starts_at', '<=', $periodEnd)
-            ->whereHas('booking', fn ($query) => $query
-                ->where('student_id', $subscription->student_id)
-                ->where('status', 'confirmed'))
-            ->orderBy('starts_at')
-            ->limit(2)
-            ->get(['starts_at', 'timezone']);
-
-        if ($remaining->count() !== 1) {
-            return null;
-        }
-
-        $slot = $remaining->first();
-
-        return $slot->starts_at->copy()->setTimezone($slot->timezone ?: config('app.timezone'));
+        return LiveSession::query()
+            ->where('status', LiveSession::STATUS_ENDED)
+            ->whereNotNull('ended_at')
+            ->whereBetween('scheduled_at', [$periodStart, $periodEnd])
+            ->where('ended_at', '<=', $now)
+            ->when(
+                $subscription->type === Subscription::TYPE_GROUP,
+                fn ($query) => $query->where('teaching_group_id', $subscription->teaching_group_id),
+                fn ($query) => $query
+                    ->whereNull('teaching_group_id')
+                    ->whereHas('privateSessionSlot', fn ($slot) => $slot
+                        ->where('teaching_assignment_id', $subscription->teaching_assignment_id)
+                        ->whereHas('booking', fn ($booking) => $booking
+                            ->where('student_id', $subscription->student_id)
+                            ->where('status', 'confirmed'))),
+            );
     }
 
-    private function notify(Subscription $subscription, Carbon $lastLessonAt): bool
+    private function notify(Subscription $subscription, Carbon $lastLessonAt, int $completedLessons): bool
     {
-        return DB::transaction(function () use ($subscription, $lastLessonAt): bool {
+        return DB::transaction(function () use ($subscription, $lastLessonAt, $completedLessons): bool {
             $locked = Subscription::query()
                 ->with([
                     'student:id,name',
@@ -159,20 +185,16 @@ class SubscriptionRenewalReminderService
                 return false;
             }
 
-            $locked->student?->notify(
-                new SubscriptionRenewalReminderNotification($locked, $lastLessonAt),
+            $notification = new SubscriptionRenewalReminderNotification(
+                $locked,
+                $lastLessonAt,
+                $completedLessons,
+                self::LESSONS_PER_MONTH,
             );
 
-            $parents = ParentStudentLink::query()
-                ->with('parent:id,name')
-                ->where('student_user_id', $locked->student_id)
-                ->whereNotNull('verified_at')
-                ->get()
-                ->pluck('parent')
-                ->filter();
-
-            foreach ($parents as $parent) {
-                $parent->notify(new SubscriptionRenewalReminderNotification($locked, $lastLessonAt));
+            if ($locked->student) {
+                $locked->student->notify($notification);
+                $this->parentStudentLinks->notifyLinkedParents($locked->student, $notification);
             }
 
             $locked->forceFill(['renewal_reminder_sent_at' => now()])->save();

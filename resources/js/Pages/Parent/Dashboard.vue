@@ -79,11 +79,12 @@ function bookFreeIntro(slotId) {
     router.post(route('parent.free-intro-sessions.book', { slotId }), { student_id: studentId() });
 }
 
-function requestPrivate(assignmentId) {
-    router.post(route('parent.private-lesson-requests.store', { assignmentId }), {
-        student_id: studentId(),
-        note: 'نرغب في الاتفاق على موعد حصص البرايفت المناسب للطالب.',
-    });
+function subscribeToPrivate(assignmentId) {
+    router.post(route('parent.private.subscribe', { assignmentId }), { student_id: studentId() });
+}
+
+function bookPrivateSlot(slotId) {
+    router.post(route('parent.private-slots.book', { slotId }), { student_id: studentId() });
 }
 
 function contactTeacher(assignmentId) {
@@ -295,6 +296,7 @@ function submitReject() {
                                     <div class="flex flex-wrap gap-2 mt-3">
                                         <button class="btn-outline btn-sm" @click="contactTeacher(subscription.assignment_id)">مراسلة المدرس</button>
                                         <Link v-if="subscription.status === 'pending'" :href="route('checkout.show', subscription.id)" class="btn-primary btn-sm">إكمال الدفع</Link>
+                                        <Link v-else-if="['active', 'expired'].includes(subscription.status)" :href="route('subscriptions.renewal.show', subscription.id)" class="btn-accent btn-sm">تجديد الاشتراك</Link>
                                     </div>
                                 </div>
                                 <p v-if="!selectedStudent.subscriptions.length" class="text-sm text-surface-500">لا توجد اشتراكات للطالب حتى الآن.</p>
@@ -336,14 +338,22 @@ function submitReject() {
 
                         <div v-if="selectedStudent.privateAssignments.length" class="card p-6">
                             <h3 class="text-lg font-bold mb-1">الحصص البرايفت</h3>
-                            <p class="text-xs text-surface-500 mb-4">اطلب الحجز للطالب، ثم اتفق مع المدرس على الموعد. سعر البرايفت أعلى من المجموعة.</p>
+                            <p class="text-xs text-surface-500 mb-4">المواعيد التي نشرها المدرس تظهر هنا، وكل موعد متاح لطالب واحد فقط. سعر البرايفت أعلى من المجموعة.</p>
                             <div class="grid md:grid-cols-2 gap-3">
                                 <div v-for="assignment in selectedStudent.privateAssignments" :key="assignment.id" class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
                                     <p class="font-bold">{{ assignment.subject }} — {{ assignment.teacher?.name }}</p>
                                     <p class="font-black text-primary-600 mt-2">{{ formatQAR(assignment.monthly_price) }} شهريًا</p>
-                                    <button class="btn-accent btn-sm mt-3 w-full" :disabled="assignment.has_active_subscription" @click="requestPrivate(assignment.id)">
-                                        {{ assignment.has_active_subscription ? 'اشتراك برايفت نشط' : (assignment.has_pending_request ? 'متابعة طلب البرايفت من الرسائل' : 'اطلب برايفت للطالب') }}
-                                    </button>
+                                    <div v-if="assignment.private_slots?.length" class="space-y-2 mt-3">
+                                        <div v-for="slot in assignment.private_slots" :key="slot.id" class="flex items-center justify-between gap-2 rounded-lg bg-surface-50 dark:bg-surface-900/50 px-3 py-2">
+                                            <span class="text-xs">{{ new Date(slot.starts_at).toLocaleString('ar-EG') }}</span>
+                                            <button v-if="assignment.has_active_subscription" class="btn-outline btn-sm" @click="bookPrivateSlot(slot.id)">احجز الموعد</button>
+                                            <span v-else class="text-[11px] text-surface-400">بعد الاشتراك</span>
+                                        </div>
+                                    </div>
+                                    <p v-else class="text-xs text-surface-400 mt-3">لا توجد مواعيد برايفيت منشورة حاليًا.</p>
+                                    <Link v-if="assignment.private_subscription?.status === 'pending'" :href="route('checkout.show', assignment.private_subscription.id)" class="btn-primary btn-sm mt-3 w-full justify-center">إكمال دفع الاشتراك</Link>
+                                    <button v-else-if="!assignment.has_active_subscription" class="btn-accent btn-sm mt-3 w-full" @click="subscribeToPrivate(assignment.id)">اشترك برايفيت للطالب</button>
+                                    <p v-else class="text-xs text-green-600 mt-3">اشتراك برايفيت نشط — اختر موعدًا منشورًا.</p>
                                 </div>
                             </div>
                         </div>

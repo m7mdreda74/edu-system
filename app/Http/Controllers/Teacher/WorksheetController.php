@@ -136,16 +136,14 @@ class WorksheetController extends Controller
             'link'    => $this->learnLink($submission),
         ]));
 
-        if ($isPaperExam) {
-            foreach ($submission->student?->parentLinks ?? [] as $link) {
-                if ($link->verified_at && $link->parent) {
-                    $link->parent->notify(new GenericDatabaseNotification([
-                        'title' => 'تقييم اختبار ورقي جديد',
-                        'message' => "تم تقييم {$submission->student->name} في '{$submission->worksheet->title}' بدرجة {$validated['score']}/{$submission->worksheet->max_score}."
-                            .(! empty($validated['teacher_feedback']) ? " تقييم المدرس: {$validated['teacher_feedback']}" : ''),
-                        'link' => route('parent.dashboard', ['student_id' => $submission->student_id]),
-                    ]));
-                }
+        foreach ($submission->student?->parentLinks ?? [] as $link) {
+            if ($link->verified_at && $link->parent) {
+                $link->parent->notify(new GenericDatabaseNotification([
+                    'title' => $isPaperExam ? 'تقييم اختبار ورقي جديد' : 'تقييم واجب جديد',
+                    'message' => "ابنكم الطالب {$submission->student->name} حصل على {$validated['score']}/{$submission->worksheet->max_score} في '{$submission->worksheet->title}'."
+                        .(! empty($validated['teacher_feedback']) ? " تقييم المدرس: {$validated['teacher_feedback']}" : ''),
+                    'link' => route('parent.dashboard', ['student_id' => $submission->student_id]),
+                ]));
             }
         }
 

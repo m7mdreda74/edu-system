@@ -79,12 +79,15 @@ class TeacherProfileController extends Controller
                 ->latest('booked_at')
                 ->first()
             : null;
-        $privateAssignmentIds = $isStudent
-            ? Subscription::active()
-                ->where('student_id', $student->id)
+        $privateSubscriptions = $isStudent
+            ? Subscription::where('student_id', $student->id)
                 ->where('type', Subscription::TYPE_PRIVATE)
+                ->whereIn('status', [Subscription::STATUS_ACTIVE, Subscription::STATUS_PENDING])
                 ->whereIn('teaching_assignment_id', $assignments->pluck('id'))
-                ->pluck('teaching_assignment_id')
+                ->get()
+                ->filter(fn (Subscription $subscription) => $subscription->isPending() || $subscription->isActive())
+                ->sortBy(fn (Subscription $subscription) => $subscription->isActive() ? 0 : 1)
+                ->keyBy('teaching_assignment_id')
             : collect();
 
         return Inertia::render('Public/TeacherProfile', [
@@ -105,7 +108,11 @@ class TeacherProfileController extends Controller
                 'subject' => $assignment->subject?->only(['id', 'name', 'name_en', 'icon']),
                 'grade' => $assignment->gradeLevel?->only(['id', 'key', 'name']),
                 'accepts_private' => $assignment->offersPrivate(),
-                'has_private_subscription' => $privateAssignmentIds->contains($assignment->id),
+                'has_private_subscription' => ($privateSubscription = $privateSubscriptions->get($assignment->id))?->isActive() ?? false,
+                'private_subscription' => $privateSubscription ? [
+                    'id' => $privateSubscription->id,
+                    'status' => $privateSubscription->status,
+                ] : null,
                 'private_monthly_price' => $assignment->private_monthly_price,
                 'currency' => $assignment->currency,
                 'private_request' => ($privateRequest = $privateRequests->get($assignment->id)) ? [

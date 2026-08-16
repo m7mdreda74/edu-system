@@ -14,6 +14,7 @@ use App\Domain\Subscription\Models\Subscription;
 use App\Infrastructure\Observers\UserObserver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -118,9 +119,31 @@ class User extends Authenticatable
         return $this->hasMany(ParentStudentLink::class, 'parent_user_id');
     }
 
+    /** All students linked to this parent account. */
+    public function children(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            self::class,
+            'parent_student_links',
+            'parent_user_id',
+            'student_user_id',
+        )->withPivot(['relationship', 'verified_at']);
+    }
+
     public function parentLinks(): HasMany
     {
         return $this->hasMany(ParentStudentLink::class, 'student_user_id');
+    }
+
+    /** All parent accounts linked to this student. */
+    public function parents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            self::class,
+            'parent_student_links',
+            'student_user_id',
+            'parent_user_id',
+        )->withPivot(['relationship', 'verified_at']);
     }
 
     // ─── Role Helpers ──────────────────────────────────────────────

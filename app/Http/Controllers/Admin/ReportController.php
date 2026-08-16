@@ -24,8 +24,10 @@ class ReportController extends Controller
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'teacher_id' => ['nullable', 'integer', 'exists:users,id'],
             'status' => ['nullable', 'in:scheduled,live,ended,cancelled'],
+            'print' => ['nullable', 'boolean'],
         ]);
 
+        $print = $request->boolean('print');
         $teacherId = $filters['teacher_id'] ?? null;
         $start = $filters['start_date'] ?? null;
         $end = $filters['end_date'] ?? null;
@@ -69,12 +71,26 @@ class ReportController extends Controller
             ->when($start, fn (Builder $query, string $date) => $query->whereDate('scheduled_at', '>=', $date))
             ->when($end, fn (Builder $query, string $date) => $query->whereDate('scheduled_at', '<=', $date));
 
-        $sessions = $sessionQuery
-            ->latest('scheduled_at')
-            ->paginate(10)
-            ->withQueryString();
+        if ($print) {
+            $sessionRows = $sessionQuery->latest('scheduled_at')->get();
+            $sessions = [
+                'data' => $sessionRows,
+                'links' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => max(1, $sessionRows->count()),
+                    'total' => $sessionRows->count(),
+                ],
+            ];
+        } else {
+            $sessions = $sessionQuery
+                ->latest('scheduled_at')
+                ->paginate(10)
+                ->withQueryString();
+        }
 
-        $attendance = LiveSessionAttendee::query()
+        $attendanceQuery = LiveSessionAttendee::query()
             ->with([
                 'user:id,name,email',
                 'session:id,title,teacher_id,teaching_group_id,private_session_slot_id,scheduled_at,status',
@@ -90,12 +106,29 @@ class ReportController extends Controller
                     ->when($filters['status'] ?? null, fn (Builder $q, string $status) => $q->where('status', $status))
                     ->when($start, fn (Builder $q, string $date) => $q->whereDate('scheduled_at', '>=', $date))
                     ->when($end, fn (Builder $q, string $date) => $q->whereDate('scheduled_at', '<=', $date));
-            })
-            ->latest('joined_at')
-            ->paginate(20, ['*'], 'attendance_page')
-            ->withQueryString();
+            });
 
-        $attendance->getCollection()->transform(function (LiveSessionAttendee $attendee): array {
+        if ($print) {
+            $attendanceRows = $attendanceQuery->latest('joined_at')->get();
+            $attendance = [
+                'data' => $attendanceRows,
+                'links' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => max(1, $attendanceRows->count()),
+                    'total' => $attendanceRows->count(),
+                ],
+            ];
+        } else {
+            $attendance = $attendanceQuery
+                ->latest('joined_at')
+                ->paginate(20, ['*'], 'attendance_page')
+                ->withQueryString();
+            $attendanceRows = $attendance->getCollection();
+        }
+
+        $attendanceRows->transform(function (LiveSessionAttendee $attendee): array {
             $session = $attendee->session;
 
             return [
@@ -157,11 +190,13 @@ class ReportController extends Controller
         });
 
         return Inertia::render('Admin/Reports', [
+            'printMode' => $print,
             'filters' => [
                 'start_date' => $start,
                 'end_date' => $end,
                 'teacher_id' => $teacherId,
                 'status' => $filters['status'] ?? '',
+                'print' => $print,
             ],
             'teachers' => $teachers,
             'groups' => $groups,

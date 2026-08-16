@@ -24,7 +24,6 @@ class ParentPrivateLessonRequestController extends Controller
     {
         $validated = $request->validate([
             'student_id' => ['required', 'integer', 'exists:users,id'],
-            'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
         try {
@@ -90,12 +89,11 @@ class ParentPrivateLessonRequestController extends Controller
                     'student_id' => $student->id,
                     'teaching_assignment_id' => $assignment->id,
                     'conversation_id' => $conversation->id,
-                    'student_note' => $validated['note'] ?? null,
+                    'student_note' => null,
                     'status' => PrivateLessonRequest::STATUS_PENDING,
                 ]);
 
-                $message = 'ولي الأمر يطلب حجز حصص برايفت للطالب '.$student->name.'، ونود الاتفاق على الموعد المناسب.'
-                    .(! empty($validated['note']) ? "\n\nالأوقات أو الملاحظات المفضلة: {$validated['note']}" : '');
+                $message = 'ولي الأمر يطلب حجز حصص برايفت للطالب '.$student->name.' بعد مراجعة المواعيد المنشورة.';
 
                 ChatMessage::create([
                     'conversation_id' => $conversation->id,

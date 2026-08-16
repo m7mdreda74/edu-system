@@ -8,6 +8,7 @@ use App\Application\Certificate\Services\CertificateService;
 use App\Application\Scheduling\Services\SessionBookingService;
 use App\Application\Subscription\Services\SubscriptionService;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
+use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Http\Controllers\Controller;
@@ -87,6 +88,19 @@ class SubscriptionController extends Controller
         try {
             $group = TeachingGroup::findOrFail($groupId);
             $subscription = $this->subscriptions->openForGroup(Auth::user(), $group);
+        } catch (LogicException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('checkout.show', $subscription->id);
+    }
+
+    /** Open a private subscription, then send the student to pay. */
+    public function subscribeToPrivate(int $assignmentId): RedirectResponse
+    {
+        try {
+            $assignment = TeachingAssignment::with('teacher')->findOrFail($assignmentId);
+            $subscription = $this->subscriptions->openForPrivate(Auth::user(), $assignment);
         } catch (LogicException $e) {
             return back()->with('error', $e->getMessage());
         }

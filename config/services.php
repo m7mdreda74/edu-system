@@ -89,6 +89,14 @@ return [
             'collab_server_base_url' => env('JITSI_WHITEBOARD_COLLAB_SERVER'),
             'user_limit' => (int) env('JITSI_WHITEBOARD_USER_LIMIT', 30),
         ],
+        'recording' => [
+            // This is Jitsi's server-side file recording, not browser-local recording.
+            'enabled' => filter_var(env('JITSI_FILE_RECORDINGS_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+            'allowed_hosts' => array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) env('JITSI_RECORDING_ALLOWED_HOSTS', '')),
+            ))),
+        ],
     ],
 
 ];

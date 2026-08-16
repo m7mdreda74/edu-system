@@ -53,7 +53,7 @@ const groupForm = useForm({
     teaching_assignment_id: '',
     academic_term_id: '',
     name: '',
-    capacity: 10,
+    capacity: 5,
     monthly_price_qar: 0,
     timezone: 'Asia/Qatar',
 });
@@ -103,7 +103,7 @@ function storeGroup() {
         preserveScroll: true,
         onSuccess: () => {
             groupForm.reset();
-            groupForm.capacity = 10;
+            groupForm.capacity = 5;
             groupForm.monthly_price_qar = 0;
             groupForm.timezone = 'Asia/Qatar';
         },
@@ -274,10 +274,11 @@ async function destroyGroup(group) {
                                 <option v-for="item in terms" :key="item.id" :value="item.id">{{ item.name }} {{ item.year_label }}</option>
                             </select>
                             <input v-model="groupForm.name" class="input" placeholder="اسم المجموعة" required />
-                            <input v-model.number="groupForm.capacity" type="number" min="1" max="1000" class="input" placeholder="السعة" required />
+                            <input v-model.number="groupForm.capacity" type="number" min="1" max="1000" class="input" placeholder="السعة (الافتراضي 5)" />
                             <input v-model.number="groupForm.monthly_price_qar" type="number" min="0" step="0.01" class="input" placeholder="السعر الشهري ر.ق" required />
                             <button class="btn-primary" :disabled="groupForm.processing">إنشاء وتسعير المجموعة</button>
                         </div>
+                        <p class="text-xs text-surface-500">السعة الافتراضية للمجموعة 5 طلاب، ويمكن للإدارة تعديلها لكل مجموعة.</p>
                         <p v-if="Object.keys(groupForm.errors).length" class="text-xs text-red-500">{{ Object.values(groupForm.errors)[0] }}</p>
                     </form>
 

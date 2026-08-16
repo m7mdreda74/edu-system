@@ -7,6 +7,7 @@ use App\Application\Subscription\Services\SubscriptionService;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Communication\Notifications\SubscriptionRenewalReminderNotification;
+use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
@@ -23,6 +24,58 @@ use Tests\TestCase;
 
 // Binds $this inside every Pest closure in this file to Tests\TestCase.
 uses(TestCase::class, RefreshDatabase::class);
+
+function createEndedGroupLessons(Subscription $subscription, int $count): void
+{
+    $teacherId = TeachingAssignment::findOrFail($subscription->teaching_assignment_id)->teacher_id;
+
+    for ($index = 0; $index < $count; $index++) {
+        $scheduledAt = Carbon::parse('2026-07-05 16:00:00', 'UTC')->addDays($index);
+
+        LiveSession::create([
+            'teacher_id' => $teacherId,
+            'teaching_group_id' => $subscription->teaching_group_id,
+            'title' => 'حصة مجموعة '.($index + 1),
+            'scheduled_at' => $scheduledAt,
+            'started_at' => $scheduledAt,
+            'ended_at' => $scheduledAt->copy()->addMinutes(90),
+            'status' => LiveSession::STATUS_ENDED,
+        ]);
+    }
+}
+
+function createEndedPrivateLessons(Subscription $subscription, int $count): void
+{
+    $teacherId = TeachingAssignment::findOrFail($subscription->teaching_assignment_id)->teacher_id;
+
+    for ($index = 0; $index < $count; $index++) {
+        $startsAt = Carbon::parse('2026-07-05 10:00:00', 'UTC')->addDays($index);
+        $slot = PrivateSessionSlot::create([
+            'teaching_assignment_id' => $subscription->teaching_assignment_id,
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addHour(),
+            'timezone' => 'Asia/Qatar',
+            'status' => 'booked',
+        ]);
+
+        SessionBooking::create([
+            'student_id' => $subscription->student_id,
+            'private_session_slot_id' => $slot->id,
+            'status' => 'confirmed',
+            'booked_at' => now(),
+        ]);
+
+        LiveSession::create([
+            'teacher_id' => $teacherId,
+            'private_session_slot_id' => $slot->id,
+            'title' => 'حصة برايفيت '.($index + 1),
+            'scheduled_at' => $startsAt,
+            'started_at' => $startsAt,
+            'ended_at' => $startsAt->copy()->addHour(),
+            'status' => LiveSession::STATUS_ENDED,
+        ]);
+    }
+}
 
 beforeEach(function () {
     Carbon::setTestNow(Carbon::parse('2026-07-29 09:00:00', 'UTC'));
@@ -88,8 +141,9 @@ afterEach(function () {
     Carbon::setTestNow();
 });
 
-it('notifies the student and verified parent when the next group class is the last one', function () {
+it('notifies the student and verified parent after the seventh group class', function () {
     Notification::fake();
+    createEndedGroupLessons($this->subscription, 7);
 
     $sent = app(SubscriptionRenewalReminderService::class)->sendDueReminders();
 
@@ -104,7 +158,10 @@ it('notifies the student and verified parent when the next group class is the la
 
             return $data['subscription_id'] === $this->subscription->id
                 && $data['link'] === route('subscriptions.renewal.show', $this->subscription)
-                && str_contains($data['message'], 'آخر حصة');
+                && $data['completed_lessons'] === 7
+                && $data['lessons_per_month'] === 8
+                && str_contains($data['message'], '7')
+                && str_contains($data['message'], '8');
         },
     );
     Notification::assertSentTo($this->parent, SubscriptionRenewalReminderNotification::class);
@@ -113,9 +170,9 @@ it('notifies the student and verified parent when the next group class is the la
     Notification::assertSentTimes(SubscriptionRenewalReminderNotification::class, 2);
 });
 
-it('waits while more than one group class remains in the billing period', function () {
+it('waits until the seventh group class is complete', function () {
     Notification::fake();
-    $this->subscription->update(['period_end' => '2026-08-10']);
+    createEndedGroupLessons($this->subscription, 6);
 
     expect(app(SubscriptionRenewalReminderService::class)->sendDueReminders())->toBe(0)
         ->and($this->subscription->fresh()->renewal_reminder_sent_at)->toBeNull();
@@ -125,6 +182,7 @@ it('waits while more than one group class remains in the billing period', functi
 
 it('does not remind a student who already has a renewal awaiting payment', function () {
     Notification::fake();
+    createEndedGroupLessons($this->subscription, 7);
 
     Subscription::create([
         'student_id' => $this->student->id,
@@ -158,20 +216,7 @@ it('supports the final booked private class too', function () {
         'status' => Subscription::STATUS_ACTIVE,
     ]);
 
-    $slot = PrivateSessionSlot::create([
-        'teaching_assignment_id' => $this->assignment->id,
-        'starts_at' => Carbon::parse('2026-08-02 10:00:00', 'UTC'),
-        'ends_at' => Carbon::parse('2026-08-02 11:00:00', 'UTC'),
-        'timezone' => 'Asia/Qatar',
-        'status' => 'booked',
-    ]);
-
-    SessionBooking::create([
-        'student_id' => $this->student->id,
-        'private_session_slot_id' => $slot->id,
-        'status' => 'confirmed',
-        'booked_at' => now(),
-    ]);
+    createEndedPrivateLessons($privateSubscription, 7);
 
     expect(app(SubscriptionRenewalReminderService::class)->sendDueReminders())->toBe(1)
         ->and($privateSubscription->fresh()->renewal_reminder_sent_at)->not->toBeNull();
@@ -217,6 +262,7 @@ it('rejects an unrelated parent from the renewal flow', function () {
 
 it('protects the Vercel cron endpoint with CRON_SECRET', function () {
     Notification::fake();
+    createEndedGroupLessons($this->subscription, 7);
     config()->set('services.vercel.cron_secret', 'test-cron-secret');
 
     $this->getJson(route('cron.subscription-renewal-reminders'))

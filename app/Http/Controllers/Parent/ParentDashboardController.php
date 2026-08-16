@@ -197,6 +197,23 @@ class ParentDashboardController extends Controller
                     'subject' => $slot->assignment?->subject?->name,
                 ])->values();
 
+            $privateSlotsByAssignment = PrivateSessionSlot::with([
+                'assignment.subject:id,name',
+                'assignment.teacher:id,name,avatar,is_active',
+                'assignment.gradeLevel:id,key,name',
+            ])
+                ->where('is_free_intro', false)
+                ->where('status', 'available')
+                ->where('starts_at', '>=', now())
+                ->whereHas('assignment', fn ($query) => $query
+                    ->where('is_active', true)
+                    ->whereHas('teacher', fn ($teacherQuery) => $teacherQuery->where('is_active', true))
+                    ->whereHas('gradeLevel', fn ($gradeQuery) => $gradeQuery->where('key', $student->grade_level)))
+                ->orderBy('starts_at')
+                ->limit(100)
+                ->get()
+                ->groupBy('teaching_assignment_id');
+
             $pendingPrivateAssignmentIds = PrivateLessonRequest::query()
                 ->where('student_id', $student->id)
                 ->where('status', 'pending')
@@ -214,17 +231,33 @@ class ParentDashboardController extends Controller
                 ->whereHas('teacher', fn ($query) => $query->where('is_active', true))
                 ->whereHas('gradeLevel', fn ($query) => $query->where('key', $student->grade_level))
                 ->get()
-                ->map(fn (TeachingAssignment $assignment): array => [
-                    'id' => $assignment->id,
-                    'subject' => $assignment->subject?->name,
-                    'teacher' => $assignment->teacher?->only(['id', 'name', 'avatar']),
-                    'monthly_price' => $assignment->private_monthly_price,
-                    'has_active_subscription' => $subscriptions
+                ->map(function (TeachingAssignment $assignment) use ($privateSlotsByAssignment, $subscriptions, $pendingPrivateAssignmentIds): array {
+                    $privateSubscription = $subscriptions
                         ->where('teaching_assignment_id', $assignment->id)
                         ->where('type', Subscription::TYPE_PRIVATE)
-                        ->contains(fn (Subscription $subscription) => $subscription->isActive()),
-                    'has_pending_request' => isset($pendingPrivateAssignmentIds[$assignment->id]),
-                ])->values();
+                        ->filter(fn (Subscription $subscription) => $subscription->isActive() || $subscription->isPending())
+                        ->sortBy(fn (Subscription $subscription) => $subscription->isActive() ? 0 : 1)
+                        ->first();
+
+                    return [
+                        'id' => $assignment->id,
+                        'subject' => $assignment->subject?->name,
+                        'teacher' => $assignment->teacher?->only(['id', 'name', 'avatar']),
+                        'monthly_price' => $assignment->private_monthly_price,
+                        'has_active_subscription' => $privateSubscription?->isActive() ?? false,
+                        'private_subscription' => $privateSubscription ? [
+                            'id' => $privateSubscription->id,
+                            'status' => $privateSubscription->status,
+                        ] : null,
+                        'has_pending_request' => isset($pendingPrivateAssignmentIds[$assignment->id]),
+                        'private_slots' => $privateSlotsByAssignment->get($assignment->id, collect())
+                            ->map(fn (PrivateSessionSlot $slot): array => [
+                                'id' => $slot->id,
+                                'starts_at' => $slot->starts_at?->toIso8601String(),
+                                'ends_at' => $slot->ends_at?->toIso8601String(),
+                            ])->values(),
+                    ];
+                })->values();
 
             $studentData = [
                 'student' => $student->only(['id', 'name', 'email', 'grade_level']),
@@ -362,6 +395,59 @@ class ParentDashboardController extends Controller
         }
 
         return redirect()->route('checkout.show', $subscription->id);
+    }
+
+    public function subscribeToPrivate(Request $request, int $assignmentId, SubscriptionService $subscriptions): RedirectResponse
+    {
+        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'exists:users,id']])['student_id'];
+        $this->assertLinkedStudent($studentId);
+        $student = User::findOrFail($studentId);
+        $assignment = TeachingAssignment::with('gradeLevel')->findOrFail($assignmentId);
+        abort_unless(
+            $assignment->gradeLevel?->key === $student->grade_level,
+            422,
+            'هذا المدرس لا يدرّس الصف الدراسي للطالب.',
+        );
+
+        try {
+            $subscription = $subscriptions->openForPrivate($student, $assignment);
+        } catch (\LogicException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('checkout.show', $subscription->id);
+    }
+
+    public function bookPrivateSlot(Request $request, int $slotId, SessionBookingService $bookings): RedirectResponse
+    {
+        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'exists:users,id']])['student_id'];
+        $this->assertLinkedStudent($studentId);
+        $student = User::findOrFail($studentId);
+        $slot = PrivateSessionSlot::with('assignment.gradeLevel')->findOrFail($slotId);
+
+        abort_unless(
+            $slot->assignment?->gradeLevel?->key === $student->grade_level,
+            422,
+            'هذا الموعد ليس مخصصًا للصف الدراسي للطالب.',
+        );
+
+        $hasPrivateSubscription = Subscription::active()
+            ->where('student_id', $student->id)
+            ->where('teaching_assignment_id', $slot->teaching_assignment_id)
+            ->where('type', Subscription::TYPE_PRIVATE)
+            ->exists();
+
+        if (! $hasPrivateSubscription || $slot->is_free_intro) {
+            abort(403, 'يلزم اشتراك برايفيت فعّال لحجز هذا الموعد.');
+        }
+
+        try {
+            $bookings->bookPrivate($student, $slot->id);
+        } catch (\LogicException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'تم حجز موعد البرايفيت للطالب وإغلاقه أمام باقي الطلاب.');
     }
 
     public function bookFreeIntro(Request $request, int $slotId, SessionBookingService $bookings): RedirectResponse

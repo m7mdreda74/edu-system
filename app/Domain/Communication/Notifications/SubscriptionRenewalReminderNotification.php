@@ -16,6 +16,8 @@ class SubscriptionRenewalReminderNotification extends Notification
     public function __construct(
         public readonly Subscription $subscription,
         public readonly Carbon $lastLessonAt,
+        public readonly int $completedLessons = 7,
+        public readonly int $lessonsPerMonth = 8,
     ) {}
 
     public function via(object $notifiable): array
@@ -29,11 +31,13 @@ class SubscriptionRenewalReminderNotification extends Notification
 
         return [
             'type' => 'subscription_renewal_reminder',
-            'title' => 'الحصة القادمة هي الأخيرة 🔔',
-            'message' => "اشتراك {$this->subscription->label()} سينتهي قريبًا، والحصة القادمة يوم {$lessonAt} هي آخر حصة في الاشتراك الحالي. هل تود تجديد الاشتراك؟",
+            'title' => 'حان موعد تجديد الاشتراك 🔔',
+            'message' => "انتهت الحصة رقم {$this->completedLessons} من أصل {$this->lessonsPerMonth} في اشتراك {$this->subscription->label()} يوم {$lessonAt}. يرجى تجديد الاشتراك والدفع للحصص القادمة.",
             'link' => route('subscriptions.renewal.show', $this->subscription),
             'subscription_id' => $this->subscription->id,
             'last_lesson_at' => $this->lastLessonAt->toIso8601String(),
+            'completed_lessons' => $this->completedLessons,
+            'lessons_per_month' => $this->lessonsPerMonth,
             'icon' => 'calendar',
         ];
     }

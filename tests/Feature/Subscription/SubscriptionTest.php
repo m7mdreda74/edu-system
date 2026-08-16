@@ -198,13 +198,23 @@ it('sends the student to checkout when they subscribe from the profile', functio
     expect($subscription->status)->toBe(Subscription::STATUS_PENDING);
 });
 
+it('sends the student to checkout for a private subscription priced by the admin', function () {
+    $this->actingAs($this->student)
+        ->post(route('student.subscribe.private', ['assignmentId' => $this->assignment->id]))
+        ->assertRedirect();
+
+    $subscription = Subscription::where('student_id', $this->student->id)->firstOrFail();
+
+    expect($subscription->type)->toBe(Subscription::TYPE_PRIVATE)
+        ->and($subscription->monthly_price)->toBe(90_000)
+        ->and($subscription->status)->toBe(Subscription::STATUS_PENDING);
+});
+
 it('creates one private lesson request and opens the agreement chat with the teacher', function () {
     Notification::fake();
 
     $response = $this->actingAs($this->student)
-        ->post(route('student.private-lesson-requests.store', ['assignmentId' => $this->assignment->id]), [
-            'note' => 'الأحد بعد السادسة مناسب لي',
-        ]);
+        ->post(route('student.private-lesson-requests.store', ['assignmentId' => $this->assignment->id]));
 
     $privateRequest = PrivateLessonRequest::firstOrFail();
 
@@ -215,8 +225,11 @@ it('creates one private lesson request and opens the agreement chat with the tea
         ->and($privateRequest->status)->toBe(PrivateLessonRequest::STATUS_PENDING)
         ->and(ChatMessage::where('conversation_id', $privateRequest->conversation_id)
             ->where('sender_id', $this->student->id)
-            ->where('message', 'like', '%الأحد بعد السادسة%')
+            ->where('message', 'like', '%المواعيد المنشورة%')
             ->exists())->toBeTrue()
+        ->and(ChatMessage::where('conversation_id', $privateRequest->conversation_id)
+            ->where('message', 'like', '%الأوقات أو الملاحظات%')
+            ->exists())->toBeFalse()
         ->and(Subscription::where('student_id', $this->student->id)->exists())->toBeFalse();
 
     Notification::assertSentTo($this->assignment->teacher, GenericDatabaseNotification::class);
@@ -331,6 +344,13 @@ it('publishes private slots for one student and closes the slot after the first 
         ->assertSessionHasNoErrors();
 
     $slot = PrivateSessionSlot::where('is_free_intro', false)->firstOrFail();
+
+    $this->actingAs($this->student)
+        ->get(route('teachers.show', $teacher->id))
+        ->assertInertia(fn ($page) => $page
+            ->where('assignments.0.has_private_subscription', false)
+            ->where('assignments.0.private_slots.0.id', $slot->id));
+
     $this->service->activate($this->service->openForPrivate($this->student, $this->assignment));
 
     $this->actingAs($this->student)
@@ -348,6 +368,10 @@ it('publishes private slots for one student and closes the slot after the first 
         ->and(SessionBooking::where('private_session_slot_id', $slot->id)
             ->where('status', 'confirmed')->count())->toBe(1);
 
+    $this->actingAs($this->student)
+        ->get(route('teachers.show', $teacher->id))
+        ->assertInertia(fn ($page) => $page->has('assignments.0.private_slots', 0));
+
     $otherStudent = User::factory()->create(['email_verified_at' => now()]);
     $otherStudent->assignRole('student');
     $this->service->activate($this->service->openForPrivate($otherStudent, $this->assignment));
@@ -358,6 +382,42 @@ it('publishes private slots for one student and closes the slot after the first 
 
     expect(SessionBooking::where('private_session_slot_id', $slot->id)
         ->where('status', 'confirmed')->count())->toBe(1);
+});
+
+it('reopens a booked private slot when the private subscription is cancelled or expires', function () {
+    $slot = PrivateSessionSlot::create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'starts_at' => now()->addDays(5)->setTime(18, 0),
+        'ends_at' => now()->addDays(5)->setTime(19, 0),
+        'timezone' => 'Asia/Qatar',
+        'is_free_intro' => false,
+        'status' => 'available',
+    ]);
+
+    $subscription = $this->service->activate($this->service->openForPrivate($this->student, $this->assignment));
+
+    $this->actingAs($this->student)
+        ->post(route('student.private-slots.book', $slot->id))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $this->service->cancel($subscription->fresh());
+
+    expect($slot->fresh()->status)->toBe('available')
+        ->and(SessionBooking::where('private_session_slot_id', $slot->id)->where('status', 'confirmed')->exists())->toBeFalse();
+
+    $nextStudent = User::factory()->create(['email_verified_at' => now()]);
+    $nextStudent->assignRole('student');
+    $nextSubscription = $this->service->activate($this->service->openForPrivate($nextStudent, $this->assignment));
+    $this->actingAs($nextStudent)
+        ->post(route('student.private-slots.book', $slot->id))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $nextSubscription->fresh()->update(['period_end' => now()->subDay()]);
+    expect($this->service->expireLapsed())->toBe(1)
+        ->and($slot->fresh()->status)->toBe('available')
+        ->and(SessionBooking::where('private_session_slot_id', $slot->id)->where('status', 'confirmed')->exists())->toBeFalse();
 });
 
 it('hides a full group and shows it again after its seat is released', function () {

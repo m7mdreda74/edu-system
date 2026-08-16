@@ -17,12 +17,16 @@ class RegistrationTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_students_can_register_without_a_parent_account(): void
+    public function test_students_register_with_an_existing_parent_account(): void
     {
+        $parent = User::factory()->create(['phone' => '50000009']);
+        $parent->assignRole('parent');
+
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@altafawwuq.com',
             'phone' => '50000001',
+            'parent_phone' => $parent->phone,
             'role' => 'student',
             'grade_level' => 'grade_10',
             'password' => 'password',
@@ -34,9 +38,28 @@ class RegistrationTest extends TestCase
 
         $student = User::where('email', 'test@altafawwuq.com')->firstOrFail();
         $this->assertTrue($student->hasRole('student'));
-        $this->assertDatabaseMissing('parent_student_links', [
+        $this->assertDatabaseHas('parent_student_links', [
+            'parent_user_id' => $parent->id,
             'student_user_id' => $student->id,
         ]);
+    }
+
+    public function test_student_registration_rejects_an_unlinked_parent_phone(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Student Without Parent',
+            'email' => 'student-without-parent@altafawwuq.com',
+            'phone' => '50000008',
+            'parent_phone' => '59999999',
+            'role' => 'student',
+            'grade_level' => 'grade_10',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertSessionHasErrors('parent_phone');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'student-without-parent@altafawwuq.com']);
     }
 
     public function test_student_registration_requires_an_active_grade(): void

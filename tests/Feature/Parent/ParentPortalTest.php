@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Application\Subscription\Services\SubscriptionService;
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
@@ -100,6 +101,38 @@ it('rejects a parent link request for a non-student phone', function (): void {
             'relationship' => 'guardian',
         ])
         ->assertSessionHasErrors('student_phone');
+});
+
+it('lets one parent select different children and charges the selected child', function (): void {
+    $secondStudent = User::factory()->create([
+        'email_verified_at' => now(),
+        'grade_level' => $this->student->grade_level,
+    ]);
+    $secondStudent->assignRole('student');
+
+    ParentStudentLink::create([
+        'parent_user_id' => $this->parent->id,
+        'student_user_id' => $secondStudent->id,
+        'relationship' => 'father',
+        'verified_at' => now(),
+    ]);
+
+    $this->actingAs($this->parent)
+        ->get(route('parent.dashboard', ['student_id' => $secondStudent->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('selectedStudent.student.id', $secondStudent->id)
+            ->where('links', fn ($links) => count($links) === 2));
+
+    $this->actingAs($this->parent)
+        ->post(route('parent.groups.subscribe', $this->group->id), [
+            'student_id' => $secondStudent->id,
+        ])
+        ->assertRedirect();
+
+    expect(Subscription::where('student_id', $secondStudent->id)->exists())->toBeTrue()
+        ->and(Subscription::where('student_id', $this->student->id)->exists())->toBeFalse()
+        ->and($this->parent->children()->pluck('users.id')->all())->toContain($secondStudent->id, $this->student->id);
 });
 
 it('shows a linked parent attendance, assessment, quiz and payment-ready dashboard', function (): void {
@@ -202,7 +235,6 @@ it('lets a parent request private lessons and message both the teacher and admin
     $this->actingAs($this->parent)
         ->post(route('parent.private-lesson-requests.store', $this->assignment->id), [
             'student_id' => $this->student->id,
-            'note' => 'بعد الساعة السادسة',
         ])
         ->assertRedirect();
 
@@ -240,6 +272,41 @@ it('lets a parent request private lessons and message both the teacher and admin
         ->assertInertia(fn ($page) => $page->where('activeConversation.id', $support->id));
 
     Notification::assertSentTo($this->teacher, GenericDatabaseNotification::class);
+});
+
+it('lets a parent pay for and book a published private appointment for the student', function (): void {
+    $slot = PrivateSessionSlot::create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'starts_at' => now()->addDays(3)->setTime(18, 0),
+        'ends_at' => now()->addDays(3)->setTime(19, 0),
+        'timezone' => 'Asia/Qatar',
+        'is_free_intro' => false,
+        'status' => 'available',
+    ]);
+
+    $this->actingAs($this->parent)
+        ->post(route('parent.private.subscribe', $this->assignment->id), [
+            'student_id' => $this->student->id,
+        ])
+        ->assertRedirect();
+
+    $subscription = Subscription::where('student_id', $this->student->id)
+        ->where('type', Subscription::TYPE_PRIVATE)
+        ->firstOrFail();
+    app(SubscriptionService::class)->activate($subscription);
+
+    $this->actingAs($this->parent)
+        ->post(route('parent.private-slots.book', $slot->id), [
+            'student_id' => $this->student->id,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($slot->fresh()->status)->toBe('booked')
+        ->and(SessionBooking::where('student_id', $this->student->id)
+            ->where('private_session_slot_id', $slot->id)
+            ->where('status', 'confirmed')
+            ->exists())->toBeTrue();
 });
 
 it('blocks an unrelated parent from booking or viewing another student data', function (): void {

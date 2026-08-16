@@ -261,7 +261,7 @@ it('requires private pricing to stay above every group price', function () {
         ->assertSessionHasErrors('monthly_price_qar');
 });
 
-it('keeps pricing with admin while the teacher owns group capacity and schedules', function () {
+it('keeps pricing and capacity with admin while the teacher owns schedules', function () {
     /** @var AdminControlTestCase $this */
     $this->actingAs($this->admin)
         ->post(route('admin.teaching-groups.store'), [
@@ -293,12 +293,16 @@ it('keeps pricing with admin while the teacher owns group capacity and schedules
         ->post(route('teacher.teaching-schedule.groups.schedules.store', $group->id), $payload)
         ->assertForbidden();
 
-    $this->actingAs($this->admin)
-        ->patch(route('teacher.teaching-schedule.groups.capacity', $group->id), ['capacity' => 18])
-        ->assertForbidden();
+    expect(app('router')->has('teacher.teaching-schedule.groups.capacity'))->toBeFalse();
 
-    $this->actingAs($this->teacher)
-        ->patch(route('teacher.teaching-schedule.groups.capacity', $group->id), ['capacity' => 18])
+    $this->actingAs($this->admin)
+        ->put(route('admin.teaching-groups.update', $group->id), [
+            'name' => $group->name,
+            'capacity' => 18,
+            'monthly_price_qar' => 250,
+            'academic_term_id' => $group->academic_term_id,
+            'is_active' => true,
+        ])
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
@@ -313,6 +317,21 @@ it('keeps pricing with admin while the teacher owns group capacity and schedules
         ->and($group->fresh()->capacity)->toBe(18)
         ->and(substr((string) $schedule->start_time, 0, 5))->toBe('17:00')
         ->and($schedule->duration_minutes)->toBe(90);
+});
+
+it('defaults a newly created group to five students when capacity is omitted', function () {
+    /** @var AdminControlTestCase $this */
+    $this->actingAs($this->admin)
+        ->post(route('admin.teaching-groups.store'), [
+            'teaching_assignment_id' => $this->assignment->id,
+            'name' => 'مجموعة بالسعة الافتراضية',
+            'monthly_price_qar' => 250,
+            'timezone' => 'Asia/Qatar',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(TeachingGroup::where('name', 'مجموعة بالسعة الافتراضية')->value('capacity'))->toBe(5);
 });
 
 it('keeps the teacher dashboard academic only', function () {

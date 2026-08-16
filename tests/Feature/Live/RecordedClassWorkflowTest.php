@@ -126,6 +126,56 @@ it('publishes a YouTube recording for in-platform playback and reserves deletion
         ->and($this->session->fresh()->is_published_as_lesson)->toBeFalse();
 });
 
+it('saves a Jitsi file recording link automatically and publishes it when the class ends', function (): void {
+    /** @var RecordedClassTestCase $this */
+    $recordingUrl = 'https://meet.jit.si/recordings/altafawwuq-'.$this->session->id.'.mp4';
+
+    $this->actingAs($this->teacher)
+        ->postJson(route('teacher.live-sessions.recording', $this->session->id), [
+            'recording_url' => $recordingUrl,
+        ])
+        ->assertOk()
+        ->assertJson([
+            'saved' => true,
+            'published' => false,
+        ]);
+
+    expect($this->session->fresh()->recording_url)->toBe($recordingUrl)
+        ->and($this->session->fresh()->is_published_as_lesson)->toBeFalse();
+
+    $this->actingAs($this->teacher)
+        ->patch(route('teacher.live-sessions.status', $this->session->id), [
+            'status' => LiveSession::STATUS_ENDED,
+            'recording_url' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $this->session->refresh();
+    $material = GroupMaterial::findOrFail($this->session->lesson_id);
+
+    expect($this->session->is_published_as_lesson)->toBeTrue()
+        ->and($material->video_url)->toBe($recordingUrl);
+
+    $this->actingAs($this->student)
+        ->getJson(route('student.video.url', $material->id))
+        ->assertOk()
+        ->assertJson([
+            'provider' => 'file',
+        ]);
+});
+
+it('rejects a recording link from an untrusted host', function (): void {
+    /** @var RecordedClassTestCase $this */
+    $this->actingAs($this->teacher)
+        ->postJson(route('teacher.live-sessions.recording', $this->session->id), [
+            'recording_url' => 'https://evil.example/recording.mp4',
+        ])
+        ->assertUnprocessable();
+
+    expect($this->session->fresh()->recording_url)->toBeNull();
+});
+
 it('lets the teacher save the attendance roll and rejects students outside the class', function (): void {
     /** @var RecordedClassTestCase $this */
     $outsider = User::factory()->create();
@@ -198,4 +248,35 @@ it('authorizes Jitsi entry while the teacher controls attendance and closes it w
             ->where('attendance.data.0.student.id', $this->student->id)
             ->where('attendance.data.0.joined_at', fn ($value) => filled($value))
             ->where('attendance.data.0.left_at', fn ($value) => filled($value)));
+});
+
+it('returns every report row when the admin requests the printable report', function (): void {
+    /** @var RecordedClassTestCase $this */
+    for ($index = 1; $index <= 21; $index++) {
+        $session = LiveSession::create([
+            'teacher_id' => $this->teacher->id,
+            'teaching_group_id' => $this->group->id,
+            'title' => 'حصة التقرير '.$index,
+            'scheduled_at' => now()->subDays($index),
+            'started_at' => now()->subDays($index),
+            'ended_at' => now()->subDays($index)->addHour(),
+            'status' => LiveSession::STATUS_ENDED,
+        ]);
+
+        $session->attendees()->create([
+            'user_id' => $this->student->id,
+            'joined_at' => now()->subDays($index)->addMinutes(5),
+            'left_at' => now()->subDays($index)->addMinutes(50),
+        ]);
+    }
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.reports', ['print' => 1]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('printMode', true)
+            ->has('sessions.data', 22)
+            ->has('attendance.data', 21)
+            ->where('sessions.meta.total', 22)
+            ->where('attendance.meta.total', 21));
 });

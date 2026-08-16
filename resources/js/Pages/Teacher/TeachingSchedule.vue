@@ -11,7 +11,6 @@ const props = defineProps({
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const lessonDrafts = ref({});
 const scheduleDrafts = ref({});
-const capacityDrafts = ref({});
 const freeSlotDrafts = ref({});
 const privateSlotDrafts = ref({});
 
@@ -19,7 +18,6 @@ watch(() => props.assignments, (assignments) => {
     assignments.flatMap((item) => item.groups || []).forEach((group) => {
         lessonDrafts.value[group.id] ??= { title: '', description: '' };
         scheduleDrafts.value[group.id] ??= { day_of_week: 0, start_time: '', end_time: '' };
-        capacityDrafts.value[group.id] = group.capacity;
     });
     assignments.forEach((assignment) => {
         freeSlotDrafts.value[assignment.id] ??= { starts_at: '', ends_at: '' };
@@ -63,12 +61,6 @@ function removeGroupSchedule(scheduleId) {
     router.delete(route('teacher.teaching-schedule.group-schedules.destroy', scheduleId), {
         preserveScroll: true,
     });
-}
-
-function updateCapacity(groupId) {
-    router.patch(route('teacher.teaching-schedule.groups.capacity', groupId), {
-        capacity: capacityDrafts.value[groupId],
-    }, { preserveScroll: true });
 }
 
 function publishFreeSlot(assignmentId) {
@@ -127,7 +119,7 @@ function formatDate(value) {
             <header>
                 <h1 class="text-3xl font-black text-surface-900 dark:text-white">الخطة الأكاديمية وجدول الحصص</h1>
                 <p class="text-surface-500 mt-2">
-                    الإدارة تحدد الإسنادات والأسعار، وأنت تحدد سعة مجموعاتك وتدير مواعيد المجموعة والبرايفيت.
+                    الإدارة تحدد الإسنادات والأسعار والسعة، وأنت تنشر مواعيد مجموعاتك ومواعيد البرايفيت من جدولك.
                 </p>
             </header>
 
@@ -136,7 +128,7 @@ function formatDate(value) {
                 <div>
                     <h2 class="font-bold text-sm text-surface-900 dark:text-white">فصل واضح للصلاحيات</h2>
                     <p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
-                        تواصل مع الإدارة للإسناد والتسعير فقط. السعة والمواعيد والمنهج والمحتوى والاختبارات والحصص المباشرة مسؤوليتك.
+                        تواصل مع الإدارة للإسناد والتسعير والسعة. نشر المواعيد والمنهج والمحتوى والاختبارات والحصص المباشرة مسؤوليتك.
                     </p>
                 </div>
             </div>
@@ -238,14 +230,11 @@ function formatDate(value) {
                         </div>
                     </div>
 
-                    <form class="flex flex-wrap items-end gap-3 rounded-xl border border-surface-200 dark:border-surface-700 p-4" @submit.prevent="updateCapacity(group.id)">
-                        <div>
-                            <label class="input-label">الحد الأقصى لطلاب المجموعة</label>
-                            <input v-model.number="capacityDrafts[group.id]" type="number" min="1" max="1000" :min="Math.max(1, group.active_bookings_count)" class="input w-36" required />
-                        </div>
-                        <button class="btn-outline btn-sm">حفظ السعة</button>
-                        <span class="text-xs text-surface-400">يتبقى {{ Math.max(0, group.capacity - group.active_bookings_count) }} مقعد</span>
-                    </form>
+                    <div class="flex flex-wrap items-center gap-3 rounded-xl border border-surface-200 dark:border-surface-700 p-4">
+                        <span class="text-sm font-bold">سعة المجموعة: {{ group.capacity }} طالب</span>
+                        <span class="text-xs text-surface-400">المحجوز {{ group.active_bookings_count }} · المتبقي {{ Math.max(0, group.capacity - group.active_bookings_count) }} مقعد</span>
+                        <span class="text-xs text-surface-400">تعديل السعة من لوحة الإدارة فقط</span>
+                    </div>
 
                     <div class="rounded-xl border border-primary-500/20 bg-primary-500/5 p-4 space-y-3">
                         <div class="flex flex-wrap gap-2">

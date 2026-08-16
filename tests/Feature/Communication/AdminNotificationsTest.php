@@ -56,16 +56,18 @@ it('notifies admins when a teacher starts and ends a live class', function () {
     Notification::fake();
 
     $this->actingAs($this->teacher)
-        ->patch(route('teacher.live-sessions.status', $session->id), ['status' => LiveSession::STATUS_LIVE])
-        ->assertRedirect();
+        ->postJson(route('teacher.live-sessions.start', $session->id))
+        ->assertOk()
+        ->assertJsonPath('status', LiveSession::STATUS_LIVE);
 
     Notification::assertSentTo($this->admin, AdminLiveSessionStatusNotification::class, function ($notification): bool {
         return $notification->status === LiveSession::STATUS_LIVE;
     });
 
     $this->actingAs($this->teacher)
-        ->patch(route('teacher.live-sessions.status', $session->id), ['status' => LiveSession::STATUS_ENDED])
-        ->assertRedirect();
+        ->postJson(route('teacher.live-sessions.end', $session->id))
+        ->assertOk()
+        ->assertJsonPath('status', LiveSession::STATUS_ENDED);
 
     Notification::assertSentTo($this->admin, AdminLiveSessionStatusNotification::class, function ($notification): bool {
         return $notification->status === LiveSession::STATUS_ENDED;

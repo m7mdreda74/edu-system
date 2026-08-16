@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Student;
 
 use App\Application\Quiz\Services\QuizService;
+use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Notifications\GenericDatabaseNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,6 +20,7 @@ class QuizController extends Controller
 {
     public function __construct(
         private readonly QuizService $quizService,
+        private readonly ParentStudentLinkService $parentStudentLinks,
     ) {}
 
     /**
@@ -115,6 +118,15 @@ class QuizController extends Controller
 
         try {
             $result = $this->quizService->submitAttempt($attempt, $validated['answers']);
+
+            $this->parentStudentLinks->notifyLinkedParents(
+                $user,
+                new GenericDatabaseNotification([
+                    'title' => 'نتيجة اختبار جديدة',
+                    'message' => "ابنكم الطالب {$user->name} حصل على {$result->score}% في اختبار '{$quiz->title}' ({$result->earned_points}/{$result->total_points}).",
+                    'link' => route('parent.dashboard', ['student_id' => $user->id]),
+                ]),
+            );
 
             return response()->json([
                 'score'         => $result->score,

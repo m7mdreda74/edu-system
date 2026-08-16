@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import axios from 'axios';
 
 const props = defineProps({
     session: { type: Object, required: true },
@@ -18,9 +19,18 @@ const toolNotice = ref('');
 const elapsedSeconds = ref(0);
 const isScreenSharing = ref(false);
 const isRecording = ref(false);
+const isRecordingLinkPending = ref(false);
+const isWhiteboardOpen = ref(false);
+const sessionStatus = ref(props.session.status);
+const sessionStartedAt = ref(props.startedAt);
+const isEndingSession = ref(false);
+
+const whiteboardEnabled = computed(() => props.jitsi.whiteboard?.enabled === true
+    && typeof props.jitsi.whiteboard?.collabServerBaseUrl === 'string'
+    && props.jitsi.whiteboard.collabServerBaseUrl.trim() !== '');
 
 const sessionDuration = computed(() => {
-    if (!props.startedAt) {
+    if (!sessionStartedAt.value) {
         return 'لم تبدأ';
     }
 
@@ -39,9 +49,14 @@ let resizeHandler = null;
 let sessionTimer = null;
 let iframePermissionTimer = null;
 let recordingMode = null;
+let waitingForRecordingLink = false;
+let recordingLinkTimeout = null;
+let endAfterRecording = false;
+let studentAttendanceJoined = false;
+let studentAttendanceLeft = false;
 
 function updateSessionDuration() {
-    const startedAt = Date.parse(props.startedAt || '');
+    const startedAt = Date.parse(sessionStartedAt.value || '');
 
     elapsedSeconds.value = Number.isNaN(startedAt)
         ? 0
@@ -108,7 +123,7 @@ function loadExternalApi() {
 
 function whiteboardConfig() {
     const config = {
-        enabled: props.jitsi.whiteboard?.enabled === true,
+        enabled: whiteboardEnabled.value,
         userLimit: Number(props.jitsi.whiteboard?.userLimit || 30),
     };
 
@@ -161,21 +176,88 @@ function handleMediaPermissionError(event) {
     toolNotice.value = 'المتصفح مانع الكاميرا والميكروفون. اضغط أيقونة القفل أو الكاميرا بجوار عنوان الموقع، اختر السماح، ثم أعد تحميل الصفحة.';
 }
 
-function handleConferenceJoined() {
+async function startSessionFromRoom() {
+    if (!props.user.isTeacher || sessionStatus.value !== 'scheduled') {
+        return;
+    }
+
+    try {
+        const response = await axios.post(route('teacher.live-sessions.start', props.session.id));
+        sessionStatus.value = response.data?.status || 'live';
+        sessionStartedAt.value = response.data?.started_at || new Date().toISOString();
+        updateSessionDuration();
+        toolNotice.value = 'تم بدء الحصة. يمكن للطلاب الدخول الآن.';
+    } catch (error) {
+        console.error('Could not start the live session from the room.', error);
+        toolNotice.value = error.response?.data?.message
+            || 'تعذّر بدء الحصة من الخادم. سيظل دخول الطلاب مقفولًا حتى تبدأها.';
+    }
+}
+
+async function recordStudentJoin() {
+    if (props.user.isTeacher || studentAttendanceJoined) {
+        return;
+    }
+
+    try {
+        await axios.post(route('live-sessions.attendance.join', props.session.id));
+        studentAttendanceJoined = true;
+    } catch (error) {
+        console.error('Could not record student attendance join.', error);
+        toolNotice.value = error.response?.data?.message
+            || 'تعذّر تسجيل دخولك للحصة. سيظل الدخول مفتوحًا، لكن أبلغ ولي أمرك إذا استمر التنبيه.';
+    }
+}
+
+async function recordStudentLeave() {
+    if (props.user.isTeacher || ! studentAttendanceJoined || studentAttendanceLeft) {
+        return;
+    }
+
+    studentAttendanceLeft = true;
+
+    try {
+        await axios.post(route('live-sessions.attendance.leave', props.session.id));
+    } catch (error) {
+        console.error('Could not record student attendance leave.', error);
+    }
+}
+
+async function handleConferenceJoined() {
     clearConferenceJoinTimeout();
     isLoading.value = false;
     isJoined.value = true;
 
     if (props.user.isTeacher) {
         jitsiApi?.executeCommand('subject', props.session.title);
+        await startSessionFromRoom();
+    } else {
+        await recordStudentJoin();
     }
 }
 
-function handleConferenceLeft() {
+function clearRecordingLinkTimeout() {
+    if (recordingLinkTimeout) {
+        window.clearTimeout(recordingLinkTimeout);
+        recordingLinkTimeout = null;
+    }
+}
+
+async function handleConferenceLeft() {
+    if (!props.user.isTeacher && isJoined.value) {
+        await recordStudentLeave();
+    }
+
     clearConferenceJoinTimeout();
     isScreenSharing.value = false;
     isRecording.value = false;
+    isRecordingLinkPending.value = false;
+    isWhiteboardOpen.value = false;
+    waitingForRecordingLink = false;
     recordingMode = null;
+    isJoined.value = false;
+
+    clearRecordingLinkTimeout();
 
     if (leaveFallbackTimer) {
         window.clearTimeout(leaveFallbackTimer);
@@ -192,14 +274,70 @@ function handleScreenSharingStatusChanged(event) {
 function handleRecordingStatusChanged(event) {
     if (event?.error) {
         toolNotice.value = 'تعذّر بدء التسجيل على خادم Jitsi الحالي.';
+        isRecordingLinkPending.value = false;
+        recordingMode = null;
     }
 
-    if (event?.mode === 'local' || recordingMode === 'local') {
+    if (event?.mode === 'file' || recordingMode === 'file') {
         isRecording.value = event?.on === true;
 
         if (!isRecording.value) {
-            recordingMode = null;
+            isRecordingLinkPending.value = !event?.error;
         }
+    }
+}
+
+async function handleRecordingLinkAvailable(event) {
+    if (!props.user.isTeacher || typeof event?.link !== 'string' || event.link.trim() === '') {
+        return;
+    }
+
+    isRecordingLinkPending.value = true;
+    toolNotice.value = 'جاري حفظ رابط التسجيل تلقائيًا...';
+
+    try {
+        const response = await axios.post(route('teacher.live-sessions.recording', props.session.id), {
+            recording_url: event.link.trim(),
+        });
+
+        recordingMode = null;
+        isRecordingLinkPending.value = false;
+        toolNotice.value = response.data?.published
+            ? 'تم حفظ التسجيل ونشره للطلاب داخل المنصة.'
+            : 'تم حفظ رابط التسجيل تلقائيًا.';
+    } catch (error) {
+        console.error('Could not save the Jitsi recording link.', error);
+        recordingMode = null;
+        isRecordingLinkPending.value = false;
+        toolNotice.value = error.response?.data?.message
+            || 'تعذّر حفظ رابط التسجيل تلقائيًا. راجع إعدادات خدمة تسجيل Jitsi.';
+    } finally {
+        if (waitingForRecordingLink) {
+            const shouldEndSession = endAfterRecording;
+            endAfterRecording = false;
+            waitingForRecordingLink = false;
+            clearRecordingLinkTimeout();
+
+            if (shouldEndSession) {
+                const ended = await endSessionOnServer();
+
+                if (ended) {
+                    finishLeavingRoom();
+                }
+            } else {
+                finishLeavingRoom();
+            }
+        }
+    }
+}
+
+function handleWhiteboardStatusChanged(event) {
+    const status = String(event?.status || '').toLowerCase();
+
+    isWhiteboardOpen.value = status.includes('open') || status.includes('visible');
+
+    if (status.includes('error') || status.includes('fail') || status.includes('unavailable')) {
+        toolNotice.value = 'تعذّر تشغيل السبورة. تأكد من إعداد خادم التعاون الخاص بـ Jitsi.';
     }
 }
 
@@ -233,14 +371,29 @@ function toggleScreenShare() {
 function toggleRecording() {
     toolNotice.value = '';
 
+    if (props.jitsi.recording?.enabled !== true) {
+        toolNotice.value = 'التسجيل السحابي غير مفعّل على خادم Jitsi الحالي.';
+        return;
+    }
+
     if (!jitsiApi || !isJoined.value) {
         toolNotice.value = 'جاري تجهيز غرفة Jitsi، جرّب التسجيل بعد الاتصال.';
         return;
     }
 
+    if (isRecordingLinkPending.value) {
+        toolNotice.value = 'جاري تجهيز رابط التسجيل، انتظر لحظات.';
+        return;
+    }
+
+    if (recordingMode === 'file' && !isRecording.value) {
+        toolNotice.value = 'جاري تجهيز التسجيل، انتظر لحظات.';
+        return;
+    }
+
     try {
         if (isRecording.value) {
-            jitsiApi.executeCommand('stopRecording', 'local', false);
+            jitsiApi.executeCommand('stopRecording', recordingMode || 'file', false);
             return;
         }
 
@@ -249,29 +402,34 @@ function toggleRecording() {
             return;
         }
 
-        recordingMode = 'local';
+        recordingMode = props.jitsi.recording?.mode || 'file';
         jitsiApi.executeCommand('startRecording', {
-            mode: 'local',
+            mode: recordingMode,
             onlySelf: false,
             shouldShare: false,
         });
-        toolNotice.value = 'سيتم حفظ التسجيل محليًا على جهاز المدرس عند إيقافه.';
+        toolNotice.value = 'سيتم تجهيز رابط التسجيل تلقائيًا عند إيقافه.';
     } catch (error) {
         recordingMode = null;
-        console.error('Could not toggle local recording.', error);
-        toolNotice.value = 'تعذّر بدء التسجيل. قد لا يدعم خادم Jitsi التسجيل المحلي.';
+        console.error('Could not toggle server recording.', error);
+        toolNotice.value = 'تعذّر بدء التسجيل السحابي. تأكد من تشغيل خدمة التسجيل على Jitsi.';
     }
 }
 
 function openWhiteboard() {
     toolNotice.value = '';
 
+    if (!isJoined.value) {
+        toolNotice.value = 'السبورة ستكون متاحة بعد الاتصال بالجلسة.';
+        return;
+    }
+
     if (!jitsiApi) {
         toolNotice.value = 'جاري تجهيز غرفة Jitsi، جرّب مرة أخرى خلال لحظات.';
         return;
     }
 
-    if (!props.jitsi.whiteboard?.enabled) {
+    if (!whiteboardEnabled.value) {
         toolNotice.value = 'السبورة غير مفعّلة في إعدادات Jitsi الحالية.';
         return;
     }
@@ -290,20 +448,117 @@ function openWhiteboard() {
     }
 }
 
-function leaveRoom() {
-    if (!jitsiApi) {
-        returnToSchedule();
+async function endSessionOnServer() {
+    try {
+        const response = await axios.post(route('teacher.live-sessions.end', props.session.id));
+        sessionStatus.value = response.data?.status || 'ended';
+        isEndingSession.value = false;
+        return true;
+    } catch (error) {
+        console.error('Could not end the live session from the room.', error);
+        isEndingSession.value = false;
+        toolNotice.value = error.response?.data?.message
+            || 'تعذّر إنهاء الحصة من الخادم. حاول مرة أخرى.';
+        return false;
+    }
+}
+
+function waitForRecordingThenEnd() {
+    endAfterRecording = true;
+    waitingForRecordingLink = true;
+    clearRecordingLinkTimeout();
+
+    if (isRecording.value) {
+        try {
+            jitsiApi?.executeCommand('stopRecording', recordingMode || 'file', false);
+        } catch (error) {
+            console.error('Could not stop the Jitsi recording before ending.', error);
+        }
+    }
+
+    recordingLinkTimeout = window.setTimeout(async () => {
+        recordingLinkTimeout = null;
+
+        if (!endAfterRecording) {
+            return;
+        }
+
+        endAfterRecording = false;
+        waitingForRecordingLink = false;
+        isRecordingLinkPending.value = false;
+
+        const ended = await endSessionOnServer();
+
+        if (ended) {
+            finishLeavingRoom();
+        }
+    }, 30000);
+}
+
+async function endSession() {
+    if (!props.user.isTeacher || sessionStatus.value !== 'live' || isEndingSession.value) {
         return;
     }
 
-    if (isRecording.value) {
-        jitsiApi.executeCommand('stopRecording', 'local', false);
+    if (!window.confirm('هل تريد إنهاء الحصة لجميع الطلاب؟')) {
+        return;
+    }
+
+    isEndingSession.value = true;
+    toolNotice.value = 'جاري إنهاء الحصة...';
+
+    const hasServerRecording = props.jitsi.recording?.enabled === true
+        && (recordingMode === 'file' || isRecording.value || isRecordingLinkPending.value);
+
+    if (jitsiApi && hasServerRecording) {
+        waitForRecordingThenEnd();
+        return;
+    }
+
+    const ended = await endSessionOnServer();
+
+    if (ended) {
+        finishLeavingRoom();
+    }
+}
+
+function finishLeavingRoom() {
+    waitingForRecordingLink = false;
+    endAfterRecording = false;
+    clearRecordingLinkTimeout();
+
+    if (!jitsiApi) {
+        returnToSchedule();
+        return;
     }
 
     jitsiApi.executeCommand('hangup');
     leaveFallbackTimer = window.setTimeout(() => {
         returnToSchedule();
     }, 1500);
+}
+
+function leaveRoom() {
+    if (!jitsiApi) {
+        returnToSchedule();
+        return;
+    }
+
+    if (recordingMode === 'file') {
+        waitingForRecordingLink = true;
+
+        if (isRecording.value) {
+            jitsiApi.executeCommand('stopRecording', 'file', false);
+        }
+
+        recordingLinkTimeout = window.setTimeout(() => {
+            toolNotice.value = 'انتهى وقت انتظار رابط التسجيل؛ سيتم إغلاق الحصة الآن.';
+            finishLeavingRoom();
+        }, 30000);
+        return;
+    }
+
+    finishLeavingRoom();
 }
 
 function jitsiFrameHeight() {
@@ -331,12 +586,16 @@ function createMeeting() {
             disableInviteFunctions: true,
             doNotStoreRoom: true,
             useHostPageLocalStorage: true,
+            fileRecordingsEnabled: props.jitsi.recording?.enabled === true,
+            fileRecordingsServiceEnabled: props.jitsi.recording?.enabled === true,
+            fileRecordingsServiceSharingEnabled: false,
             localRecording: {
-                disable: false,
+                disable: true,
                 notifyAllParticipants: true,
             },
             recordings: {
                 recordAudioAndVideo: true,
+                showRecordingLink: true,
             },
             timeTimer: { enabled: false },
             whiteboard: whiteboardConfig(),
@@ -361,6 +620,8 @@ function createMeeting() {
     jitsiApi.addListener('readyToClose', handleConferenceLeft);
     jitsiApi.addListener('screenSharingStatusChanged', handleScreenSharingStatusChanged);
     jitsiApi.addListener('recordingStatusChanged', handleRecordingStatusChanged);
+    jitsiApi.addListener('recordingLinkAvailable', handleRecordingLinkAvailable);
+    jitsiApi.addListener('whiteboardStatusChanged', handleWhiteboardStatusChanged);
     jitsiApi.addListener('cameraError', handleMediaPermissionError);
     jitsiApi.addListener('micError', handleMediaPermissionError);
     jitsiApi.addListener('errorOccurred', (event) => {
@@ -432,6 +693,9 @@ onBeforeUnmount(() => {
 
     const api = jitsiApi;
     jitsiApi = null;
+    clearRecordingLinkTimeout();
+    api?.removeListener?.('recordingLinkAvailable', handleRecordingLinkAvailable);
+    api?.removeListener?.('whiteboardStatusChanged', handleWhiteboardStatusChanged);
     api?.dispose();
 });
 </script>
@@ -469,21 +733,32 @@ onBeforeUnmount(() => {
                         type="button"
                         class="classroom-tool-button recording-button"
                         :class="{ active: isRecording }"
-                        :disabled="!isJoined"
+                        :disabled="!isJoined || isRecordingLinkPending"
                         @click="toggleRecording"
                     >
                         <span aria-hidden="true">●</span>
-                        {{ isRecording ? 'إيقاف التسجيل' : 'تسجيل الحصة' }}
+                        {{ isRecordingLinkPending ? 'جاري تجهيز الرابط...' : (isRecording ? 'إيقاف التسجيل' : 'تسجيل الحصة') }}
+                    </button>
+                    <button
+                        v-if="sessionStatus === 'live'"
+                        type="button"
+                        class="classroom-tool-button end-session-button"
+                        :disabled="!isJoined || isEndingSession"
+                        @click="endSession"
+                    >
+                        <span aria-hidden="true">■</span>
+                        {{ isEndingSession ? 'جاري إنهاء الحصة...' : 'إنهاء الحصة' }}
                     </button>
                 </template>
-                <div class="session-timer" :class="{ pending: !startedAt }" aria-live="polite">
+                <div class="session-timer" :class="{ pending: !sessionStartedAt }" aria-live="polite">
                     <span class="session-timer-label">مدة الحصة</span>
                     <strong>{{ sessionDuration }}</strong>
                 </div>
                 <button
                     type="button"
                     class="whiteboard-button"
-                    :disabled="!jitsi.whiteboard?.enabled"
+                    :aria-pressed="isWhiteboardOpen"
+                    :disabled="!isJoined || !whiteboardEnabled"
                     @click="openWhiteboard"
                 >
                     <span aria-hidden="true">✎</span>
@@ -632,6 +907,12 @@ onBeforeUnmount(() => {
     border-color: #fca5a5;
 }
 
+.end-session-button {
+    color: #fee2e2;
+    background: rgba(185, 28, 28, 0.28);
+    border-color: rgba(252, 165, 165, 0.45);
+}
+
 .whiteboard-button:hover:not(:disabled),
 .whiteboard-button:focus-visible:not(:disabled),
 .classroom-tool-button:hover:not(:disabled),
@@ -640,6 +921,11 @@ onBeforeUnmount(() => {
 .retry-button:focus-visible {
     transform: translateY(-1px);
     background: #2551d8;
+}
+
+.end-session-button:hover:not(:disabled),
+.end-session-button:focus-visible:not(:disabled) {
+    background: #b91c1c;
 }
 
 .whiteboard-button:disabled {

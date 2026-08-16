@@ -101,6 +101,17 @@ class SubscriptionService
 
             [$periodStart, $periodEnd] = $this->resolvePeriod($startsOn);
 
+            $existing = Subscription::where('student_id', $student->id)
+                ->where('teaching_assignment_id', $assignment->id)
+                ->where('type', Subscription::TYPE_PRIVATE)
+                ->whereDate('period_start', $periodStart->toDateString())
+                ->whereIn('status', [Subscription::STATUS_PENDING, Subscription::STATUS_ACTIVE])
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+
             return Subscription::create([
                 'student_id' => $student->id,
                 'type' => Subscription::TYPE_PRIVATE,
@@ -234,20 +245,23 @@ class SubscriptionService
             ->first();
     }
 
-    /** End a subscription early and release the group seat. */
+    /** End a subscription early and release its group seat or private slots. */
     public function cancel(Subscription $subscription): void
     {
         DB::transaction(function () use ($subscription): void {
-            $subscription->update([
+            $locked = Subscription::query()->lockForUpdate()->findOrFail($subscription->id);
+            $locked->update([
                 'status' => Subscription::STATUS_CANCELLED,
                 'cancelled_at' => now(),
             ]);
 
-            if ($subscription->teaching_group_id) {
-                SessionBooking::where('student_id', $subscription->student_id)
-                    ->where('teaching_group_id', $subscription->teaching_group_id)
+            if ($locked->teaching_group_id) {
+                SessionBooking::where('student_id', $locked->student_id)
+                    ->where('teaching_group_id', $locked->teaching_group_id)
                     ->where('status', 'confirmed')
                     ->update(['status' => 'cancelled']);
+            } elseif ($locked->type === Subscription::TYPE_PRIVATE) {
+                $this->releasePrivateBookings($locked);
             }
         });
     }
@@ -263,14 +277,24 @@ class SubscriptionService
             ->get();
 
         foreach ($lapsed as $subscription) {
-            $subscription->update(['status' => Subscription::STATUS_EXPIRED]);
+            DB::transaction(function () use ($subscription): void {
+                $locked = Subscription::query()->lockForUpdate()->find($subscription->id);
 
-            if ($subscription->teaching_group_id) {
-                SessionBooking::where('student_id', $subscription->student_id)
-                    ->where('teaching_group_id', $subscription->teaching_group_id)
-                    ->where('status', 'confirmed')
-                    ->update(['status' => 'cancelled']);
-            }
+                if (! $locked || $locked->status !== Subscription::STATUS_ACTIVE) {
+                    return;
+                }
+
+                $locked->update(['status' => Subscription::STATUS_EXPIRED]);
+
+                if ($locked->teaching_group_id) {
+                    SessionBooking::where('student_id', $locked->student_id)
+                        ->where('teaching_group_id', $locked->teaching_group_id)
+                        ->where('status', 'confirmed')
+                        ->update(['status' => 'cancelled']);
+                } elseif ($locked->type === Subscription::TYPE_PRIVATE) {
+                    $this->releasePrivateBookings($locked);
+                }
+            });
         }
 
         return $lapsed->count();
@@ -321,5 +345,30 @@ class SubscriptionService
                 'booked_at' => now(),
             ],
         );
+    }
+
+    /** Release future private appointments when private access ends. */
+    private function releasePrivateBookings(Subscription $subscription): void
+    {
+        $bookings = SessionBooking::query()
+            ->where('student_id', $subscription->student_id)
+            ->where('status', 'confirmed')
+            ->whereNotNull('private_session_slot_id')
+            ->whereHas('privateSlot', fn ($query) => $query
+                ->where('teaching_assignment_id', $subscription->teaching_assignment_id)
+                ->where('is_free_intro', false)
+                ->where('starts_at', '>=', now()))
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($bookings as $booking) {
+            $slot = PrivateSessionSlot::query()->lockForUpdate()->find($booking->private_session_slot_id);
+
+            $booking->update(['status' => 'cancelled']);
+
+            if ($slot?->status === 'booked') {
+                $slot->update(['status' => 'available']);
+            }
+        }
     }
 }
