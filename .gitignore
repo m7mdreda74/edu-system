@@ -14,6 +14,8 @@
 /.zed
 /auth.json
 /node_modules
+qa-playwright/node_modules
+qa-playwright/package-lock.json
 /public/build
 /public/hot
 /storage/*.key
