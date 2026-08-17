@@ -705,13 +705,13 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                             </button>
 
                             <div class="flex items-center gap-1 ms-auto">
-                                <button type="button" class="btn-ghost btn-sm" title="تحريك لأعلى" :disabled="unitIndex === 0" @click="moveUnit(unit, 'up')">
+                                <button type="button" class="btn-ghost btn-sm" title="تحريك لأعلى" aria-label="تحريك الوحدة لأعلى" :disabled="unitIndex === 0" @click="moveUnit(unit, 'up')">
                                     <Icon name="arrowRight" class="w-4 h-4 -rotate-90" />
                                 </button>
-                                <button type="button" class="btn-ghost btn-sm" title="تحريك لأسفل" :disabled="unitIndex === units.length - 1" @click="moveUnit(unit, 'down')">
+                                <button type="button" class="btn-ghost btn-sm" title="تحريك لأسفل" aria-label="تحريك الوحدة لأسفل" :disabled="unitIndex === units.length - 1" @click="moveUnit(unit, 'down')">
                                     <Icon name="arrowRight" class="w-4 h-4 rotate-90" />
                                 </button>
-                                <button type="button" class="btn-ghost btn-sm text-red-500 hover:bg-red-500/10" title="حذف الوحدة" @click="removeUnit(unit)">
+                                <button type="button" class="btn-ghost btn-sm text-red-500 hover:bg-red-500/10" title="حذف الوحدة" aria-label="حذف الوحدة" @click="removeUnit(unit)">
                                     <Icon name="trash" class="w-4 h-4" />
                                 </button>
                             </div>
@@ -801,7 +801,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                             <p v-else class="text-[11px] text-primary-500 mt-2 font-semibold">تسجيل حصة محمي — الحذف متاح للإدارة فقط</p>
                                         </div>
 
-                                        <button v-else type="button" :class="SLOT_EMPTY" @click="openVideo(lesson)">
+                                        <button v-else type="button" :class="SLOT_EMPTY" aria-label="إضافة فيديو للدرس" @click="openVideo(lesson)">
                                             <Icon name="plus" class="w-5 h-5 text-surface-400" />
                                             <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">أضف رابط الفيديو</span>
                                         </button>
@@ -944,7 +944,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                         </Link>
                                     </div>
 
-                                    <button v-else type="button" :class="SLOT_EMPTY" @click="createQuiz(unit)">
+                                    <button v-else type="button" :class="SLOT_EMPTY" aria-label="إضافة اختبار للوحدة" @click="createQuiz(unit)">
                                         <Icon name="plus" class="w-5 h-5 text-surface-400" />
                                         <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">أنشئ النموذج الإلكتروني</span>
                                         <span class="text-[10px] text-surface-400">أسئلة اختيار من متعدد بمدة ونافذة إتاحة</span>

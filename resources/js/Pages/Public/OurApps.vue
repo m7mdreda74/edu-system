@@ -48,11 +48,11 @@ const huaweiUrl = computed(() => settings.value.app_huawei_url || null);
                             </p>
                         </div>
                         <div class="space-y-3">
-                            <a v-if="winUrl" :href="winUrl" class="btn-primary w-full py-2.5 flex items-center justify-center gap-2 transition-transform duration-200 hover:scale-102">
+                            <a v-if="winUrl" :href="winUrl" class="btn-primary w-full py-2.5 flex items-center justify-center gap-2 transition-transform duration-200 hover:scale-[1.02]">
                                 <Icon name="globe" class="w-4 h-4 text-white" />
                                 <span>تنزيل لنظام ويندوز (Windows App)</span>
                             </a>
-                            <a v-if="macUrl" :href="macUrl" class="btn-outline w-full py-2.5 flex items-center justify-center gap-2 transition-transform duration-200 hover:scale-102">
+                            <a v-if="macUrl" :href="macUrl" class="btn-outline w-full py-2.5 flex items-center justify-center gap-2 transition-transform duration-200 hover:scale-[1.02]">
                                 <Icon name="globe" class="w-4 h-4" />
                                 <span>تنزيل لنظام ماك (macOS App)</span>
                             </a>
@@ -95,15 +95,15 @@ const huaweiUrl = computed(() => settings.value.app_huawei_url || null);
                     <h3 class="font-bold text-surface-900 dark:text-white text-base mb-4 text-center">خطوات تسجيل الدخول في التطبيق</h3>
                     <div class="space-y-4 text-xs text-surface-550 leading-relaxed">
                         <div class="flex gap-3 items-start">
-                            <div class="w-5 h-5 bg-primary-100 dark:bg-primary-950 text-primary-650 dark:text-primary-400 rounded-full font-bold flex items-center justify-center flex-shrink-0 text-[10px]">١</div>
+                            <div class="w-5 h-5 bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-full font-bold flex items-center justify-center flex-shrink-0 text-[10px]">١</div>
                             <p>قم بتسجيل الدخول إلى حسابك على موقع منصة التفوق من خلال المتصفح بشكل اعتيادي.</p>
                         </div>
                         <div class="flex gap-3 items-start">
-                            <div class="w-5 h-5 bg-primary-100 dark:bg-primary-950 text-primary-650 dark:text-primary-400 rounded-full font-bold flex items-center justify-center flex-shrink-0 text-[10px]">٢</div>
+                            <div class="w-5 h-5 bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-full font-bold flex items-center justify-center flex-shrink-0 text-[10px]">٢</div>
                             <p>توجه إلى حسابك الشخصي (الملف التعريفي) لتوليد رمز الاستجابة السريعة (QR Code) أو رقم الوصول الحصري.</p>
                         </div>
                         <div class="flex gap-3 items-start">
-                            <div class="w-5 h-5 bg-primary-100 dark:bg-primary-950 text-primary-650 dark:text-primary-400 rounded-full font-bold flex items-center justify-center flex-shrink-0 text-[10px]">٣</div>
+                            <div class="w-5 h-5 bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-full font-bold flex items-center justify-center flex-shrink-0 text-[10px]">٣</div>
                             <p>افتح التطبيق المنزّل على جهازك، واضغط على "تسجيل عبر الباركود"، ووجه كاميرا الهاتف نحو الشاشة ليتم الدخول فوراً وبأمان.</p>
                         </div>
                     </div>

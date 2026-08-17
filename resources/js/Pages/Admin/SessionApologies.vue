@@ -80,10 +80,10 @@ function formatDate(value) {
             </section>
 
             <div class="flex flex-wrap gap-2">
-                <button :class="!filters.status ? 'btn-primary' : 'btn-outline'" @click="filter()">الكل</button>
-                <button :class="filters.status === 'pending' ? 'btn-primary' : 'btn-outline'" @click="filter('pending')">بانتظار القرار</button>
-                <button :class="filters.status === 'makeup_scheduled' ? 'btn-primary' : 'btn-outline'" @click="filter('makeup_scheduled')">حصة تعويضية</button>
-                <button :class="filters.status === 'deducted' ? 'btn-primary' : 'btn-outline'" @click="filter('deducted')">خصم</button>
+                <button type="button" :class="!filters.status ? 'btn-primary' : 'btn-outline'" @click="filter()">الكل</button>
+                <button type="button" :class="filters.status === 'pending' ? 'btn-primary' : 'btn-outline'" @click="filter('pending')">بانتظار القرار</button>
+                <button type="button" :class="filters.status === 'makeup_scheduled' ? 'btn-primary' : 'btn-outline'" @click="filter('makeup_scheduled')">حصة تعويضية</button>
+                <button type="button" :class="filters.status === 'deducted' ? 'btn-primary' : 'btn-outline'" @click="filter('deducted')">خصم</button>
             </div>
 
             <section class="grid gap-4 xl:grid-cols-2">
@@ -91,7 +91,7 @@ function formatDate(value) {
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div class="flex items-center gap-3">
                             <div class="avatar-md bg-primary-500/10">
-                                <img v-if="apology.teacher?.avatar" :src="apology.teacher.avatar" class="h-full w-full object-cover" />
+                                <img v-if="apology.teacher?.avatar" :src="apology.teacher.avatar" :alt="apology.teacher.name" class="h-full w-full object-cover" />
                                 <span v-else class="font-black text-primary-600">{{ apology.teacher?.name?.charAt(0) }}</span>
                             </div>
                             <div>
@@ -126,7 +126,7 @@ function formatDate(value) {
                         </p>
                     </div>
 
-                    <button v-if="apology.status === 'pending'" class="btn-primary w-full" @click="openDeduction(apology)">
+                    <button type="button" v-if="apology.status === 'pending'" class="btn-primary w-full" @click="openDeduction(apology)">
                         تنفيذ خصم على المدرس
                     </button>
                 </article>
@@ -139,7 +139,7 @@ function formatDate(value) {
             <DataTablePagination class="card" :paginator="apologies" item-label="اعتذار" />
         </div>
 
-        <div v-if="selected" class="modal-overlay z-[70] bg-black/60" @click.self="selected = null">
+        <div v-if="selected" class="modal-overlay z-[70] bg-black/60" role="dialog" aria-modal="true" aria-label="تسجيل خصم" @click.self="selected = null">
             <form class="modal-panel-compact card w-full max-w-lg space-y-4 p-6" @submit.prevent="submitDeduction">
                 <div>
                     <h2 class="text-xl font-black text-surface-900 dark:text-white">تسجيل خصم على {{ selected.teacher?.name }}</h2>
@@ -156,7 +156,7 @@ function formatDate(value) {
                 </div>
                 <div class="flex justify-end gap-2">
                     <button type="button" class="btn-ghost" @click="selected = null">إلغاء</button>
-                    <button class="btn-primary" :disabled="form.processing">تأكيد الخصم</button>
+                    <button type="submit" class="btn-primary" :disabled="form.processing">تأكيد الخصم</button>
                 </div>
             </form>
         </div>

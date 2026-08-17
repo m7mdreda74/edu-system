@@ -89,7 +89,7 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="min-h-screen flex bg-gradient-to-br from-primary-900 via-primary-850 to-primary-950 text-white" dir="rtl" lang="ar">
+    <div class="min-h-screen flex bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950 text-white" dir="rtl" lang="ar">
         
         <!-- ── Left: Premium Decorative Panel ── -->
         <div class="hidden lg:flex flex-col justify-between w-[32%] bg-gradient-to-b from-primary-950 via-primary-900 to-surface-950 border-e border-white/10 p-12 shrink-0 overflow-hidden select-none relative">
@@ -359,7 +359,7 @@ const submit = () => {
                         <button
                             type="submit"
                             :disabled="form.processing"
-                            class="w-full py-3.5 bg-surface-950 hover:bg-surface-900 text-white rounded-full font-bold text-sm shadow-lg transition-all duration-200 active:scale-98 flex items-center justify-center gap-2"
+                            class="w-full py-3.5 bg-surface-950 hover:bg-surface-900 text-white rounded-full font-bold text-sm shadow-lg transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2"
                             :class="{ 'opacity-65 cursor-not-allowed': form.processing }"
                             id="register-submit-btn"
                         >
@@ -370,7 +370,7 @@ const submit = () => {
                         <!-- Login Link Button -->
                         <Link
                             :href="route('login')"
-                            class="w-full py-3.5 bg-white hover:bg-surface-50 text-primary-900 rounded-full font-bold text-sm shadow-md transition-all duration-200 active:scale-98 flex items-center justify-center"
+                            class="w-full py-3.5 bg-white hover:bg-surface-50 text-primary-900 rounded-full font-bold text-sm shadow-md transition-all duration-200 active:scale-[0.98] flex items-center justify-center"
                         >
                             تسجيل الدخول
                         </Link>

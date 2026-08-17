@@ -23,7 +23,7 @@ function printCertificate() {
                 <Link :href="route('dashboard')" class="btn-ghost">
                     ← العودة للداشبورد
                 </Link>
-                <button @click="printCertificate" class="btn-primary" id="print-cert-btn">
+                <button type="button" @click="printCertificate" class="btn-primary" id="print-cert-btn">
                     طباعة الشهادة
                 </button>
             </div>
@@ -112,7 +112,7 @@ function printCertificate() {
 
             <!-- Share / Download actions -->
             <div class="flex gap-3 justify-center mt-8 print:hidden">
-                <button @click="printCertificate" class="btn-outline">
+                <button type="button" @click="printCertificate" class="btn-outline">
                     حفظ كـ PDF
                 </button>
             </div>

@@ -25,7 +25,7 @@ const submit = () => {
     <GuestLayout>
         <Head title="نسيت كلمة المرور" />
 
-        <div class="mb-4 text-sm text-gray-600">
+        <div class="mb-4 text-sm text-surface-600 dark:text-surface-300">
             هل نسيت كلمة المرور؟ لا مشكلة. اكتب بريدك الإلكتروني وسنرسل لك
             رابطًا لإعادة تعيين كلمة المرور.
         </div>

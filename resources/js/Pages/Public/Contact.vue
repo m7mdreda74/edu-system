@@ -68,7 +68,7 @@ function handleSubmit() {
                             </div>
                             <div>
                                 <h4 class="font-bold text-surface-400 text-xs mb-1">{{ info.title }}</h4>
-                                <a v-if="info.href" :href="info.href" target="_blank" class="font-bold text-surface-800 dark:text-white text-sm hover:text-primary-600 transition-colors">
+                                <a v-if="info.href" :href="info.href" target="_blank" rel="noopener noreferrer" class="font-bold text-surface-800 dark:text-white text-sm hover:text-primary-600 transition-colors">
                                     {{ info.value }}
                                 </a>
                                 <span v-else class="font-bold text-surface-800 dark:text-white text-sm">{{ info.value }}</span>

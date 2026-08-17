@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/authStore';
 import Icon from '@/Components/Icon.vue';
@@ -24,9 +24,36 @@ watch(() => page.props.flash, (newFlash) => {
 const isSidebarOpen = ref(false);
 const isDark        = ref(false);
 const isSidebarCollapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true');
+let previousBodyOverflow = '';
 
 onMounted(() => {
     isDark.value = document.documentElement.classList.contains('dark');
+});
+
+function closeSidebar() {
+    isSidebarOpen.value = false;
+}
+
+// Layout components persist across Inertia visits, so close the mobile drawer
+// explicitly when a navigation finishes instead of leaving the overlay open.
+watch(() => page.url, closeSidebar);
+
+watch(isSidebarOpen, (open) => {
+    if (typeof window === 'undefined' || window.innerWidth >= 1024) return;
+
+    if (open) {
+        previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+    } else if (!document.querySelector('.modal-overlay')) {
+        document.body.style.overflow = previousBodyOverflow;
+        previousBodyOverflow = '';
+    }
+});
+
+onUnmounted(() => {
+    if (!document.querySelector('.modal-overlay')) {
+        document.body.style.overflow = previousBodyOverflow;
+    }
 });
 
 function toggleDark() {
@@ -140,11 +167,12 @@ const isActive = (name) => {
         <ConfirmDialog />
         
         <!-- ── Mobile Sidebar Overlay ──────────────────────────────────────── -->
-        <div v-if="isSidebarOpen" @click="isSidebarOpen = false"
-             class="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"></div>
+        <div v-if="isSidebarOpen" @click="closeSidebar"
+             class="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+             aria-hidden="true"></div>
 
         <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
-        <aside :class="[
+        <aside id="dashboard-sidebar" :class="[
             'fixed inset-y-0 start-0 z-50 bg-white dark:bg-surface-950 border-e border-surface-200 dark:border-surface-800 shadow-2xl transition-all duration-300 ease-in-out lg:static lg:translate-x-0',
             isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0',
             isSidebarCollapsed ? 'w-64 lg:w-20' : 'w-64 lg:w-64'
@@ -160,7 +188,7 @@ const isActive = (name) => {
                         </div>
                         <span v-show="!isSidebarCollapsed" class="text-lg font-bold text-surface-900 dark:text-white tracking-wide group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">التفوق</span>
                     </Link>
-                    <button v-show="!isSidebarCollapsed" @click="isSidebarOpen = false" class="lg:hidden text-surface-500 hover:text-surface-800 dark:text-surface-400 dark:hover:text-white">
+                    <button v-show="!isSidebarCollapsed" type="button" @click="closeSidebar" class="lg:hidden text-surface-500 hover:text-surface-800 dark:text-surface-400 dark:hover:text-white" aria-label="إغلاق القائمة الجانبية">
                         ✕
                     </button>
                 </div>
@@ -169,7 +197,7 @@ const isActive = (name) => {
                 <Link :href="route('profile.edit')" prefetch cache-for="30s" class="flex items-center border-b border-surface-200 dark:border-surface-800 hover:bg-surface-50 dark:hover:bg-surface-900 transition-all duration-300 group"
                       :class="isSidebarCollapsed ? 'p-4 justify-center' : 'p-6 gap-3'">
                     <div class="avatar-md bg-surface-100 dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 group-hover:border-primary-500 transition-colors shrink-0">
-                        <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" class="w-full h-full object-cover">
+                        <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" :alt="authStore.user.name" class="w-full h-full object-cover">
                         <span v-else class="text-surface-600 dark:text-surface-300 font-bold">{{ authStore.user?.name?.charAt(0) }}</span>
                     </div>
                     <div v-show="!isSidebarCollapsed" class="overflow-hidden flex-1">
@@ -180,7 +208,7 @@ const isActive = (name) => {
                 </Link>
 
                 <!-- Navigation -->
-                <nav class="flex-1 overflow-y-auto py-6 space-y-6 transition-all duration-300" :class="isSidebarCollapsed ? 'px-2' : 'px-3'">
+                <nav aria-label="التنقل الرئيسي" class="flex-1 overflow-y-auto py-6 space-y-6 transition-all duration-300" :class="isSidebarCollapsed ? 'px-2' : 'px-3'">
                     <div v-for="group in menuGroups" :key="group.title" class="space-y-2">
                         <!-- Group Title -->
                         <div v-show="!isSidebarCollapsed" class="px-4 text-[10px] font-bold text-surface-400 dark:text-surface-500 uppercase tracking-wider">
@@ -195,6 +223,7 @@ const isActive = (name) => {
                                 :href="link.href"
                                 prefetch
                                 cache-for="30s"
+                                @click="closeSidebar"
                                 class="flex items-center rounded-xl text-sm font-semibold transition-all duration-300 transform"
                                 :class="[
                                     isActive(link.name)
@@ -203,6 +232,7 @@ const isActive = (name) => {
                                     isSidebarCollapsed ? 'justify-center p-2.5' : 'gap-3 px-4 py-2.5 hover:-translate-x-1'
                                 ]"
                                 :title="isSidebarCollapsed ? link.label : ''"
+                                :aria-current="isActive(link.name) ? 'page' : undefined"
                             >
                                 <Icon :name="link.icon" class="w-5 h-5 transition-transform duration-300 shrink-0" />
                                 <span v-show="!isSidebarCollapsed">{{ link.label }}</span>
@@ -214,7 +244,7 @@ const isActive = (name) => {
                 <!-- Logout -->
                 <div class="p-4 border-t border-surface-200 dark:border-surface-800">
                     <Link :href="route('logout')" method="post" as="button"
-                          class="w-full flex items-center justify-center rounded-xl text-sm font-semibold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-350"
+                          class="w-full flex items-center justify-center rounded-xl text-sm font-semibold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-300"
                           :class="isSidebarCollapsed ? 'p-2.5' : 'gap-2 px-4 py-2.5'"
                           :title="isSidebarCollapsed ? 'تسجيل الخروج' : ''">
                         <Icon name="logout" class="w-4 h-4 shrink-0" />
@@ -230,11 +260,11 @@ const isActive = (name) => {
             <!-- Topbar -->
             <header class="h-16 bg-white dark:bg-surface-900 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between px-4 lg:px-8 z-10 shrink-0">
                 <div class="flex items-center gap-3">
-                    <button @click="isSidebarOpen = true" class="lg:hidden btn-ghost p-2 rounded-lg text-surface-600 dark:text-surface-300">
+                    <button type="button" @click="isSidebarOpen = true" class="lg:hidden btn-ghost p-2 rounded-lg text-surface-600 dark:text-surface-300" aria-label="فتح القائمة الجانبية" :aria-expanded="isSidebarOpen" aria-controls="dashboard-sidebar">
                         ☰
                     </button>
                     <!-- Collapse Desktop Sidebar Toggle -->
-                    <button @click="toggleSidebarCollapse" class="hidden lg:flex btn-ghost p-2 rounded-lg text-surface-600 dark:text-surface-300 transition-all duration-200 active:scale-90" title="طي/توسيع القائمة الجانبية">
+                    <button type="button" @click="toggleSidebarCollapse" class="hidden lg:flex btn-ghost p-2 rounded-lg text-surface-600 dark:text-surface-300 transition-all duration-200 active:scale-90" title="طي/توسيع القائمة الجانبية" aria-label="طي أو توسيع القائمة الجانبية" :aria-expanded="!isSidebarCollapsed">
                         <Icon name="menu" class="w-5 h-5" />
                     </button>
                     <!-- View Live Site -->
@@ -249,7 +279,7 @@ const isActive = (name) => {
                     <NotificationBell />
 
                     <!-- Dark mode toggle -->
-                    <button @click="toggleDark" class="btn-ghost p-2 rounded-lg text-lg bg-surface-100 dark:bg-surface-800 transition-all duration-300 transform active:scale-95">
+                    <button type="button" @click="toggleDark" class="btn-ghost p-2 rounded-lg text-lg bg-surface-100 dark:bg-surface-800 transition-all duration-300 transform active:scale-95" :aria-label="isDark ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الداكن'">
                         <Icon v-if="isDark" name="sun" class="w-5 h-5 text-amber-500" />
                         <Icon v-else name="moon" class="w-5 h-5 text-indigo-500" />
                     </button>
@@ -257,7 +287,7 @@ const isActive = (name) => {
             </header>
 
             <!-- Flash and validation messages -->
-            <div class="fixed top-20 left-6 z-55 w-full max-w-sm px-4 space-y-2 pointer-events-none">
+            <div class="fixed top-20 end-6 z-[55] w-full max-w-sm px-4 space-y-2 pointer-events-none">
                 <ValidationErrorBanner />
                 <Transition enter-active-class="transition ease-out duration-300 transform"
                             enter-from-class="-translate-y-4 opacity-0 scale-95"

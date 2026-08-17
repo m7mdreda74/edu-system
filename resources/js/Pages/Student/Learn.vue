@@ -468,7 +468,7 @@ function uploadAnswer(sheetId) {
                 </div>
                 <span class="text-primary-400 font-bold text-sm">{{ progressPercent }}%</span>
 
-                <button @click="treeOpen = !treeOpen"
+                <button type="button" @click="treeOpen = !treeOpen"
                     class="btn-ghost text-sm text-surface-400 hover:text-white px-3 py-1.5 hidden lg:inline-flex">
                     {{ treeOpen ? 'أخفِ المنهج' : 'أظهر المنهج' }}
                 </button>
@@ -572,19 +572,19 @@ function uploadAnswer(sheetId) {
 
                     <!-- Tabs Header -->
                     <div class="flex border-b border-surface-800 mb-6 bg-surface-900/10 p-1 rounded-xl overflow-x-auto">
-                        <button @click="activeTab = 'description'"
+                        <button type="button" @click="activeTab = 'description'"
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
                                 :class="activeTab === 'description' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
                         >
                             الشرح والمشاهدة
                         </button>
-                        <button @click="activeTab = 'files'"
+                        <button type="button" @click="activeTab = 'files'"
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
                                 :class="activeTab === 'files' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
                         >
                             الملزمة والواجب ({{ attachmentCount }})
                         </button>
-                        <button @click="activeTab = 'questions'"
+                        <button type="button" @click="activeTab = 'questions'"
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
                                 :class="activeTab === 'questions' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
                         >
@@ -599,7 +599,7 @@ function uploadAnswer(sheetId) {
                         </p>
 
                         <div class="flex flex-wrap items-center gap-3 pt-4">
-                            <button
+                            <button type="button"
                                 v-if="nextLesson"
                                 @click="goNextLesson"
                                 class="btn-primary"
@@ -709,7 +709,7 @@ function uploadAnswer(sheetId) {
                                         @change="onFileChange($event, activeLesson.homework.id)"
                                         class="text-xs text-surface-400 bg-surface-950 border border-surface-800 rounded-xl px-3 py-2 flex-1 min-w-0"
                                     />
-                                    <button @click="uploadAnswer(activeLesson.homework.id)"
+                                    <button type="button" @click="uploadAnswer(activeLesson.homework.id)"
                                             :disabled="uploadingSheet === activeLesson.homework.id"
                                             class="btn-primary btn-sm flex-shrink-0">
                                         {{ uploadingSheet === activeLesson.homework.id
@@ -764,7 +764,7 @@ function uploadAnswer(sheetId) {
                                             <div class="text-[10px] text-surface-500 mt-0.5">منذ {{ new Date(q.created_at).toLocaleDateString('ar-EG') }}</div>
                                         </div>
                                     </div>
-                                    <button v-if="q.video_timestamp !== null" @click="seekTo(q.video_timestamp)" class="text-xs text-primary-400 hover:text-primary-300 font-bold flex items-center gap-1">
+                                    <button type="button" v-if="q.video_timestamp !== null" @click="seekTo(q.video_timestamp)" class="text-xs text-primary-400 hover:text-primary-300 font-bold flex items-center gap-1">
                                         ⏱️ {{ formatQuestionTime(q.video_timestamp) }}
                                     </button>
                                 </div>
@@ -825,7 +825,7 @@ function uploadAnswer(sheetId) {
                     </div>
 
                     <div v-if="terms.length" class="flex gap-1.5 overflow-x-auto pb-1">
-                        <button v-for="term in terms" :key="term.id"
+                        <button type="button" v-for="term in terms" :key="term.id"
                                 @click="selectTerm(term.id)"
                                 :title="term.full_name"
                                 class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors text-start leading-tight"
@@ -845,7 +845,7 @@ function uploadAnswer(sheetId) {
                 <div v-if="lockNotice" class="m-3 rounded-xl bg-accent-500/10 border border-accent-500/25 text-accent-200 text-xs px-3 py-2.5 flex items-start gap-2">
                     <Icon name="lock" class="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <span class="flex-1">{{ lockNotice }}</span>
-                    <button @click="lockNotice = ''" class="text-accent-300/70 hover:text-white flex-shrink-0">
+                    <button type="button" @click="lockNotice = ''" class="text-accent-300/70 hover:text-white flex-shrink-0" aria-label="إغلاق التنبيه">
                         <Icon name="close" class="w-3.5 h-3.5" />
                     </button>
                 </div>
@@ -855,7 +855,7 @@ function uploadAnswer(sheetId) {
                     <div v-for="unit in localUnits" :key="unit.id" class="border-b border-surface-800">
 
                         <!-- Collapsed row -->
-                        <button @click="toggleUnit(unit.id)"
+                        <button type="button" @click="toggleUnit(unit.id)"
                                 class="w-full flex items-center gap-3 px-4 py-3.5 text-start transition-colors"
                                 :class="unit.is_locked ? 'hover:bg-surface-800/40' : 'hover:bg-surface-800'">
                             <div class="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
@@ -908,7 +908,7 @@ function uploadAnswer(sheetId) {
 
                             <!-- Lessons -->
                             <div class="pt-1">
-                                <button v-for="lesson in unit.lessons" :key="lesson.id"
+                                <button type="button" v-for="lesson in unit.lessons" :key="lesson.id"
                                         @click="selectLesson(unit, lesson)"
                                         :id="`lesson-btn-${lesson.id}`"
                                         class="w-full flex items-start gap-3 px-4 py-2.5 text-start transition-colors duration-150"
@@ -1096,7 +1096,7 @@ function uploadAnswer(sheetId) {
                                             @change="onFileChange($event, unit.paper_exam.id)"
                                             class="w-full text-[11px] text-surface-400 bg-surface-900 border border-surface-800 rounded-lg px-2 py-1.5"
                                         />
-                                        <button @click="uploadAnswer(unit.paper_exam.id)"
+                                        <button type="button" @click="uploadAnswer(unit.paper_exam.id)"
                                                 :disabled="uploadingSheet === unit.paper_exam.id"
                                                 class="btn-primary btn-sm w-full justify-center">
                                             {{ uploadingSheet === unit.paper_exam.id

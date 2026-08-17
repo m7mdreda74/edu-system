@@ -156,7 +156,7 @@ function formatDuration(seconds) {
                         </div>
                     </div>
 
-                    <button v-if="!material.is_live_recording" type="button" class="btn-ghost btn-sm text-red-500 shrink-0" @click="destroy(material.id)">
+                    <button v-if="!material.is_live_recording" type="button" class="btn-ghost btn-sm text-red-500 shrink-0" aria-label="حذف المادة" @click="destroy(material.id)">
                         <Icon name="trash" class="w-4 h-4" />
                     </button>
                 </div>

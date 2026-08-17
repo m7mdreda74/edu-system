@@ -63,7 +63,7 @@ async function deleteCoupon(id) {
                     </h1>
                     <p class="text-surface-500 mt-1">إنشاء كوبونات التخفيض للطلاب لزيادة المبيعات والاشتراكات</p>
                 </div>
-                <button @click="openAddModal" class="btn-primary flex items-center gap-2">
+                <button type="button" @click="openAddModal" class="btn-primary flex items-center gap-2">
                     <Icon name="plus" class="w-4 h-4" />
                     <span>إنشاء كوبون جديد</span>
                 </button>
@@ -108,12 +108,12 @@ async function deleteCoupon(id) {
                                 </td>
                                 <td class="data-table-actions px-6 py-4 text-center">
                                     <div class="flex items-center justify-center gap-2">
-                                        <button @click="toggleStatus(coupon.id)" 
+                                        <button type="button" @click="toggleStatus(coupon.id)"
                                                 class="btn-outline btn-xs py-1.5 px-3 rounded-lg"
                                         >
                                             {{ coupon.is_active ? 'تعطيل' : 'تنشيط' }}
                                         </button>
-                                        <button @click="deleteCoupon(coupon.id)"
+                                        <button type="button" @click="deleteCoupon(coupon.id)" aria-label="حذف الكوبون"
                                                 class="btn-ghost text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg"
                                         >
                                             <Icon name="close" class="w-4 h-4" />
@@ -142,11 +142,11 @@ async function deleteCoupon(id) {
                 leave-from-class="opacity-100 scale-100"
                 leave-to-class="opacity-0 scale-95"
             >
-                <div v-if="isModalOpen" class="modal-overlay z-50 bg-black/55 backdrop-blur-sm">
+                <div v-if="isModalOpen" class="modal-overlay z-50 bg-black/55 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="إنشاء كوبون خصم">
                     <div class="modal-panel-compact bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative" dir="rtl">
                         <div class="flex items-center justify-between mb-6">
                             <h3 class="text-xl font-black text-surface-900 dark:text-white">إنشاء كوبون خصم جديد</h3>
-                            <button @click="isModalOpen = false" class="btn-ghost p-1 rounded-full">
+                            <button type="button" @click="isModalOpen = false" class="btn-ghost p-1 rounded-full" aria-label="إغلاق النافذة">
                                 <Icon name="close" class="w-5 h-5 text-surface-500" />
                             </button>
                         </div>

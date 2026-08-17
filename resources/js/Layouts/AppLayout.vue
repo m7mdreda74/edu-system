@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeUnmount, onMounted } from 'vue';
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/authStore';
 import Icon from '@/Components/Icon.vue';
@@ -13,6 +13,11 @@ const page      = usePage();
 
 const mobileMenuOpen = ref(false);
 const isDark         = ref(false);
+
+watch(() => page.url, () => {
+    mobileMenuOpen.value = false;
+    clearSearch();
+});
 
 onMounted(() => {
     isDark.value = document.documentElement.classList.contains('dark');
@@ -169,9 +174,10 @@ const isActive = (link) => {
                     </Link>
 
                     <!-- Desktop Search Bar -->
-                    <div class="hidden lg:block relative flex-1 max-w-xs mx-4" dir="rtl">
+                    <div class="hidden xl:block relative flex-1 max-w-xs mx-4" dir="rtl">
                         <div class="relative">
-                            <input v-model="searchQuery" @input="onSearchInput" type="text" placeholder="ابحث عن معلم أو مادة..." class="w-full bg-surface-100 dark:bg-black/45 border border-transparent dark:border-surface-700/40 focus:border-primary-500 focus:dark:border-accent-500 rounded-xl px-4 py-2 text-xs text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-white/35 focus:outline-none focus:ring-0" />
+                            <label for="site-search" class="sr-only">البحث عن معلم أو مادة</label>
+                            <input id="site-search" v-model="searchQuery" @input="onSearchInput" type="search" autocomplete="off" placeholder="ابحث عن معلم أو مادة..." class="w-full bg-surface-100 dark:bg-black/45 border border-transparent dark:border-surface-700/40 focus:border-primary-500 focus:dark:border-accent-500 rounded-xl px-4 py-2 text-xs text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-white/35 focus:outline-none focus:ring-0" />
                             <Icon name="search" class="w-4 h-4 text-surface-400 dark:text-surface-300 absolute left-3 top-2.5" />
                         </div>
 
@@ -188,14 +194,14 @@ const isActive = (link) => {
                     </div>
 
                     <!-- Desktop Nav Links -->
-                    <div class="hidden md:flex items-center gap-1">
+                    <div class="hidden xl:flex items-center gap-1">
                         <Link
                             v-for="link in navLinks"
                             :key="link.label"
                             :href="link.href"
                             prefetch
                             cache-for="30s"
-                            class="px-4 py-2 text-sm font-semibold transition-all duration-200"
+                            class="px-3 py-2 text-sm font-semibold transition-all duration-200"
                             :class="isActive(link)
                                 ? 'text-primary-600 dark:text-primary-300 border-b-2 border-accent-500 font-bold rounded-t-xl bg-primary-500/5'
                                 : 'text-surface-600 hover:text-primary-600 dark:text-surface-300 dark:hover:text-white'"
@@ -208,9 +214,10 @@ const isActive = (link) => {
                     <div class="flex items-center gap-2">
 
                         <!-- Dark mode toggle -->
-                        <button @click="toggleDark"
+                        <button type="button" @click="toggleDark"
                             class="btn-ghost p-2 rounded-lg text-lg transition-all duration-300 transform active:scale-95"
                             :title="isDark ? 'وضع النهار' : 'الوضع الداكن'"
+                            :aria-label="isDark ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الداكن'"
                         >
                             <Icon v-if="isDark" name="sun" class="w-5 h-5 text-amber-500" />
                             <Icon v-else name="moon" class="w-5 h-5 text-indigo-500" />
@@ -260,8 +267,11 @@ const isActive = (link) => {
                         </template>
 
                         <!-- Mobile menu button -->
-                        <button @click="mobileMenuOpen = !mobileMenuOpen"
-                            class="md:hidden btn-ghost p-2 rounded-lg">
+                        <button type="button" @click="mobileMenuOpen = !mobileMenuOpen"
+                            class="xl:hidden btn-ghost p-2 rounded-lg"
+                            :aria-expanded="mobileMenuOpen"
+                            aria-controls="mobile-navigation"
+                            :aria-label="mobileMenuOpen ? 'إغلاق قائمة التنقل' : 'فتح قائمة التنقل'">
                             <Icon :name="mobileMenuOpen ? 'close' : 'menu'" class="w-5 h-5" />
                         </button>
                     </div>
@@ -276,7 +286,7 @@ const isActive = (link) => {
                     leave-from-class="opacity-100 translate-y-0"
                     leave-to-class="opacity-0 -translate-y-2"
                 >
-                    <div v-if="mobileMenuOpen" class="md:hidden py-3 border-t border-surface-200 dark:border-surface-700">
+                    <div v-if="mobileMenuOpen" id="mobile-navigation" class="xl:hidden py-3 border-t border-surface-200 dark:border-surface-700">
                         <Link
                             v-for="link in navLinks"
                             :key="link.label"
@@ -295,7 +305,7 @@ const isActive = (link) => {
         </nav>
 
         <!-- ── Flash Messages ─────────────────────────────────────── -->
-        <div class="fixed top-20 start-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 space-y-2 pointer-events-none">
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 space-y-2 pointer-events-none">
             <ValidationErrorBanner />
             <Transition enter-active-class="animate-fade-up" leave-active-class="animate-fade-in">
                 <div v-if="$page.props.flash?.success" class="alert-success shadow-card pointer-events-auto flex items-center gap-2">
@@ -349,7 +359,7 @@ const isActive = (link) => {
                         
                         <!-- Social Links -->
                         <div v-if="socialLinks.length > 0" class="flex items-center gap-3">
-                            <a v-for="social in socialLinks" :key="social.platform" :href="social.url" target="_blank"
+                            <a v-for="social in socialLinks" :key="social.platform" :href="social.url" target="_blank" rel="noopener noreferrer"
                                class="w-8 h-8 rounded-lg bg-surface-800 hover:bg-primary-600 flex items-center justify-center text-white transition-colors"
                                :title="social.platform"
                             >
@@ -365,18 +375,19 @@ const isActive = (link) => {
         </footer>
 
         <!-- ── Floating WhatsApp Widget ───────────────────────────── -->
-        <div v-if="$page.props.settings?.whatsapp_url" 
-             class="fixed bottom-6 left-6 z-40 flex flex-col items-center gap-1.5"
+        <div v-if="$page.props.settings?.whatsapp_url"
+             class="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-40 flex flex-col items-center gap-1.5 pointer-events-none"
         >
             <!-- Label above -->
-            <span class="bg-surface-900 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow-lg border border-surface-800 pointer-events-none select-none">
+            <span class="hidden sm:block bg-surface-900 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow-lg border border-surface-800 pointer-events-none select-none">
                 تواصل معنا
             </span>
             <!-- Glowing Yellow/Amber WhatsApp Button -->
             <a :href="$page.props.settings.whatsapp_url" 
                target="_blank"
-               class="w-12 h-12 rounded-full bg-accent-500 hover:bg-accent-600 flex items-center justify-center text-white shadow-lg transition-transform duration-300 transform hover:scale-110 shadow-glow-accent"
-               aria-label="Contact support on WhatsApp"
+               rel="noopener noreferrer"
+               class="pointer-events-auto w-12 h-12 rounded-full bg-accent-500 hover:bg-accent-600 flex items-center justify-center text-white shadow-lg transition-transform duration-300 transform hover:scale-105 shadow-glow-accent"
+               aria-label="التواصل مع الدعم عبر واتساب"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="w-6 h-6 fill-current text-white"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L32 503l138.2-36.2c32.5 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-82.1 21.5 21.9-80-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
             </a>

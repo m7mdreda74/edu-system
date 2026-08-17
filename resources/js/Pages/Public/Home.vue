@@ -33,6 +33,15 @@ const activeFaq = ref(null);
 
 const settings = computed(() => page.props.settings || {});
 
+const heroContent = computed(() => ({
+    badge: stripEmojis(settings.value.home_hero_badge) || 'منصة التعليم الأولى في قطر',
+    title: stripEmojis(settings.value.home_hero_title) || 'تفوّق في دراستك الثانوية',
+    subtitle: stripEmojis(settings.value.home_hero_subtitle) || 'منصة التفوق التعليمية الأولى في قطر',
+    description: stripEmojis(settings.value.home_hero_desc) || 'نصنع مستقبل التعليم في قطر من خلال أفضل الشروحات والمناهج التعليمية المتكاملة.',
+    primaryButton: stripEmojis(settings.value.home_hero_btn1) || 'ابدأ التعلم الآن',
+    secondaryButton: stripEmojis(settings.value.home_hero_btn2) || 'إنشاء حساب جديد',
+}));
+
 const features = computed(() => {
     try {
         const raw = settings.value.home_features;
@@ -173,27 +182,27 @@ const gradeGroups = computed(() => {
 
             <div class="container-app px-4 py-20 md:py-28 relative">
                 <div class="max-w-2xl">
-                    <div v-if="stripEmojis($page.props.settings?.home_hero_badge)" class="badge bg-white/20 text-white mb-6 text-sm py-1.5 px-4 flex items-center gap-1.5 w-fit animate-fade-in-up">
+                    <div v-if="heroContent.badge" class="badge bg-white/20 text-white mb-6 text-sm py-1.5 px-4 flex items-center gap-1.5 w-fit">
                         <Icon name="success" class="w-4 h-4 text-accent-300 animate-float" />
-                        <span>{{ stripEmojis($page.props.settings?.home_hero_badge) }}</span>
+                        <span>{{ heroContent.badge }}</span>
                     </div>
 
-                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.3] md:leading-[1.4] lg:leading-[1.5] mb-6 tracking-tight animate-fade-in-up animation-delay-100">
-                        {{ stripEmojis($page.props.settings?.home_hero_title) }}
-                        <span class="block text-accent-400 mt-3 font-bold">{{ stripEmojis($page.props.settings?.home_hero_subtitle) }}</span>
+                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.3] md:leading-[1.4] lg:leading-[1.5] mb-6 tracking-tight">
+                        {{ heroContent.title }}
+                        <span class="block text-accent-400 mt-3 text-2xl font-bold md:text-3xl lg:text-4xl">{{ heroContent.subtitle }}</span>
                     </h1>
 
-                    <p class="text-lg text-white/80 mb-8 leading-relaxed max-w-lg animate-fade-in-up animation-delay-200">
-                        {{ stripEmojis($page.props.settings?.home_hero_desc) }}
+                    <p class="text-lg text-white/80 mb-8 leading-relaxed max-w-lg">
+                        {{ heroContent.description }}
                     </p>
 
-                    <div class="flex flex-wrap gap-4 items-center animate-fade-in-up animation-delay-300">
+                    <div class="flex flex-wrap gap-4 items-center">
                         <a href="#grades" class="btn-accent btn-lg flex items-center gap-2 transform transition-all duration-300 hover:scale-105 hover:shadow-glow-accent">
                             <Icon name="courses" class="w-5 h-5 text-white" />
-                            <span>{{ stripEmojis($page.props.settings?.home_hero_btn1) }}</span>
+                            <span>{{ heroContent.primaryButton }}</span>
                         </a>
                         <Link :href="route('register')" class="btn btn-lg bg-white/10 text-white border border-white/20 hover:bg-white/20 flex items-center gap-2 transition-all duration-300 hover:scale-105">
-                            <span>{{ stripEmojis($page.props.settings?.home_hero_btn2) }}</span>
+                            <span>{{ heroContent.secondaryButton }}</span>
                         </Link>
                     </div>
 
@@ -236,7 +245,7 @@ const gradeGroups = computed(() => {
                 <!-- Grade Filter Tabs -->
                 <div class="mb-6 animate-fade-in-up animation-delay-100">
                     <div class="flex flex-wrap justify-center gap-3 mb-3">
-                        <button 
+                        <button type="button"
                             v-for="tab in [
                                 { key: 'all', label: 'كل المراحل' },
                                 { key: 'primary', label: 'المرحلة الابتدائية' },
@@ -265,7 +274,7 @@ const gradeGroups = computed(() => {
                     >
                         <div v-if="selectedStageTab === 'secondary'" class="flex flex-wrap justify-center gap-2 pt-3 border-t border-surface-200 dark:border-surface-800">
                             <span class="text-xs text-surface-400 font-semibold self-center">المسار:</span>
-                            <button
+                            <button type="button"
                                 v-for="track in [
                                     { key: 'all', label: 'كل المسارات' },
                                     { key: 'science',    label: TRACK_LABELS.science },
@@ -390,11 +399,11 @@ const gradeGroups = computed(() => {
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <a v-for="video in youtubeVideos" :key="video.title" :href="video.url" target="_blank"
+                    <a v-for="video in youtubeVideos" :key="video.title" :href="video.url" target="_blank" rel="noopener noreferrer"
                        class="card-hover group flex flex-col justify-between"
                     >
                         <div class="relative aspect-video overflow-hidden bg-surface-100 flex-shrink-0">
-                            <img :src="video.thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                            <img :src="video.thumbnail" :alt="video.title || 'فيديو تعليمي'" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                             <!-- Overlay Play Button -->
                             <div class="absolute inset-0 bg-black/35 flex items-center justify-center group-hover:bg-black/50 transition-colors">
                                 <div class="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-200">
@@ -461,17 +470,21 @@ const gradeGroups = computed(() => {
                             ? 'border-primary-500/40 dark:border-primary-500/30 bg-surface-100/50 dark:bg-surface-900/50 shadow-sm' 
                             : 'border-surface-200 dark:border-surface-800/80 bg-surface-50/50 dark:bg-surface-900/20'"
                     >
-                        <button 
+                        <button
+                            type="button"
                             @click="activeFaq = (activeFaq === idx ? null : idx)" 
+                            :aria-expanded="activeFaq === idx"
+                            :aria-controls="`faq-answer-${idx}`"
                             class="w-full px-6 py-4 flex items-center justify-between text-start font-bold text-sm text-surface-850 dark:text-surface-100 transition-colors"
-                            :class="{ 'text-primary-600 dark:text-primary-450': activeFaq === idx }"
+                            :class="{ 'text-primary-600 dark:text-primary-500': activeFaq === idx }"
                         >
                             <span>{{ faq.q }}</span>
-                            <span class="text-xs transition-transform duration-300" :class="{ 'rotate-180 text-primary-500': activeFaq === idx }">▼</span>
+                            <span aria-hidden="true" class="text-xs transition-transform duration-300" :class="{ 'rotate-180 text-primary-500': activeFaq === idx }">▼</span>
                         </button>
                         <div 
                             v-if="activeFaq === idx" 
-                            class="px-6 pb-5 pt-1 text-xs text-surface-600 dark:text-surface-300 leading-relaxed border-t border-surface-150/50 dark:border-surface-800/40"
+                            :id="`faq-answer-${idx}`"
+                            class="px-6 pb-5 pt-1 text-xs text-surface-600 dark:text-surface-300 leading-relaxed border-t border-surface-200/50 dark:border-surface-800/40"
                         >
                             {{ faq.a }}
                         </div>

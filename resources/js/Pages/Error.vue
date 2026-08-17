@@ -83,7 +83,7 @@ const config = computed(() => ({
                     </svg>
                     العودة للرئيسية
                 </Link>
-                <button @click="history.back()" class="btn glass text-white border-white/30 hover:bg-white/20 btn-lg">
+                <button type="button" @click="history.back()" class="btn glass text-white border-white/30 hover:bg-white/20 btn-lg">
                     ← رجوع
                 </button>
             </div>

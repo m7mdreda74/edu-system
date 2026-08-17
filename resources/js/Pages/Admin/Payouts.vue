@@ -68,7 +68,7 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2"><Icon name="earnings" class="w-8 h-8 text-primary-500" />تصفية حسابات المدرسين</h1>
                     <p class="text-surface-500 mt-1">حساب تلقائي للمبيعات والعمولة، مع إثبات التحويل وإقرار الاستلام.</p>
                 </div>
-                <button @click="createOpen = true" class="btn-primary"><Icon name="plus" class="w-4 h-4" /> إنشاء تصفية</button>
+                <button type="button" @click="createOpen = true" class="btn-primary"><Icon name="plus" class="w-4 h-4" /> إنشاء تصفية</button>
             </div>
 
             <section class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -102,9 +102,9 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
                                 <td class="p-4 text-xs">{{ payout.period_start }} — {{ payout.period_end }}</td>
                                 <td class="p-4"><span :class="payout.status === 'paid' ? 'badge-green' : 'badge-primary'">{{ statusLabel(payout) }}</span></td>
                                 <td class="data-table-actions p-4"><div class="flex flex-wrap gap-2">
-                                    <button v-if="payout.status !== 'paid'" @click="openPay(payout)" class="btn-primary btn-sm">رفع إثبات الدفع</button>
-                                    <button v-if="payout.receipt_path" @click="selectedReceipt = route('admin.payouts.receipt', payout.id)" class="btn-outline btn-sm">عرض الإثبات</button>
-                                    <button v-if="payout.status !== 'paid'" @click="deletePayout(payout.id)" class="btn-ghost btn-sm text-red-500">حذف</button>
+                                    <button type="button" v-if="payout.status !== 'paid'" @click="openPay(payout)" class="btn-primary btn-sm">رفع إثبات الدفع</button>
+                                    <button type="button" v-if="payout.receipt_path" @click="selectedReceipt = route('admin.payouts.receipt', payout.id)" class="btn-outline btn-sm">عرض الإثبات</button>
+                                    <button type="button" v-if="payout.status !== 'paid'" @click="deletePayout(payout.id)" class="btn-ghost btn-sm text-red-500">حذف</button>
                                 </div></td>
                             </tr>
                         </tbody>
@@ -115,7 +115,7 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
             </div>
         </div>
 
-        <div v-if="createOpen" class="modal-overlay z-50 bg-black/60">
+        <div v-if="createOpen" class="modal-overlay z-50 bg-black/60" role="dialog" aria-modal="true" aria-label="إنشاء تصفية">
             <form @submit.prevent="submitPayout" class="modal-panel-compact card p-6 w-full max-w-lg space-y-4">
                 <h3 class="text-xl font-black">إنشاء تصفية من المعاملات المعتمدة</h3>
                 <select v-model="form.teacher_id" class="input" required><option value="" disabled>اختر المدرس</option><option v-for="teacher in teachers" :key="teacher.id" :value="teacher.id">{{ teacher.name }}</option></select>
@@ -128,20 +128,20 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
                 <div class="rounded-2xl border-2 border-dashed border-accent-400/60 bg-accent-50/30 dark:bg-accent-950/20 p-4"><label class="input-label">صورة إثبات تحويل مستحقات المدرس <span class="text-red-500">(اختياري هنا، ومطلوب قبل اعتبارها مدفوعة)</span></label><input type="file" accept="image/*" class="input" @change="setReceipt" /><p class="text-[11px] text-surface-500 mt-2">لو رفعت الصورة الآن سيتم تسجيل التصفية كـ «تم التحويل» مباشرة، وإلا ستظهر في الجدول بزر «رفع إثبات الدفع».</p></div>
                 <textarea v-model="form.notes" class="input" placeholder="ملاحظات اختيارية"></textarea>
                 <p v-if="Object.keys(form.errors).length" class="error-msg">{{ Object.values(form.errors)[0] }}</p>
-                <div class="flex justify-end gap-2"><button type="button" @click="createOpen = false" class="btn-ghost">إلغاء</button><button class="btn-primary" :disabled="form.processing">إنشاء التصفية وتسجيل التحويل</button></div>
+                <div class="flex justify-end gap-2"><button type="button" @click="createOpen = false" class="btn-ghost">إلغاء</button><button type="submit" class="btn-primary" :disabled="form.processing">إنشاء التصفية وتسجيل التحويل</button></div>
             </form>
         </div>
 
-        <div v-if="payOpen" class="modal-overlay z-50 bg-black/60">
+        <div v-if="payOpen" class="modal-overlay z-50 bg-black/60" role="dialog" aria-modal="true" aria-label="تسجيل إثبات الدفع">
             <form @submit.prevent="submitPaymentProof" class="modal-panel-compact card p-6 w-full max-w-lg space-y-4">
                 <h3 class="text-xl font-black">تأكيد تحويل {{ formatQAR(selectedPayout?.amount) }}</h3>
                 <div><label class="input-label">صورة إثبات التحويل</label><input type="file" accept="image/*" class="input" required @change="payForm.receipt = $event.target.files[0]" /><p v-if="payForm.errors.receipt" class="error-msg">{{ payForm.errors.receipt }}</p></div>
                 <textarea v-model="payForm.notes" class="input" placeholder="رقم العملية أو ملاحظات التحويل"></textarea>
-                <div class="flex justify-end gap-2"><button type="button" @click="payOpen = false" class="btn-ghost">إلغاء</button><button class="btn-primary" :disabled="payForm.processing">تسجيل الدفع</button></div>
+                <div class="flex justify-end gap-2"><button type="button" @click="payOpen = false" class="btn-ghost">إلغاء</button><button type="submit" class="btn-primary" :disabled="payForm.processing">تسجيل الدفع</button></div>
             </form>
         </div>
 
-        <div v-if="selectedReceipt" class="modal-overlay z-50 bg-black/80" @click="selectedReceipt = null"><img :src="selectedReceipt" class="max-h-[85vh] max-w-3xl rounded-2xl object-contain" /></div>
+        <div v-if="selectedReceipt" class="modal-overlay z-50 bg-black/80" role="dialog" aria-modal="true" aria-label="إيصال التحويل" @click="selectedReceipt = null"><img :src="selectedReceipt" alt="إيصال التحويل" class="max-h-[85vh] max-w-3xl rounded-2xl object-contain" /></div>
     </DashboardLayout>
 </template>
 

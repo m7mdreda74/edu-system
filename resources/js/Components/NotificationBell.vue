@@ -111,11 +111,14 @@ onUnmounted(() => {
 <template>
     <div class="relative" id="notification-bell-container">
         <!-- Bell Icon Button -->
-        <button @click="toggleDropdown"
+        <button type="button" @click="toggleDropdown"
             class="relative btn-ghost p-2 rounded-xl bg-surface-100 dark:bg-surface-800 transition-all duration-300 transform active:scale-95"
             :title="'التنبيهات'"
+            :aria-label="unreadCount > 0 ? `التنبيهات، ${unreadCount} غير مقروءة` : 'التنبيهات'"
+            :aria-expanded="isOpen"
+            aria-controls="notification-bell-menu"
         >
-            <Icon name="bell" class="w-5 h-5 text-surface-600 dark:text-surface-300 animate-hover" :class="{ 'animate-pulse': unreadCount > 0 }" />
+            <Icon name="bell" class="w-5 h-5 text-surface-600 dark:text-surface-300 transition-transform duration-200 hover:scale-105" :class="{ 'animate-pulse': unreadCount > 0 }" />
             
             <!-- Red Badge -->
             <span v-if="unreadCount > 0" 
@@ -133,14 +136,14 @@ onUnmounted(() => {
             leave-from-class="opacity-100 translate-y-0 scale-100"
             leave-to-class="opacity-0 translate-y-2 scale-95"
         >
-            <div v-if="isOpen" 
+            <div v-if="isOpen" id="notification-bell-menu"
                  class="absolute end-0 mt-2 w-80 md:w-96 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-2xl shadow-xl z-50 overflow-hidden"
                  dir="rtl"
             >
                 <!-- Dropdown Header -->
                 <div class="p-4 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50 dark:bg-surface-900/50">
                     <h4 class="font-bold text-sm text-surface-900 dark:text-white">الإشعارات</h4>
-                    <button v-if="unreadCount > 0" @click="markAllAsRead" 
+                    <button v-if="unreadCount > 0" type="button" @click="markAllAsRead"
                             class="text-xs text-primary-600 dark:text-primary-400 hover:underline">
                         قراءة الكل
                     </button>
@@ -151,9 +154,9 @@ onUnmounted(() => {
                     
                     <!-- Unread Section -->
                     <template v-if="unread.length > 0">
-                        <div v-for="item in unread" :key="item.id" 
+                        <button v-for="item in unread" :key="item.id" type="button"
                              @click="markAsRead(item)"
-                             class="p-4 hover:bg-primary-50/30 dark:hover:bg-primary-950/10 cursor-pointer transition-colors flex items-start gap-3 bg-primary-50/10 dark:bg-primary-950/5"
+                             class="w-full p-4 text-start hover:bg-primary-50/30 dark:hover:bg-primary-950/10 cursor-pointer transition-colors flex items-start gap-3 bg-primary-50/10 dark:bg-primary-950/5"
                         >
                             <div class="w-2.5 h-2.5 rounded-full bg-primary-500 mt-1.5 shrink-0"></div>
                             <div class="flex-1 min-w-0">
@@ -161,14 +164,14 @@ onUnmounted(() => {
                                 <div class="text-xs text-surface-500 dark:text-surface-400 mt-1 leading-relaxed">{{ item.data?.message }}</div>
                                 <div class="text-[10px] text-surface-400 mt-1.5">{{ timeAgo(item.created_at) }}</div>
                             </div>
-                        </div>
+                        </button>
                     </template>
 
                     <!-- Read Section -->
                     <template v-if="read.length > 0">
-                        <div v-for="item in read" :key="item.id" 
+                        <button v-for="item in read" :key="item.id" type="button"
                              @click="markAsRead(item)"
-                             class="p-4 hover:bg-surface-50 dark:hover:bg-surface-800 cursor-pointer transition-colors flex items-start gap-3"
+                             class="w-full p-4 text-start hover:bg-surface-50 dark:hover:bg-surface-800 cursor-pointer transition-colors flex items-start gap-3"
                         >
                             <div class="w-2.5 h-2.5 rounded-full bg-surface-300 dark:bg-surface-700 mt-1.5 shrink-0"></div>
                             <div class="flex-1 min-w-0">
@@ -176,7 +179,7 @@ onUnmounted(() => {
                                 <div class="text-xs text-surface-500 dark:text-surface-400 mt-1 leading-relaxed">{{ item.data?.message }}</div>
                                 <div class="text-[10px] text-surface-400 mt-1.5">{{ timeAgo(item.created_at) }}</div>
                             </div>
-                        </div>
+                        </button>
                     </template>
 
                     <!-- Empty State -->

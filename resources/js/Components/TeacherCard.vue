@@ -57,8 +57,8 @@ const embedUrl = computed(() => {
             </div>
 
             <button
-                v-if="teacher.intro_video_url"
                 type="button"
+                v-if="teacher.intro_video_url"
                 class="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors"
                 :aria-label="`شاهد فيديو تعريفي عن ${teacher.name}`"
                 @click="showVideo = true"
@@ -131,6 +131,9 @@ const embedUrl = computed(() => {
         <div
             v-if="showVideo && embedUrl"
             class="modal-overlay z-[60] bg-black/80"
+            role="dialog"
+            aria-modal="true"
+            aria-label="فيديو المعلم"
             @click.self="showVideo = false"
         >
             <div class="w-full max-w-3xl">

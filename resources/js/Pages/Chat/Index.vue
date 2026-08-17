@@ -216,7 +216,7 @@ onUnmounted(() => {
                      :class="{ 'hidden md:flex': showMobileChat, 'flex': !showMobileChat }">
                     <div class="p-4 border-b border-surface-200 dark:border-surface-700 flex items-center justify-between">
                         <h2 class="font-bold text-surface-800 dark:text-surface-200">المحادثات</h2>
-                        <button v-if="isTeacher" @click="showNewChatModal = true" class="btn-xs bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-[11px] transition-colors">
+                        <button v-if="isTeacher" type="button" @click="showNewChatModal = true" class="btn-xs bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-[11px] transition-colors">
                             <Icon name="plus" class="w-3.5 h-3.5" />
                             <span>محادثة جديدة</span>
                         </button>
@@ -228,7 +228,7 @@ onUnmounted(() => {
                              :class="{ 'bg-primary-50 dark:bg-primary-900/30 border-r-4 border-r-primary-500': activeConversation?.id === conv.id }">
                             <div class="flex items-center gap-3">
                                 <div class="avatar-sm bg-surface-200 dark:bg-surface-700 shrink-0">
-                                    <img v-if="getOtherUser(conv)?.avatar" :src="getOtherUser(conv).avatar" class="w-full h-full object-cover">
+                                    <img v-if="getOtherUser(conv)?.avatar" :src="getOtherUser(conv).avatar" :alt="getOtherUser(conv)?.name" class="w-full h-full object-cover">
                                     <span v-else class="text-surface-500 dark:text-surface-400 font-bold">
                                         {{ getOtherUser(conv)?.name?.charAt(0) }}
                                     </span>
@@ -291,8 +291,8 @@ onUnmounted(() => {
                                 <div v-if="msg.attachment_path" class="mt-1">
                                     <!-- Image Mimetype -->
                                     <div v-if="msg.attachment_is_image" class="rounded-xl overflow-hidden border border-surface-200 dark:border-surface-800 max-w-xs shadow-sm">
-                                        <a :href="msg.attachment_path" target="_blank" class="block group relative">
-                                            <img :src="msg.attachment_path" class="w-full h-auto max-h-48 object-cover group-hover:opacity-90 transition-opacity" />
+                                        <a :href="msg.attachment_path" target="_blank" rel="noopener noreferrer" class="block group relative">
+                                            <img :src="msg.attachment_path" alt="صورة مرفقة في المحادثة" class="w-full h-auto max-h-48 object-cover group-hover:opacity-90 transition-opacity" />
                                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
                                                 <Icon name="expand" class="w-3.5 h-3.5" />
                                                 <span>عرض الصورة</span>
@@ -308,7 +308,7 @@ onUnmounted(() => {
                                             <div class="text-xs font-bold text-surface-900 dark:text-white truncate">
                                                 {{ getFileName(msg.attachment_name || msg.attachment_path) }}
                                             </div>
-                                            <a :href="msg.attachment_path" target="_blank" download class="text-[10px] text-primary-500 hover:underline font-semibold block mt-0.5">
+                                            <a :href="msg.attachment_path" target="_blank" rel="noopener noreferrer" download class="text-[10px] text-primary-500 hover:underline font-semibold block mt-0.5">
                                                 تحميل الملف
                                             </a>
                                         </div>
@@ -333,10 +333,10 @@ onUnmounted(() => {
 
                             <!-- Attachment Preview Panel -->
                             <div v-if="selectedFile" class="flex items-center gap-3 p-2 bg-white dark:bg-surface-950 rounded-2xl border border-surface-200 dark:border-surface-800 self-start max-w-sm relative">
-                                <button type="button" @click="clearAttachment" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors shadow-sm">
+                                <button type="button" @click="clearAttachment" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors shadow-sm" aria-label="إزالة الملف المرفق">
                                     ×
                                 </button>
-                                <img v-if="selectedFilePreview" :src="selectedFilePreview" class="w-12 h-12 object-cover rounded-xl" />
+                                <img v-if="selectedFilePreview" :src="selectedFilePreview" :alt="`معاينة ${selectedFile?.name || 'الملف'}`" class="w-12 h-12 object-cover rounded-xl" />
                                 <div v-else class="p-2 bg-primary-50 dark:bg-primary-950 text-primary-500 rounded-xl">
                                     <Icon name="file" class="w-6 h-6" />
                                 </div>
@@ -351,13 +351,13 @@ onUnmounted(() => {
                                 <input type="file" ref="attachmentInput" @change="handleFileChange" class="hidden" />
 
                                 <!-- Attachment Trigger -->
-                                <button type="button" @click="triggerFileInput" class="w-11 h-11 bg-white dark:bg-surface-950 rounded-full flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border border-surface-200 dark:border-surface-800 text-surface-500" title="إرفاق ملف">
+                                <button type="button" @click="triggerFileInput" class="w-11 h-11 bg-white dark:bg-surface-950 rounded-full flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border border-surface-200 dark:border-surface-800 text-surface-500" title="إرفاق ملف" aria-label="إرفاق ملف">
                                     <Icon name="attachment" class="w-5 h-5" />
                                 </button>
 
                                 <!-- Emoji Trigger -->
                                 <div class="relative">
-                                    <button type="button" @click="showEmojiPicker = !showEmojiPicker" class="w-11 h-11 bg-white dark:bg-surface-950 rounded-full flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border border-surface-200 dark:border-surface-800 text-surface-500" title="رموز تعبيرية">
+                                    <button type="button" @click="showEmojiPicker = !showEmojiPicker" class="w-11 h-11 bg-white dark:bg-surface-950 rounded-full flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border border-surface-200 dark:border-surface-800 text-surface-500" title="رموز تعبيرية" :aria-expanded="showEmojiPicker" aria-label="فتح لوحة الرموز التعبيرية">
                                         <Icon name="emoji" class="w-5 h-5" />
                                     </button>
 
@@ -378,7 +378,7 @@ onUnmounted(() => {
                                        autocomplete="off">
 
                                 <!-- Send Submit Button -->
-                                <button type="submit" :disabled="form.processing || (!form.message.trim() && !form.attachment)" 
+                                <button type="submit" aria-label="إرسال الرسالة" :disabled="form.processing || (!form.message.trim() && !form.attachment)"
                                         class="absolute left-1.5 btn-primary w-10 h-10 rounded-full p-0 flex items-center justify-center disabled:opacity-50 transition-transform hover:scale-105">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-white">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
@@ -398,7 +398,7 @@ onUnmounted(() => {
 
         <!-- New Chat Modal (For Teachers) -->
         <Transition enter-active-class="ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="ease-in duration-200" leave-from-class="opacity-100" leave-to-class="opacity-0">
-            <div v-if="showNewChatModal" class="modal-overlay z-50 bg-surface-950/70 dark:bg-black/80">
+            <div v-if="showNewChatModal" class="modal-overlay z-50 bg-surface-950/70 dark:bg-black/80" role="dialog" aria-modal="true" aria-label="محادثة جديدة">
                 <div class="modal-panel bg-white dark:bg-surface-900 w-full max-w-lg rounded-3xl border border-surface-200 dark:border-surface-800 shadow-2xl relative" dir="rtl">
                     <!-- Header -->
                     <div class="p-5 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between">
@@ -406,7 +406,7 @@ onUnmounted(() => {
                             <Icon name="chat" class="w-5 h-5 text-primary-500" />
                             <h3 class="font-bold text-surface-900 dark:text-white text-base">بدء محادثة جديدة</h3>
                         </div>
-                        <button @click="showNewChatModal = false" class="text-surface-400 hover:text-surface-900 dark:hover:text-white text-lg font-bold">
+                        <button type="button" @click="showNewChatModal = false" class="text-surface-400 hover:text-surface-900 dark:hover:text-white text-lg font-bold" aria-label="إغلاق النافذة">
                             ×
                         </button>
                     </div>
@@ -424,7 +424,7 @@ onUnmounted(() => {
                         <div v-for="item in filteredStudents" :key="item.id + '-' + item.teaching_assignment_id" class="p-4 flex items-center justify-between hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
                             <div class="flex items-center gap-3 overflow-hidden">
                                 <div class="avatar-sm bg-surface-100 dark:bg-surface-800 shrink-0">
-                                    <img v-if="item.avatar" :src="item.avatar" class="w-full h-full object-cover">
+                                    <img v-if="item.avatar" :src="item.avatar" :alt="item.name" class="w-full h-full object-cover">
                                     <span v-else class="text-surface-500 dark:text-surface-400 font-bold">
                                         {{ item.name.charAt(0) }}
                                     </span>
@@ -438,7 +438,7 @@ onUnmounted(() => {
                                     </div>
                                 </div>
                             </div>
-                            <button @click="startTeacherChat(item.id, item.teaching_assignment_id)" class="btn-primary text-xs py-1.5 px-3 rounded-lg shrink-0">
+                            <button type="button" @click="startTeacherChat(item.id, item.teaching_assignment_id)" class="btn-primary text-xs py-1.5 px-3 rounded-lg shrink-0">
                                 بدء محادثة
                             </button>
                         </div>

@@ -244,6 +244,9 @@ function subscribe(groupId) {
             <div
                 v-if="playing"
                 class="modal-overlay z-[60] bg-black/80"
+                role="dialog"
+                aria-modal="true"
+                aria-label="الفيديو التعريفي للمعلم"
                 @click.self="playing = null"
             >
                 <div class="w-full max-w-3xl">

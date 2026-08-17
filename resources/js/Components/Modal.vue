@@ -19,24 +19,41 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 const dialog = ref();
 const showSlot = ref(props.show);
+let previousBodyOverflow = '';
+let bodyOverflowCaptured = false;
+
+const openDialog = () => {
+    if (!dialog.value) return;
+
+    if (!bodyOverflowCaptured) {
+        previousBodyOverflow = document.body.style.overflow;
+        bodyOverflowCaptured = true;
+    }
+
+    showSlot.value = true;
+    document.body.style.overflow = 'hidden';
+
+    if (!dialog.value.open) {
+        dialog.value.showModal();
+    }
+};
+
+const closeDialog = () => {
+    document.body.style.overflow = previousBodyOverflow;
+    previousBodyOverflow = '';
+    bodyOverflowCaptured = false;
+
+    window.setTimeout(() => {
+        if (!props.show) {
+            dialog.value?.close();
+            showSlot.value = false;
+        }
+    }, 200);
+};
 
 watch(
     () => props.show,
-    () => {
-        if (props.show) {
-            document.body.style.overflow = 'hidden';
-            showSlot.value = true;
-
-            dialog.value?.showModal();
-        } else {
-            document.body.style.overflow = '';
-
-            setTimeout(() => {
-                dialog.value?.close();
-                showSlot.value = false;
-            }, 200);
-        }
-    },
+    (show) => show ? openDialog() : closeDialog(),
 );
 
 const close = () => {
@@ -55,12 +72,20 @@ const closeOnEscape = (e) => {
     }
 };
 
-onMounted(() => document.addEventListener('keydown', closeOnEscape));
+onMounted(() => {
+    document.addEventListener('keydown', closeOnEscape);
+
+    if (props.show) {
+        openDialog();
+    }
+});
 
 onUnmounted(() => {
     document.removeEventListener('keydown', closeOnEscape);
 
-    document.body.style.overflow = '';
+    document.body.style.overflow = previousBodyOverflow;
+    previousBodyOverflow = '';
+    bodyOverflowCaptured = false;
 });
 
 const maxWidthClass = computed(() => {
@@ -76,8 +101,10 @@ const maxWidthClass = computed(() => {
 
 <template>
     <dialog
-        class="z-50 m-0 min-h-full min-w-full overflow-y-auto bg-transparent backdrop:bg-transparent"
+        class="z-[60] m-0 min-h-full min-w-full overflow-y-auto bg-transparent p-0 backdrop:bg-transparent"
         ref="dialog"
+        aria-label="نافذة حوار"
+        @cancel.prevent="close"
     >
         <div
             class="fixed inset-0 z-50 overflow-y-auto px-4 py-6 sm:px-0"
@@ -97,7 +124,7 @@ const maxWidthClass = computed(() => {
                     @click="close"
                 >
                     <div
-                        class="absolute inset-0 bg-gray-500 opacity-75"
+                        class="absolute inset-0 bg-surface-950/75"
                     />
                 </div>
             </Transition>
@@ -112,8 +139,9 @@ const maxWidthClass = computed(() => {
             >
                 <div
                     v-show="show"
-                    class="modal-panel-compact mb-6 transform rounded-lg bg-white shadow-xl transition-all sm:mx-auto sm:w-full"
+                    class="modal-panel-compact mb-6 transform rounded-2xl border border-surface-200 bg-white text-surface-900 shadow-xl transition-all dark:border-surface-800 dark:bg-surface-900 dark:text-white sm:mx-auto sm:w-full"
                     :class="maxWidthClass"
+                    @click.stop
                 >
                     <slot v-if="showSlot" />
                 </div>

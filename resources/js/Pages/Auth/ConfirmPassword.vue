@@ -21,7 +21,7 @@ const submit = () => {
     <GuestLayout>
         <Head title="تأكيد كلمة المرور" />
 
-        <div class="mb-4 text-sm text-gray-600">
+        <div class="mb-4 text-sm text-surface-600 dark:text-surface-300">
             هذه منطقة آمنة من المنصة. يرجى تأكيد كلمة المرور قبل المتابعة.
         </div>
 

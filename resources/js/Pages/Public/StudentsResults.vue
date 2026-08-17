@@ -56,14 +56,14 @@ const filteredResults = computed(() => {
 
                 <!-- Filters -->
                 <div class="flex flex-wrap gap-2 justify-center mb-12">
-                    <button
+                    <button type="button"
                         v-for="batch in batches"
                         :key="batch.id"
                         @click="activeBatch = batch.id"
                         class="px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-200"
                         :class="activeBatch === batch.id
                             ? 'bg-primary-600 border-primary-600 text-white shadow-glow-primary'
-                            : 'bg-white border-surface-200 text-surface-650 hover:bg-surface-50 dark:bg-surface-900 dark:border-surface-800 dark:text-white/80 dark:hover:bg-surface-800'"
+                            : 'bg-white border-surface-200 text-surface-600 hover:bg-surface-50 dark:bg-surface-900 dark:border-surface-800 dark:text-white/80 dark:hover:bg-surface-800'"
                     >
                         {{ batch.name }}
                     </button>

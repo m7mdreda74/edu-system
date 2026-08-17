@@ -145,7 +145,7 @@ const printFilterSummary = computed(() => {
                     </select>
                 </div>
                 <div class="flex items-end gap-2">
-                    <button class="btn-primary flex-1">تطبيق الفلاتر</button>
+                    <button type="submit" class="btn-primary flex-1">تطبيق الفلاتر</button>
                     <Link :href="route('admin.reports')" class="btn-outline">مسح</Link>
                 </div>
             </form>

@@ -25,7 +25,7 @@ const verificationLinkSent = computed(
     <GuestLayout>
         <Head title="تفعيل البريد الإلكتروني" />
 
-        <div class="mb-4 text-sm text-gray-600">
+        <div class="mb-4 text-sm text-surface-600 dark:text-surface-300">
             شكرًا لتسجيلك معنا. قبل البدء، يرجى تفعيل بريدك الإلكتروني من خلال
             الضغط على الرابط الذي أرسلناه إليك. إذا لم يصلك، يمكننا إرسال رابط جديد.
         </div>
@@ -50,7 +50,7 @@ const verificationLinkSent = computed(
                     :href="route('logout')"
                     method="post"
                     as="button"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    class="text-sm text-surface-600 underline hover:text-primary-700 dark:text-surface-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2"
                     >تسجيل الخروج</Link
                 >
             </div>

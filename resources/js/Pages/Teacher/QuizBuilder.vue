@@ -643,6 +643,7 @@ function optionError(draft, index) {
                                     <button type="button" class="btn-ghost btn-sm px-2 h-10 shrink-0 text-red-500"
                                             :disabled="draft.options.length <= MIN_OPTIONS"
                                             :title="draft.options.length <= MIN_OPTIONS ? 'الحد الأدنى إجابتان' : 'حذف الإجابة'"
+                                            :aria-label="draft.options.length <= MIN_OPTIONS ? 'الحد الأدنى إجابتان' : 'حذف الإجابة'"
                                             @click="removeOption(draft, index)">
                                         <Icon name="close" class="w-4 h-4" />
                                     </button>

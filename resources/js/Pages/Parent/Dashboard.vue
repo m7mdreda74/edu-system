@@ -188,7 +188,7 @@ function payForRequest(requestId) {
                     </div>
                     <h3 class="font-bold text-xs uppercase tracking-wider text-surface-400 mb-2">الأبناء المرتبطون</h3>
                     
-                    <button v-for="link in links" :key="link.id" 
+                    <button v-for="link in links" :key="link.id" type="button"
                             @click="selectStudent(link.student_user_id)"
                             class="w-full card p-4 text-start hover:shadow-md transition-all border flex flex-col justify-between"
                             :class="selectedStudent && selectedStudent.student.id === link.student_user_id ? 'border-primary-500 bg-primary-50/10' : 'border-transparent'"
@@ -205,7 +205,7 @@ function payForRequest(requestId) {
                         
                         <div class="flex justify-between items-center border-t border-surface-100 dark:border-surface-800 pt-2 mt-2">
                             <span class="text-[10px] text-surface-400">ID: {{ link.student_user_id }}</span>
-                            <button @click.stop="unlinkStudent(link.id)" class="text-[10px] text-red-500 hover:underline">إلغاء الربط</button>
+                    <button type="button" @click.stop="unlinkStudent(link.id)" class="text-[10px] text-red-500 hover:underline">إلغاء الربط</button>
                         </div>
                     </button>
 
@@ -254,7 +254,7 @@ function payForRequest(requestId) {
                                         >
                                             <span>{{ payingRequestId === req.id ? 'جارٍ التحضير...' : 'دفع الآن' }}</span>
                                         </button>
-                                        <button @click="openRejectModal(req.id)"
+                                        <button type="button" @click="openRejectModal(req.id)"
                                                 class="btn-outline btn-sm text-xs text-red-500 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/40"
                                         >
                                             رفض
@@ -298,7 +298,7 @@ function payForRequest(requestId) {
                                     <Icon name="courses" class="w-5 h-5 text-primary-500" />
                                     الاشتراكات والحصص
                                 </h3>
-                                <button class="btn-ghost btn-sm" @click="contactAdmin">تواصل مع الإدارة</button>
+                                <button type="button" class="btn-ghost btn-sm" @click="contactAdmin">تواصل مع الإدارة</button>
                             </div>
                             <div class="space-y-3">
                                 <div v-for="subscription in selectedStudent.subscriptions" :key="subscription.id" class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
@@ -313,7 +313,7 @@ function payForRequest(requestId) {
                                         </div>
                                     </div>
                                     <div class="flex flex-wrap gap-2 mt-3">
-                                        <button class="btn-outline btn-sm" @click="contactTeacher(subscription.assignment_id)">مراسلة المدرس</button>
+                                        <button type="button" class="btn-outline btn-sm" @click="contactTeacher(subscription.assignment_id)">مراسلة المدرس</button>
                                         <Link v-if="subscription.status === 'pending'" :href="route('checkout.show', subscription.id)" class="btn-primary btn-sm">إكمال الدفع</Link>
                                         <Link v-else-if="subscription.is_active || subscription.status === 'expired'" :href="route('subscriptions.renewal.show', subscription.id)" class="btn-accent btn-sm">تجديد الاشتراك</Link>
                                     </div>
@@ -333,7 +333,7 @@ function payForRequest(requestId) {
                                     </p>
                                     <div class="flex items-center justify-between mt-3">
                                         <b>{{ formatQAR(group.monthly_price) }}</b>
-                                        <button class="btn-primary btn-sm" :disabled="group.already_subscribed || !group.seats_left" @click="subscribeToGroup(group.id)">
+                                        <button type="button" class="btn-primary btn-sm" :disabled="group.already_subscribed || !group.seats_left" @click="subscribeToGroup(group.id)">
                                             {{ group.already_subscribed ? 'مشترك بالفعل' : (!group.seats_left ? 'مكتملة' : 'احجز وادفع') }}
                                         </button>
                                     </div>
@@ -350,7 +350,7 @@ function payForRequest(requestId) {
                                         <p class="font-bold">{{ slot.teacher?.name }}</p>
                                         <p class="text-xs text-surface-500">{{ slot.subject }} · {{ new Date(slot.starts_at).toLocaleString('ar-EG') }}</p>
                                     </div>
-                                    <button class="btn-accent btn-sm" @click="bookFreeIntro(slot.id)">احجز مجانًا</button>
+                                    <button type="button" class="btn-accent btn-sm" @click="bookFreeIntro(slot.id)">احجز مجانًا</button>
                                 </div>
                             </div>
                         </div>
@@ -365,13 +365,13 @@ function payForRequest(requestId) {
                                     <div v-if="assignment.private_slots?.length" class="space-y-2 mt-3">
                                         <div v-for="slot in assignment.private_slots" :key="slot.id" class="flex items-center justify-between gap-2 rounded-lg bg-surface-50 dark:bg-surface-900/50 px-3 py-2">
                                             <span class="text-xs">{{ new Date(slot.starts_at).toLocaleString('ar-EG') }}</span>
-                                            <button v-if="assignment.has_active_subscription" class="btn-outline btn-sm" @click="bookPrivateSlot(slot.id)">احجز الموعد</button>
+                                            <button v-if="assignment.has_active_subscription" type="button" class="btn-outline btn-sm" @click="bookPrivateSlot(slot.id)">احجز الموعد</button>
                                             <span v-else class="text-[11px] text-surface-400">بعد الاشتراك</span>
                                         </div>
                                     </div>
                                     <p v-else class="text-xs text-surface-400 mt-3">لا توجد مواعيد برايفيت منشورة حاليًا.</p>
                                     <Link v-if="assignment.private_subscription?.status === 'pending'" :href="route('checkout.show', assignment.private_subscription.id)" class="btn-primary btn-sm mt-3 w-full justify-center">إكمال دفع الاشتراك</Link>
-                                    <button v-else-if="!assignment.has_active_subscription" class="btn-accent btn-sm mt-3 w-full" @click="subscribeToPrivate(assignment.id)">اشترك برايفيت للطالب</button>
+                                    <button v-else-if="!assignment.has_active_subscription" type="button" class="btn-accent btn-sm mt-3 w-full" @click="subscribeToPrivate(assignment.id)">اشترك برايفيت للطالب</button>
                                     <p v-else class="text-xs text-green-600 mt-3">اشتراك برايفيت نشط — اختر موعدًا منشورًا.</p>
                                 </div>
                             </div>
@@ -510,11 +510,11 @@ function payForRequest(requestId) {
                 leave-from-class="opacity-100 scale-100"
                 leave-to-class="opacity-0 scale-95"
             >
-                <div v-if="isRejectModalOpen" class="modal-overlay z-50 bg-black/55 backdrop-blur-sm">
+                <div v-if="isRejectModalOpen" class="modal-overlay z-50 bg-black/55 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="رفض طلب الشراء">
                     <div class="modal-panel-compact bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative" dir="rtl">
                         <div class="flex items-center justify-between mb-6">
                             <h3 class="text-xl font-black text-surface-900 dark:text-white">رفض طلب الشراء</h3>
-                            <button @click="isRejectModalOpen = false" class="btn-ghost p-1 rounded-full">
+                            <button type="button" @click="isRejectModalOpen = false" class="btn-ghost p-1 rounded-full" aria-label="إغلاق النافذة">
                                 <Icon name="close" class="w-5 h-5 text-surface-500" />
                             </button>
                         </div>

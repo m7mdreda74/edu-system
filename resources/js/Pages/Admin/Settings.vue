@@ -468,7 +468,7 @@ async function saveSettings() {
                 <aside class="w-full lg:w-1/4 flex-shrink-0">
                     <div class="card p-3 space-y-1 sticky top-24">
                         <div class="px-3 py-2 text-[10px] font-bold text-surface-400 dark:text-surface-500 uppercase tracking-wider mb-2">أقسام الإعدادات</div>
-                        <button
+                        <button type="button"
                             v-for="tab in tabs"
                             :key="tab.id"
                             @click="activeTab = tab.id"
@@ -512,10 +512,9 @@ async function saveSettings() {
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <button
+                            <button type="button"
                                 v-for="theme in siteThemes"
                                 :key="theme.id"
-                                type="button"
                                 class="relative overflow-hidden rounded-2xl border-2 p-4 text-start transition-all duration-300 hover:-translate-y-1"
                                 :class="getSetting('site_theme')?.value === theme.id
                                     ? 'border-accent-500 shadow-glow-accent bg-accent-50/40 dark:bg-accent-950/20'
@@ -596,11 +595,11 @@ async function saveSettings() {
                                     <Icon name="globe" class="w-5 h-5 text-primary-500" />
                                     <span>روابط القائمة العلوية (Navbar Links)</span>
                                 </h3>
-                                <button @click="addNavbarLink" class="btn-outline text-xs py-1.5 px-3">+ إضافة رابط</button>
+                                <button type="button" @click="addNavbarLink" class="btn-outline text-xs py-1.5 px-3">+ إضافة رابط</button>
                             </div>
                             <div class="space-y-4">
                                 <div v-for="(link, idx) in navbarLinksList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                    <button @click="removeNavbarLink(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                    <button type="button" @click="removeNavbarLink(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                         <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                         <span>حذف</span>
                                     </button>
@@ -626,11 +625,11 @@ async function saveSettings() {
                                     <Icon name="courses" class="w-5 h-5 text-primary-500" />
                                     <span>روابط تذييل الصفحة (Footer Links)</span>
                                 </h3>
-                                <button @click="addFooterLink" class="btn-outline text-xs py-1.5 px-3">+ إضافة رابط</button>
+                                <button type="button" @click="addFooterLink" class="btn-outline text-xs py-1.5 px-3">+ إضافة رابط</button>
                             </div>
                             <div class="space-y-4">
                                 <div v-for="(link, idx) in footerLinksList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                    <button @click="removeFooterLink(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                    <button type="button" @click="removeFooterLink(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                         <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                         <span>حذف</span>
                                     </button>
@@ -673,11 +672,11 @@ async function saveSettings() {
                                     <Icon name="student" class="w-5 h-5 text-primary-500" />
                                     <span>قيم ورسالة المنصة (من نحن)</span>
                                 </h3>
-                                <button @click="addAboutValue" class="btn-outline text-xs py-1.5 px-3">+ إضافة قيمة</button>
+                                <button type="button" @click="addAboutValue" class="btn-outline text-xs py-1.5 px-3">+ إضافة قيمة</button>
                             </div>
                             <div class="space-y-4">
                                 <div v-for="(val, idx) in aboutValuesList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                    <button @click="removeAboutValue(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                    <button type="button" @click="removeAboutValue(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                         <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                         <span>حذف</span>
                                     </button>
@@ -707,11 +706,11 @@ async function saveSettings() {
                                     <Icon name="courses" class="w-5 h-5 text-primary-500" />
                                     <span>ركائز التعليم بالمنصة (Pillars)</span>
                                 </h3>
-                                <button @click="addAboutPillar" class="btn-outline text-xs py-1.5 px-3">+ إضافة ركيزة</button>
+                                <button type="button" @click="addAboutPillar" class="btn-outline text-xs py-1.5 px-3">+ إضافة ركيزة</button>
                             </div>
                             <div class="space-y-4">
                                 <div v-for="(pil, idx) in aboutPillarsList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                    <button @click="removeAboutPillar(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                    <button type="button" @click="removeAboutPillar(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                         <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                         <span>حذف</span>
                                     </button>
@@ -768,11 +767,11 @@ async function saveSettings() {
                                     <Icon name="globe" class="w-5 h-5 text-primary-500" />
                                     <span>روابط مواقع التواصل الاجتماعي بالفوتر (Social Links)</span>
                                 </h3>
-                                <button @click="addSocialLink" class="btn-outline text-xs py-1.5 px-3">+ إضافة رابط تواصل</button>
+                                <button type="button" @click="addSocialLink" class="btn-outline text-xs py-1.5 px-3">+ إضافة رابط تواصل</button>
                             </div>
                             <div class="space-y-4">
                                 <div v-for="(social, idx) in socialLinksList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                    <button @click="removeSocialLink(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                    <button type="button" @click="removeSocialLink(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                         <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                         <span>حذف</span>
                                     </button>
@@ -803,11 +802,11 @@ async function saveSettings() {
                                 <Icon name="progress" class="w-5 h-5 text-primary-500" />
                                 <span>ميزات المنصة بالصفحة الرئيسية</span>
                             </h3>
-                            <button @click="addFeature" class="btn-outline text-xs py-1.5 px-3">+ إضافة ميزة</button>
+                            <button type="button" @click="addFeature" class="btn-outline text-xs py-1.5 px-3">+ إضافة ميزة</button>
                         </div>
                         <div class="space-y-4">
                             <div v-for="(feat, idx) in featuresList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                <button @click="removeFeature(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                <button type="button" @click="removeFeature(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                     <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                     <span>حذف</span>
                                 </button>
@@ -837,11 +836,11 @@ async function saveSettings() {
                                 <Icon name="info" class="w-5 h-5 text-primary-500" />
                                 <span>لماذا نحن؟ (صفحة الرئيسية)</span>
                             </h3>
-                            <button @click="addWhyUs" class="btn-outline text-xs py-1.5 px-3">+ إضافة بند</button>
+                            <button type="button" @click="addWhyUs" class="btn-outline text-xs py-1.5 px-3">+ إضافة بند</button>
                         </div>
                         <div class="space-y-4">
                             <div v-for="(item, idx) in whyChooseUsList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                <button @click="removeWhyUs(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                <button type="button" @click="removeWhyUs(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                     <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                     <span>حذف</span>
                                 </button>
@@ -871,11 +870,11 @@ async function saveSettings() {
                                 <Icon name="live" class="w-5 h-5 text-primary-500" />
                                 <span>فيديوهات يوتيوب بالصفحة الرئيسية</span>
                             </h3>
-                            <button @click="addYoutube" class="btn-outline text-xs py-1.5 px-3">+ إضافة فيديو</button>
+                            <button type="button" @click="addYoutube" class="btn-outline text-xs py-1.5 px-3">+ إضافة فيديو</button>
                         </div>
                         <div class="space-y-4">
                             <div v-for="(vid, idx) in youtubeList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                <button @click="removeYoutube(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                <button type="button" @click="removeYoutube(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                     <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                     <span>حذف</span>
                                 </button>
@@ -905,11 +904,11 @@ async function saveSettings() {
                                 <Icon name="chat" class="w-5 h-5 text-primary-500" />
                                 <span>الأسئلة الشائعة (FAQs)</span>
                             </h3>
-                            <button @click="addFaq" class="btn-outline text-xs py-1.5 px-3">+ إضافة سؤال</button>
+                            <button type="button" @click="addFaq" class="btn-outline text-xs py-1.5 px-3">+ إضافة سؤال</button>
                         </div>
                         <div class="space-y-4">
                             <div v-for="(faq, idx) in faqsList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                <button @click="removeFaq(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                <button type="button" @click="removeFaq(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                     <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                     <span>حذف</span>
                                 </button>
@@ -935,11 +934,11 @@ async function saveSettings() {
                                 <Icon name="student" class="w-5 h-5 text-primary-500" />
                                 <span>نتائج وآراء الطلاب المتفوقين</span>
                             </h3>
-                            <button @click="addResult" class="btn-outline text-xs py-1.5 px-3">+ إضافة طالب</button>
+                            <button type="button" @click="addResult" class="btn-outline text-xs py-1.5 px-3">+ إضافة طالب</button>
                         </div>
                         <div class="space-y-4">
                             <div v-for="(res, idx) in resultsList" :key="idx" class="p-4 rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative group">
-                                <button @click="removeResult(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                <button type="button" @click="removeResult(idx)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                     <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                     <span>حذف</span>
                                 </button>
@@ -988,7 +987,7 @@ async function saveSettings() {
                                 <Icon name="edit" class="w-5 h-5 text-primary-500" />
                                 <span>إعدادات النظام المتقدمة</span>
                             </h3>
-                            <button @click="addRawSetting" class="btn-outline text-xs py-1.5 px-3 flex items-center gap-1">
+                            <button type="button" @click="addRawSetting" class="btn-outline text-xs py-1.5 px-3 flex items-center gap-1">
                                 <Icon name="plus" class="w-3.5 h-3.5" />
                                 <span>إضافة متغير جديد</span>
                             </button>
@@ -996,7 +995,7 @@ async function saveSettings() {
                         
                         <div class="space-y-6">
                             <div v-for="(setting, index) in advancedSettings" :key="setting.key || index" class="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative">
-                                <button v-if="setting.key !== 'commission_percent' && setting.key !== 'platform_email'" @click="removeRawSetting(setting)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                <button type="button" v-if="setting.key !== 'commission_percent' && setting.key !== 'platform_email'" @click="removeRawSetting(setting)" class="absolute top-4 left-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                     <Icon name="trash" class="w-3.5 h-3.5 text-red-500 shrink-0" />
                                     <span>حذف</span>
                                 </button>
@@ -1035,7 +1034,7 @@ async function saveSettings() {
             <div class="fixed bottom-6 z-40 p-3.5 rounded-2xl shadow-glow-primary flex items-center gap-3"
                  style="left: 50% !important; transform: translateX(-50%) !important; background-color: rgba(28, 20, 22, 0.65) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;">
                 <Link :href="route('admin.dashboard')" class="btn-ghost text-xs px-4 py-2 text-white/80 hover:text-white rounded-xl">إلغاء</Link>
-                <button @click="saveSettings" :disabled="isSaving" class="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 transition-transform hover:scale-102">
+                <button type="button" @click="saveSettings" :disabled="isSaving" class="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 transition-transform hover:scale-[1.02]">
                     <Icon v-if="isSaving" name="clock" class="w-4 h-4 text-white animate-spin shrink-0" />
                     <Icon v-else name="success" class="w-4 h-4 text-white shrink-0" />
                     <span>{{ isSaving ? 'جاري الحفظ...' : (wasSaved ? 'تم الحفظ' : 'حفظ التغييرات') }}</span>

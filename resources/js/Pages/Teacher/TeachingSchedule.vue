@@ -157,7 +157,7 @@ function formatDate(value) {
                     <form class="grid md:grid-cols-3 gap-3" @submit.prevent="publishFreeSlot(assignment.id)">
                         <input v-model="freeSlotDrafts[assignment.id].starts_at" type="datetime-local" class="input" required />
                         <input v-model="freeSlotDrafts[assignment.id].ends_at" type="datetime-local" class="input" required />
-                        <button class="btn-accent">نشر الموعد المجاني</button>
+                        <button type="submit" class="btn-accent">نشر الموعد المجاني</button>
                     </form>
 
                     <div v-if="assignment.private_slots?.length" class="grid md:grid-cols-2 gap-3">
@@ -193,7 +193,7 @@ function formatDate(value) {
                     <form class="grid md:grid-cols-3 gap-3" @submit.prevent="publishPrivateSlot(assignment.id)">
                         <input v-model="privateSlotDrafts[assignment.id].starts_at" type="datetime-local" class="input" required />
                         <input v-model="privateSlotDrafts[assignment.id].ends_at" type="datetime-local" class="input" required />
-                        <button class="btn-primary">نشر موعد برايفيت</button>
+                        <button type="submit" class="btn-primary">نشر موعد برايفيت</button>
                     </form>
 
                     <div v-if="assignment.private_slots?.some(item => !item.is_free_intro)" class="grid md:grid-cols-2 gap-3">
@@ -262,7 +262,7 @@ function formatDate(value) {
                             </select>
                             <input v-model="scheduleDrafts[group.id].start_time" type="time" class="input" required />
                             <input v-model="scheduleDrafts[group.id].end_time" type="time" class="input" required />
-                            <button class="btn-outline">إضافة موعد للمجموعة</button>
+                        <button type="submit" class="btn-outline">إضافة موعد للمجموعة</button>
                         </form>
                     </div>
 
@@ -298,7 +298,7 @@ function formatDate(value) {
                         <form class="grid md:grid-cols-4 gap-3" @submit.prevent="addLesson(group.id)">
                             <input v-model="lessonDrafts[group.id].title" class="input md:col-span-2" placeholder="عنوان الحصة" required />
                             <input v-model="lessonDrafts[group.id].description" class="input" placeholder="ملاحظات أكاديمية" />
-                            <button class="btn-outline">+ إضافة للخطة</button>
+                                <button type="submit" class="btn-outline">+ إضافة للخطة</button>
                         </form>
                     </div>
                 </article>

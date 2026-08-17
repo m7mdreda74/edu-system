@@ -111,7 +111,10 @@ function closePopup() {
     <Transition name="fade">
         <div v-if="isOpen" 
              @click.self="closePopup"
-             class="modal-overlay z-55 bg-black/60 backdrop-blur-md cursor-pointer"
+             class="modal-overlay z-[55] bg-black/60 backdrop-blur-md cursor-pointer"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="welcome-popup-title"
              dir="rtl"
         >
             
@@ -119,7 +122,7 @@ function closePopup() {
             <div class="modal-panel relative w-full max-w-2xl bg-gradient-to-br from-primary-900 to-primary-950 text-white rounded-3xl p-8 md:p-10 shadow-2xl border border-primary-800 transform transition-all duration-300 scale-100 flex flex-col items-center cursor-default">
                 
                 <!-- Close Button -->
-                <button @click="closePopup" class="absolute top-6 left-6 text-white/70 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full">
+                <button type="button" @click="closePopup" class="absolute top-6 left-6 text-white/70 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full" aria-label="إغلاق النافذة">
                     <Icon name="close" class="w-5 h-5" />
                 </button>
 
@@ -129,14 +132,14 @@ function closePopup() {
                 </div>
 
                 <!-- Title -->
-                <h2 class="text-2xl md:text-3xl font-black text-center mb-8 leading-tight">
+                <h2 id="welcome-popup-title" class="text-2xl md:text-3xl font-black text-center mb-8 leading-tight">
                     {{ title }}
                 </h2>
 
                 <!-- Items Grid -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full mb-8">
                     <a v-for="(item, index) in items" :key="index"
-                       :href="item.url" target="_blank"
+                       :href="item.url" target="_blank" rel="noopener noreferrer"
                        @click="handleItemClick(item, $event)"
                        class="relative flex flex-col items-center justify-center p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg text-center cursor-pointer"
                     >
@@ -153,7 +156,7 @@ function closePopup() {
                 </div>
 
                 <!-- Bottom Link -->
-                <a v-if="bottomLabel && bottomUrl" :href="bottomUrl" target="_blank"
+                <a v-if="bottomLabel && bottomUrl" :href="bottomUrl" target="_blank" rel="noopener noreferrer"
                    class="text-xs font-semibold text-accent-400 hover:text-accent-300 underline underline-offset-4 transition-colors">
                     {{ bottomLabel }}
                 </a>
@@ -163,12 +166,12 @@ function closePopup() {
             <Transition name="fade">
                 <div v-if="isVideoModalOpen" 
                      @click.self="closeVideoModal"
-                     class="modal-overlay z-60 bg-black/85 backdrop-blur-xl cursor-pointer"
+                     class="modal-overlay z-[60] bg-black/85 backdrop-blur-xl cursor-pointer"
                 >
                     <div class="modal-panel relative w-full max-w-3xl aspect-video bg-black rounded-3xl overflow-hidden border border-surface-800 shadow-2xl flex items-center justify-center cursor-default">
                         
                         <!-- Close Video Button -->
-                        <button @click="closeVideoModal" class="absolute top-4 left-4 z-50 text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full">
+                        <button type="button" @click="closeVideoModal" class="absolute top-4 left-4 z-50 text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full" aria-label="إغلاق الفيديو">
                             <Icon name="close" class="w-5 h-5" />
                         </button>
 
@@ -198,11 +201,5 @@ function closePopup() {
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
-}
-.z-55 {
-    z-index: 55;
-}
-.z-60 {
-    z-index: 60;
 }
 </style>

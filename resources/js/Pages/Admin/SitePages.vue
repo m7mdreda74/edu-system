@@ -191,7 +191,7 @@ function addAboutPillar() {
             
             <!-- Header bar -->
             <div class="flex items-center gap-3 mb-8">
-                <button v-if="activePage" @click="activePage = null" class="btn-ghost p-2 rounded-lg" title="رجوع للصفحات">
+                <button v-if="activePage" type="button" @click="activePage = null" class="btn-ghost p-2 rounded-lg" title="رجوع للصفحات" aria-label="العودة إلى صفحات الموقع">
                     <Icon name="arrowRight" class="w-5 h-5" />
                 </button>
                 <div>
@@ -214,7 +214,7 @@ function addAboutPillar() {
             <!-- ── Cards grid (Main View) ────────────────────────────────── -->
             <div v-if="!activePage" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Home Page Card -->
-                <button @click="activePage = 'home'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
+                <button type="button" @click="activePage = 'home'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
                     <div class="p-3.5 bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-2xl group-hover:scale-105 transition-transform">
                         <Icon name="dashboard" class="w-7 h-7" />
                     </div>
@@ -225,7 +225,7 @@ function addAboutPillar() {
                 </button>
 
                 <!-- About Us Card -->
-                <button @click="activePage = 'about'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
+                <button type="button" @click="activePage = 'about'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
                     <div class="p-3.5 bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-2xl group-hover:scale-105 transition-transform">
                         <Icon name="student" class="w-7 h-7" />
                     </div>
@@ -236,7 +236,7 @@ function addAboutPillar() {
                 </button>
 
                 <!-- Our Apps Card -->
-                <button @click="activePage = 'apps'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
+                <button type="button" @click="activePage = 'apps'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
                     <div class="p-3.5 bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-2xl group-hover:scale-105 transition-transform">
                         <Icon name="globe" class="w-7 h-7" />
                     </div>
@@ -247,7 +247,7 @@ function addAboutPillar() {
                 </button>
 
                 <!-- Contact Us Card -->
-                <button @click="activePage = 'contact'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
+                <button type="button" @click="activePage = 'contact'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
                     <div class="p-3.5 bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-2xl group-hover:scale-105 transition-transform">
                         <Icon name="chat" class="w-7 h-7" />
                     </div>
@@ -258,7 +258,7 @@ function addAboutPillar() {
                 </button>
 
                 <!-- Welcome Popup Card -->
-                <button @click="activePage = 'popup'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
+                <button type="button" @click="activePage = 'popup'" class="card p-6 text-start flex items-start gap-4 hover:shadow-card-hover hover:border-primary-400 transition-all duration-300 transform hover:-translate-y-1 group">
                     <div class="p-3.5 bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-2xl group-hover:scale-105 transition-transform">
                         <Icon name="live" class="w-7 h-7" />
                     </div>
@@ -309,11 +309,11 @@ function addAboutPillar() {
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
                             <h3 class="font-bold text-sm text-surface-800 dark:text-white">مميزات المنصة (شريط المميزات)</h3>
-                            <button @click="addFeature" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة ميزة</button>
+                            <button type="button" @click="addFeature" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة ميزة</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(feat, idx) in form.home_features" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
-                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                            <div v-for="(feat, idx) in form.home_features" :key="idx" class="border border-surface-200 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-700 pb-2 mb-2">
                                     <span class="text-[10px] font-bold text-surface-500">البند #{{ idx + 1 }}</span>
                                     <button type="button" @click="form.home_features.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
                                         <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
@@ -347,11 +347,11 @@ function addAboutPillar() {
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
                             <h3 class="font-bold text-sm text-surface-800 dark:text-white">لوحة شرف متفوقي قطر بالرئيسية</h3>
-                            <button @click="addResult" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة طالب متفوق</button>
+                            <button type="button" @click="addResult" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة طالب متفوق</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(res, idx) in form.home_results" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
-                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                            <div v-for="(res, idx) in form.home_results" :key="idx" class="border border-surface-200 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-700 pb-2 mb-2">
                                     <span class="text-[10px] font-bold text-surface-500">الطالب المتفوق #{{ idx + 1 }}</span>
                                     <button type="button" @click="form.home_results.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
                                         <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
@@ -384,11 +384,11 @@ function addAboutPillar() {
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
                             <h3 class="font-bold text-sm text-surface-800 dark:text-white">لماذا التفوق خيارك الأول (الميزات الستة)</h3>
-                            <button @click="addWhyUs" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة عنصر</button>
+                            <button type="button" @click="addWhyUs" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة عنصر</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(item, idx) in form.home_why_choose_us" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
-                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                            <div v-for="(item, idx) in form.home_why_choose_us" :key="idx" class="border border-surface-200 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-700 pb-2 mb-2">
                                     <span class="text-[10px] font-bold text-surface-500">العنصر #{{ idx + 1 }}</span>
                                     <button type="button" @click="form.home_why_choose_us.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
                                         <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
@@ -424,11 +424,11 @@ function addAboutPillar() {
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
                             <h3 class="font-bold text-sm text-surface-800 dark:text-white">شروحات ومراجعات يوتيوب التفوق</h3>
-                            <button @click="addYoutube" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة فيديو</button>
+                            <button type="button" @click="addYoutube" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة فيديو</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(vid, idx) in form.home_youtube_videos" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
-                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                            <div v-for="(vid, idx) in form.home_youtube_videos" :key="idx" class="border border-surface-200 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-700 pb-2 mb-2">
                                     <span class="text-[10px] font-bold text-surface-500">الفيديو #{{ idx + 1 }}</span>
                                     <button type="button" @click="form.home_youtube_videos.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
                                         <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
@@ -457,11 +457,11 @@ function addAboutPillar() {
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
                             <h3 class="font-bold text-sm text-surface-800 dark:text-white">الأسئلة الشائعة (FAQ Accordion)</h3>
-                            <button @click="addFaq" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة سؤال</button>
+                            <button type="button" @click="addFaq" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة سؤال</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(faq, idx) in form.home_faqs" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
-                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                            <div v-for="(faq, idx) in form.home_faqs" :key="idx" class="border border-surface-200 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-700 pb-2 mb-2">
                                     <span class="text-[10px] font-bold text-surface-500">السؤال #{{ idx + 1 }}</span>
                                     <button type="button" @click="form.home_faqs.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
                                         <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
@@ -526,11 +526,11 @@ function addAboutPillar() {
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
                             <h3 class="font-bold text-sm text-surface-800 dark:text-white">رؤيتنا ورسالتنا (القيم الأساسية)</h3>
-                            <button @click="addAboutValue" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة قيمة</button>
+                            <button type="button" @click="addAboutValue" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة قيمة</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(val, idx) in form.about_values" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
-                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                            <div v-for="(val, idx) in form.about_values" :key="idx" class="border border-surface-200 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-700 pb-2 mb-2">
                                     <span class="text-[10px] font-bold text-surface-500">القيمة #{{ idx + 1 }}</span>
                                     <button type="button" @click="form.about_values.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
                                         <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
@@ -562,11 +562,11 @@ function addAboutPillar() {
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
                             <h3 class="font-bold text-sm text-surface-800 dark:text-white">ركائز المنصة ومحاور التفوق الدراسي</h3>
-                            <button @click="addAboutPillar" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة ركيزة</button>
+                            <button type="button" @click="addAboutPillar" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة ركيزة</button>
                         </div>
                         <div class="space-y-4">
-                            <div v-for="(pillar, idx) in form.about_pillars" :key="idx" class="border border-surface-150 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
-                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-750 pb-2 mb-2">
+                            <div v-for="(pillar, idx) in form.about_pillars" :key="idx" class="border border-surface-200 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
+                                <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-700 pb-2 mb-2">
                                     <span class="text-[10px] font-bold text-surface-500">الركيزة #{{ idx + 1 }}</span>
                                     <button type="button" @click="form.about_pillars.splice(idx, 1)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 py-1 px-2.5 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-colors">
                                         <Icon name="close" class="w-3 h-3 text-red-500 shrink-0" />
@@ -785,8 +785,8 @@ function addAboutPillar() {
                 <!-- Floating Save Button for Editor page -->
                 <div class="fixed bottom-6 z-40 p-3.5 rounded-2xl shadow-glow-primary flex items-center gap-3"
                      style="left: 50% !important; transform: translateX(-50%) !important; background-color: rgba(15, 23, 42, 0.4) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important;">
-                    <button @click="activePage = null" class="btn-ghost text-xs px-4 py-2 text-white/80 hover:text-white rounded-xl">إلغاء</button>
-                    <button @click="submitPageSettings(activePage)" :disabled="isSaving" class="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 transition-transform hover:scale-102">
+                    <button type="button" @click="activePage = null" class="btn-ghost text-xs px-4 py-2 text-white/80 hover:text-white rounded-xl">إلغاء</button>
+                    <button type="button" @click="submitPageSettings(activePage)" :disabled="isSaving" class="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 transition-transform hover:scale-[1.02]">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6A2.25 2.25 0 016 3.75h1.5m9 0h-9" />
                         </svg>

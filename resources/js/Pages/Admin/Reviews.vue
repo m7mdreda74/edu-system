@@ -153,7 +153,7 @@ async function approveAll() {
                             <button v-else type="button" class="btn-outline btn-sm" @click="reject(review.id)">
                                 إخفاء
                             </button>
-                            <button type="button" class="btn-ghost btn-sm text-red-500" @click="destroy(review.id)">
+                            <button type="button" class="btn-ghost btn-sm text-red-500" aria-label="حذف التقييم" @click="destroy(review.id)">
                                 <Icon name="trash" class="w-4 h-4" />
                             </button>
                         </div>

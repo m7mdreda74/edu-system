@@ -243,7 +243,7 @@ onUnmounted(() => {
                         {{ error }}
                     </div>
 
-                    <button
+                    <button type="button"
                         v-if="remainingAttempts > 0"
                         @click="startQuiz"
                         class="btn-primary btn-lg w-full"
@@ -297,7 +297,7 @@ onUnmounted(() => {
 
                     <!-- Options -->
                     <div class="space-y-3">
-                        <button
+                        <button type="button"
                             v-for="option in currentQuestion?.options"
                             :key="option.id"
                             @click="selectOption(currentQuestion.id, option.id, currentQuestion.type)"
@@ -324,7 +324,7 @@ onUnmounted(() => {
 
                 <!-- Navigation -->
                 <div class="flex items-center justify-between gap-3">
-                    <button
+                    <button type="button"
                         @click="goPrev"
                         :disabled="currentIdx === 0"
                         class="btn-ghost"
@@ -335,7 +335,7 @@ onUnmounted(() => {
 
                     <!-- Question dots -->
                     <div class="flex gap-1.5 flex-wrap justify-center">
-                        <button
+                        <button type="button"
                             v-for="(q, idx) in questions"
                             :key="q.id"
                             @click="currentIdx = idx"
@@ -349,7 +349,7 @@ onUnmounted(() => {
                         />
                     </div>
 
-                    <button
+                    <button type="button"
                         v-if="currentIdx < quizQuestions.length - 1"
                         @click="goNext"
                         class="btn-primary"
@@ -357,7 +357,7 @@ onUnmounted(() => {
                     >
                         التالي →
                     </button>
-                    <button
+                    <button type="button"
                         v-else
                         @click="submitQuiz"
                         :disabled="!allAnswered"
@@ -403,7 +403,7 @@ onUnmounted(() => {
                     </p>
 
                     <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                        <button
+                        <button type="button"
                             v-if="!result.passed && remainingAttempts > 0"
                             @click="phase = 'intro'"
                             class="btn-primary"

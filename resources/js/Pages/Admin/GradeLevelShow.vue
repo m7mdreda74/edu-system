@@ -115,7 +115,7 @@ const {
 
             <!-- Tab Buttons -->
             <div class="flex border-b border-surface-200 dark:border-surface-800 overflow-x-auto whitespace-nowrap">
-                <button @click="activeTab = 'subjects'" 
+                <button type="button" @click="activeTab = 'subjects'"
                         :class="[
                             'px-6 py-3 font-semibold text-sm border-b-2 transition-all duration-200',
                             activeTab === 'subjects' 
@@ -125,7 +125,7 @@ const {
                 >
                     المواد الدراسية ({{ subjects.length }})
                 </button>
-                <button @click="activeTab = 'groups'" 
+                <button type="button" @click="activeTab = 'groups'"
                         :class="[
                             'px-6 py-3 font-semibold text-sm border-b-2 transition-all duration-200',
                             activeTab === 'groups' 
@@ -135,7 +135,7 @@ const {
                 >
                     المجموعات ({{ groups.length }})
                 </button>
-                <button @click="activeTab = 'teachers'" 
+                <button type="button" @click="activeTab = 'teachers'"
                         :class="[
                             'px-6 py-3 font-semibold text-sm border-b-2 transition-all duration-200',
                             activeTab === 'teachers' 
@@ -145,7 +145,7 @@ const {
                 >
                     المعلمون ({{ teachers.length }})
                 </button>
-                <button @click="activeTab = 'students'" 
+                <button type="button" @click="activeTab = 'students'"
                         :class="[
                             'px-6 py-3 font-semibold text-sm border-b-2 transition-all duration-200',
                             activeTab === 'students' 

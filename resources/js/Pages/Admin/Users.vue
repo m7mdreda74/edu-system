@@ -233,7 +233,7 @@ async function removeAvatar() {
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button @click="openCreateModal" class="btn-primary flex items-center gap-2">
+                    <button type="button" @click="openCreateModal" class="btn-primary flex items-center gap-2">
                         <Icon name="plus" class="w-4 h-4" />
                         <span>إضافة مستخدم جديد</span>
                     </button>
@@ -293,6 +293,7 @@ async function removeAvatar() {
                                                 type="button"
                                                 class="absolute inset-0 rounded-full bg-black/55 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                                                 title="تغيير صورة المعلم"
+                                                aria-label="تغيير صورة المعلم"
                                                 @click="openAvatarModal(user)"
                                             >
                                                 <Icon name="edit" class="w-3.5 h-3.5" />
@@ -323,7 +324,7 @@ async function removeAvatar() {
                                     {{ user.subscriptions_count }}
                                 </td>
                                 <td class="p-4">
-                                    <button v-if="user.roles?.some(r => r.name === 'teacher')" @click="openCommissionModal(user)" class="btn-outline btn-sm">
+                                    <button type="button" v-if="user.roles?.some(r => r.name === 'teacher')" @click="openCommissionModal(user)" class="btn-outline btn-sm">
                                         {{ user.commission_percent ?? defaultCommission }}%
                                     </button>
                                     <span v-else class="text-surface-300">—</span>
@@ -338,13 +339,13 @@ async function removeAvatar() {
                                 </td>
                                 <td class="data-table-actions p-4">
                                     <div class="flex flex-wrap gap-2">
-                                    <button
+                                    <button type="button"
                                         @click="openPasswordModal(user)"
                                         class="text-xs px-3 py-1.5 rounded-lg font-medium bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-950/40 dark:text-primary-300 dark:hover:bg-primary-900/50 transition-colors"
                                     >
                                         كلمة المرور
                                     </button>
-                                    <button
+                                    <button type="button"
                                         @click="toggleActive(user.id)"
                                         :disabled="togglingUserIds.has(user.id)"
                                         class="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
@@ -356,7 +357,7 @@ async function removeAvatar() {
                                         {{ togglingUserIds.has(user.id) ? 'جارٍ التحديث...' : (user.is_active ? 'تعطيل' : 'تفعيل') }}
                                     </button>
 
-                                    <button
+                                    <button type="button"
                                         @click="openRoleModal(user)"
                                         class="text-xs px-3 py-1.5 rounded-lg font-medium bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-800 dark:text-surface-300 dark:hover:bg-surface-700 transition-colors"
                                     >
@@ -380,7 +381,7 @@ async function removeAvatar() {
         </div>
 
         <!-- Password reset modal -->
-        <div v-if="passwordModalOpen" class="modal-overlay z-50">
+        <div v-if="passwordModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="تعيين كلمة مرور">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="passwordModalOpen = false"></div>
             <form @submit.prevent="resetUserPassword" class="relative modal-panel-compact card p-6 w-full max-w-sm space-y-4">
                 <div>
@@ -407,7 +408,7 @@ async function removeAvatar() {
         </div>
 
         <!-- Role Modal -->
-        <div v-if="commissionModalOpen" class="modal-overlay z-50">
+        <div v-if="commissionModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="نسبة عمولة المنصة">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="commissionModalOpen = false"></div>
             <form @submit.prevent="updateCommission" class="relative modal-panel-compact card p-6 w-full max-w-sm space-y-4">
                 <div>
@@ -427,7 +428,7 @@ async function removeAvatar() {
         </div>
 
         <!-- Role Modal -->
-        <div v-if="roleModalOpen" class="modal-overlay z-50">
+        <div v-if="roleModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="تعديل دور المستخدم">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="roleModalOpen = false"></div>
             <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-sm animate-fade-up">
                 <div class="p-6">
@@ -469,14 +470,14 @@ async function removeAvatar() {
                     </div>
                 </div>
                 <div class="p-4 bg-surface-50 dark:bg-surface-950 flex justify-end gap-2 border-t border-surface-200 dark:border-surface-800">
-                    <button @click="roleModalOpen = false" class="btn-ghost">إلغاء</button>
-                    <button @click="updateRole" class="btn-primary">حفظ التغييرات</button>
+                    <button type="button" @click="roleModalOpen = false" class="btn-ghost">إلغاء</button>
+                    <button type="button" @click="updateRole" class="btn-primary">حفظ التغييرات</button>
                 </div>
             </div>
         </div>
 
         <!-- Create User Modal -->
-        <div v-if="createUserModalOpen" class="modal-overlay z-50">
+        <div v-if="createUserModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="إضافة مستخدم جديد">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="createUserModalOpen = false"></div>
             <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md animate-fade-up">
                 <form @submit.prevent="submitCreateUser">
@@ -569,7 +570,7 @@ async function removeAvatar() {
         </div>
 
         <!-- ── Teacher photo ─────────────────────────────────────── -->
-        <div v-if="avatarModalOpen" class="modal-overlay z-50">
+        <div v-if="avatarModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="تحديث صورة المعلم">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="avatarModalOpen = false"></div>
 
             <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md">
@@ -582,7 +583,7 @@ async function removeAvatar() {
 
                         <div class="flex items-center gap-4 mt-6">
                             <div class="w-20 h-20 rounded-full overflow-hidden bg-primary-100 dark:bg-primary-900 flex items-center justify-center border shrink-0">
-                                <img v-if="avatarPreview || avatarUser?.avatar" :src="avatarPreview ?? avatarUser.avatar" class="w-full h-full object-cover" />
+                                <img v-if="avatarPreview || avatarUser?.avatar" :src="avatarPreview ?? avatarUser.avatar" :alt="avatarUser?.name || 'صورة المستخدم'" class="w-full h-full object-cover" />
                                 <span v-else class="text-primary-700 font-bold text-xl">{{ avatarUser?.name?.charAt(0) }}</span>
                             </div>
 

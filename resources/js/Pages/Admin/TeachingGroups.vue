@@ -210,7 +210,7 @@ async function destroyGroup(group) {
                             <label class="text-[11px] text-surface-500">سعر البرايفيت الشهري (ر.ق)</label>
                             <input v-model.number="assignmentForm.private_monthly_price_qar" type="number" min="0" step="0.01" class="input w-full" :disabled="!assignmentForm.accepts_private" />
                         </div>
-                        <button class="btn-primary" :disabled="assignmentForm.processing">إسناد بواسطة الإدارة</button>
+                        <button type="submit" class="btn-primary" :disabled="assignmentForm.processing">إسناد بواسطة الإدارة</button>
                     </form>
 
                     <p v-if="Object.keys(assignmentForm.errors).length" class="text-xs text-red-500">
@@ -236,7 +236,7 @@ async function destroyGroup(group) {
                                         {{ assignment.accepts_private ? formatQAR(assignment.private_monthly_price) : 'غير متاح' }}
                                     </td>
                                     <td class="p-3"><span :class="assignment.is_active ? 'badge-green' : 'badge-gray'">{{ assignment.is_active ? 'نشط' : 'متوقف' }}</span></td>
-                                    <td class="data-table-actions p-3"><button class="btn-ghost btn-sm" @click="editAssignment(assignment)">ضبط</button></td>
+                                    <td class="data-table-actions p-3"><button type="button" class="btn-ghost btn-sm" @click="editAssignment(assignment)">ضبط</button></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -256,7 +256,7 @@ async function destroyGroup(group) {
                             <input v-model="assignmentEdit.is_active" type="checkbox" />
                             الإسناد نشط
                         </label>
-                        <button class="btn-primary">حفظ إعدادات الإسناد</button>
+                        <button type="submit" class="btn-primary">حفظ إعدادات الإسناد</button>
                     </form>
                 </div>
 
@@ -276,7 +276,7 @@ async function destroyGroup(group) {
                             <input v-model="groupForm.name" class="input" placeholder="اسم المجموعة" required />
                             <input v-model.number="groupForm.capacity" type="number" min="1" max="1000" class="input" placeholder="السعة (الافتراضي 5)" />
                             <input v-model.number="groupForm.monthly_price_qar" type="number" min="0" step="0.01" class="input" placeholder="السعر الشهري ر.ق" required />
-                            <button class="btn-primary" :disabled="groupForm.processing">إنشاء وتسعير المجموعة</button>
+                            <button type="submit" class="btn-primary" :disabled="groupForm.processing">إنشاء وتسعير المجموعة</button>
                         </div>
                         <p class="text-xs text-surface-500">السعة الافتراضية للمجموعة 5 طلاب، ويمكن للإدارة تعديلها لكل مجموعة.</p>
                         <p v-if="Object.keys(groupForm.errors).length" class="text-xs text-red-500">{{ Object.values(groupForm.errors)[0] }}</p>
@@ -291,7 +291,7 @@ async function destroyGroup(group) {
                             <option v-for="item in terms" :key="item.id" :value="item.id">{{ item.name }} {{ item.year_label }}</option>
                         </select>
                         <label class="flex items-center gap-2 text-sm"><input v-model="groupEdit.is_active" type="checkbox" /> المجموعة مفعّلة</label>
-                        <button class="btn-primary">حفظ تعديلات الإدارة</button>
+                        <button type="submit" class="btn-primary">حفظ تعديلات الإدارة</button>
                     </form>
                 </div>
 
@@ -342,9 +342,9 @@ async function destroyGroup(group) {
                                 </td>
                                 <td class="data-table-actions px-4 py-3">
                                     <div class="flex gap-1">
-                                        <button class="btn-ghost btn-sm" @click="editGroup(group); managementTab = 'groups'">تعديل</button>
-                                        <button class="btn-ghost btn-sm" @click="toggle(group)">{{ group.is_active ? 'إيقاف' : 'تفعيل' }}</button>
-                                        <button class="text-red-500 text-xs px-2" @click="destroyGroup(group)">حذف</button>
+                                        <button type="button" class="btn-ghost btn-sm" @click="editGroup(group); managementTab = 'groups'">تعديل</button>
+                                        <button type="button" class="btn-ghost btn-sm" @click="toggle(group)">{{ group.is_active ? 'إيقاف' : 'تفعيل' }}</button>
+                                        <button type="button" class="text-red-500 text-xs px-2" @click="destroyGroup(group)">حذف</button>
                                     </div>
                                 </td>
                             </tr>

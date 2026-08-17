@@ -124,7 +124,7 @@ async function deleteGradeLevel(id) {
                     </h1>
                     <p class="text-surface-500 mt-1">تحديد وتنظيم المراحل والصفوف الدراسية وربطها بالطلاب والمعلمين والمواد</p>
                 </div>
-                <button @click="openAddModal" class="btn-primary flex items-center gap-2">
+                <button type="button" @click="openAddModal" class="btn-primary flex items-center gap-2">
                     <Icon name="plus" class="w-4 h-4" />
                     <span>إضافة مرحلة جديدة</span>
                 </button>
@@ -133,7 +133,8 @@ async function deleteGradeLevel(id) {
             <!-- Filter Tabs -->
             <div class="mb-6">
                 <div class="flex flex-wrap gap-2 mb-3">
-                    <button 
+                    <button type="button"
+
                         v-for="stage in [
                             { key: 'all_stages', label: 'كل المراحل' },
                             { key: 'primary', label: 'المرحلة الابتدائية' },
@@ -145,8 +146,8 @@ async function deleteGradeLevel(id) {
                         @click="selectedStage = stage.key; selectedTrack = 'all_tracks'"
                         class="btn btn-sm px-4 py-2 border transition-all"
                         :class="selectedStage === stage.key 
-                            ? 'bg-accent-500 text-white border-accent-500 hover:bg-accent-600 shadow-glow-accent/25 font-bold' 
-                            : 'bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-300 border-surface-200 dark:border-surface-700/80 hover:bg-surface-50 dark:hover:bg-surface-750'"
+                            ? 'bg-accent-500 text-white border-accent-500 hover:bg-accent-600 shadow-glow-accent font-bold'
+                            : 'bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-300 border-surface-200 dark:border-surface-700/80 hover:bg-surface-50 dark:hover:bg-surface-700'"
                     >
                         {{ stage.label }}
                     </button>
@@ -163,7 +164,7 @@ async function deleteGradeLevel(id) {
                 >
                     <div v-if="showTrackFilter" class="flex flex-wrap gap-2 pt-2 border-t border-surface-100 dark:border-surface-800">
                         <span class="text-xs text-surface-400 font-semibold self-center ms-1">المسار:</span>
-                        <button
+                        <button type="button"
                             v-for="track in [
                                 { key: 'all_tracks', label: 'كل المسارات', color: '' },
                                 { key: 'science',    label: '🔬 العلمي',           color: 'text-blue-600 dark:text-blue-400' },
@@ -185,7 +186,7 @@ async function deleteGradeLevel(id) {
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div v-for="gl in filteredGradeLevels" :key="gl.id" 
-                     class="card p-6 flex flex-col justify-between hover:-translate-y-1.5 hover:border-accent-500/40 hover:shadow-glow-accent/15 transition-all duration-300 transform border border-surface-100 dark:border-surface-800"
+                     class="card p-6 flex flex-col justify-between hover:-translate-y-1 hover:border-accent-500/40 hover:shadow-glow-accent transition-all duration-300 transform border border-surface-100 dark:border-surface-800"
                 >
                     <div>
                         <div class="flex items-center justify-between gap-2 mb-4">
@@ -250,11 +251,11 @@ async function deleteGradeLevel(id) {
                             <span>عرض الإحصائيات والتفاصيل المربوطة</span>
                         </Link>
                         <div class="flex gap-2">
-                            <button @click="openEditModal(gl)" class="btn-outline btn-sm flex-1 flex items-center justify-center gap-1">
+                            <button type="button" @click="openEditModal(gl)" class="btn-outline btn-sm flex-1 flex items-center justify-center gap-1">
                                 <Icon name="edit" class="w-4 h-4" />
                                 <span>تعديل</span>
                             </button>
-                            <button @click="deleteGradeLevel(gl.id)" class="btn-ghost btn-sm text-red-500 hover:bg-red-500/10 flex-1 flex items-center justify-center gap-1">
+                            <button type="button" @click="deleteGradeLevel(gl.id)" class="btn-ghost btn-sm text-red-500 hover:bg-red-500/10 flex-1 flex items-center justify-center gap-1">
                                 <Icon name="close" class="w-4 h-4" />
                                 <span>حذف</span>
                             </button>
@@ -268,17 +269,17 @@ async function deleteGradeLevel(id) {
                 <Icon name="courses" class="w-16 h-16 text-surface-300 mx-auto mb-4" />
                 <h3 class="text-xl font-bold text-surface-800 dark:text-white mb-2">لا توجد مراحل دراسية بعد</h3>
                 <p class="text-surface-500 mb-6">ابدأ بإضافة أول مرحلة دراسية للمنصة لربط المواد والطلاب بها.</p>
-                <button @click="openAddModal" class="btn-primary">إضافة مرحلة دراسية</button>
+                <button type="button" @click="openAddModal" class="btn-primary">إضافة مرحلة دراسية</button>
             </div>
 
             <!-- Modal Add/Edit -->
-            <div v-if="isModalOpen" class="modal-overlay bg-black/50 z-50 backdrop-blur-sm">
+            <div v-if="isModalOpen" class="modal-overlay bg-black/50 z-50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="إضافة أو تعديل مرحلة دراسية">
                 <div class="modal-panel-compact bg-white dark:bg-surface-900 rounded-3xl w-full max-w-md shadow-2xl border border-surface-200 dark:border-surface-800">
                     <div class="p-6 flex items-center justify-between border-b border-surface-100 dark:border-surface-800">
                         <h2 class="text-xl font-black text-surface-900 dark:text-white">
                             {{ editingGradeLevel ? 'تعديل المرحلة الدراسية' : 'إضافة مرحلة جديدة' }}
                         </h2>
-                        <button @click="isModalOpen = false" class="btn-ghost p-1 rounded-full text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800">
+                        <button type="button" @click="isModalOpen = false" class="btn-ghost p-1 rounded-full text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800" aria-label="إغلاق النافذة">
                             <Icon name="close" class="w-5 h-5" />
                         </button>
                     </div>

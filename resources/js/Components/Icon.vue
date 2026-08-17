@@ -191,5 +191,5 @@ const svgContent = computed(() => paths[props.name] || paths.globe || '');
 </script>
 
 <template>
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" :class="props.class" v-html="svgContent"></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" :class="props.class" aria-hidden="true" focusable="false" v-html="svgContent"></svg>
 </template>

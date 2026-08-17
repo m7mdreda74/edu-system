@@ -103,7 +103,7 @@ function submitGrade(subId, maxScore) {
                 </div>
                 <div class="flex gap-2">
                     <Link :href="route('teacher.dashboard')" class="btn-ghost">← العودة للوحة</Link>
-                    <button @click="openAddModal" class="btn-primary flex items-center gap-2">
+                    <button type="button" @click="openAddModal" class="btn-primary flex items-center gap-2">
                         <Icon name="plus" class="w-4 h-4" />
                         <span>رفع شيت/واجب جديد</span>
                     </button>
@@ -112,13 +112,13 @@ function submitGrade(subId, maxScore) {
 
             <!-- Tabs -->
             <div class="flex border-b border-surface-200 dark:border-surface-800">
-                <button @click="activeTab = 'sheets'"
+                <button type="button" @click="activeTab = 'sheets'"
                         class="px-6 py-3 font-bold text-sm border-b-2 transition-all"
                         :class="activeTab === 'sheets' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-surface-500 hover:text-surface-700'"
                 >
                     الملفات المرفوعة ({{ worksheets.length }})
                 </button>
-                <button @click="activeTab = 'submissions'"
+                <button type="button" @click="activeTab = 'submissions'"
                         class="px-6 py-3 font-bold text-sm border-b-2 transition-all"
                         :class="activeTab === 'submissions' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-surface-500 hover:text-surface-700'"
                 >
@@ -151,10 +151,10 @@ function submitGrade(subId, maxScore) {
                     </div>
 
                     <div class="flex gap-2 border-t border-surface-100 dark:border-surface-800 pt-4">
-                        <a :href="sheet.file_path" target="_blank" class="btn-outline btn-sm flex-1 flex items-center justify-center gap-1">
+                        <a :href="sheet.file_path" target="_blank" rel="noopener noreferrer" class="btn-outline btn-sm flex-1 flex items-center justify-center gap-1">
                             <span>تحميل الملف</span>
                         </a>
-                        <button @click="deleteWorksheet(sheet.id)" class="btn-ghost btn-sm text-red-500 hover:bg-red-500/10 flex-1 flex items-center justify-center gap-1">
+                        <button type="button" @click="deleteWorksheet(sheet.id)" class="btn-ghost btn-sm text-red-500 hover:bg-red-500/10 flex-1 flex items-center justify-center gap-1">
                             <Icon name="close" class="w-4 h-4" />
                             <span>حذف</span>
                         </button>
@@ -190,7 +190,7 @@ function submitGrade(subId, maxScore) {
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="font-semibold text-surface-800 dark:text-surface-200">{{ sub.worksheet?.title }}</div>
-                                    <a :href="sub.submitted_file_path" target="_blank" class="text-xs text-primary-500 hover:underline">عرض حل الطالب 🔗</a>
+                                    <a :href="sub.submitted_file_path" target="_blank" rel="noopener noreferrer" class="text-xs text-primary-500 hover:underline">عرض حل الطالب 🔗</a>
                                 </td>
                                 <td class="px-6 py-4 text-xs text-surface-500">
                                     {{ new Date(sub.submitted_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
@@ -205,7 +205,7 @@ function submitGrade(subId, maxScore) {
                                     {{ sub.teacher_feedback || '—' }}
                                 </td>
                                 <td class="data-table-actions px-6 py-4 text-center">
-                                    <button @click="submitGrade(sub.id, sub.worksheet?.max_score)" 
+                                    <button type="button" @click="submitGrade(sub.id, sub.worksheet?.max_score)"
                                             class="btn-primary btn-xs py-1.5 px-3 rounded-lg"
                                     >
                                         {{ sub.score !== null ? 'تعديل الدرجة' : 'رصد الدرجة' }}
@@ -237,11 +237,11 @@ function submitGrade(subId, maxScore) {
                 leave-from-class="opacity-100 scale-100"
                 leave-to-class="opacity-0 scale-95"
             >
-                <div v-if="isModalOpen" class="modal-overlay z-50 bg-black/55 backdrop-blur-sm">
+                <div v-if="isModalOpen" class="modal-overlay z-50 bg-black/55 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="رفع شيت أو واجب">
                     <div class="modal-panel-compact bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative" dir="rtl">
                         <div class="flex items-center justify-between mb-6">
                             <h3 class="text-xl font-black text-surface-900 dark:text-white">رفع شيت أو واجب جديد</h3>
-                            <button @click="isModalOpen = false" class="btn-ghost p-1 rounded-full">
+                            <button type="button" @click="isModalOpen = false" class="btn-ghost p-1 rounded-full" aria-label="إغلاق النافذة">
                                 <Icon name="close" class="w-5 h-5 text-surface-500" />
                             </button>
                         </div>

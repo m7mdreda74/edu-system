@@ -166,7 +166,7 @@ function formatDate(value) {
                     </h1>
                     <p class="text-surface-500 mt-1">جدولة وبدء حصص مباشرة آمنة عبر Jitsi داخل المنصة</p>
                 </div>
-                <button @click="isModalOpen = true" class="btn-primary">
+                <button type="button" @click="isModalOpen = true" class="btn-primary">
                     + جدولة حصة جديدة
                 </button>
             </div>
@@ -221,22 +221,22 @@ function formatDate(value) {
                                 </td>
                                 <td class="p-4">
                                     <div v-if="['scheduled', 'live'].includes(session.status)">
-                                        <a :href="route('live-sessions.room', session.id)" target="_blank" class="text-primary-500 hover:underline text-xs block truncate max-w-[180px]">
+                                        <a :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener noreferrer" class="text-primary-500 hover:underline text-xs block truncate max-w-[180px]">
                                             دخول غرفة Jitsi
                                         </a>
                                     </div>
                                     <div v-if="session.recording_url">
-                                        <a :href="session.recording_url" target="_blank" class="text-accent-500 hover:underline text-xs block truncate max-w-[150px]">رابط التسجيل</a>
+                                        <a :href="session.recording_url" target="_blank" rel="noopener noreferrer" class="text-accent-500 hover:underline text-xs block truncate max-w-[150px]">رابط التسجيل</a>
                                     </div>
                                 </td>
                                 <td class="data-table-actions p-3">
                                     <div class="flex max-w-[22rem] flex-wrap items-center gap-2">
-                                        <a v-if="session.status === 'scheduled'" :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">دخول وبدء الحصة</a>
-                                        <button v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
-                                        <button v-if="session.status === 'live'" @click="updateStatus(session.id, 'ended')" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
-                                        <button v-if="session.status === 'ended' && !session.recording_url" @click="updateStatus(session.id, 'ended')" class="btn-sm btn-primary">إضافة التسجيل</button>
-                                        <button v-if="['live', 'ended'].includes(session.status)" @click="openAttendance(session)" class="btn-sm btn-outline">تسجيل الحضور</button>
-                                        <button v-if="session.apology?.status === 'pending'" @click="openMakeup(session)" class="btn-sm btn-primary">حدد حصة تعويضية</button>
+                                        <a v-if="session.status === 'scheduled'" :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener noreferrer" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">دخول وبدء الحصة</a>
+                                        <button type="button" v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
+                                        <button type="button" v-if="session.status === 'live'" @click="updateStatus(session.id, 'ended')" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
+                                        <button type="button" v-if="session.status === 'ended' && !session.recording_url" @click="updateStatus(session.id, 'ended')" class="btn-sm btn-primary">إضافة التسجيل</button>
+                                        <button type="button" v-if="['live', 'ended'].includes(session.status)" @click="openAttendance(session)" class="btn-sm btn-outline">تسجيل الحضور</button>
+                                        <button type="button" v-if="session.apology?.status === 'pending'" @click="openMakeup(session)" class="btn-sm btn-primary">حدد حصة تعويضية</button>
                                     </div>
                                 </td>
                             </tr>
@@ -297,7 +297,7 @@ function formatDate(value) {
         </div>
 
         <!-- Session action modal -->
-        <div v-if="actionModal" class="modal-overlay z-[60]" dir="rtl">
+        <div v-if="actionModal" class="modal-overlay z-[60]" dir="rtl" role="dialog" aria-modal="true" aria-label="إجراء على الحصة">
             <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="actionModal = null"></div>
             <div class="relative modal-panel-compact w-full max-w-md rounded-2xl border border-surface-200 bg-white shadow-2xl dark:border-surface-700 dark:bg-surface-900 animate-fade-up">
                 <form v-if="actionModal.type === 'end'" @submit.prevent="submitEndSession">
@@ -352,7 +352,7 @@ function formatDate(value) {
                     </div>
                     <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
                         <button type="button" class="btn-ghost" @click="actionModal = null">إلغاء</button>
-                        <button class="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-red-600" :disabled="apologyForm.processing">إرسال الاعتذار</button>
+                        <button type="submit" class="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-red-600" :disabled="apologyForm.processing">إرسال الاعتذار</button>
                     </div>
                 </form>
                 <form v-else-if="actionModal.type === 'makeup'" @submit.prevent="submitMakeup">
@@ -368,14 +368,14 @@ function formatDate(value) {
                     </div>
                     <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
                         <button type="button" class="btn-ghost" @click="actionModal = null">إلغاء</button>
-                        <button class="btn-primary" :disabled="makeupForm.processing">حفظ الحصة التعويضية</button>
+                        <button type="submit" class="btn-primary" :disabled="makeupForm.processing">حفظ الحصة التعويضية</button>
                     </div>
                 </form>
             </div>
         </div>
 
         <!-- Create Modal -->
-        <div v-if="isModalOpen" class="modal-overlay z-50">
+        <div v-if="isModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="إنشاء حصة مباشرة">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="isModalOpen = false"></div>
             <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-lg animate-fade-up">
                 <form @submit.prevent="submit">

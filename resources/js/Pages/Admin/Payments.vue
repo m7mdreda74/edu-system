@@ -211,14 +211,14 @@ async function rejectPayment(p) {
             </div>
 
             <!-- Receipt Modal Viewer -->
-            <div v-if="selectedReceipt" class="modal-overlay z-50 bg-surface-950/85 backdrop-blur-sm" @click="selectedReceipt = null">
+            <div v-if="selectedReceipt" class="modal-overlay z-50 bg-surface-950/85 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="إيصال الدفع" @click="selectedReceipt = null">
                 <div class="modal-panel-compact relative max-w-2xl w-full bg-white dark:bg-surface-900 rounded-3xl p-6 shadow-2xl space-y-4" @click.stop>
-                    <div class="flex justify-between items-center border-b border-surface-150 dark:border-surface-800 pb-3">
+                    <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3">
                         <h3 class="font-bold text-base text-surface-900 dark:text-white flex items-center gap-2">
                             <Icon name="eye" class="w-5 h-5 text-amber-500" />
                             <span>صورة إيصال التحويل</span>
                         </h3>
-                        <button @click="selectedReceipt = null" class="btn-ghost p-1.5 rounded-lg text-surface-400 hover:text-surface-700">✕</button>
+                        <button type="button" @click="selectedReceipt = null" class="btn-ghost p-1.5 rounded-lg text-surface-400 hover:text-surface-700" aria-label="إغلاق الإيصال">✕</button>
                     </div>
                     <div class="w-full h-[70vh] rounded-2xl overflow-hidden bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 p-2">
                         <iframe :src="selectedReceipt.url" class="w-full h-full rounded-xl border-0" title="إيصال التحويل"></iframe>

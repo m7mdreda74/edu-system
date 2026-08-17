@@ -62,8 +62,8 @@ function submit() {
             <div>
                 <InputLabel value="الصورة الشخصية" />
                 <div class="mt-2 flex items-center gap-4">
-                    <img v-if="user.avatar" :src="user.avatar" class="w-16 h-16 rounded-full object-cover border" />
-                    <div v-else class="w-16 h-16 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-750 font-bold border">
+                    <img v-if="user.avatar" :src="user.avatar" :alt="user.name" class="w-16 h-16 rounded-full object-cover border" />
+                    <div v-else class="w-16 h-16 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-700 font-bold border">
                         {{ user.name.charAt(0) }}
                     </div>
 
