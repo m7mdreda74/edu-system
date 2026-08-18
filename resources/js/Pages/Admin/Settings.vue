@@ -274,7 +274,13 @@ const initLists = () => {
     faqsList.value = q ? JSON.parse(q.value || '[]') : [];
 
     const r = getSetting('home_results');
-    resultsList.value = r ? JSON.parse(r.value || '[]') : [];
+    const parsedResults = r ? JSON.parse(r.value || '[]') : [];
+    resultsList.value = Array.isArray(parsedResults)
+        ? parsedResults.map(({ school: _school, ...result }) => ({
+            ...result,
+            grade: result.grade || '',
+        }))
+        : [];
 
     const av = getSetting('about_values');
     aboutValuesList.value = av ? JSON.parse(av.value || '[]') : [];
@@ -308,7 +314,7 @@ const removeYoutube = (i) => { youtubeList.value.splice(i, 1); isDirty.value = t
 const addFaq = () => { faqsList.value.push({ q: '', a: '' }); isDirty.value = true; };
 const removeFaq = (i) => { faqsList.value.splice(i, 1); isDirty.value = true; };
 
-const addResult = () => { resultsList.value.push({ name: '', title: '', desc: '', school: '' }); isDirty.value = true; };
+const addResult = () => { resultsList.value.push({ name: '', title: '', grade: '', desc: '' }); isDirty.value = true; };
 const removeResult = (i) => { resultsList.value.splice(i, 1); isDirty.value = true; };
 
 const addAboutValue = () => { aboutValuesList.value.push({ title: '', desc: '', icon: 'student' }); isDirty.value = true; };
@@ -952,8 +958,8 @@ async function saveSettings() {
                                         <input v-model="res.title" type="text" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1 md:col-span-2">
-                                        <label class="block text-[10px] font-bold text-surface-500">المدرسة</label>
-                                        <input v-model="res.school" type="text" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
+                                        <label class="block text-[10px] font-bold text-surface-500">الصف الدراسي</label>
+                                        <input v-model="res.grade" type="text" class="input w-full text-xs py-1.5 px-3" placeholder="الصف الثاني عشر" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1 md:col-span-2">
                                         <label class="block text-[10px] font-bold text-surface-500">الوصف / الإنجاز</label>

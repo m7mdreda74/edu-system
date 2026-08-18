@@ -134,6 +134,13 @@ async function submitPageSettings(pageKey) {
         payload[f] = form[f];
     });
 
+    if (pageKey === 'home') {
+        payload.home_results = (form.home_results || []).map(({ school: _school, ...result }) => ({
+            ...result,
+            grade: result.grade || '',
+        }));
+    }
+
     // Special type cast for active status boolean
     if (pageKey === 'popup') {
         payload['welcome_popup_active'] = form.welcome_popup_active ? 'true' : 'false';
@@ -175,7 +182,7 @@ function addFeature() {
     form.home_features.push({ title: 'ميزة جديدة', desc: 'تفاصيل الميزة والوصف القصير...', icon: 'courses' });
 }
 function addResult() {
-    form.home_results.push({ name: 'اسم الطالب', title: 'دفعة ٢٠٢٦', desc: 'تفاصيل النتيجة والمعدل...', school: 'اسم المدرسة الثانوية' });
+    form.home_results.push({ name: 'اسم الطالب', title: 'دفعة ٢٠٢٦', grade: 'الصف الثاني عشر', desc: 'تفاصيل النتيجة والمعدل...' });
 }
 function addWhyUs() {
     form.home_why_choose_us.push({ icon: 'globe', title: 'العنوان التوضيحي', desc: 'وصف الميزة التنافسية بالتفصيل...' });
@@ -379,8 +386,8 @@ function addAboutPillar() {
                                         <input v-model="res.title" type="text" class="input text-xs w-full" placeholder="دفعة ٢٠٢٦">
                                     </div>
                                     <div>
-                                        <label class="label mb-1 block text-[10px]">المدرسة الثانوية</label>
-                                        <input v-model="res.school" type="text" class="input text-xs w-full" placeholder="عمر بن الخطاب الثانوية">
+                                        <label class="label mb-1 block text-[10px]">الصف الدراسي</label>
+                                        <input v-model="res.grade" type="text" class="input text-xs w-full" placeholder="الصف الثاني عشر">
                                     </div>
                                     <div class="md:col-span-3">
                                         <label class="label mb-1 block text-[10px]">نص الإشادة والتفوق</label>

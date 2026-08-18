@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
@@ -16,21 +16,21 @@ const batches = [
 
 const resultsData = [
     // 2026-1
-    { name: 'مريم الباكر', score: '100%', subject: 'الرياضيات والفيزياء', school: 'البيان الثانوية للبنات', batch: '2026-1' },
-    { name: 'جاسم الكواري', score: '99.6%', subject: 'اللغة العربية والإنجليزية', school: 'عمر بن الخطاب الثانوية للبنين', batch: '2026-1' },
-    { name: 'نورة المهندي', score: '100%', subject: 'الكيمياء والأحياء', school: 'الخور الثانوية للبنات', batch: '2026-1' },
+    { name: 'مريم الباكر', score: '100%', subject: 'الرياضيات والفيزياء', grade: 'الصف الثاني عشر', batch: '2026-1' },
+    { name: 'جاسم الكواري', score: '99.6%', subject: 'اللغة العربية والإنجليزية', grade: 'الصف الثاني عشر', batch: '2026-1' },
+    { name: 'نورة المهندي', score: '100%', subject: 'الكيمياء والأحياء', grade: 'الصف الثاني عشر', batch: '2026-1' },
     // 2025-2
-    { name: 'سارة المهندي', score: '99.8%', subject: 'القسم العلمي وتكنولوجيا', school: 'آمنة بنت وهب الثانوية للبنات', batch: '2025-2' },
-    { name: 'عبدالرحمن آل ثاني', score: '99.2%', subject: 'الرياضيات المتقدمة والفيزياء', school: 'قطر الثانوية للبنين', batch: '2025-2' },
-    { name: 'فاطمة المناعي', score: '100%', subject: 'الأحياء والعلوم العامة', school: 'الشيماء الثانوية للبنات', batch: '2025-2' },
+    { name: 'سارة المهندي', score: '99.8%', subject: 'القسم العلمي وتكنولوجيا', grade: 'الصف الثاني عشر', batch: '2025-2' },
+    { name: 'عبدالرحمن آل ثاني', score: '99.2%', subject: 'الرياضيات المتقدمة والفيزياء', grade: 'الصف الثاني عشر', batch: '2025-2' },
+    { name: 'فاطمة المناعي', score: '100%', subject: 'الأحياء والعلوم العامة', grade: 'الصف الثاني عشر', batch: '2025-2' },
     // 2025-1
-    { name: 'خالد آل ثاني', score: '100%', subject: 'الكيمياء والأحياء والعلوم', school: 'الدوحة الثانوية للبنين', batch: '2025-1' },
-    { name: 'حمد البلوشي', score: '98.8%', subject: 'الرياضيات واللغة العربية', school: 'خليفة الثانوية للبنين', batch: '2025-1' },
-    { name: 'شريفة الهيدوس', score: '99.5%', subject: 'الفيزياء والكيمياء', school: 'البيان الثانوية للبنات', batch: '2025-1' },
+    { name: 'خالد آل ثاني', score: '100%', subject: 'الكيمياء والأحياء والعلوم', grade: 'الصف الثاني عشر', batch: '2025-1' },
+    { name: 'حمد البلوشي', score: '98.8%', subject: 'الرياضيات واللغة العربية', grade: 'الصف الثاني عشر', batch: '2025-1' },
+    { name: 'شريفة الهيدوس', score: '99.5%', subject: 'الفيزياء والكيمياء', grade: 'الصف الثاني عشر', batch: '2025-1' },
     // 2024
-    { name: 'محمد الكواري', score: '100%', subject: 'الرياضيات والفيزياء والكيمياء', school: 'عمر بن الخطاب الثانوية للبنين', batch: '2024' },
-    { name: 'عائشة الفضالة', score: '99.4%', subject: 'القسم العلمي', school: 'روضة بنت جاسم الثانوية للبنات', batch: '2024' },
-    { name: 'عبدالله السويدي', score: '99.0%', subject: 'اللغة الإنجليزية والعلوم الاجتماعية', school: 'الجميلية الثانوية للبنين', batch: '2024' },
+    { name: 'محمد الكواري', score: '100%', subject: 'الرياضيات والفيزياء والكيمياء', grade: 'الصف الثاني عشر', batch: '2024' },
+    { name: 'عائشة الفضالة', score: '99.4%', subject: 'القسم العلمي', grade: 'الصف الثاني عشر', batch: '2024' },
+    { name: 'عبدالله السويدي', score: '99.0%', subject: 'اللغة الإنجليزية والعلوم الاجتماعية', grade: 'الصف الثاني عشر', batch: '2024' },
 ];
 
 const filteredResults = computed(() => {
@@ -97,9 +97,9 @@ const filteredResults = computed(() => {
                             </p>
                         </div>
 
-                        <!-- School details -->
+                        <!-- Grade details -->
                         <div class="w-full pt-3 mt-4 border-t border-surface-100 dark:border-surface-800 text-[10px] text-surface-400 flex items-center justify-between">
-                            <span>{{ student.school }}</span>
+                            <span>{{ student.grade || 'الصف الدراسي غير محدد' }}</span>
                             <span class="badge-gray px-2 py-0.5 text-[9px] rounded font-bold">
                                 {{ batches.find(b => b.id === student.batch)?.name }}
                             </span>
