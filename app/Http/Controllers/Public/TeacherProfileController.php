@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Public;
 
+use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Scheduling\Models\PrivateLessonRequest;
 use App\Domain\Scheduling\Models\SessionBooking;
@@ -13,6 +14,7 @@ use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -55,6 +57,22 @@ class TeacherProfileController extends Controller
             ->where('teacher_id', $teacher->id)
             ->where('is_active', true)
             ->get();
+
+        $freeRecordingsByAssignment = GroupMaterial::query()
+            ->with([
+                'unit:id,teaching_assignment_id',
+                'liveSession:id,lesson_id,recording_url,ended_at,is_published_as_lesson',
+            ])
+            ->where('is_free_preview', true)
+            ->whereNotNull('video_url')
+            ->whereHas('unit', fn ($query) => $query
+                ->whereIn('teaching_assignment_id', $assignments->pluck('id')->all()))
+            ->whereHas('liveSession', fn ($query) => $query
+                ->where('is_published_as_lesson', true)
+                ->whereNotNull('recording_url'))
+            ->latest('updated_at')
+            ->get()
+            ->groupBy(fn (GroupMaterial $material): int => (int) $material->unit->teaching_assignment_id);
 
         // A student arriving from a subject page should land on that subject.
         $focusGradeKey = $request->query('grade');
@@ -131,6 +149,22 @@ class TeacherProfileController extends Controller
                         'ends_at' => $freeIntroBooking->privateSlot->ends_at?->toIso8601String(),
                     ] : null,
                 'free_intro_used' => (bool) $freeIntroBooking,
+                'free_recordings' => $freeRecordingsByAssignment
+                    ->get($assignment->id, collect())
+                    ->take(3)
+                    ->map(fn (GroupMaterial $material) => [
+                        'id' => $material->id,
+                        'title' => $material->title,
+                        'description' => $material->description,
+                        'duration_seconds' => $material->duration_seconds,
+                        'published_at' => $material->liveSession?->ended_at?->toIso8601String()
+                            ?? $material->updated_at?->toIso8601String(),
+                        'stream_url' => URL::temporarySignedRoute(
+                            'public.free-recordings.stream',
+                            now()->addMinutes(30),
+                            ['materialId' => $material->id],
+                        ),
+                    ])->values(),
                 'free_intro_slots' => $assignment->privateSlots->where('is_free_intro', true)->map(fn ($slot) => [
                     'id' => $slot->id,
                     'starts_at' => $slot->starts_at?->toIso8601String(),

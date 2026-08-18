@@ -308,8 +308,8 @@ function formatDate(value) {
                         <h3 class="text-xl font-black text-surface-900 dark:text-white">{{ actionModal.alreadyEnded ? 'إضافة تسجيل الحصة' : 'إنهاء الحصة المباشرة' }}</h3>
                         <p class="mt-2 text-sm leading-6 text-surface-500">عند إيقاف التسجيل من غرفة Jitsi سيُحفظ الرابط تلقائيًا ويظهر للطلاب داخل المنصة. اترك الحقل فارغًا؛ استخدمه فقط لتسجيل قديم تم رفعه يدويًا.</p>
                         <div class="mt-5">
-                            <label class="input-label">رابط تسجيل قديم <span class="font-normal text-surface-400">(اختياري)</span></label>
-                            <input v-model="statusForm.recording_url" type="url" dir="ltr" class="input" :required="actionModal.alreadyEnded" placeholder="https://youtube.com/watch?v=...">
+                            <label class="input-label">رابط تسجيل قديم أو مستضاف <span class="font-normal text-surface-400">(اختياري)</span></label>
+                            <input v-model="statusForm.recording_url" type="url" dir="ltr" class="input" :required="actionModal.alreadyEnded" placeholder="https://...">
                             <p v-if="statusForm.errors.recording_url" class="mt-1 text-xs text-red-500">{{ statusForm.errors.recording_url }}</p>
                         </div>
                     </div>

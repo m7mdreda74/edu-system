@@ -8,12 +8,14 @@ use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionAttendee;
+use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -163,6 +165,70 @@ it('saves a Jitsi file recording link automatically and publishes it when the cl
         ->assertJson([
             'provider' => 'file',
         ]);
+});
+
+it('publishes a free intro recording as a public preview on the teacher profile', function (): void {
+    /** @var RecordedClassTestCase $this */
+    $slot = PrivateSessionSlot::create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'starts_at' => now()->subHour(),
+        'ends_at' => now()->addMinutes(30),
+        'timezone' => 'Asia/Qatar',
+        'is_free_intro' => true,
+        'status' => 'booked',
+    ]);
+
+    SessionBooking::create([
+        'student_id' => $this->student->id,
+        'private_session_slot_id' => $slot->id,
+        'status' => 'confirmed',
+        'booked_at' => now()->subDay(),
+    ]);
+
+    $freeSession = LiveSession::create([
+        'teacher_id' => $this->teacher->id,
+        'private_session_slot_id' => $slot->id,
+        'title' => 'الحصة التجريبية المجانية',
+        'description' => 'شرح تعريفي',
+        'scheduled_at' => now()->subHour(),
+        'started_at' => now()->subHour(),
+        'status' => LiveSession::STATUS_LIVE,
+    ]);
+    $recordingUrl = 'https://meet.jit.si/recordings/free-intro-'.$freeSession->id.'.mp4';
+
+    $this->actingAs($this->teacher)
+        ->postJson(route('teacher.live-sessions.recording', $freeSession->id), [
+            'recording_url' => $recordingUrl,
+        ])
+        ->assertOk();
+
+    $this->actingAs($this->teacher)
+        ->patch(route('teacher.live-sessions.status', $freeSession->id), [
+            'status' => LiveSession::STATUS_ENDED,
+            'recording_url' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $material = GroupMaterial::findOrFail($freeSession->fresh()->lesson_id);
+
+    expect($material->is_free_preview)->toBeTrue();
+
+    $this->get(route('teachers.show', $this->teacher->id))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('assignments.0.free_recordings.0.id', $material->id)
+            ->where('assignments.0.free_recordings.0.title', 'الحصة التجريبية المجانية')
+            ->where('assignments.0.free_recordings.0.stream_url', fn (string $url): bool => str_contains($url, '/free-recordings/'.$material->id.'/stream')));
+
+    $signedUrl = URL::temporarySignedRoute(
+        'public.free-recordings.stream',
+        now()->addMinutes(5),
+        ['materialId' => $material->id],
+    );
+
+    $this->get($signedUrl)->assertRedirect($recordingUrl);
+    $this->get(route('public.free-recordings.stream', $material->id))->assertForbidden();
 });
 
 it('rejects a recording link from an untrusted host', function (): void {

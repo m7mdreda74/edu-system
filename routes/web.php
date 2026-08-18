@@ -28,6 +28,7 @@ use App\Http\Controllers\Parent\ParentPrivateLessonRequestController;
 use App\Http\Controllers\Parent\ParentPurchaseRequestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Public\GradeLevelBrowseController;
+use App\Http\Controllers\Public\FreeRecordingController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\Public\SubjectTeachersController;
@@ -74,6 +75,9 @@ Route::get('/grades/{key}', [GradeLevelBrowseController::class, 'show'])->name('
 Route::get('/grades/{gradeKey}/subjects/{subject}', [SubjectTeachersController::class,  'show'])->name('subjects.teachers');
 Route::get('/teachers', [TeacherDirectoryController::class, 'index'])->name('teachers.index');
 Route::get('/teachers/{id}', [TeacherProfileController::class,   'show'])->name('teachers.show');
+Route::get('/free-recordings/{materialId}/stream', [FreeRecordingController::class, 'stream'])
+    ->name('public.free-recordings.stream')
+    ->middleware('signed');
 
 Route::get('/api/search-autocomplete', [SearchController::class, 'autocomplete'])->name('search.autocomplete');
 

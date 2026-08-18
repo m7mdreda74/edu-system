@@ -103,6 +103,18 @@ function formatDateTime(value) {
     return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+function formatDuration(seconds) {
+    const total = Number(seconds || 0);
+    if (!total) return '';
+
+    const minutes = Math.floor(total / 60);
+    const hours = Math.floor(minutes / 60);
+
+    return hours > 0
+        ? `${hours}س ${minutes % 60}د`
+        : `${minutes}د`;
+}
+
 const otherTeachersUrl = computed(() => (
     props.focus.grade && props.focus.subject
         ? route('subjects.teachers', { gradeKey: props.focus.grade, subject: props.focus.subject })
@@ -248,7 +260,7 @@ const otherTeachersUrl = computed(() => (
                             <div>
                                 <h3 class="font-black text-surface-900 dark:text-white">حصة تجريبية مجانية</h3>
                                 <p class="text-xs text-surface-500 mt-1">
-                                    احجز مسبقًا حصة واحدة مع المدرس بدون دفع أو إدخال بيانات مالية.
+                                    شاهد التسجيل المجاني أو احجز موعدًا مباشرًا واحدًا مع المدرس بدون دفع أو إدخال بيانات مالية.
                                 </p>
                             </div>
                             <span class="badge-green">مجانية 100%</span>
@@ -275,9 +287,42 @@ const otherTeachersUrl = computed(() => (
                             </button>
                         </div>
 
-                        <p v-else class="mt-4 text-xs text-surface-400">
+                        <p v-else-if="!activeAssignment.free_recordings?.length" class="mt-4 text-xs text-surface-400">
                             لا يوجد موعد مجاني منشور لهذا الصف حاليًا.
                         </p>
+
+                        <div v-if="activeAssignment.free_recordings?.length" class="mt-5 border-t border-accent-500/20 pt-5">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <div>
+                                    <h4 class="font-black text-surface-900 dark:text-white">شاهد التسجيل المجاني</h4>
+                                    <p class="text-xs text-surface-500 mt-1">لو فاتك موعد اللايف، تقدر تشاهد الشرح المسجل في أي وقت.</p>
+                                </div>
+                                <Icon name="video" class="w-5 h-5 text-accent-600" />
+                            </div>
+
+                            <div class="space-y-4">
+                                <article v-for="recording in activeAssignment.free_recordings" :key="recording.id" class="overflow-hidden rounded-2xl border border-surface-200 bg-white dark:border-surface-700 dark:bg-surface-900">
+                                    <video
+                                        :src="recording.stream_url"
+                                        controls
+                                        preload="metadata"
+                                        class="aspect-video w-full bg-black object-contain"
+                                        :aria-label="recording.title"
+                                    ></video>
+                                    <div class="p-4">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <h5 class="font-bold text-sm text-surface-900 dark:text-white">{{ recording.title }}</h5>
+                                            <span v-if="formatDuration(recording.duration_seconds)" class="shrink-0 text-[11px] text-surface-400">
+                                                {{ formatDuration(recording.duration_seconds) }}
+                                            </span>
+                                        </div>
+                                        <p v-if="recording.description" class="mt-2 text-xs leading-6 text-surface-500 dark:text-surface-400">
+                                            {{ recording.description }}
+                                        </p>
+                                    </div>
+                                </article>
+                            </div>
+                        </div>
                     </div>
 
                     <div v-if="activeAssignment" :key="activeAssignment.id" class="grid lg:grid-cols-3 gap-5">

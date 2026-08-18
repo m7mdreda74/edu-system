@@ -29,6 +29,8 @@ const whiteboardEnabled = computed(() => props.jitsi.whiteboard?.enabled === tru
     && typeof props.jitsi.whiteboard?.collabServerBaseUrl === 'string'
     && props.jitsi.whiteboard.collabServerBaseUrl.trim() !== '');
 
+const autoStartRecording = computed(() => props.jitsi.recording?.auto_start === true);
+
 const sessionDuration = computed(() => {
     if (!sessionStartedAt.value) {
         return 'لم تبدأ';
@@ -49,6 +51,7 @@ let resizeHandler = null;
 let sessionTimer = null;
 let iframePermissionTimer = null;
 let recordingMode = null;
+let automaticRecordingAttempted = false;
 let waitingForRecordingLink = false;
 let recordingLinkTimeout = null;
 let endAfterRecording = false;
@@ -231,6 +234,10 @@ async function handleConferenceJoined() {
     if (props.user.isTeacher) {
         jitsiApi?.executeCommand('subject', props.session.title);
         await startSessionFromRoom();
+
+        if (sessionStatus.value === 'live' && autoStartRecording.value) {
+            await startServerRecording(true);
+        }
     } else {
         await recordStudentJoin();
     }
@@ -368,52 +375,77 @@ function toggleScreenShare() {
     }
 }
 
-function toggleRecording() {
-    toolNotice.value = '';
+function startServerRecording(automatic = false) {
+    if (automatic && automaticRecordingAttempted) {
+        return false;
+    }
 
     if (props.jitsi.recording?.enabled !== true) {
         toolNotice.value = 'التسجيل السحابي غير مفعّل على خادم Jitsi الحالي.';
-        return;
+        return false;
     }
 
     if (!jitsiApi || !isJoined.value) {
         toolNotice.value = 'جاري تجهيز غرفة Jitsi، جرّب التسجيل بعد الاتصال.';
-        return;
+        return false;
     }
 
     if (isRecordingLinkPending.value) {
         toolNotice.value = 'جاري تجهيز رابط التسجيل، انتظر لحظات.';
-        return;
+        return false;
     }
 
     if (recordingMode === 'file' && !isRecording.value) {
         toolNotice.value = 'جاري تجهيز التسجيل، انتظر لحظات.';
-        return;
+        return false;
+    }
+
+    if (isRecording.value) {
+        return true;
+    }
+
+    if (!commandSupported('startRecording')) {
+        toolNotice.value = 'التسجيل غير مدعوم في خادم Jitsi الحالي.';
+        return false;
+    }
+
+    if (automatic) {
+        automaticRecordingAttempted = true;
     }
 
     try {
-        if (isRecording.value) {
-            jitsiApi.executeCommand('stopRecording', recordingMode || 'file', false);
-            return;
-        }
-
-        if (!commandSupported('startRecording')) {
-            toolNotice.value = 'التسجيل غير مدعوم في خادم Jitsi الحالي.';
-            return;
-        }
-
         recordingMode = props.jitsi.recording?.mode || 'file';
         jitsiApi.executeCommand('startRecording', {
             mode: recordingMode,
             onlySelf: false,
             shouldShare: false,
         });
-        toolNotice.value = 'سيتم تجهيز رابط التسجيل تلقائيًا عند إيقافه.';
+        toolNotice.value = automatic
+            ? 'بدأ تسجيل الحصة المجانية تلقائيًا، وسيُنشر بعد انتهائها.'
+            : 'سيتم تجهيز رابط التسجيل تلقائيًا عند إيقافه.';
+        return true;
     } catch (error) {
         recordingMode = null;
         console.error('Could not toggle server recording.', error);
         toolNotice.value = 'تعذّر بدء التسجيل السحابي. تأكد من تشغيل خدمة التسجيل على Jitsi.';
+        return false;
     }
+}
+
+function toggleRecording() {
+    toolNotice.value = '';
+
+    if (isRecording.value) {
+        try {
+            jitsiApi?.executeCommand('stopRecording', recordingMode || 'file', false);
+        } catch (error) {
+            console.error('Could not stop server recording.', error);
+            toolNotice.value = 'تعذّر إيقاف التسجيل السحابي.';
+        }
+        return;
+    }
+
+    startServerRecording(false);
 }
 
 function openWhiteboard() {

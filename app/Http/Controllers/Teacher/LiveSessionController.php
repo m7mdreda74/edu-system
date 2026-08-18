@@ -215,8 +215,12 @@ class LiveSessionController extends Controller
                 'url',
                 'max:2048',
                 function (string $attribute, mixed $value, \Closure $fail): void {
-                    if (filled($value) && ! YouTubeUrl::isValid((string) $value)) {
-                        $fail('رابط التسجيل يجب أن يكون رابط فيديو صحيحًا من YouTube.');
+                    if (
+                        filled($value)
+                        && ! YouTubeUrl::isValid((string) $value)
+                        && ! $this->isAllowedJitsiRecordingUrl((string) $value)
+                    ) {
+                        $fail('رابط التسجيل يجب أن يكون رابط YouTube أو رابط تسجيل معتمد من Jitsi.');
                     }
                 },
             ],
@@ -644,6 +648,7 @@ class LiveSessionController extends Controller
         $duration = $session->started_at && $session->ended_at
             ? max(0, $session->started_at->diffInSeconds($session->ended_at))
             : 0;
+        $isFreePreview = (bool) ($session->privateSessionSlot?->is_free_intro ?? false);
 
         $material = GroupMaterial::create([
             'curriculum_unit_id' => $unit->id,
@@ -653,7 +658,7 @@ class LiveSessionController extends Controller
             'video_url' => $session->recording_url,
             'duration_seconds' => min($duration, 86400),
             'order' => ((int) $unit->lessons()->max('order')) + 1,
-            'is_free_preview' => false,
+            'is_free_preview' => $isFreePreview,
         ]);
 
         $session->update([

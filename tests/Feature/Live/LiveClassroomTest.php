@@ -7,6 +7,7 @@ use App\Domain\Academic\Models\Subject;
 use App\Domain\Communication\Notifications\StudentLiveSessionActivityNotification;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionAttendee;
+use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -93,6 +94,34 @@ it('serves Jitsi details and advertises server attendance endpoints', function (
 
     expect(Route::has('live-sessions.attendance.join'))->toBeTrue()
         ->and(Route::has('live-sessions.attendance.leave'))->toBeTrue();
+});
+
+it('marks a free intro room for automatic server recording', function (): void {
+    $slot = PrivateSessionSlot::create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'starts_at' => now()->subMinutes(15),
+        'ends_at' => now()->addMinutes(45),
+        'timezone' => 'Asia/Qatar',
+        'is_free_intro' => true,
+        'status' => 'booked',
+    ]);
+
+    $freeSession = LiveSession::create([
+        'teacher_id' => $this->teacher->id,
+        'private_session_slot_id' => $slot->id,
+        'title' => 'الحصة المجانية',
+        'scheduled_at' => now()->subMinutes(15),
+        'started_at' => now()->subMinutes(10),
+        'status' => LiveSession::STATUS_LIVE,
+    ]);
+
+    $this->actingAs($this->teacher)
+        ->get(route('live-sessions.room', $freeSession->id))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('jitsi.recording.enabled', true)
+            ->where('jitsi.recording.mode', 'file')
+            ->where('jitsi.recording.auto_start', true));
 });
 
 it('does not expose a stale live room after its live window has elapsed', function (): void {
