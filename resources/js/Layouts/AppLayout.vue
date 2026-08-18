@@ -368,10 +368,14 @@ const isActive = (link) => {
                             لو عندك استفسار أو تحتاج مساعدة، فريقنا جاهز للرد ومساعدتك في أي وقت.
                         </p>
                         <div class="space-y-3 text-sm">
-                            <a :href="'mailto:' + contactEmail" class="block text-surface-400 hover:text-white transition-colors" dir="ltr">{{ contactEmail }}</a>
-                            <a v-if="contactPhone" :href="'tel:' + contactPhone.replace(/\s+/g, '')" class="block text-surface-400 hover:text-white transition-colors" dir="ltr">{{ contactPhone }}</a>
+                            <a :href="'mailto:' + contactEmail" class="flex w-full justify-end text-end text-surface-400 hover:text-white transition-colors">
+                                <span dir="ltr">{{ contactEmail }}</span>
+                            </a>
+                            <a v-if="contactPhone" :href="'tel:' + contactPhone.replace(/\s+/g, '')" class="flex w-full justify-end text-end text-surface-400 hover:text-white transition-colors">
+                                <span dir="ltr">{{ contactPhone }}</span>
+                            </a>
                             <a :href="whatsappUrl" target="_blank" rel="noopener noreferrer"
-                               class="inline-flex items-center gap-2 text-surface-300 hover:text-green-400 transition-colors"
+                               class="flex w-full items-center justify-end gap-2 text-surface-300 hover:text-green-400 transition-colors"
                             >
                                 <Icon name="whatsapp" class="w-4 h-4 text-green-400 shrink-0" />
                                 <span>واتساب</span>
