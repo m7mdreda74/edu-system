@@ -71,6 +71,17 @@ return [
         'cron_secret' => env('CRON_SECRET'),
     ],
 
+    'turnstile' => [
+        'enabled' => filter_var(env('TURNSTILE_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+        'siteverify_url' => env(
+            'TURNSTILE_SITEVERIFY_URL',
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+        ),
+        'timeout' => (int) env('TURNSTILE_TIMEOUT', 5),
+    ],
+
     'jitsi' => [
         // Use a self-hosted Jitsi domain in production. `meet.jit.si` is a
         // convenient fallback for local development.

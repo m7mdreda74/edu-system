@@ -34,6 +34,7 @@ use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\Public\SubjectTeachersController;
 use App\Http\Controllers\Public\TeacherDirectoryController;
 use App\Http\Controllers\Public\TeacherProfileController;
+use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Student\CertificateController;
 use App\Http\Controllers\Student\DashboardController;
 use App\Http\Controllers\Student\FreeIntroSessionController as StudentFreeIntroSessionController;
@@ -83,6 +84,9 @@ Route::get('/api/search-autocomplete', [SearchController::class, 'autocomplete']
 
 Route::get('/about', [HomeController::class, 'about'])->name('about');
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
+Route::post('/contact', [ContactController::class, 'store'])
+    ->name('contact.store')
+    ->middleware('throttle:5,10');
 Route::get('/our-apps', [HomeController::class, 'ourApps'])->name('our_apps');
 Route::get('/students-results', [HomeController::class, 'studentsResults'])->name('students_results');
 

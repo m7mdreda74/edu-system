@@ -136,7 +136,13 @@ class HomeController extends Controller
 
     public function contact(): Response
     {
-        return Inertia::render('Public/Contact');
+        $turnstileSiteKey = config('services.turnstile.enabled')
+            ? trim((string) config('services.turnstile.site_key'))
+            : '';
+
+        return Inertia::render('Public/Contact', [
+            'turnstileSiteKey' => $turnstileSiteKey,
+        ]);
     }
 
     public function ourApps(): Response

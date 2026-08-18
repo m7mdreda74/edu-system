@@ -1,8 +1,12 @@
 <script setup>
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
-import { ref, computed } from 'vue';
+
+const props = defineProps({
+    turnstileSiteKey: { type: String, default: '' },
+});
 
 const page = usePage();
 const settings = computed(() => page.props.settings || {});
@@ -12,31 +16,168 @@ const title = computed(() => settings.value.contact_title || 'تواصل معن�
 
 const whatsappUrl = computed(() => settings.value.whatsapp_url || 'https://wa.me/97455556666');
 const whatsappLabel = computed(() => {
-    // Extract phone number from wa.me link
     const url = whatsappUrl.value;
+
     if (url.includes('wa.me/')) {
         return '+' + url.split('wa.me/')[1].replace(/[^0-9]/g, '');
     }
+
     return '+974 5555 6666';
 });
 
 const contactPhone = computed(() => settings.value.contact_phone || '+974 4444 8888');
 const contactEmail = computed(() => settings.value.contact_email || 'support@altafawwuq.com');
-
 const formSubmitted = ref(false);
-const form = ref({
+const captchaContainer = ref(null);
+const captchaError = ref('');
+const captchaConfigured = computed(() => Boolean(props.turnstileSiteKey));
+
+const form = useForm({
     name: '',
     email: '',
     phone: '',
-    message: ''
+    message: '',
+    captcha_token: '',
 });
 
-function handleSubmit() {
-    if (form.value.name && form.value.message) {
-        formSubmitted.value = true;
-        form.value = { name: '', email: '', phone: '', message: '' };
+const nameLength = computed(() => Array.from(form.name).length);
+const messageLength = computed(() => Array.from(form.message).length);
+const messageWordCount = computed(() => form.message.trim().split(/\s+/u).filter(Boolean).length);
+
+let captchaWidgetId = null;
+let captchaScript = null;
+
+function normalizePhone(value) {
+    return value
+        .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+        .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+        .replace(/[\s().-]+/g, '');
+}
+
+function validPhone(value) {
+    return /^(?:(?:\+|00)[1-9][0-9]{6,14}|0[1-9][0-9]{6,14}|[1-9][0-9]{6,14})$/.test(normalizePhone(value));
+}
+
+function renderTurnstile() {
+    if (!captchaConfigured.value || !captchaContainer.value || !window.turnstile || captchaWidgetId !== null) {
+        return;
+    }
+
+    captchaWidgetId = window.turnstile.render(captchaContainer.value, {
+        sitekey: props.turnstileSiteKey,
+        theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+        callback: (token) => {
+            form.captcha_token = token;
+            captchaError.value = '';
+        },
+        'expired-callback': () => {
+            form.captcha_token = '';
+            captchaError.value = 'انتهت صلاحية التحقق الأمني. أعد التحقق قبل الإرسال.';
+        },
+        'error-callback': () => {
+            form.captcha_token = '';
+            captchaError.value = 'تعذر تحميل التحقق الأمني. حدّث الصفحة وحاول مرة أخرى.';
+        },
+    });
+}
+
+function loadTurnstile() {
+    if (!captchaConfigured.value) {
+        return;
+    }
+
+    if (window.turnstile) {
+        renderTurnstile();
+        return;
+    }
+
+    captchaScript = document.querySelector('script[data-altafawwuq-turnstile]');
+
+    if (!captchaScript) {
+        captchaScript = document.createElement('script');
+        captchaScript.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        captchaScript.async = true;
+        captchaScript.defer = true;
+        captchaScript.dataset.altafawwuqTurnstile = 'true';
+        document.head.appendChild(captchaScript);
+    }
+
+    captchaScript.addEventListener('load', renderTurnstile, { once: true });
+    captchaScript.addEventListener('error', () => {
+        captchaError.value = 'تعذر تحميل التحقق الأمني. حدّث الصفحة وحاول مرة أخرى.';
+    }, { once: true });
+}
+
+function resetTurnstile() {
+    form.captcha_token = '';
+
+    if (captchaWidgetId !== null && window.turnstile) {
+        window.turnstile.reset(captchaWidgetId);
     }
 }
+
+function validateBeforeSubmit() {
+    form.clearErrors();
+    captchaError.value = '';
+
+    if (nameLength.value > 100) {
+        form.setError('name', 'الاسم يجب ألا يتجاوز 100 حرف.');
+        return false;
+    }
+
+    if (!validPhone(form.phone)) {
+        form.setError('phone', 'أدخل رقم هاتف صحيحًا مع مفتاح الدولة عند الحاجة.');
+        return false;
+    }
+
+    if (messageWordCount.value < 2) {
+        form.setError('message', 'اكتب الرسالة في كلمتين على الأقل.');
+        return false;
+    }
+
+    if (messageLength.value > 5000) {
+        form.setError('message', 'تفاصيل الاستفسار يجب ألا تتجاوز 5000 حرف.');
+        return false;
+    }
+
+    if (!captchaConfigured.value) {
+        captchaError.value = 'التحقق الأمني غير متاح حاليًا. يرجى المحاولة لاحقًا.';
+        return false;
+    }
+
+    if (!form.captcha_token) {
+        captchaError.value = 'يرجى إكمال التحقق الأمني أولًا.';
+        return false;
+    }
+
+    return true;
+}
+
+function handleSubmit() {
+    if (!validateBeforeSubmit()) {
+        return;
+    }
+
+    form.post(route('contact.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            formSubmitted.value = true;
+            form.reset();
+            resetTurnstile();
+        },
+        onError: () => {
+            resetTurnstile();
+        },
+    });
+}
+
+onMounted(loadTurnstile);
+
+onBeforeUnmount(() => {
+    if (captchaWidgetId !== null && window.turnstile?.remove) {
+        window.turnstile.remove(captchaWidgetId);
+    }
+});
 </script>
 
 <template>
@@ -55,7 +196,6 @@ function handleSubmit() {
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-                    
                     <!-- Contact Cards (5 cols) -->
                     <div class="md:col-span-5 space-y-4">
                         <div v-for="info in [
@@ -86,41 +226,106 @@ function handleSubmit() {
                     <!-- Contact Form (7 cols) -->
                     <div class="md:col-span-7 card p-6 md:p-8 border border-surface-200 dark:border-surface-800">
                         <h3 class="font-bold text-surface-850 dark:text-white text-lg mb-4">أرسل لنا رسالة مباشرة</h3>
-                        
+
                         <div v-if="formSubmitted" class="alert-success p-4 rounded-xl flex items-center gap-3 mb-4 text-sm">
                             <Icon name="success" class="w-5 h-5 text-green-500 shrink-0" />
-                            <span>شكرًا لتواصلك معنا! تم إرسال رسالتك بنجاح وسيقوم فريق الدعم بالرد عليك قريباً.</span>
+                            <span>شكرًا لتواصلك معنا! تم إرسال رسالتك بنجاح وسيقوم فريق الدعم بالرد عليك قريبًا.</span>
+                        </div>
+
+                        <div v-if="page.props.flash?.error" class="alert-error p-4 rounded-xl flex items-center gap-3 mb-4 text-sm">
+                            <Icon name="error" class="w-5 h-5 text-red-500 shrink-0" />
+                            <span>{{ page.props.flash.error }}</span>
                         </div>
 
                         <form @submit.prevent="handleSubmit" class="space-y-4">
                             <div>
-                                <label class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">الاسم الكامل *</label>
-                                <input v-model="form.name" required type="text" class="input py-2 text-sm w-full" placeholder="اكتب اسمك هنا">
+                                <label for="contact-name" class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">الاسم الكامل *</label>
+                                <input
+                                    id="contact-name"
+                                    v-model="form.name"
+                                    required
+                                    maxlength="100"
+                                    type="text"
+                                    autocomplete="name"
+                                    class="input py-2 text-sm w-full"
+                                    :class="{ 'ring-2 ring-red-500': form.errors.name }"
+                                    placeholder="اكتب اسمك هنا"
+                                >
+                                <div class="flex items-center justify-between mt-1">
+                                    <p v-if="form.errors.name" class="text-red-500 text-xs">{{ form.errors.name }}</p>
+                                    <span class="text-[10px] text-surface-400 mr-auto">{{ nameLength }}/100</span>
+                                </div>
                             </div>
-                            
+
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">البريد الإلكتروني</label>
-                                    <input v-model="form.email" type="email" class="input py-2 text-sm w-full" placeholder="اكتب بريدك الإلكتروني">
+                                    <label for="contact-email" class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">البريد الإلكتروني</label>
+                                    <input
+                                        id="contact-email"
+                                        v-model="form.email"
+                                        type="email"
+                                        autocomplete="email"
+                                        class="input py-2 text-sm w-full"
+                                        :class="{ 'ring-2 ring-red-500': form.errors.email }"
+                                        placeholder="اكتب بريدك الإلكتروني"
+                                    >
+                                    <p v-if="form.errors.email" class="text-red-500 text-xs mt-1">{{ form.errors.email }}</p>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">رقم الهاتف *</label>
-                                    <input v-model="form.phone" required type="tel" class="input py-2 text-sm w-full" placeholder="+974 5555 5555">
+                                    <label for="contact-phone" class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">رقم الهاتف *</label>
+                                    <input
+                                        id="contact-phone"
+                                        v-model="form.phone"
+                                        required
+                                        maxlength="25"
+                                        type="tel"
+                                        inputmode="tel"
+                                        autocomplete="tel"
+                                        dir="ltr"
+                                        class="input py-2 text-sm w-full text-left"
+                                        :class="{ 'ring-2 ring-red-500': form.errors.phone }"
+                                        placeholder="+974 5555 5555"
+                                    >
+                                    <p v-if="form.errors.phone" class="text-red-500 text-xs mt-1">{{ form.errors.phone }}</p>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">تفاصيل الاستفسار أو الرسالة *</label>
-                                <textarea v-model="form.message" required rows="4" class="input py-2 text-sm w-full resize-none" placeholder="اكتب رسالتك أو مشكلتك الفنية بالتفصيل..."></textarea>
+                                <label for="contact-message" class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1.5">تفاصيل الاستفسار أو الرسالة *</label>
+                                <textarea
+                                    id="contact-message"
+                                    v-model="form.message"
+                                    required
+                                    maxlength="5000"
+                                    rows="5"
+                                    class="input py-2 text-sm w-full resize-none"
+                                    :class="{ 'ring-2 ring-red-500': form.errors.message }"
+                                    placeholder="اكتب رسالتك أو مشكلتك الفنية بالتفصيل..."
+                                ></textarea>
+                                <div class="flex items-center justify-between mt-1">
+                                    <p v-if="form.errors.message" class="text-red-500 text-xs">{{ form.errors.message }}</p>
+                                    <span class="text-[10px] text-surface-400 mr-auto">{{ messageWordCount }} كلمة · {{ messageLength }}/5000</span>
+                                </div>
                             </div>
 
-                            <button type="submit" class="btn-primary w-full py-2.5 flex items-center justify-center gap-2">
+                            <div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3">
+                                <div ref="captchaContainer" class="min-h-[65px] flex items-center justify-center" dir="ltr"></div>
+                                <p v-if="!captchaConfigured" class="text-center text-xs text-amber-600 dark:text-amber-300">التحقق الأمني غير متاح حاليًا.</p>
+                                <p v-if="captchaError || form.errors.captcha_token" class="text-center text-red-500 text-xs mt-1">
+                                    {{ captchaError || form.errors.captcha_token }}
+                                </p>
+                            </div>
+
+                            <button
+                                type="submit"
+                                :disabled="form.processing || !captchaConfigured"
+                                class="btn-primary w-full py-2.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
                                 <Icon name="chat" class="w-4 h-4 text-white" />
-                                <span>إرسال الرسالة</span>
+                                <span>{{ form.processing ? 'جارٍ الإرسال...' : 'إرسال الرسالة' }}</span>
                             </button>
                         </form>
                     </div>
-
                 </div>
             </div>
         </div>
