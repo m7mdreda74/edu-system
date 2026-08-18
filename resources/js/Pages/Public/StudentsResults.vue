@@ -86,34 +86,34 @@ const filteredResults = computed(() => {
                     <div v-for="(student, index) in filteredResults" :key="index"
                         class="card p-6 flex flex-col items-center justify-between text-center hover:shadow-card-hover transition-all duration-300 border border-surface-200 dark:border-surface-850"
                     >
-                        <div class="flex flex-col items-center w-full">
-                            <!-- Avatar / Trophy representation -->
-                            <div class="w-16 h-16 rounded-full overflow-hidden bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 mb-4 border-2 border-primary-100 dark:border-primary-900 flex items-center justify-center relative">
-                                <span class="text-lg font-black">{{ student.name.charAt(0) }}</span>
-                                <div class="absolute -bottom-0.5 -end-0.5 bg-accent-500 text-white p-1 rounded-full border-2 border-white dark:border-surface-900">
+                        <div class="flex flex-col items-center w-full gap-4">
+                            <!-- Student name and achievement mark -->
+                            <div class="flex items-center justify-center gap-2 w-full text-center">
+                                <h3 class="font-bold text-surface-850 dark:text-white text-base">
+                                    {{ student.name }}
+                                </h3>
+                                <span
+                                    class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white shadow-glow-accent"
+                                    title="نتيجة مميزة"
+                                    aria-label="نتيجة مميزة"
+                                >
                                     <Icon name="success" class="w-3 h-3 text-white" />
-                                </div>
+                                </span>
                             </div>
 
-                            <!-- Batch Label / Badge -->
-                            <div class="badge bg-accent-50 text-accent-700 dark:bg-accent-950/70 dark:text-accent-400 text-[10px] mb-2 font-bold">
-                                {{ student.title }}
-                            </div>
-
-                            <!-- Name -->
-                            <h3 class="font-bold text-surface-850 dark:text-white text-base mb-1">{{ student.name }}</h3>
-                            
                             <!-- Achievement -->
-                            <p class="text-xs text-surface-500 dark:text-surface-400 font-semibold mb-2">
+                            <p class="text-xs text-surface-500 dark:text-surface-400 font-semibold text-center">
                                 {{ student.desc }}
                             </p>
                         </div>
 
                         <!-- Grade details -->
                         <div class="w-full pt-3 mt-4 border-t border-surface-100 dark:border-surface-800 text-[10px] text-surface-400 flex items-center justify-between">
-                            <span>{{ student.grade || 'الصف الدراسي غير محدد' }}</span>
                             <span class="badge-gray px-2 py-0.5 text-[9px] rounded font-bold">
-                                {{ batches.find(b => b.id === student.batch)?.name }}
+                                {{ student.grade || 'الصف الدراسي غير محدد' }}
+                            </span>
+                            <span class="badge-gray px-2 py-0.5 text-[9px] rounded font-bold">
+                                {{ student.title }}
                             </span>
                         </div>
                     </div>
