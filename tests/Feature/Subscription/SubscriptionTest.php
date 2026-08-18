@@ -309,6 +309,8 @@ it('lets a student reserve one free intro session per teacher without creating a
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('assignments.0.free_intro_slots', 0)
+            ->where('assignments.0.free_intro_booking.id', SessionBooking::where('student_id', $this->student->id)->value('id'))
+            ->where('assignments.0.free_intro_used', true)
             ->where('freeIntroBooking.id', SessionBooking::where('student_id', $this->student->id)->value('id')));
 
     $secondSlot = PrivateSessionSlot::create([

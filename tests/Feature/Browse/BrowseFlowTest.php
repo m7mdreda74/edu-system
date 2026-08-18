@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
+use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Settings\Models\PlatformSetting;
@@ -233,6 +234,47 @@ it('shows a teacher profile with their groups and prices', function () {
             ->has('assignments.0.groups', 1)
             ->where('assignments.0.groups.0.monthly_price', 45_000)
             ->where('assignments.0.groups.0.seats_left', 10));
+});
+
+it('keeps teacher profile tabs scoped to each grade assignment', function () {
+    /** @var BrowseTestCase $this */
+    $otherGrade = GradeLevel::where('key', 'grade_11_science')->firstOrFail();
+    $otherAssignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $this->subject->id,
+        'grade_level_id' => $otherGrade->id,
+        'private_monthly_price' => 120_000,
+        'is_active' => true,
+    ]);
+
+    TeachingGroup::factory()->create([
+        'teaching_assignment_id' => $otherAssignment->id,
+        'monthly_price' => 70_000,
+        'capacity' => 8,
+    ]);
+
+    $otherFreeSlot = PrivateSessionSlot::create([
+        'teaching_assignment_id' => $otherAssignment->id,
+        'starts_at' => now()->addDays(2)->setTime(16, 0),
+        'ends_at' => now()->addDays(2)->setTime(17, 0),
+        'timezone' => 'Asia/Qatar',
+        'is_free_intro' => true,
+        'status' => 'available',
+    ]);
+
+    $this->get(route('teachers.show', $this->teacher->id))
+        ->assertOk()
+        ->assertInertia(function ($page) use ($otherFreeSlot, $otherGrade): void {
+            $assignments = collect($page->toArray()['props']['assignments']);
+            $current = $assignments->firstWhere('grade.key', $this->grade->key);
+            $other = $assignments->firstWhere('grade.key', $otherGrade->key);
+
+            expect($current['private_monthly_price'])->toBe(90_000)
+                ->and($current['groups'][0]['monthly_price'])->toBe(45_000)
+                ->and($other['private_monthly_price'])->toBe(120_000)
+                ->and($other['groups'][0]['monthly_price'])->toBe(70_000)
+                ->and(collect($other['free_intro_slots'])->pluck('id'))->toContain($otherFreeSlot->id);
+        });
 });
 
 it('does not show inactive teachers', function () {

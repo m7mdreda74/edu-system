@@ -121,6 +121,16 @@ class TeacherProfileController extends Controller
                     'status' => $privateRequest->status,
                     'conversation_id' => $privateRequest->conversation_id,
                 ] : null,
+                // Free-intro availability belongs to the selected assignment.
+                // The booking rule is still one intro per teacher, so expose
+                // that state per tab as well.
+                'free_intro_booking' => $freeIntroBooking?->privateSlot?->teaching_assignment_id === $assignment->id
+                    && $freeIntroBooking->privateSlot ? [
+                        'id' => $freeIntroBooking->id,
+                        'starts_at' => $freeIntroBooking->privateSlot->starts_at?->toIso8601String(),
+                        'ends_at' => $freeIntroBooking->privateSlot->ends_at?->toIso8601String(),
+                    ] : null,
+                'free_intro_used' => (bool) $freeIntroBooking,
                 'free_intro_slots' => $assignment->privateSlots->where('is_free_intro', true)->map(fn ($slot) => [
                     'id' => $slot->id,
                     'starts_at' => $slot->starts_at?->toIso8601String(),

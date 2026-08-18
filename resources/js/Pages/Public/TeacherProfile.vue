@@ -243,7 +243,7 @@ const otherTeachersUrl = computed(() => (
                         </button>
                     </div>
 
-                    <div class="card p-5 mb-5 border-accent-500/30 bg-accent-500/5">
+                    <div :key="'free-intro-' + activeAssignment.id" class="card p-5 mb-5 border-accent-500/30 bg-accent-500/5">
                         <div class="flex flex-wrap items-start justify-between gap-4">
                             <div>
                                 <h3 class="font-black text-surface-900 dark:text-white">حصة تجريبية مجانية</h3>
@@ -254,8 +254,12 @@ const otherTeachersUrl = computed(() => (
                             <span class="badge-green">مجانية 100%</span>
                         </div>
 
-                        <div v-if="freeIntroBooking" class="mt-4 rounded-xl bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-300">
-                            حجزك مؤكد: {{ formatDateTime(freeIntroBooking.starts_at) }}
+                        <div v-if="activeAssignment.free_intro_booking" class="mt-4 rounded-xl bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-300">
+                            حجزك مؤكد: {{ formatDateTime(activeAssignment.free_intro_booking.starts_at) }}
+                        </div>
+
+                        <div v-else-if="activeAssignment.free_intro_used" class="mt-4 rounded-xl bg-surface-100 dark:bg-surface-800 p-3 text-xs text-surface-500 dark:text-surface-300">
+                            سبق لك حجز الحصة المجانية مع هذا المعلم في صف آخر.
                         </div>
 
                         <div v-else-if="activeAssignment.free_intro_slots?.length" class="mt-4 flex flex-wrap gap-2">
@@ -276,7 +280,7 @@ const otherTeachersUrl = computed(() => (
                         </p>
                     </div>
 
-                    <div v-if="activeAssignment" class="grid lg:grid-cols-3 gap-5">
+                    <div v-if="activeAssignment" :key="activeAssignment.id" class="grid lg:grid-cols-3 gap-5">
                         <!-- Group list -->
                         <div class="lg:col-span-2 space-y-3">
                             <article
