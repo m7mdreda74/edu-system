@@ -437,23 +437,23 @@ refreshAllStagePreview();
                     >
                         <div class="flex flex-col items-center w-full gap-3">
                             <div dir="ltr" class="flex items-center justify-between gap-3 w-full">
-                                <span v-if="resultScore(result)" class="text-[10px] font-bold text-accent-600">
+                                <span v-if="resultScore(result)" class="text-[10px] font-bold text-accent-600 dark:text-accent-300">
                                     {{ resultScore(result) }}
                                 </span>
                                 <div dir="rtl" class="flex items-center gap-2 text-right">
                                     <Icon name="certificate" class="w-6 h-6 shrink-0 text-accent-500" />
-                                    <h3 class="font-bold text-surface-900 text-sm whitespace-nowrap">
+                                    <h3 class="font-bold text-surface-900 dark:text-white text-sm whitespace-nowrap">
                                         {{ result.name }}
                                     </h3>
                                 </div>
                             </div>
-                            <p class="text-xs text-surface-500 leading-relaxed line-clamp-2">
+                            <p class="text-xs text-surface-500 dark:text-surface-300 leading-relaxed line-clamp-2">
                                 <template v-if="result.subject">تفوق في: {{ result.subject }}</template>
                                 <template v-else>{{ result.desc }}</template>
                             </p>
                         </div>
 
-                        <div dir="rtl" class="w-full mt-4 pt-3 border-t border-surface-100 text-[10px] text-surface-400 flex items-center justify-between gap-2">
+                        <div dir="rtl" class="w-full mt-4 pt-3 border-t border-surface-100 dark:border-surface-700 text-[10px] text-surface-400 flex items-center justify-between gap-2">
                             <span class="result-chip">
                                 {{ result.grade || 'الصف الدراسي غير محدد' }}
                             </span>

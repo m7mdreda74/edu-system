@@ -196,6 +196,13 @@
                shadow-sm overflow-hidden transition-all duration-300 ease-out;
     }
 
+    html.dark .result-card,
+    .dark .result-card {
+        @apply text-white shadow-lg;
+        background-color: rgb(var(--surface-900) / 0.82);
+        border-color: rgb(var(--accent-500) / 0.2);
+    }
+
     .result-card:hover {
         @apply -translate-y-1 shadow-lg;
         border-color: rgb(var(--accent-500) / 0.55);
@@ -204,6 +211,11 @@
     .result-chip {
         @apply rounded-lg bg-surface-100 px-2.5 py-1 text-[9px]
                font-bold text-surface-600 whitespace-nowrap;
+    }
+
+    html.dark .result-chip,
+    .dark .result-chip {
+        @apply bg-surface-800 text-surface-200;
     }
 
     .grade-card {

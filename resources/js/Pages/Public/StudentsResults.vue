@@ -101,26 +101,26 @@ const filteredResults = computed(() => {
                         <div class="flex flex-col items-center w-full gap-3">
                             <!-- Score and student name -->
                             <div dir="ltr" class="flex items-center justify-between gap-3 w-full">
-                                <span v-if="resultScore(student)" class="text-[10px] font-bold text-accent-600">
+                                <span v-if="resultScore(student)" class="text-[10px] font-bold text-accent-600 dark:text-accent-300">
                                     {{ resultScore(student) }}
                                 </span>
                                 <div dir="rtl" class="flex items-center gap-2 text-right">
                                     <Icon name="certificate" class="w-6 h-6 shrink-0 text-accent-500" />
-                                    <h3 class="font-bold text-surface-900 text-base whitespace-nowrap">
+                                    <h3 class="font-bold text-surface-900 dark:text-white text-base whitespace-nowrap">
                                         {{ student.name }}
                                     </h3>
                                 </div>
                             </div>
 
                             <!-- Achievement / subject -->
-                            <p class="text-xs text-surface-500 font-semibold text-center line-clamp-2">
+                            <p class="text-xs text-surface-500 dark:text-surface-300 font-semibold text-center line-clamp-2">
                                 <template v-if="student.subject">تفوق في: {{ student.subject }}</template>
                                 <template v-else>{{ student.desc }}</template>
                             </p>
                         </div>
 
                         <!-- Grade details -->
-                        <div dir="rtl" class="w-full pt-3 mt-4 border-t border-surface-100 text-[10px] text-surface-400 flex items-center justify-between gap-2">
+                        <div dir="rtl" class="w-full pt-3 mt-4 border-t border-surface-100 dark:border-surface-700 text-[10px] text-surface-400 flex items-center justify-between gap-2">
                             <span class="result-chip">
                                 {{ student.grade || 'الصف الدراسي غير محدد' }}
                             </span>
