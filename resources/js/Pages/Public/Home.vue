@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link, Head, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import GradeCard from '@/Components/GradeCard.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
 import Icon from '@/Components/Icon.vue';
 import WelcomePopup from '@/Components/WelcomePopup.vue';
@@ -121,12 +122,44 @@ const parsedFaqs = computed(() => {
 
 const selectedStageTab = ref('all');
 const selectedTrackTab = ref('all');
+const allStagePreview = ref([]);
 
 const TRACK_LABELS = {
     science:    '🔬 العلمي',
     arts:       '📚 الآداب والإنسانيات',
     technology: '💻 التكنولوجي',
 };
+
+const STAGE_ORDER = ['primary', 'preparatory', 'secondary'];
+const ALL_STAGE_PREVIEW_COUNT = 4;
+
+function shuffled(items) {
+    const copy = [...items];
+
+    for (let index = copy.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        [copy[index], copy[randomIndex]] = [copy[randomIndex], copy[index]];
+    }
+
+    return copy;
+}
+
+function refreshAllStagePreview() {
+    const queues = shuffled(STAGE_ORDER)
+        .map((stage) => shuffled(props.grades.filter((grade) => grade.stage === stage)));
+    const preview = [];
+
+    while (preview.length < Math.min(ALL_STAGE_PREVIEW_COUNT, props.grades.length) && queues.some((queue) => queue.length)) {
+        for (const queue of queues) {
+            if (!queue.length) continue;
+
+            preview.push(queue.shift());
+            if (preview.length === ALL_STAGE_PREVIEW_COUNT) break;
+        }
+    }
+
+    allStagePreview.value = preview;
+}
 
 const filteredGrades = computed(() => {
     let list = props.grades;
@@ -143,26 +176,15 @@ const filteredGrades = computed(() => {
 function selectStage(key) {
     selectedStageTab.value = key;
     selectedTrackTab.value = 'all';
+
+    if (key === 'all') refreshAllStagePreview();
 }
 
-// Grouped by stage so the secondary tracks sit under one heading instead of
-// looking like extra, unrelated grades.
-const STAGE_ORDER = ['primary', 'preparatory', 'secondary'];
-
-const gradeGroups = computed(() => {
-    const byStage = new Map();
-
-    for (const grade of filteredGrades.value) {
-        if (!byStage.has(grade.stage)) {
-            byStage.set(grade.stage, { stage: grade.stage, label: grade.stage_label, grades: [] });
-        }
-        byStage.get(grade.stage).grades.push(grade);
-    }
-
-    return [...byStage.values()].sort(
-        (a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage),
-    );
+const visibleGrades = computed(() => {
+    return selectedStageTab.value === 'all' ? allStagePreview.value : filteredGrades.value;
 });
+
+refreshAllStagePreview();
 
 </script>
 
@@ -288,37 +310,28 @@ const gradeGroups = computed(() => {
                     </Transition>
                 </div>
 
-                <!-- One block per stage, so the secondary tracks read clearly -->
-                <div v-for="group in gradeGroups" :key="group.stage" class="mb-10 last:mb-0 animate-fade-in-up animation-delay-200">
-                    <h3 v-if="gradeGroups.length > 1" class="text-sm font-black text-surface-700 dark:text-surface-300 mb-4 text-center">
-                        {{ group.label }}
+                <!-- Keep the preview to one row; stage-specific rows can scroll horizontally. -->
+                <div v-if="visibleGrades.length" class="animate-fade-in-up animation-delay-200">
+                    <h3 v-if="selectedStageTab !== 'all'" class="text-sm font-black text-surface-700 dark:text-surface-300 mb-4 text-center">
+                        {{ filteredGrades[0]?.stage_label }}
                     </h3>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        <Link
-                            v-for="grade in group.grades"
+                    <div
+                        class="grade-card-row no-scrollbar"
+                        :class="{ 'sm:justify-center': selectedStageTab === 'all' }"
+                        aria-label="الصفوف الدراسية"
+                    >
+                        <GradeCard
+                            v-for="grade in visibleGrades"
                             :key="grade.key"
-                            :href="route('grades.show', { key: grade.key })"
-                            class="hover-scale-premium card p-6 text-center group flex flex-col items-center justify-center transition-all duration-300"
-                        >
-                            <div class="p-4 rounded-full bg-accent-50/70 dark:bg-accent-950/40 text-primary-600 dark:text-primary-400 mb-4 group-hover:scale-110 group-hover:bg-accent-100 dark:group-hover:bg-accent-900/50 transition-all duration-300 border border-accent-500/10">
-                                <Icon name="student" class="w-8 h-8 group-hover:animate-float" />
-                            </div>
+                            :grade="grade"
+                        />
+                    </div>
 
-                            <div class="font-bold text-surface-800 dark:text-surface-100 text-sm group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                                {{ grade.name }}
-                            </div>
-
-                            <span v-if="grade.track_label" class="badge-primary mt-2 text-[10px]">
-                                {{ grade.track_label }}
-                            </span>
-
-                            <div class="flex items-center gap-1.5 mt-2 flex-wrap justify-center">
-                                <span class="badge-gray text-[10px]">{{ grade.subjects_count }} مادة</span>
-                                <span v-if="grade.teachers_count" class="badge-green text-[10px]">
-                                    {{ grade.teachers_count }} معلم
-                                </span>
-                            </div>
+                    <div class="mt-5 flex justify-center">
+                        <Link :href="route('grades.index')" class="btn-outline btn-sm inline-flex items-center gap-2">
+                            <span>عرض المزيد</span>
+                            <Icon name="arrowLeft" class="w-4 h-4" />
                         </Link>
                     </div>
                 </div>

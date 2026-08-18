@@ -74,6 +74,19 @@ it('shows every stage of the Qatari system on the home page', function () {
         });
 });
 
+it('provides a full grade directory for the home page preview link', function () {
+    /** @var BrowseTestCase $this */
+    $this->get(route('grades.index'))
+        ->assertOk()
+        ->assertInertia(function ($page) {
+            $page->component('Public/Grades');
+
+            $stages = collect($page->toArray()['props']['grades'])->pluck('stage')->unique();
+
+            expect($stages)->toContain('primary', 'preparatory', 'secondary');
+        });
+});
+
 it('does not return statistics to the home page', function () {
     /** @var BrowseTestCase $this */
     $this->get(route('home'))

@@ -69,6 +69,7 @@ Route::get('/api/cron/live-session-reminders', LiveSessionReminderController::cl
 
 // ─── Public Browse Flow: grade → subject → teachers → profile ─────────────────
 Route::get('/', [HomeController::class,             'index'])->name('home');
+Route::get('/grades', [HomeController::class,      'grades'])->name('grades.index');
 Route::get('/grades/{key}', [GradeLevelBrowseController::class, 'show'])->name('grades.show');
 Route::get('/grades/{gradeKey}/subjects/{subject}', [SubjectTeachersController::class,  'show'])->name('subjects.teachers');
 Route::get('/teachers', [TeacherDirectoryController::class, 'index'])->name('teachers.index');

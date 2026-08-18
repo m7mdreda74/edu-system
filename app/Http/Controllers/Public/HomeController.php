@@ -9,6 +9,7 @@ use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,33 +29,7 @@ class HomeController extends Controller
 {
     public function index(): Response
     {
-        $grades = Cache::remember('home.grades', 1800, function () {
-            $subjectCounts = GradeLevel::where('is_active', true)
-                ->withCount('subjects')
-                ->pluck('subjects_count', 'id');
-
-            $teacherCounts = TeachingAssignment::where('is_active', true)
-                ->get(['grade_level_id', 'teacher_id'])
-                ->groupBy('grade_level_id')
-                ->map(fn ($assignments) => $assignments->pluck('teacher_id')->unique()->count());
-
-            return GradeLevel::where('is_active', true)
-                ->orderBy('id')
-                ->get(['id', 'key', 'name', 'name_en', 'stage', 'track'])
-                ->map(fn (GradeLevel $grade) => [
-                    'id' => $grade->id,
-                    'key' => $grade->key,
-                    'name' => $grade->name,
-                    'name_en' => $grade->name_en,
-                    'stage' => $grade->stage,
-                    'stage_label' => $grade->stageLabel(),
-                    'track' => $grade->track,
-                    'track_label' => $grade->trackLabel(),
-                    'subjects_count' => (int) ($subjectCounts[$grade->id] ?? 0),
-                    'teachers_count' => (int) ($teacherCounts->get($grade->id, 0)),
-                ])
-                ->values();
-        });
+        $grades = $this->activeGrades();
 
         $featuredTeachers = Cache::remember('home.featured_teachers', 900, function () {
             return User::role('teacher')
@@ -102,6 +77,44 @@ class HomeController extends Controller
             'grades' => $grades,
             'featuredTeachers' => $featuredTeachers,
         ]);
+    }
+
+    public function grades(): Response
+    {
+        return Inertia::render('Public/Grades', [
+            'grades' => $this->activeGrades(),
+        ]);
+    }
+
+    private function activeGrades(): Collection
+    {
+        return Cache::remember('home.grades', 1800, function () {
+            $subjectCounts = GradeLevel::where('is_active', true)
+                ->withCount('subjects')
+                ->pluck('subjects_count', 'id');
+
+            $teacherCounts = TeachingAssignment::where('is_active', true)
+                ->get(['grade_level_id', 'teacher_id'])
+                ->groupBy('grade_level_id')
+                ->map(fn ($assignments) => $assignments->pluck('teacher_id')->unique()->count());
+
+            return GradeLevel::where('is_active', true)
+                ->orderBy('id')
+                ->get(['id', 'key', 'name', 'name_en', 'stage', 'track'])
+                ->map(fn (GradeLevel $grade) => [
+                    'id' => $grade->id,
+                    'key' => $grade->key,
+                    'name' => $grade->name,
+                    'name_en' => $grade->name_en,
+                    'stage' => $grade->stage,
+                    'stage_label' => $grade->stageLabel(),
+                    'track' => $grade->track,
+                    'track_label' => $grade->trackLabel(),
+                    'subjects_count' => (int) ($subjectCounts[$grade->id] ?? 0),
+                    'teachers_count' => (int) ($teacherCounts->get($grade->id, 0)),
+                ])
+                ->values();
+        });
     }
 
     public function about(): Response

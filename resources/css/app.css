@@ -191,6 +191,26 @@
         @apply card transition-all duration-300 ease-out;
     }
 
+    .grade-card {
+        width: 14rem;
+        min-width: 14rem;
+        height: 13rem;
+    }
+
+    .grade-card--full {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .grade-card-row {
+        @apply flex flex-nowrap gap-4 overflow-x-auto pb-3;
+        scroll-snap-type: x mandatory;
+    }
+
+    .grade-card-row > .grade-card {
+        scroll-snap-align: start;
+    }
+
     /* Shared modal layout. Keep tall forms inside the viewport instead of
        centering them beyond the visible top and bottom edges. */
     .modal-overlay {
