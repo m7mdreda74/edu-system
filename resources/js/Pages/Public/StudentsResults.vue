@@ -1,41 +1,53 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
+const page = usePage();
 const activeBatch = ref('all');
 
-const batches = [
-    { id: 'all', name: 'جميع الدفعات' },
-    { id: '2026-1', name: 'دفعة 2026 الفصل الأول' },
-    { id: '2025-2', name: 'دفعة 2025 الفصل الثاني' },
-    { id: '2025-1', name: 'دفعة 2025 الفصل الأول' },
-    { id: '2024', name: 'دفعة 2024' },
-];
+const normalizeResult = (result) => {
+    if (!result || typeof result !== 'object') return null;
 
-const resultsData = [
-    // 2026-1
-    { name: 'مريم الباكر', score: '100%', subject: 'الرياضيات والفيزياء', grade: 'الصف الثاني عشر', batch: '2026-1' },
-    { name: 'جاسم الكواري', score: '99.6%', subject: 'اللغة العربية والإنجليزية', grade: 'الصف الثاني عشر', batch: '2026-1' },
-    { name: 'نورة المهندي', score: '100%', subject: 'الكيمياء والأحياء', grade: 'الصف الثاني عشر', batch: '2026-1' },
-    // 2025-2
-    { name: 'سارة المهندي', score: '99.8%', subject: 'القسم العلمي وتكنولوجيا', grade: 'الصف الثاني عشر', batch: '2025-2' },
-    { name: 'عبدالرحمن آل ثاني', score: '99.2%', subject: 'الرياضيات المتقدمة والفيزياء', grade: 'الصف الثاني عشر', batch: '2025-2' },
-    { name: 'فاطمة المناعي', score: '100%', subject: 'الأحياء والعلوم العامة', grade: 'الصف الثاني عشر', batch: '2025-2' },
-    // 2025-1
-    { name: 'خالد آل ثاني', score: '100%', subject: 'الكيمياء والأحياء والعلوم', grade: 'الصف الثاني عشر', batch: '2025-1' },
-    { name: 'حمد البلوشي', score: '98.8%', subject: 'الرياضيات واللغة العربية', grade: 'الصف الثاني عشر', batch: '2025-1' },
-    { name: 'شريفة الهيدوس', score: '99.5%', subject: 'الفيزياء والكيمياء', grade: 'الصف الثاني عشر', batch: '2025-1' },
-    // 2024
-    { name: 'محمد الكواري', score: '100%', subject: 'الرياضيات والفيزياء والكيمياء', grade: 'الصف الثاني عشر', batch: '2024' },
-    { name: 'عائشة الفضالة', score: '99.4%', subject: 'القسم العلمي', grade: 'الصف الثاني عشر', batch: '2024' },
-    { name: 'عبدالله السويدي', score: '99.0%', subject: 'اللغة الإنجليزية والعلوم الاجتماعية', grade: 'الصف الثاني عشر', batch: '2024' },
-];
+    const { school: _school, ...cleanResult } = result;
+
+    return {
+        name: cleanResult.name || '',
+        title: cleanResult.title || 'نتيجة مميزة',
+        grade: cleanResult.grade || 'الصف الدراسي غير محدد',
+        desc: cleanResult.desc || '',
+    };
+};
+
+const resultsData = computed(() => {
+    const raw = page.props.settings?.home_results;
+
+    if (raw !== undefined && raw !== null && raw !== '') {
+        try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+            return Array.isArray(parsed)
+                ? parsed.map(normalizeResult).filter(Boolean)
+                : [];
+        } catch (error) {
+            console.warn('Failed to parse home_results settings JSON:', error);
+            return [];
+        }
+    }
+
+    return [];
+});
+
+const batches = computed(() => [
+    { id: 'all', name: 'جميع النتائج' },
+    ...[...new Set(resultsData.value.map(result => result.title).filter(Boolean))]
+        .map(title => ({ id: title, name: title })),
+]);
 
 const filteredResults = computed(() => {
-    if (activeBatch.value === 'all') return resultsData;
-    return resultsData.filter(r => r.batch === activeBatch.value);
+    if (activeBatch.value === 'all') return resultsData.value;
+    return resultsData.value.filter(result => result.title === activeBatch.value);
 });
 </script>
 
@@ -70,7 +82,7 @@ const filteredResults = computed(() => {
                 </div>
 
                 <!-- Results Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-16">
+                <div v-if="filteredResults.length" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-16">
                     <div v-for="(student, index) in filteredResults" :key="index"
                         class="card p-6 flex flex-col items-center justify-between text-center hover:shadow-card-hover transition-all duration-300 border border-surface-200 dark:border-surface-850"
                     >
@@ -83,17 +95,17 @@ const filteredResults = computed(() => {
                                 </div>
                             </div>
 
-                            <!-- Grade Label / Badge -->
+                            <!-- Batch Label / Badge -->
                             <div class="badge bg-accent-50 text-accent-700 dark:bg-accent-950/70 dark:text-accent-400 text-[10px] mb-2 font-bold">
-                                {{ student.score }}
+                                {{ student.title }}
                             </div>
 
                             <!-- Name -->
                             <h3 class="font-bold text-surface-850 dark:text-white text-base mb-1">{{ student.name }}</h3>
                             
-                            <!-- Subject -->
+                            <!-- Achievement -->
                             <p class="text-xs text-surface-500 dark:text-surface-400 font-semibold mb-2">
-                                تفوق في: {{ student.subject }}
+                                {{ student.desc }}
                             </p>
                         </div>
 
@@ -106,6 +118,9 @@ const filteredResults = computed(() => {
                         </div>
                     </div>
                 </div>
+                <p v-else class="card mb-16 py-12 text-center text-sm text-surface-400">
+                    لا توجد نتائج منشورة حاليًا.
+                </p>
 
                 <!-- Call to action -->
                 <div class="card p-8 bg-gradient-to-br from-primary-900 to-primary-950 text-white text-center">
