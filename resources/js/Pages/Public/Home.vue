@@ -173,13 +173,7 @@ const gradeGroups = computed(() => {
         <WelcomePopup />
 
         <!-- ── Hero Section ─────────────────────────────────────── -->
-        <section class="hero-gradient relative overflow-hidden">
-            <!-- Background decoration -->
-            <div class="absolute inset-0 opacity-10">
-                <div class="absolute top-10 start-10 w-64 h-64 rounded-full bg-white/20 blur-3xl"></div>
-                <div class="absolute bottom-10 end-10 w-96 h-96 rounded-full bg-accent-400/30 blur-3xl"></div>
-            </div>
-
+        <section class="hero-image relative overflow-hidden">
             <div class="container-app px-4 py-20 md:py-28 relative">
                 <div class="max-w-2xl">
                     <div v-if="heroContent.badge" class="badge bg-white/20 text-white mb-6 text-sm py-1.5 px-4 flex items-center gap-1.5 w-fit">

@@ -452,6 +452,33 @@
                     linear-gradient(135deg, rgb(var(--surface-950)) 0%, rgb(var(--primary-800)) 50%, rgb(var(--accent-950)) 100%);
     }
 
+    /* ── Image Hero ── */
+    .hero-image {
+        background-color: rgb(var(--surface-950));
+        background-image:
+            linear-gradient(90deg,
+                rgb(var(--surface-950) / 0.08) 0%,
+                rgb(var(--surface-950) / 0.15) 36%,
+                rgb(var(--surface-950) / 0.68) 69%,
+                rgb(var(--surface-950) / 0.94) 100%),
+            url('/images/home-hero-bg.png');
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+    }
+
+    @media (max-width: 767px) {
+        .hero-image {
+            background-image:
+                linear-gradient(180deg,
+                    rgb(var(--surface-950) / 0.18) 0%,
+                    rgb(var(--surface-950) / 0.78) 58%,
+                    rgb(var(--surface-950) / 0.96) 100%),
+                url('/images/home-hero-bg.png');
+            background-position: center, 32% center;
+        }
+    }
+
     /* ── Glass morphism ── */
     .glass {
         @apply bg-white/10 backdrop-blur-md border border-white/20;
