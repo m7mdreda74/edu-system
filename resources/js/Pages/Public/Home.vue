@@ -602,7 +602,7 @@ refreshAllStagePreview();
                 <p class="text-white/80 mb-8 max-w-md mx-auto">
                     {{ stripEmojis($page.props.settings?.home_cta_desc) || 'انضم لآلاف الطلاب الذين حققوا نتائج متميزة مع منصة التفوق' }}
                 </p>
-                <Link :href="route('register')" class="btn-accent btn-lg transform transition-all duration-300 hover:scale-105 hover:shadow-glow-accent">
+                <Link :href="route('register')" class="btn btn-lg bg-white text-primary-800 border border-white/80 shadow-xl transform transition-all duration-300 hover:scale-105 hover:bg-surface-50 hover:shadow-glow-accent">
                     {{ stripEmojis($page.props.settings?.home_cta_btn) || 'إنشاء حساب مجاني — الآن' }}
                 </Link>
             </div>

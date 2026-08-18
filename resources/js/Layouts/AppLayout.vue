@@ -126,6 +126,19 @@ const footerLinks = computed(() => {
     ];
 });
 
+const contactEmail = computed(() => page.props.settings?.contact_email || 'support@altafawwuq.com');
+const contactPhone = computed(() => page.props.settings?.contact_phone || '+974 4444 8888');
+const whatsappUrl = computed(() => page.props.settings?.whatsapp_url || 'https://wa.me/97455556666');
+const whatsappNumber = computed(() => {
+    const digits = String(whatsappUrl.value).match(/wa\.me\/(\d+)/i)?.[1] || '';
+
+    if (digits.startsWith('974') && digits.length === 11) {
+        return '+974 ' + digits.slice(3, 7) + ' ' + digits.slice(7);
+    }
+
+    return digits ? '+' + digits : '+974 5555 6666';
+});
+
 const socialLinks = computed(() => {
     const raw = page.props.settings?.footer_social_links;
     if (raw) {
@@ -327,38 +340,47 @@ const isActive = (link) => {
         </main>
 
         <!-- ── Footer ─────────────────────────────────────────────── -->
-        <footer class="bg-surface-900 dark:bg-surface-950 text-surface-300 py-12 mt-auto">
-            <div class="container-app px-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                    <div>
-                        <div class="flex items-center gap-2 mb-4">
-                            <BrandLogo :show-text="false" compact />
-                            <div class="hidden">
-                            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700
-                                        flex items-center justify-center">
-                                <span class="text-white font-bold text-xs">{{ ($page.props.settings?.platform_name ?? 'تفوّق').charAt(0) }}</span>
-                            </div>
-                            <span class="text-white font-bold text-lg">{{ $page.props.settings?.platform_name ?? 'منصة التفوق' }}</span>
-                            </div>
+        <footer class="bg-surface-900 dark:bg-surface-950 text-surface-300 py-14 sm:py-16 mt-auto" dir="rtl">
+            <div class="container-app w-full px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-14 mb-10 items-start">
+                    <div class="min-w-0 text-start">
+                        <div class="mb-5">
+                            <BrandLogo />
                         </div>
-                        <p class="text-sm text-surface-400 leading-relaxed">
+                        <p class="max-w-md text-sm text-surface-400 leading-7">
                             {{ $page.props.settings?.footer_desc ?? 'منصة تعليمية قطرية تربط الطالب بأفضل المعلمين — اختر صفك، شاهد طريقة الشرح، واحجز مع من يناسبك.' }}
                         </p>
+                        <p class="max-w-md mt-3 text-sm text-surface-500 leading-7">
+                            نسهّل عليك طريق التعلم بخطة واضحة، وشروحات مبسطة، ودعم مستمر يساعدك تتقدم بثقة.
+                        </p>
                     </div>
-                    <div>
-                        <h4 class="text-white font-semibold mb-3">روابط سريعة</h4>
-                        <ul class="space-y-2 text-sm">
+                    <div class="min-w-0 text-start">
+                        <h4 class="text-white font-semibold mb-4">روابط سريعة</h4>
+                        <ul class="space-y-2.5 text-sm">
                             <li v-for="link in footerLinks" :key="link.label">
-                                <Link :href="link.href" class="hover:text-primary-400 transition-colors">{{ link.label }}</Link>
+                                <Link :href="link.href" class="inline-flex hover:text-primary-400 transition-colors">{{ link.label }}</Link>
                             </li>
                         </ul>
                     </div>
-                    <div>
-                        <h4 class="text-white font-semibold mb-3">تواصل معنا</h4>
-                        <p class="text-sm text-surface-400 mb-4">{{ $page.props.settings?.contact_email ?? 'support@altafawwuq.com' }}</p>
-                        
+                    <div class="min-w-0 text-start">
+                        <h4 class="text-white font-semibold mb-2">تواصل معنا</h4>
+                        <p class="max-w-xs text-xs text-surface-500 leading-6 mb-4">
+                            لو عندك استفسار أو تحتاج مساعدة، فريقنا جاهز للرد ومساعدتك في أي وقت.
+                        </p>
+                        <div class="space-y-3 text-sm">
+                            <a :href="'mailto:' + contactEmail" class="block text-surface-400 hover:text-white transition-colors" dir="ltr">{{ contactEmail }}</a>
+                            <a v-if="contactPhone" :href="'tel:' + contactPhone.replace(/\s+/g, '')" class="block text-surface-400 hover:text-white transition-colors" dir="ltr">{{ contactPhone }}</a>
+                            <a :href="whatsappUrl" target="_blank" rel="noopener noreferrer"
+                               class="inline-flex items-center gap-2 text-surface-300 hover:text-green-400 transition-colors"
+                            >
+                                <Icon name="whatsapp" class="w-4 h-4 text-green-400 shrink-0" />
+                                <span>واتساب</span>
+                                <span dir="ltr">{{ whatsappNumber }}</span>
+                            </a>
+                        </div>
+
                         <!-- Social Links -->
-                        <div v-if="socialLinks.length > 0" class="flex items-center gap-3">
+                        <div v-if="socialLinks.length > 0" class="flex items-center gap-3 mt-5 pt-4 border-t border-surface-800">
                             <a v-for="social in socialLinks" :key="social.platform" :href="social.url" target="_blank" rel="noopener noreferrer"
                                class="w-8 h-8 rounded-lg bg-surface-800 hover:bg-primary-600 flex items-center justify-center text-white transition-colors"
                                :title="social.platform"
