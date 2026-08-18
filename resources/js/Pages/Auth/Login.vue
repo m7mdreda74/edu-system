@@ -1,6 +1,7 @@
 <script setup>
 import { useForm, Link } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineProps({
     canResetPassword: { type: Boolean },
@@ -17,7 +18,8 @@ const submit = () => form.post(route('login'), { onFinish: () => form.reset('pas
 </script>
 
 <template>
-    <div class="min-h-screen flex bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950 text-white" dir="rtl" lang="ar">
+    <AppLayout>
+        <div class="min-h-screen flex bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950 text-white" dir="rtl" lang="ar">
         
         <!-- ── Left: Premium Decorative Panel ── -->
         <div class="hidden lg:flex flex-col justify-between w-[32%] bg-gradient-to-b from-primary-950 via-primary-900 to-surface-950 border-e border-white/10 p-12 shrink-0 overflow-hidden select-none relative">
@@ -160,5 +162,6 @@ const submit = () => form.post(route('login'), { onFinish: () => form.reset('pas
                 </form>
             </div>
         </div>
-    </div>
+        </div>
+    </AppLayout>
 </template>
