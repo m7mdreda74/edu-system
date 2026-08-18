@@ -422,14 +422,14 @@ const otherTeachersUrl = computed(() => (
                                 <Link
                                     v-if="activeAssignment.private_subscription?.status === 'pending'"
                                     :href="route('checkout.show', activeAssignment.private_subscription.id)"
-                                    class="btn-primary btn-sm w-full justify-center"
+                                    class="btn-primary mt-5 min-h-11 w-full justify-center px-5 py-2.5 text-[13px]"
                                 >
                                     إكمال دفع اشتراك البرايفيت
                                 </Link>
                                 <button
                                     v-else-if="!activeAssignment.has_private_subscription"
                                     type="button"
-                                    class="btn-accent btn-sm w-full justify-center"
+                                    class="btn-accent mt-5 min-h-11 w-full justify-center px-5 py-2.5 text-[13px]"
                                     :disabled="subscribing === `private-${activeAssignment.id}`"
                                     @click="subscribeToPrivate(activeAssignment.id)"
                                 >
