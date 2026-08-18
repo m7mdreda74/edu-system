@@ -123,6 +123,16 @@ const studentResults = computed(() => {
     ];
 });
 
+const resultScore = (result) => {
+    const explicitScore = String(result.score || '').trim();
+    if (explicitScore) return explicitScore;
+
+    const description = String(result.desc || '');
+    const percentage = description.match(/\d+(?:[.,]\d+)?\s*%/u)?.[0];
+
+    return percentage?.replace(',', '.') || (description.includes('الدرجة الكاملة') ? '100%' : '');
+};
+
 const whyChooseUs = computed(() => {
     try {
         const raw = settings.value.home_why_choose_us;
@@ -423,29 +433,31 @@ refreshAllStagePreview();
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div v-for="result in studentResults" :key="result.name"
-                        class="card-hover hover-scale-premium p-6 flex flex-col items-center justify-between text-center group"
+                        class="result-card min-h-[132px] p-4 flex flex-col items-center justify-between text-center group"
                     >
-                        <div class="flex flex-col items-center w-full gap-4">
-                            <div class="flex items-center justify-center gap-2 w-full text-center">
-                                <h3 class="font-bold text-surface-800 dark:text-white text-sm group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                                    {{ result.name }}
-                                </h3>
-                                <span
-                                    class="inline-flex shrink-0 text-accent-500"
-                                    title="نتيجة مميزة"
-                                    aria-label="نتيجة مميزة"
-                                >
-                                    <Icon name="success" class="w-6 h-6 text-accent-500" />
+                        <div class="flex flex-col items-center w-full gap-3">
+                            <div dir="ltr" class="flex items-center justify-between gap-3 w-full">
+                                <span v-if="resultScore(result)" class="text-[10px] font-bold text-accent-600">
+                                    {{ resultScore(result) }}
                                 </span>
+                                <div dir="rtl" class="flex items-center gap-2 text-right">
+                                    <Icon name="certificate" class="w-6 h-6 shrink-0 text-accent-500" />
+                                    <h3 class="font-bold text-surface-900 text-sm whitespace-nowrap">
+                                        {{ result.name }}
+                                    </h3>
+                                </div>
                             </div>
-                            <p class="text-xs text-surface-500 dark:text-surface-400 leading-relaxed">{{ result.desc }}</p>
+                            <p class="text-xs text-surface-500 leading-relaxed line-clamp-2">
+                                <template v-if="result.subject">تفوق في: {{ result.subject }}</template>
+                                <template v-else>{{ result.desc }}</template>
+                            </p>
                         </div>
 
-                        <div class="w-full mt-4 pt-3 border-t border-surface-100 dark:border-surface-800 text-[10px] text-surface-400 flex items-center justify-between">
-                            <span class="badge-gray px-2 py-0.5 text-[9px] rounded font-bold">
+                        <div dir="rtl" class="w-full mt-4 pt-3 border-t border-surface-100 text-[10px] text-surface-400 flex items-center justify-between gap-2">
+                            <span class="result-chip">
                                 {{ result.grade || 'الصف الدراسي غير محدد' }}
                             </span>
-                            <span class="badge-gray px-2 py-0.5 text-[9px] rounded font-bold">
+                            <span class="result-chip">
                                 {{ result.title }}
                             </span>
                         </div>

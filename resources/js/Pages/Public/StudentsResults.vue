@@ -17,7 +17,19 @@ const normalizeResult = (result) => {
         title: cleanResult.title || 'نتيجة مميزة',
         grade: cleanResult.grade || 'الصف الدراسي غير محدد',
         desc: cleanResult.desc || '',
+        score: cleanResult.score || '',
+        subject: cleanResult.subject || '',
     };
+};
+
+const resultScore = (result) => {
+    const explicitScore = String(result.score || '').trim();
+    if (explicitScore) return explicitScore;
+
+    const description = String(result.desc || '');
+    const percentage = description.match(/\d+(?:[.,]\d+)?\s*%/u)?.[0];
+
+    return percentage?.replace(',', '.') || (description.includes('الدرجة الكاملة') ? '100%' : '');
 };
 
 const resultsData = computed(() => {
@@ -84,35 +96,35 @@ const filteredResults = computed(() => {
                 <!-- Results Grid -->
                 <div v-if="filteredResults.length" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-16">
                     <div v-for="(student, index) in filteredResults" :key="index"
-                        class="card p-6 flex flex-col items-center justify-between text-center hover:shadow-card-hover transition-all duration-300 border border-surface-200 dark:border-surface-850"
+                        class="result-card min-h-[132px] p-4 sm:p-5 flex flex-col items-center justify-between text-center"
                     >
-                        <div class="flex flex-col items-center w-full gap-4">
-                            <!-- Student name and achievement mark -->
-                            <div class="flex items-center justify-center gap-2 w-full text-center">
-                                <h3 class="font-bold text-surface-850 dark:text-white text-base">
-                                    {{ student.name }}
-                                </h3>
-                                <span
-                                    class="inline-flex shrink-0 text-accent-500"
-                                    title="نتيجة مميزة"
-                                    aria-label="نتيجة مميزة"
-                                >
-                                    <Icon name="success" class="w-6 h-6 text-accent-500" />
+                        <div class="flex flex-col items-center w-full gap-3">
+                            <!-- Score and student name -->
+                            <div dir="ltr" class="flex items-center justify-between gap-3 w-full">
+                                <span v-if="resultScore(student)" class="text-[10px] font-bold text-accent-600">
+                                    {{ resultScore(student) }}
                                 </span>
+                                <div dir="rtl" class="flex items-center gap-2 text-right">
+                                    <Icon name="certificate" class="w-6 h-6 shrink-0 text-accent-500" />
+                                    <h3 class="font-bold text-surface-900 text-base whitespace-nowrap">
+                                        {{ student.name }}
+                                    </h3>
+                                </div>
                             </div>
 
-                            <!-- Achievement -->
-                            <p class="text-xs text-surface-500 dark:text-surface-400 font-semibold text-center">
-                                {{ student.desc }}
+                            <!-- Achievement / subject -->
+                            <p class="text-xs text-surface-500 font-semibold text-center line-clamp-2">
+                                <template v-if="student.subject">تفوق في: {{ student.subject }}</template>
+                                <template v-else>{{ student.desc }}</template>
                             </p>
                         </div>
 
                         <!-- Grade details -->
-                        <div class="w-full pt-3 mt-4 border-t border-surface-100 dark:border-surface-800 text-[10px] text-surface-400 flex items-center justify-between">
-                            <span class="badge-gray px-2 py-0.5 text-[9px] rounded font-bold">
+                        <div dir="rtl" class="w-full pt-3 mt-4 border-t border-surface-100 text-[10px] text-surface-400 flex items-center justify-between gap-2">
+                            <span class="result-chip">
                                 {{ student.grade || 'الصف الدراسي غير محدد' }}
                             </span>
-                            <span class="badge-gray px-2 py-0.5 text-[9px] rounded font-bold">
+                            <span class="result-chip">
                                 {{ student.title }}
                             </span>
                         </div>
