@@ -93,11 +93,11 @@ const filteredResults = computed(() => {
                                     {{ student.name }}
                                 </h3>
                                 <span
-                                    class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white shadow-glow-accent"
+                                    class="inline-flex shrink-0 text-accent-500"
                                     title="نتيجة مميزة"
                                     aria-label="نتيجة مميزة"
                                 >
-                                    <Icon name="success" class="w-3 h-3 text-white" />
+                                    <Icon name="success" class="w-6 h-6 text-accent-500" />
                                 </span>
                             </div>
 
