@@ -470,6 +470,90 @@
         scroll-snap-align: start;
     }
 
+    .teacher-carousel-control {
+        @apply absolute z-20 flex h-12 w-12 items-center justify-center rounded-full text-white;
+        top: 50%;
+        border: 1px solid rgb(255 255 255 / 0.28);
+        background: linear-gradient(145deg, rgb(126 34 78 / 0.96), rgb(180 132 28 / 0.96));
+        box-shadow: 0 10px 28px rgb(0 0 0 / 0.28), 0 0 0 5px rgb(255 255 255 / 0.04);
+        transform: translateY(-50%);
+        transition: transform 220ms ease, box-shadow 220ms ease, opacity 220ms ease, filter 220ms ease;
+        animation: teacher-carousel-pulse 3.2s ease-in-out infinite;
+        will-change: transform;
+    }
+
+    .teacher-carousel-control--left {
+        left: -1.75rem;
+    }
+
+    .teacher-carousel-control--right {
+        right: -1.75rem;
+    }
+
+    .teacher-carousel-control:hover:not(:disabled),
+    .teacher-carousel-control:focus-visible {
+        transform: translateY(-50%) scale(1.1);
+        box-shadow: 0 14px 34px rgb(0 0 0 / 0.34), 0 0 0 7px rgb(196 153 44 / 0.16);
+    }
+
+    .teacher-carousel-control:focus-visible {
+        outline: 2px solid rgb(238 190 58 / 0.9);
+        outline-offset: 3px;
+    }
+
+    .teacher-carousel-control:disabled {
+        cursor: not-allowed;
+        opacity: 0.3;
+        filter: grayscale(0.45);
+        animation: none;
+    }
+
+    .teacher-carousel-control__arrow {
+        display: inline-block;
+        font-size: 1.55rem;
+        font-weight: 900;
+        line-height: 1;
+        transition: transform 220ms ease;
+    }
+
+    .teacher-carousel-control--left:hover:not(:disabled) .teacher-carousel-control__arrow {
+        transform: translateX(-3px);
+    }
+
+    .teacher-carousel-control--right:hover:not(:disabled) .teacher-carousel-control__arrow {
+        transform: translateX(3px);
+    }
+
+    @keyframes teacher-carousel-pulse {
+        0%,
+        100% {
+            box-shadow: 0 10px 28px rgb(0 0 0 / 0.28), 0 0 0 5px rgb(255 255 255 / 0.04);
+        }
+        50% {
+            box-shadow: 0 12px 30px rgb(0 0 0 / 0.3), 0 0 0 8px rgb(196 153 44 / 0.08);
+        }
+    }
+
+    @media (max-width: 1023px) {
+        .teacher-carousel-control--left {
+            left: 0.35rem;
+        }
+
+        .teacher-carousel-control--right {
+            right: 0.35rem;
+        }
+    }
+
+    @media (max-width: 639px) {
+        .teacher-carousel-control {
+            @apply h-10 w-10;
+        }
+
+        .teacher-carousel-control__arrow {
+            font-size: 1.25rem;
+        }
+    }
+
     .teacher-subject-art {
         @apply w-full h-full flex flex-col items-center justify-center gap-2 relative overflow-hidden;
     }

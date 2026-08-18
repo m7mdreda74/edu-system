@@ -432,41 +432,42 @@ refreshAllStagePreview();
                     </p>
                 </div>
 
-                <div v-if="featuredTeachers.length > 1" class="mt-5 flex justify-center gap-2" dir="ltr">
+                <div v-if="featuredTeachers.length > 1" class="teacher-carousel relative">
                     <button
                         type="button"
-                        class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-surface-200 bg-white text-surface-700 shadow-sm transition hover:border-accent-500 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200"
+                        class="teacher-carousel-control teacher-carousel-control--left"
                         :disabled="!canScrollTeacherLeft"
                         aria-label="تحريك كروت المعلمين إلى اليسار"
                         title="تحريك إلى اليسار"
                         @click="scrollTeachers('left')"
                     >
-                        <span aria-hidden="true" class="text-xl leading-none">&lt;</span>
+                        <span aria-hidden="true" class="teacher-carousel-control__arrow">&lt;</span>
                     </button>
+
+                    <div
+                        ref="teacherScroller"
+                        class="teacher-card-row no-scrollbar"
+                        aria-label="كروت المعلمين"
+                        @scroll="updateTeacherScrollState"
+                    >
+                        <TeacherCard
+                            v-for="teacher in featuredTeachers"
+                            :key="teacher.id"
+                            :teacher="teacher"
+                            class="animate-fade-up"
+                        />
+                    </div>
+
                     <button
                         type="button"
-                        class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-surface-200 bg-white text-surface-700 shadow-sm transition hover:border-accent-500 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200"
+                        class="teacher-carousel-control teacher-carousel-control--right"
                         :disabled="!canScrollTeacherRight"
                         aria-label="تحريك كروت المعلمين إلى اليمين"
                         title="تحريك إلى اليمين"
                         @click="scrollTeachers('right')"
                     >
-                        <span aria-hidden="true" class="text-xl leading-none">&gt;</span>
+                        <span aria-hidden="true" class="teacher-carousel-control__arrow">&gt;</span>
                     </button>
-                </div>
-
-                <div
-                    ref="teacherScroller"
-                    class="teacher-card-row no-scrollbar"
-                    aria-label="كروت المعلمين"
-                    @scroll="updateTeacherScrollState"
-                >
-                    <TeacherCard
-                        v-for="teacher in featuredTeachers"
-                        :key="teacher.id"
-                        :teacher="teacher"
-                        class="animate-fade-up"
-                    />
                 </div>
             </div>
         </section>
