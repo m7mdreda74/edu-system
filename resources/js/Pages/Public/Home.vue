@@ -143,11 +143,28 @@ const whyChooseUs = computed(() => {
 const youtubeVideos = computed(() => {
     try {
         const raw = settings.value.home_youtube_videos;
-        if (raw) return typeof raw === 'string' ? JSON.parse(raw) : raw;
+        const videos = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : [];
+
+        return Array.isArray(videos)
+            ? videos.filter((video) => typeof video?.url === 'string' && video.url.trim() !== '')
+            : [];
     } catch (e) {
         console.warn('Failed to parse home_youtube_videos settings JSON:', e);
     }
     return [];
+});
+
+const youtubeSectionVisible = computed(() => {
+    const visibility = settings.value.home_youtube_visible;
+    const isEnabled = visibility === undefined
+        || visibility === null
+        || visibility === ''
+        || visibility === true
+        || visibility === 1
+        || visibility === '1'
+        || visibility === 'true';
+
+    return isEnabled && youtubeVideos.value.length > 0;
 });
 
 const parsedFaqs = computed(() => {
@@ -392,7 +409,7 @@ refreshAllStagePreview();
         </section>
 
         <!-- ── Student Results Section ───────────────────────────── -->
-        <section v-if="youtubeVideos.length" class="section bg-transparent">
+        <section v-if="studentResults.length" class="section bg-transparent">
             <div class="container-app">
                 <div class="text-center mb-12 max-w-2xl mx-auto">
                     <span class="badge bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 mb-3 inline-block">تميز ونتائج استثنائية</span>
@@ -473,7 +490,7 @@ refreshAllStagePreview();
         </section>
 
         <!-- ── YouTube Videos Section ────────────────────────────── -->
-        <section class="section bg-transparent">
+        <section v-if="youtubeSectionVisible" class="section bg-transparent">
             <div class="container-app">
                 <div class="text-center mb-12">
                     <span class="badge bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400 mb-3 inline-block font-bold">التفوق على يوتيوب</span>

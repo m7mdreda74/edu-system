@@ -24,6 +24,12 @@ function parseJson(str, defaultValue) {
     }
 }
 
+function parseBooleanSetting(value, defaultValue = false) {
+    if (value === undefined || value === null || value === '') return defaultValue;
+
+    return value === true || value === 1 || value === '1' || value === 'true';
+}
+
 // Convert all settings into localized edit form
 const form = useForm({
     // Home Page Settings
@@ -40,6 +46,7 @@ const form = useForm({
     home_results: parseJson(props.dbSettings.home_results, []),
     home_why_choose_us: parseJson(props.dbSettings.home_why_choose_us, []),
     home_youtube_videos: parseJson(props.dbSettings.home_youtube_videos, []),
+    home_youtube_visible: parseBooleanSetting(props.dbSettings.home_youtube_visible, true),
     home_faqs: parseJson(props.dbSettings.home_faqs, []),
 
     // About Us Page Settings
@@ -103,7 +110,7 @@ async function submitPageSettings(pageKey) {
             'home_hero_btn1', 'home_hero_btn2',
             'home_cta_title', 'home_cta_desc', 'home_cta_btn',
             'home_features', 'home_results', 'home_why_choose_us',
-            'home_youtube_videos', 'home_faqs'
+            'home_youtube_videos', 'home_youtube_visible', 'home_faqs'
         ];
     } else if (pageKey === 'about') {
         fields = ['about_title', 'about_badge', 'about_desc', 'about_values', 'about_pillars'];
@@ -130,6 +137,10 @@ async function submitPageSettings(pageKey) {
     // Special type cast for active status boolean
     if (pageKey === 'popup') {
         payload['welcome_popup_active'] = form.welcome_popup_active ? 'true' : 'false';
+    }
+
+    if (pageKey === 'home') {
+        payload.home_youtube_visible = form.home_youtube_visible ? 'true' : 'false';
     }
 
     isSaving.value = true;
@@ -426,6 +437,13 @@ function addAboutPillar() {
                             <h3 class="font-bold text-sm text-surface-800 dark:text-white">شروحات ومراجعات يوتيوب التفوق</h3>
                             <button type="button" @click="addYoutube" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة فيديو</button>
                         </div>
+                        <label class="flex items-start gap-3 rounded-xl border border-primary-100 dark:border-primary-900/50 bg-primary-50/50 dark:bg-primary-950/20 p-3 mb-4 cursor-pointer">
+                            <input v-model="form.home_youtube_visible" type="checkbox" class="mt-0.5 rounded border-surface-300 text-primary-600 focus:ring-primary-500">
+                            <span>
+                                <span class="block text-xs font-bold text-surface-800 dark:text-white">إظهار قسم الشروحات والمراجعات المجانية</span>
+                                <span class="block text-[11px] text-surface-500 dark:text-surface-400 mt-1">يظهر القسم فقط عند تفعيله ووجود فيديوهات مضافة.</span>
+                            </span>
+                        </label>
                         <div class="space-y-4">
                             <div v-for="(vid, idx) in form.home_youtube_videos" :key="idx" class="border border-surface-200 dark:border-surface-800 rounded-2xl p-4 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative animate-fade-up">
                                 <div class="flex justify-between items-center border-b border-surface-100 dark:border-surface-700 pb-2 mb-2">

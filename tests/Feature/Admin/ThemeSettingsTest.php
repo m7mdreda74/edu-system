@@ -143,3 +143,17 @@ it('allows the admin to edit the homepage hero badge through site pages', functi
     expect(PlatformSetting::where('key', 'home_hero_badge')->value('value'))
         ->toBe('شارتنا الجديدة');
 });
+
+it('allows the admin to control the free youtube section visibility through site pages', function () {
+    $this->actingAs(themeAdmin())
+        ->post(route('admin.site-pages.update'), [
+            'settings' => [
+                'home_youtube_visible' => 'false',
+            ],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(PlatformSetting::where('key', 'home_youtube_visible')->value('value'))
+        ->toBe('false');
+});
