@@ -510,9 +510,11 @@
 
     .teacher-carousel-control__arrow {
         display: inline-block;
+        direction: ltr;
         font-size: 1.55rem;
         font-weight: 900;
         line-height: 1;
+        unicode-bidi: isolate;
         transition: transform 220ms ease;
     }
 

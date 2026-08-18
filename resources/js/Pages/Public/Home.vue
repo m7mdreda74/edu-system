@@ -441,7 +441,7 @@ refreshAllStagePreview();
                         title="تحريك إلى اليسار"
                         @click="scrollTeachers('left')"
                     >
-                        <span aria-hidden="true" class="teacher-carousel-control__arrow">&lt;</span>
+                        <Icon name="arrowLeft" class="teacher-carousel-control__arrow w-7 h-7" />
                     </button>
 
                     <div
@@ -466,7 +466,7 @@ refreshAllStagePreview();
                         title="تحريك إلى اليمين"
                         @click="scrollTeachers('right')"
                     >
-                        <span aria-hidden="true" class="teacher-carousel-control__arrow">&gt;</span>
+                        <Icon name="arrowRight" class="teacher-carousel-control__arrow w-7 h-7" />
                     </button>
                 </div>
             </div>
