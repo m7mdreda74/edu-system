@@ -192,7 +192,7 @@ class UserController extends Controller
             return back()->with('error', 'تعذّرت معالجة الصورة. تأكد أن الملف صورة صالحة.');
         }
 
-        $this->deleteStoredAvatar($previous);
+        $this->deleteStoredImage($previous);
         $this->forgetTeacherCaches();
 
         return back()->with('success', "تم تحديث صورة المعلم {$user->name}.");
@@ -204,15 +204,58 @@ class UserController extends Controller
 
         abort_unless($user->hasRole('teacher'), 422, 'تُدار الصور من هنا للمعلمين فقط.');
 
-        $this->deleteStoredAvatar($user->avatar);
+        $this->deleteStoredImage($user->avatar);
         $user->update(['avatar' => null]);
         $this->forgetTeacherCaches();
 
         return back()->with('success', "تم حذف صورة المعلم {$user->name}.");
     }
 
-    /** Avatars are stored on the public disk under a /storage/ prefix. */
-    private function deleteStoredAvatar(?string $path): void
+    /** Set the optional profile cover shown on the public teacher profile. */
+    public function updateCover(Request $request, int $id): RedirectResponse
+    {
+        $request->validate([
+            'profile_cover' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
+        ], [
+            'profile_cover.max' => 'حجم الكافر يجب ألا يتجاوز 8 ميجابايت.',
+        ]);
+
+        $user = User::findOrFail($id);
+
+        abort_unless($user->hasRole('teacher'), 422, 'تُدار كافرات البروفايل للمعلمين فقط.');
+
+        $previous = $user->profile_cover;
+
+        try {
+            $user->update([
+                'profile_cover' => ImageUploadService::uploadAndConvertToWebp(
+                    $request->file('profile_cover'),
+                    'teacher-covers',
+                ),
+            ]);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'تعذّرت معالجة الكافر. تأكد أن الملف صورة صالحة.');
+        }
+
+        $this->deleteStoredImage($previous);
+
+        return back()->with('success', "تم تحديث كافر بروفايل المعلم {$user->name}.");
+    }
+
+    public function deleteCover(int $id): RedirectResponse
+    {
+        $user = User::findOrFail($id);
+
+        abort_unless($user->hasRole('teacher'), 422, 'تُدار كافرات البروفايل للمعلمين فقط.');
+
+        $this->deleteStoredImage($user->profile_cover);
+        $user->update(['profile_cover' => null]);
+
+        return back()->with('success', "تم حذف كافر بروفايل المعلم {$user->name}.");
+    }
+
+    /** User images are stored on the public disk under a /storage/ prefix. */
+    private function deleteStoredImage(?string $path): void
     {
         if (! $path || ! str_starts_with($path, '/storage/')) {
             return;

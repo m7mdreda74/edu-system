@@ -43,6 +43,7 @@ class User extends Authenticatable
         'phone',
         'password',
         'avatar',
+        'profile_cover',
         'grade_level',
         'subject_id',
         'bio',

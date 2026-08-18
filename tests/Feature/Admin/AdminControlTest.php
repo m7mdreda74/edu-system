@@ -513,6 +513,25 @@ it('lets an admin set and clear a teacher photo', function () {
     expect($this->teacher->fresh()->avatar)->toBeNull();
 });
 
+it('lets an admin set and clear a teacher profile cover', function () {
+    /** @var AdminControlTestCase $this */
+    Storage::fake('public');
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.users.cover', ['id' => $this->teacher->id]), [
+            'profile_cover' => UploadedFile::fake()->image('teacher-cover.jpg', 1600, 500),
+        ])
+        ->assertRedirect();
+
+    expect($this->teacher->fresh()->profile_cover)->not->toBeNull();
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.users.cover.delete', ['id' => $this->teacher->id]))
+        ->assertRedirect();
+
+    expect($this->teacher->fresh()->profile_cover)->toBeNull();
+});
+
 it('manages photos for teachers only', function () {
     /** @var AdminControlTestCase $this */
     Storage::fake('public');
@@ -520,6 +539,12 @@ it('manages photos for teachers only', function () {
     $this->actingAs($this->admin)
         ->post(route('admin.users.avatar', ['id' => $this->student->id]), [
             'avatar' => UploadedFile::fake()->image('x.jpg'),
+        ])
+        ->assertStatus(422);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.users.cover', ['id' => $this->student->id]), [
+            'profile_cover' => UploadedFile::fake()->image('x-cover.jpg'),
         ])
         ->assertStatus(422);
 });

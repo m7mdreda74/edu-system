@@ -17,7 +17,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The teacher's shop window: intro video, background, what they teach, which
+ * The teacher's shop window: intro video, cover, what they teach, which
  * groups still have seats, and what a month costs. This is where a student
  * decides to book.
  */
@@ -97,6 +97,7 @@ class TeacherProfileController extends Controller
                 'headline' => $teacher->headline,
                 'bio' => $teacher->bio,
                 'avatar' => $teacher->avatar,
+                'profile_cover' => $teacher->profile_cover,
                 'intro_video_url' => $teacher->intro_video_url,
                 'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
                 'years_experience' => $teacher->years_experience,

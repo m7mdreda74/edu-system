@@ -170,47 +170,65 @@ function updateCommission() {
 // so the platform sets it rather than the teacher.
 const isTeacher = (user) => user.roles?.some((r) => r.name === 'teacher') ?? false;
 
-const avatarModalOpen = ref(false);
-const avatarUser = ref(null);
-const avatarPreview = ref(null);
-const avatarForm = useForm({ avatar: null });
+const mediaModalOpen = ref(false);
+const mediaUser = ref(null);
+const mediaType = ref('avatar');
+const mediaPreview = ref(null);
+const mediaForm = useForm({ avatar: null, profile_cover: null });
 
-function openAvatarModal(user) {
-    avatarUser.value = user;
-    avatarPreview.value = null;
-    avatarForm.reset();
-    avatarForm.clearErrors();
-    avatarModalOpen.value = true;
+const mediaField = computed(() => mediaType.value === 'cover' ? 'profile_cover' : 'avatar');
+const mediaTitle = computed(() => mediaType.value === 'cover' ? 'كافر بروفايل المعلم' : 'صورة المعلم');
+const mediaIsCover = computed(() => mediaType.value === 'cover');
+const existingMedia = computed(() => {
+    if (!mediaUser.value) return null;
+
+    return mediaIsCover.value ? mediaUser.value.profile_cover : mediaUser.value.avatar;
+});
+const selectedMediaFile = computed(() => mediaForm[mediaField.value]);
+const mediaError = computed(() => mediaForm.errors[mediaField.value]);
+
+function openMediaModal(user, type = 'avatar') {
+    mediaUser.value = user;
+    mediaType.value = type;
+    mediaPreview.value = null;
+    mediaForm.reset();
+    mediaForm.clearErrors();
+    mediaModalOpen.value = true;
 }
 
-function onAvatarPicked(event) {
+function onMediaPicked(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    avatarForm.avatar = file;
-    avatarPreview.value = URL.createObjectURL(file);
+    mediaForm[mediaField.value] = file;
+    mediaPreview.value = URL.createObjectURL(file);
 }
 
-function uploadAvatar() {
-    avatarForm.post(route('admin.users.avatar', { id: avatarUser.value.id }), {
+function uploadMedia() {
+    const routeName = mediaIsCover.value ? 'admin.users.cover' : 'admin.users.avatar';
+
+    mediaForm.post(route(routeName, { id: mediaUser.value.id }), {
         forceFormData: true,
         preserveScroll: true,
-        onSuccess: () => { avatarModalOpen.value = false; avatarPreview.value = null; },
+        onSuccess: () => { mediaModalOpen.value = false; mediaPreview.value = null; },
     });
 }
 
-async function removeAvatar() {
+async function removeMedia() {
+    const routeName = mediaIsCover.value ? 'admin.users.cover.delete' : 'admin.users.avatar.delete';
+    const mediaName = mediaIsCover.value ? 'كافر البروفايل' : 'الصورة الشخصية';
+
     const ok = await confirm({
-        title: 'حذف الصورة الشخصية',
-        message: `هل أنت متأكد من حذف صورة ${avatarUser.value?.name}؟`,
+        title: 'حذف ' + mediaName,
+        message: 'هل أنت متأكد من حذف ' + mediaName + ' الخاصة بـ ' + mediaUser.value?.name + '؟',
         confirmLabel: 'حذف',
         variant: 'danger',
     });
     if (!ok) return;
 
-    router.delete(route('admin.users.avatar.delete', { id: avatarUser.value.id }), {
+    router.delete(route(routeName, { id: mediaUser.value.id }), {
         preserveScroll: true,
-        onSuccess: () => { avatarModalOpen.value = false; },
+        onSuccess: () => { mediaModalOpen.value = false; },
     });
 }
 </script>
@@ -294,7 +312,7 @@ async function removeAvatar() {
                                                 class="absolute inset-0 rounded-full bg-black/55 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                                                 title="تغيير صورة المعلم"
                                                 aria-label="تغيير صورة المعلم"
-                                                @click="openAvatarModal(user)"
+                                                @click="openMediaModal(user, 'avatar')"
                                             >
                                                 <Icon name="edit" class="w-3.5 h-3.5" />
                                             </button>
@@ -304,10 +322,18 @@ async function removeAvatar() {
                                             <div class="font-semibold text-surface-800 dark:text-white">{{ user.name }}</div>
                                             <div class="text-xs text-surface-400">{{ user.email }}</div>
                                             <button
+                                                v-if="isTeacher(user)"
+                                                type="button"
+                                                class="block text-[10px] font-bold text-primary-600 dark:text-primary-400 mt-0.5"
+                                                @click="openMediaModal(user, 'cover')"
+                                            >
+                                                {{ user.profile_cover ? 'تعديل الغلاف' : 'إضافة غلاف البروفايل' }}
+                                            </button>
+                                            <button
                                                 v-if="isTeacher(user) && !user.avatar"
                                                 type="button"
                                                 class="text-[10px] font-bold text-accent-600 dark:text-accent-400 mt-0.5"
-                                                @click="openAvatarModal(user)"
+                                                @click="openMediaModal(user, 'avatar')"
                                             >
                                                 بدون صورة — أضفها
                                             </button>
@@ -570,35 +596,50 @@ async function removeAvatar() {
         </div>
 
         <!-- ── Teacher photo ─────────────────────────────────────── -->
-        <div v-if="avatarModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="تحديث صورة المعلم">
-            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="avatarModalOpen = false"></div>
+        <div v-if="mediaModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="إدارة صور المعلم">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="mediaModalOpen = false"></div>
 
             <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-md">
-                <form @submit.prevent="uploadAvatar">
+                <form @submit.prevent="uploadMedia">
                     <div class="p-6">
-                        <h3 class="text-lg font-bold text-surface-900 dark:text-white">صورة المعلم</h3>
+                        <h3 class="text-lg font-bold text-surface-900 dark:text-white">{{ mediaTitle }}</h3>
                         <p class="text-xs text-surface-500 mt-1">
-                            {{ avatarUser?.name }} — تظهر هذه الصورة للطلاب في صفحات التصفح وبطاقة المعلم.
+                            {{ mediaUser?.name }} —
+                            {{ mediaIsCover
+                                ? 'تظهر في أعلى البروفايل العام للمعلم.'
+                                : 'تظهر للطلاب في صفحات التصفح وبطاقة المعلم.' }}
                         </p>
 
-                        <div class="flex items-center gap-4 mt-6">
-                            <div class="w-20 h-20 rounded-full overflow-hidden bg-primary-100 dark:bg-primary-900 flex items-center justify-center border shrink-0">
-                                <img v-if="avatarPreview || avatarUser?.avatar" :src="avatarPreview ?? avatarUser.avatar" :alt="avatarUser?.name || 'صورة المستخدم'" class="w-full h-full object-cover" />
-                                <span v-else class="text-primary-700 font-bold text-xl">{{ avatarUser?.name?.charAt(0) }}</span>
+                        <div class="mt-6">
+                            <div
+                                :class="mediaIsCover
+                                    ? 'w-full aspect-[16/5] rounded-2xl'
+                                    : 'w-20 h-20 rounded-full mx-auto'"
+                                class="overflow-hidden bg-primary-100 dark:bg-primary-900 flex items-center justify-center border"
+                            >
+                                <img
+                                    v-if="mediaPreview || existingMedia"
+                                    :src="mediaPreview ?? existingMedia"
+                                    :alt="mediaUser?.name || 'صورة المعلم'"
+                                    class="w-full h-full object-cover"
+                                />
+                                <span v-else class="text-primary-700 font-bold text-xl">
+                                    {{ mediaIsCover ? 'الصورة الافتراضية' : mediaUser?.name?.charAt(0) }}
+                                </span>
                             </div>
 
-                            <div class="flex-1 min-w-0">
+                            <div class="min-w-0 mt-4">
                                 <input
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
                                     class="text-xs text-surface-500 file:me-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 w-full"
-                                    @change="onAvatarPicked"
+                                    @change="onMediaPicked"
                                 />
                                 <p class="text-[10px] text-surface-400 mt-1.5">
-                                    JPG أو PNG أو WebP، بحد أقصى 4 ميجابايت. تُحوَّل تلقائياً إلى WebP.
+                                    {{ mediaIsCover ? 'يفضل صورة أفقية. ' : '' }}JPG أو PNG أو WebP، بحد أقصى {{ mediaIsCover ? '8' : '4' }} ميجابايت. تُحوَّل تلقائياً إلى WebP.
                                 </p>
-                                <p v-if="avatarForm.errors.avatar" class="text-xs text-red-500 mt-1">
-                                    {{ avatarForm.errors.avatar }}
+                                <p v-if="mediaError" class="text-xs text-red-500 mt-1">
+                                    {{ mediaError }}
                                 </p>
                             </div>
                         </div>
@@ -606,17 +647,17 @@ async function removeAvatar() {
 
                     <div class="flex items-center justify-between gap-2 px-6 py-4 bg-surface-50 dark:bg-surface-950/50">
                         <button
-                            v-if="avatarUser?.avatar"
+                            v-if="existingMedia"
                             type="button"
                             class="btn-ghost btn-sm text-red-500"
-                            @click="removeAvatar"
-                        >حذف الصورة</button>
+                            @click="removeMedia"
+                        >حذف {{ mediaIsCover ? 'الغلاف' : 'الصورة' }}</button>
                         <span v-else></span>
 
                         <div class="flex gap-2">
-                            <button type="button" class="btn-ghost btn-sm" @click="avatarModalOpen = false">إلغاء</button>
-                            <button type="submit" class="btn-primary btn-sm" :disabled="avatarForm.processing || !avatarForm.avatar">
-                                {{ avatarForm.processing ? 'جارٍ الرفع...' : 'حفظ الصورة' }}
+                            <button type="button" class="btn-ghost btn-sm" @click="mediaModalOpen = false">إلغاء</button>
+                            <button type="submit" class="btn-primary btn-sm" :disabled="mediaForm.processing || !selectedMediaFile">
+                                {{ mediaForm.processing ? 'جارٍ الرفع...' : (mediaIsCover ? 'حفظ الغلاف' : 'حفظ الصورة') }}
                             </button>
                         </div>
                     </div>

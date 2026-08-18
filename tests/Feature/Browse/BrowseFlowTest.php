@@ -221,11 +221,14 @@ it('loads teacher ratings in one query regardless of teacher count', function ()
 
 it('shows a teacher profile with their groups and prices', function () {
     /** @var BrowseTestCase $this */
+    $this->teacher->update(['profile_cover' => '/storage/teacher-covers/demo.webp']);
+
     $this->get(route('teachers.show', $this->teacher->id))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Public/TeacherProfile')
             ->where('teacher.name', 'أ. أحمد')
+            ->where('teacher.profile_cover', '/storage/teacher-covers/demo.webp')
             ->has('assignments', 1)
             ->has('assignments.0.groups', 1)
             ->where('assignments.0.groups.0.monthly_price', 45_000)

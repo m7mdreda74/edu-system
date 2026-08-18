@@ -115,8 +115,17 @@ const otherTeachersUrl = computed(() => (
 
     <AppLayout>
         <!-- ── Hero: who they are + intro video ─────────────────────── -->
-        <section class="hero-gradient text-white py-14">
-            <div class="container-app px-4">
+        <section class="relative isolate overflow-hidden text-white py-14">
+            <img
+                :src="teacher.profile_cover || '/images/home-hero-bg.png'"
+                alt=""
+                aria-hidden="true"
+                class="absolute inset-0 h-full w-full object-cover"
+            />
+            <div class="absolute inset-0 bg-gradient-to-l from-surface-950/95 via-surface-950/75 to-surface-950/35"></div>
+            <div class="absolute inset-0 bg-primary-950/20"></div>
+
+            <div class="container-app relative z-10 px-4">
                 <nav v-if="activeAssignment" class="flex items-center gap-2 text-xs text-white/60 mb-6 flex-wrap">
                     <Link :href="route('grades.show', { key: activeAssignment.grade.key })" class="hover:text-white transition-colors">
                         {{ activeAssignment.grade.name }}

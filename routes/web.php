@@ -299,6 +299,8 @@ Route::middleware(['auth', 'active', 'role:admin'])->prefix('admin')->name('admi
     // Teacher photos are public-facing, so the platform owns them.
     Route::post('/users/{id}/avatar', [UserController::class, 'updateAvatar'])->name('users.avatar');
     Route::delete('/users/{id}/avatar', [UserController::class, 'deleteAvatar'])->name('users.avatar.delete');
+    Route::post('/users/{id}/cover', [UserController::class, 'updateCover'])->name('users.cover');
+    Route::delete('/users/{id}/cover', [UserController::class, 'deleteCover'])->name('users.cover.delete');
 
     // Subscriptions replace the old course catalogue
     Route::get('/subscriptions', [App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions');
