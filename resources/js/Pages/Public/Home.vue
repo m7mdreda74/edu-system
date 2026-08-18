@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, Head, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import GradeCard from '@/Components/GradeCard.vue';
@@ -31,6 +31,55 @@ function stripEmojis(text) {
 }
 
 const activeFaq = ref(null);
+const teacherScroller = ref(null);
+const canScrollTeacherLeft = ref(false);
+const canScrollTeacherRight = ref(false);
+
+function updateTeacherScrollState() {
+    const row = teacherScroller.value;
+    if (!row) return;
+
+    const cards = [...row.querySelectorAll('.teacher-card')];
+    if (!cards.length) {
+        canScrollTeacherLeft.value = false;
+        canScrollTeacherRight.value = false;
+        return;
+    }
+
+    const viewport = row.getBoundingClientRect();
+    const leftEdge = Math.min(...cards.map((card) => card.getBoundingClientRect().left));
+    const rightEdge = Math.max(...cards.map((card) => card.getBoundingClientRect().right));
+    const tolerance = 2;
+
+    canScrollTeacherLeft.value = leftEdge < viewport.left - tolerance;
+    canScrollTeacherRight.value = rightEdge > viewport.right + tolerance;
+}
+
+function scrollTeachers(direction) {
+    const row = teacherScroller.value;
+    if (!row) return;
+
+    const card = row.querySelector('.teacher-card');
+    const styles = getComputedStyle(row);
+    const gap = parseFloat(styles.columnGap || styles.gap || '0');
+    const step = (card?.getBoundingClientRect().width || row.clientWidth * 0.8) + gap;
+    const isRtl = styles.direction === 'rtl';
+    const delta = direction === 'left'
+        ? (isRtl ? -step : step)
+        : (isRtl ? step : -step);
+
+    row.scrollBy({ left: delta, behavior: 'smooth' });
+    window.setTimeout(updateTeacherScrollState, 350);
+}
+
+onMounted(() => {
+    nextTick(updateTeacherScrollState);
+    window.addEventListener('resize', updateTeacherScrollState);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', updateTeacherScrollState);
+});
 
 const settings = computed(() => page.props.settings || {});
 
@@ -383,7 +432,35 @@ refreshAllStagePreview();
                     </p>
                 </div>
 
-                <div class="teacher-card-row no-scrollbar">
+                <div v-if="featuredTeachers.length > 1" class="mt-5 flex justify-center gap-2" dir="ltr">
+                    <button
+                        type="button"
+                        class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-surface-200 bg-white text-surface-700 shadow-sm transition hover:border-accent-500 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200"
+                        :disabled="!canScrollTeacherLeft"
+                        aria-label="تحريك كروت المعلمين إلى اليسار"
+                        title="تحريك إلى اليسار"
+                        @click="scrollTeachers('left')"
+                    >
+                        <span aria-hidden="true" class="text-xl leading-none">&lt;</span>
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-surface-200 bg-white text-surface-700 shadow-sm transition hover:border-accent-500 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200"
+                        :disabled="!canScrollTeacherRight"
+                        aria-label="تحريك كروت المعلمين إلى اليمين"
+                        title="تحريك إلى اليمين"
+                        @click="scrollTeachers('right')"
+                    >
+                        <span aria-hidden="true" class="text-xl leading-none">&gt;</span>
+                    </button>
+                </div>
+
+                <div
+                    ref="teacherScroller"
+                    class="teacher-card-row no-scrollbar"
+                    aria-label="كروت المعلمين"
+                    @scroll="updateTeacherScrollState"
+                >
                     <TeacherCard
                         v-for="teacher in featuredTeachers"
                         :key="teacher.id"
