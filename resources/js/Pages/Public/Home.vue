@@ -383,7 +383,7 @@ refreshAllStagePreview();
                     </p>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="teacher-card-row no-scrollbar">
                     <TeacherCard
                         v-for="teacher in featuredTeachers"
                         :key="teacher.id"

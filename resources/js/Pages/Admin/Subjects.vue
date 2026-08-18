@@ -14,12 +14,15 @@ const ICONS = ['book', 'language', 'globe', 'calculator', 'atom', 'flask', 'dna'
 
 const showForm = ref(false);
 const editingId = ref(null);
+const imagePreview = ref(null);
 const { confirm } = useConfirm();
 
 const form = useForm({
     name: '',
     name_en: '',
     icon: 'book',
+    image: null,
+    remove_image: false,
     is_active: true,
     grade_level_ids: [],
 });
@@ -56,6 +59,7 @@ function startCreate() {
     editingId.value = null;
     form.reset();
     form.clearErrors();
+    imagePreview.value = null;
     showForm.value = true;
 }
 
@@ -65,22 +69,47 @@ function startEdit(subject) {
     form.name = subject.name;
     form.name_en = subject.name_en ?? '';
     form.icon = subject.icon ?? 'book';
+    form.image = null;
+    form.remove_image = false;
+    imagePreview.value = subject.image ?? null;
     form.is_active = subject.is_active;
     form.grade_level_ids = (subject.grade_levels ?? []).map((g) => g.id);
     showForm.value = true;
 }
 
+function onImagePicked(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    form.image = file;
+    form.remove_image = false;
+    imagePreview.value = URL.createObjectURL(file);
+}
+
+function removeSubjectImage() {
+    form.image = null;
+    form.remove_image = true;
+    imagePreview.value = null;
+}
+
 function submit() {
     const options = {
+        forceFormData: true,
         onSuccess: () => {
             showForm.value = false;
+            imagePreview.value = null;
             form.reset();
         },
     };
 
-    editingId.value
-        ? form.put(route('admin.subjects.update', { id: editingId.value }), options)
-        : form.post(route('admin.subjects.store'), options);
+    const endpoint = editingId.value
+        ? route('admin.subjects.update', { id: editingId.value })
+        : route('admin.subjects.store');
+
+    form.transform((data) => ({
+        ...data,
+        ...(editingId.value ? { _method: 'put' } : {}),
+    })).post(endpoint, options);
 }
 
 async function destroy(id) {
@@ -139,6 +168,24 @@ async function destroy(id) {
                     </div>
                 </div>
 
+                <div class="flex flex-col sm:flex-row items-start gap-4 rounded-xl border border-surface-200 dark:border-surface-700 p-4">
+                    <div class="w-28 h-20 rounded-xl overflow-hidden bg-primary-50 dark:bg-primary-950 flex items-center justify-center text-primary-600 shrink-0">
+                        <img v-if="imagePreview" :src="imagePreview" :alt="form.name || 'صورة المادة'" class="w-full h-full object-cover" />
+                        <Icon v-else :name="form.icon || 'book'" class="w-8 h-8" />
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <label for="subject_image" class="input-label">صورة المادة</label>
+                        <input id="subject_image" type="file" accept="image/jpeg,image/png,image/webp" class="block w-full text-xs text-surface-500 file:me-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-primary-700" @change="onImagePicked" />
+                        <p class="text-[11px] text-surface-400 mt-1">تظهر كصورة افتراضية لمعلمي المادة عند عدم وجود صورة للمعلم.</p>
+                        <button v-if="imagePreview" type="button" class="btn-ghost btn-sm text-red-500 mt-2" @click="removeSubjectImage">
+                            <Icon name="trash" class="w-3.5 h-3.5" />
+                            إزالة الصورة
+                        </button>
+                        <p v-if="form.errors.image" class="text-xs text-red-500 mt-1">{{ form.errors.image }}</p>
+                    </div>
+                </div>
+
                 <!-- Curriculum picker -->
                 <div>
                     <span class="input-label">الصفوف التي تُدرّس فيها</span>
@@ -189,8 +236,9 @@ async function destroy(id) {
             <!-- List -->
             <div v-if="subjects.length" class="card divide-y divide-surface-100 dark:divide-surface-800">
                 <div v-for="subject in subjects" :key="subject.id" class="p-4 flex items-start gap-4">
-                    <div class="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950 flex items-center justify-center text-primary-600 shrink-0">
-                        <Icon :name="subject.icon || 'book'" class="w-5 h-5" />
+                    <div class="w-10 h-10 rounded-xl overflow-hidden bg-primary-50 dark:bg-primary-950 flex items-center justify-center text-primary-600 shrink-0">
+                        <img v-if="subject.image" :src="subject.image" :alt="subject.name" class="w-full h-full object-cover" />
+                        <Icon v-else :name="subject.icon || 'book'" class="w-5 h-5" />
                     </div>
 
                     <div class="flex-1 min-w-0">

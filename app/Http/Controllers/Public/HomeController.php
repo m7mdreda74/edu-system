@@ -40,27 +40,39 @@ class HomeController extends Controller
                     'reviewsReceived as approved_rating' => fn ($query) => $query->where('is_approved', true),
                 ], 'rating')
                 ->with([
+                    'subject:id,name,name_en,icon,image',
                     'teachingAssignments' => fn ($query) => $query
                         ->where('is_active', true)
-                        ->with('subject:id,name'),
+                        ->with('subject:id,name,name_en,icon,image'),
                 ])
-                ->get(['id', 'name', 'bio', 'headline', 'avatar', 'intro_video_url', 'intro_video_thumbnail', 'years_experience'])
-                ->map(fn (User $teacher) => [
-                    'id' => $teacher->id,
-                    'name' => $teacher->name,
-                    'headline' => $teacher->headline,
-                    'bio' => $teacher->bio,
-                    'avatar' => $teacher->avatar,
-                    'intro_video_url' => $teacher->intro_video_url,
-                    'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
-                    'years_experience' => $teacher->years_experience,
-                    'rating' => round((float) ($teacher->approved_rating ?? 0), 1),
-                    'subjects' => $teacher->teachingAssignments
-                        ->pluck('subject.name')
-                        ->filter()
-                        ->unique()
-                        ->values(),
-                ])
+                ->get(['id', 'name', 'subject_id', 'bio', 'headline', 'avatar', 'intro_video_url', 'intro_video_thumbnail', 'years_experience'])
+                ->map(function (User $teacher) {
+                    $subject = $teacher->subject ?? $teacher->teachingAssignments->first()?->subject;
+
+                    return [
+                        'id' => $teacher->id,
+                        'name' => $teacher->name,
+                        'headline' => $teacher->headline,
+                        'bio' => $teacher->bio,
+                        'avatar' => $teacher->avatar,
+                        'intro_video_url' => $teacher->intro_video_url,
+                        'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
+                        'years_experience' => $teacher->years_experience,
+                        'rating' => round((float) ($teacher->approved_rating ?? 0), 1),
+                        'subject' => $subject ? [
+                            'id' => $subject->id,
+                            'name' => $subject->name,
+                            'name_en' => $subject->name_en,
+                            'icon' => $subject->icon,
+                            'image' => $subject->image,
+                        ] : null,
+                        'subjects' => $teacher->teachingAssignments
+                            ->pluck('subject.name')
+                            ->filter()
+                            ->unique()
+                            ->values(),
+                    ];
+                })
                 ->values();
         });
 

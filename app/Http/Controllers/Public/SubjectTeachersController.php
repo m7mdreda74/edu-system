@@ -56,7 +56,7 @@ class SubjectTeachersController extends Controller
                 ->first()?->assignment?->teacher_id
             : null;
 
-        $teachers = $assignments->map(function (TeachingAssignment $assignment) use ($subscribedTeacherId) {
+        $teachers = $assignments->map(function (TeachingAssignment $assignment) use ($subscribedTeacherId, $subject) {
             $teacher = $assignment->teacher;
             $groups  = $assignment->groups;
 
@@ -70,6 +70,13 @@ class SubjectTeachersController extends Controller
                 'intro_video_url'       => $teacher->intro_video_url,
                 'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
                 'years_experience'      => $teacher->years_experience,
+                'subject'               => [
+                    'id'      => $subject->id,
+                    'name'    => $subject->name,
+                    'name_en' => $subject->name_en,
+                    'icon'    => $subject->icon,
+                    'image'   => $subject->image,
+                ],
                 'rating'                => round((float) ($teacher->approved_rating ?? 0), 1),
                 'reviews_count'         => (int) ($teacher->approved_reviews_count ?? 0),
                 'groups_count'          => $groups->count(),
@@ -92,6 +99,7 @@ class SubjectTeachersController extends Controller
                 'name'    => $subject->name,
                 'name_en' => $subject->name_en,
                 'icon'    => $subject->icon,
+                'image'   => $subject->image,
             ],
             'teachers' => $teachers,
             'subscribedTeacherId' => $subscribedTeacherId,

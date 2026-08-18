@@ -523,3 +523,43 @@ it('manages photos for teachers only', function () {
         ])
         ->assertStatus(422);
 });
+
+it('lets an admin set and clear a subject image', function () {
+    /** @var AdminControlTestCase $this */
+    Storage::fake('public');
+
+    $subject = $this->assignment->subject;
+    $gradeIds = $subject->gradeLevels()->pluck('grade_levels.id')->all();
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.subjects.update', ['id' => $subject->id]), [
+            '_method' => 'put',
+            'name' => $subject->name,
+            'name_en' => $subject->name_en,
+            'icon' => $subject->icon,
+            'is_active' => true,
+            'grade_level_ids' => $gradeIds,
+            'image' => UploadedFile::fake()->image('math.jpg', 400, 400),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $path = $subject->fresh()->image;
+    expect($path)->not->toBeNull();
+    expect(Storage::disk('public')->exists(substr($path, strlen('/storage/'))))->toBeTrue();
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.subjects.update', ['id' => $subject->id]), [
+            '_method' => 'put',
+            'name' => $subject->name,
+            'name_en' => $subject->name_en,
+            'icon' => $subject->icon,
+            'is_active' => true,
+            'grade_level_ids' => $gradeIds,
+            'remove_image' => true,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($subject->fresh()->image)->toBeNull();
+});

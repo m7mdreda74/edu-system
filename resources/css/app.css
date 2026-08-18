@@ -456,6 +456,92 @@
         @apply p-4 flex flex-col gap-2;
     }
 
+    .teacher-card {
+        width: 17.5rem;
+        min-width: 17.5rem;
+    }
+
+    .teacher-card-row {
+        @apply flex flex-nowrap gap-5 overflow-x-auto pb-3;
+        scroll-snap-type: x mandatory;
+    }
+
+    .teacher-card-row > .teacher-card {
+        scroll-snap-align: start;
+    }
+
+    .teacher-subject-art {
+        @apply w-full h-full flex flex-col items-center justify-center gap-2 relative overflow-hidden;
+    }
+
+    .teacher-subject-art::before,
+    .teacher-subject-art::after {
+        content: '';
+        position: absolute;
+        border: 1px solid rgb(255 255 255 / 0.18);
+        border-radius: 9999px;
+        pointer-events: none;
+    }
+
+    .teacher-subject-art::before {
+        width: 13rem;
+        height: 13rem;
+        inset: -5rem auto auto -4rem;
+    }
+
+    .teacher-subject-art::after {
+        width: 10rem;
+        height: 10rem;
+        inset: auto -4rem -6rem auto;
+    }
+
+    .teacher-subject-art__icon {
+        @apply w-20 h-20 rounded-3xl flex items-center justify-center text-white/95;
+        background: rgb(255 255 255 / 0.14);
+        border: 1px solid rgb(255 255 255 / 0.25);
+        box-shadow: 0 12px 35px rgb(0 0 0 / 0.18);
+    }
+
+    .teacher-subject-art--math {
+        background: linear-gradient(135deg, #4c0519, #9a3412 55%, #d97706);
+    }
+
+    .teacher-subject-art--language {
+        background: linear-gradient(135deg, #3b0764, #7e22ce 55%, #c026d3);
+    }
+
+    .teacher-subject-art--science {
+        background: linear-gradient(135deg, #082f49, #075985 55%, #0d9488);
+    }
+
+    .teacher-subject-art--chemistry {
+        background: linear-gradient(135deg, #172554, #4338ca 55%, #7c3aed);
+    }
+
+    .teacher-subject-art--biology {
+        background: linear-gradient(135deg, #064e3b, #047857 55%, #65a30d);
+    }
+
+    .teacher-subject-art--social {
+        background: linear-gradient(135deg, #451a03, #92400e 55%, #ca8a04);
+    }
+
+    .teacher-subject-art--business {
+        background: linear-gradient(135deg, #1e1b4b, #6d28d9 55%, #db2777);
+    }
+
+    .teacher-subject-art--technology {
+        background: linear-gradient(135deg, #111827, #334155 55%, #2563eb);
+    }
+
+    .teacher-subject-art--arts {
+        background: linear-gradient(135deg, #500724, #be185d 55%, #f97316);
+    }
+
+    .teacher-subject-art--general {
+        background: linear-gradient(135deg, #3f0717, #831843 55%, #b45309);
+    }
+
     /* ── Navbar ── */
     .navbar {
         @apply fixed top-0 inset-x-0 z-50

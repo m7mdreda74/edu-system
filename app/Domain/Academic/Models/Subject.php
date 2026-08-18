@@ -30,6 +30,7 @@ class Subject extends Model
         'name',
         'name_en',
         'icon',
+        'image',
         'is_active',
     ];
 

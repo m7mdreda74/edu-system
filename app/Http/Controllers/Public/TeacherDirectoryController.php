@@ -25,7 +25,7 @@ class TeacherDirectoryController extends Controller
                 'teachingAssignments' => fn ($query) => $query
                     ->where('is_active', true)
                     ->with([
-                        'subject:id,name,name_en,icon',
+                        'subject:id,name,name_en,icon,image',
                         'gradeLevel:id,key,name',
                         'groups' => fn ($groups) => $groups
                             ->where('is_active', true)
@@ -48,6 +48,7 @@ class TeacherDirectoryController extends Controller
             ->map(function (User $teacher): array {
                 $assignments = $teacher->teachingAssignments;
                 $groups = $assignments->flatMap->groups;
+                $subject = $assignments->first()?->subject;
 
                 return [
                     'id'                    => $teacher->id,
@@ -58,6 +59,13 @@ class TeacherDirectoryController extends Controller
                     'intro_video_url'       => $teacher->intro_video_url,
                     'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
                     'years_experience'      => $teacher->years_experience,
+                    'subject'               => $subject ? [
+                        'id'      => $subject->id,
+                        'name'    => $subject->name,
+                        'name_en' => $subject->name_en,
+                        'icon'    => $subject->icon,
+                        'image'   => $subject->image,
+                    ] : null,
                     'rating'                => round((float) ($teacher->approved_rating ?? 0), 1),
                     'reviews_count'         => (int) ($teacher->approved_reviews_count ?? 0),
                     'is_featured'            => (bool) $teacher->is_featured,

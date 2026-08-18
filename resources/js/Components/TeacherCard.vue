@@ -3,7 +3,6 @@ import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
 import SubscriptionBadge from '@/Components/SubscriptionBadge.vue';
-import { formatQAR } from '@/lib/money';
 
 const props = defineProps({
     teacher: { type: Object, required: true },
@@ -14,17 +13,52 @@ const props = defineProps({
 
 const showVideo = ref(false);
 
+const coverImage = computed(() => (
+    props.teacher.avatar
+    || props.teacher.intro_video_thumbnail
+    || props.teacher.subject?.image
+    || null
+));
+
+const coverAlt = computed(() => {
+    const subjectName = props.teacher.subject?.name;
+
+    return subjectName
+        ? [subjectName, props.teacher.name].join(' — ')
+        : props.teacher.name;
+});
+
+const subjectArtwork = computed(() => {
+    const icon = props.teacher.subject?.icon || 'book';
+    const themes = {
+        calculator: 'teacher-subject-art--math',
+        language: 'teacher-subject-art--language',
+        globe: 'teacher-subject-art--language',
+        atom: 'teacher-subject-art--science',
+        flask: 'teacher-subject-art--chemistry',
+        dna: 'teacher-subject-art--biology',
+        landmark: 'teacher-subject-art--social',
+        chart: 'teacher-subject-art--business',
+        settings: 'teacher-subject-art--technology',
+        video: 'teacher-subject-art--arts',
+        book: 'teacher-subject-art--general',
+        student: 'teacher-subject-art--general',
+        users: 'teacher-subject-art--general',
+    };
+
+    return {
+        icon,
+        name: props.teacher.subject?.name || 'منصة التفوق',
+        theme: themes[icon] || 'teacher-subject-art--general',
+    };
+});
+
 const profileUrl = computed(() => route('teachers.show', {
     id: props.teacher.id,
     ...(props.gradeKey ? { grade: props.gradeKey } : {}),
     ...(props.subjectId ? { subject: props.subjectId } : {}),
 }));
 
-const priceLabel = computed(() => {
-    const price = props.teacher.cheapest_monthly;
-    if (price === null || price === undefined) return null;
-    return price === 0 ? 'مجاني' : `${formatQAR(price)} / شهرياً`;
-});
 
 /** Turn a YouTube/Vimeo link into something we can drop in an iframe. */
 const embedUrl = computed(() => {
@@ -42,19 +76,28 @@ const embedUrl = computed(() => {
 </script>
 
 <template>
-    <article class="entity-card flex flex-col overflow-hidden">
-        <!-- Intro video preview — the whole point of the card -->
-        <div class="relative aspect-video bg-surface-900 group">
-            <img
-                v-if="teacher.intro_video_thumbnail"
-                :src="teacher.intro_video_thumbnail"
-                :alt="teacher.name"
-                class="w-full h-full object-cover opacity-80"
-                loading="lazy"
-            />
-            <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-700 to-primary-900">
-                <span class="text-4xl font-black text-white/90">{{ teacher.name?.charAt(0) }}</span>
-            </div>
+    <article class="teacher-card entity-card flex flex-col overflow-hidden">
+        <!-- Teacher photo, then intro thumbnail, then subject artwork fallback -->
+       <div class="relative aspect-video bg-surface-900 group">
+           <img
+                v-if="coverImage"
+                :src="coverImage"
+                :alt="coverAlt"
+                class="w-full h-full object-cover"
+               loading="lazy"
+           />
+            <div
+                v-else
+                :class="['teacher-subject-art', subjectArtwork.theme]"
+                role="img"
+                :aria-label="'صورة افتراضية لمادة ' + subjectArtwork.name"
+            >
+                <div class="teacher-subject-art__icon">
+                    <Icon :name="subjectArtwork.icon" class="w-10 h-10" />
+                </div>
+                <span class="text-sm font-black">{{ subjectArtwork.name }}</span>
+                <span class="text-[10px] text-white/70">كادر منصة التفوق</span>
+           </div>
 
             <button
                 type="button"
@@ -113,16 +156,11 @@ const embedUrl = computed(() => {
                 <span v-if="teacher.has_free_seats === false" class="badge-red text-[10px]">مكتمل</span>
             </div>
 
-            <div class="flex items-center justify-between gap-2 pt-2 mt-auto border-t border-surface-100 dark:border-surface-700">
-                <span v-if="priceLabel" class="text-sm font-black text-primary-700 dark:text-primary-400">
-                    {{ priceLabel }}
-                </span>
-                <span v-else class="text-xs text-surface-400">حدّد السعر من الملف</span>
-
-                <Link :href="profileUrl" :class="teacher.is_subscribed ? 'btn-outline btn-sm' : 'btn-primary btn-sm'">
-                    {{ teacher.is_subscribed ? 'عرض' : 'المجموعات والحصص' }}
-                </Link>
-            </div>
+            <div class="flex justify-end gap-2 pt-2 mt-auto border-t border-surface-100 dark:border-surface-700">
+               <Link :href="profileUrl" :class="teacher.is_subscribed ? 'btn-outline btn-sm' : 'btn-primary btn-sm'">
+                    عرض الملف
+               </Link>
+           </div>
         </div>
     </article>
 
