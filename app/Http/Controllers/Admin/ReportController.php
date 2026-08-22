@@ -10,13 +10,17 @@ use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ReportController extends Controller
 {
+    private const MAX_PRINT_ROWS = 1_000;
+
     public function index(Request $request): Response
     {
         $filters = $request->validate([
@@ -31,6 +35,14 @@ class ReportController extends Controller
         $teacherId = $filters['teacher_id'] ?? null;
         $start = $filters['start_date'] ?? null;
         $end = $filters['end_date'] ?? null;
+        $startAt = $start ? CarbonImmutable::parse($start)->startOfDay() : null;
+        $endAt = $end ? CarbonImmutable::parse($end)->endOfDay() : null;
+
+        if ($startAt && $endAt && $startAt->diffInDays($endAt) > 366) {
+            throw ValidationException::withMessages([
+                'end_date' => 'نطاق التقرير لا يمكن أن يتجاوز 366 يوماً.',
+            ]);
+        }
 
         $teachers = User::role('teacher')
             ->with([
@@ -68,11 +80,11 @@ class ReportController extends Controller
             ->withCount('attendees')
             ->when($teacherId, fn (Builder $query) => $query->where('teacher_id', $teacherId))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
-            ->when($start, fn (Builder $query, string $date) => $query->whereDate('scheduled_at', '>=', $date))
-            ->when($end, fn (Builder $query, string $date) => $query->whereDate('scheduled_at', '<=', $date));
+            ->when($startAt, fn (Builder $query) => $query->where('scheduled_at', '>=', $startAt))
+            ->when($endAt, fn (Builder $query) => $query->where('scheduled_at', '<=', $endAt));
 
         if ($print) {
-            $sessionRows = $sessionQuery->latest('scheduled_at')->get();
+            $sessionRows = $sessionQuery->latest('scheduled_at')->limit(self::MAX_PRINT_ROWS)->get();
             $sessions = [
                 'data' => $sessionRows,
                 'links' => [],
@@ -100,16 +112,16 @@ class ReportController extends Controller
                 'session.privateSessionSlot.assignment.subject:id,name',
             ])
             ->whereHas('user', fn (Builder $query) => $query->role('student'))
-            ->whereHas('session', function (Builder $query) use ($teacherId, $start, $end, $filters): void {
+            ->whereHas('session', function (Builder $query) use ($teacherId, $startAt, $endAt, $filters): void {
                 $query
                     ->when($teacherId, fn (Builder $q, int $id) => $q->where('teacher_id', $id))
                     ->when($filters['status'] ?? null, fn (Builder $q, string $status) => $q->where('status', $status))
-                    ->when($start, fn (Builder $q, string $date) => $q->whereDate('scheduled_at', '>=', $date))
-                    ->when($end, fn (Builder $q, string $date) => $q->whereDate('scheduled_at', '<=', $date));
+                    ->when($startAt, fn (Builder $q) => $q->where('scheduled_at', '>=', $startAt))
+                    ->when($endAt, fn (Builder $q) => $q->where('scheduled_at', '<=', $endAt));
             });
 
         if ($print) {
-            $attendanceRows = $attendanceQuery->latest('joined_at')->get();
+            $attendanceRows = $attendanceQuery->latest('joined_at')->limit(self::MAX_PRINT_ROWS)->get();
             $attendance = [
                 'data' => $attendanceRows,
                 'links' => [],
@@ -176,8 +188,8 @@ class ReportController extends Controller
         $teacherSessions = LiveSession::query()
             ->selectRaw('teacher_id, COUNT(*) AS sessions_count')
             ->when($teacherId, fn (Builder $query) => $query->where('teacher_id', $teacherId))
-            ->when($start, fn (Builder $query, string $date) => $query->whereDate('scheduled_at', '>=', $date))
-            ->when($end, fn (Builder $query, string $date) => $query->whereDate('scheduled_at', '<=', $date))
+            ->when($startAt, fn (Builder $query) => $query->where('scheduled_at', '>=', $startAt))
+            ->when($endAt, fn (Builder $query) => $query->where('scheduled_at', '<=', $endAt))
             ->groupBy('teacher_id')
             ->pluck('sessions_count', 'teacher_id');
 

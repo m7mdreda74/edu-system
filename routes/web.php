@@ -100,9 +100,15 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     // ─── Chat ─────────────────────────────────────────────────────────────────
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
-    Route::post('/chat/start', [ChatController::class, 'startConversation'])->name('chat.start');
-    Route::post('/chat/send', [ChatController::class, 'sendMessage'])->name('chat.send');
-    Route::get('/chat/fetch', [ChatController::class, 'fetchMessages'])->name('chat.fetch');
+    Route::post('/chat/start', [ChatController::class, 'startConversation'])
+        ->name('chat.start')
+        ->middleware('throttle:10,1');
+    Route::post('/chat/send', [ChatController::class, 'sendMessage'])
+        ->name('chat.send')
+        ->middleware('throttle:30,1');
+    Route::get('/chat/fetch', [ChatController::class, 'fetchMessages'])
+        ->name('chat.fetch')
+        ->middleware('throttle:120,1');
 
     // ─── Live Session Room ────────────────────────────────────────────────────
     Route::get('/live-sessions/{id}/room', [LiveSessionRoomController::class, 'show'])->name('live-sessions.room');
@@ -293,7 +299,7 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
 });
 
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'active', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'active', 'role:admin', 'admin.sensitive'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports');
     // Polled by the dashboard so its figures stay live without a page reload.

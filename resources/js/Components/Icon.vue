@@ -186,10 +186,39 @@ const paths = {
 };
 
 // Keep a visible fallback for custom/misspelled icon names coming from admin
-// settings instead of rendering an empty button in the footer.
-const svgContent = computed(() => paths[props.name] || paths.globe || '');
+// settings instead of rendering an empty button in the footer. The icon
+// source is a static allowlist; parse only SVG elements/attributes we own so
+// The icon is rendered from the allowlisted path map above.
+const svgNodes = computed(() => parseSvgNodes(paths[props.name] || paths.globe || ''));
+
+function parseSvgNodes(source) {
+    const nodes = [];
+    const elementPattern = /<(path|circle|rect|ellipse)\s+([^>]*?)\/?\s*>/g;
+    const attributePattern = /([:\w-]+)\s*=\s*"([^"]*)"/g;
+    let element;
+
+    while ((element = elementPattern.exec(source)) !== null) {
+        const attrs = {};
+        let attribute;
+
+        while ((attribute = attributePattern.exec(element[2])) !== null) {
+            attrs[attribute[1]] = attribute[2];
+        }
+
+        nodes.push({ tag: element[1], attrs });
+    }
+
+    return nodes;
+}
 </script>
 
 <template>
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" :class="props.class" aria-hidden="true" focusable="false" v-html="svgContent"></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" :class="props.class" aria-hidden="true" focusable="false">
+        <component
+            :is="node.tag"
+            v-for="(node, index) in svgNodes"
+            :key="`${props.name}-${index}`"
+            v-bind="node.attrs"
+        />
+    </svg>
 </template>

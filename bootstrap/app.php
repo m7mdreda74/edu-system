@@ -56,6 +56,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'active'     => \App\Http\Middleware\EnsureUserIsActive::class,
             'cron.secret' => \App\Http\Middleware\VerifyCronSecret::class,
+            'admin.sensitive' => \App\Http\Middleware\RequireSensitiveAdminPassword::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

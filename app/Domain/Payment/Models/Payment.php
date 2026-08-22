@@ -34,6 +34,7 @@ class Payment extends Model
     protected $fillable = [
         'user_id',
         'subscription_id',
+        'teacher_id',
         'coupon_id',
         'amount',
         'commission_percent',
@@ -46,6 +47,7 @@ class Payment extends Model
         'sender_phone',
         'status',
         'receipt_path',
+        'receipt_sha256',
         'paid_at',
         'purchase_request_id',
         'teacher_payout_id',
@@ -82,6 +84,11 @@ class Payment extends Model
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'teacher_id');
     }
 
     public function coupon(): BelongsTo

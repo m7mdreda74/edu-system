@@ -8,6 +8,7 @@ use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Rules\AltafawwuqEmail;
+use App\Services\AuditLogger;
 use App\Services\ImageUploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,10 +36,15 @@ class UserController extends Controller
         ]);
 
         $users = User::with('roles:name')
-            ->when(! empty($filters['search']), fn ($q) =>
-                $q->where('name', 'like', '%' . $filters['search'] . '%')
-                  ->orWhere('email', 'like', '%' . $filters['search'] . '%')
-            )
+            ->when(! empty($filters['search']), function ($q) use ($filters): void {
+                $search = '%' . $filters['search'] . '%';
+
+                $q->where(function ($searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('name', 'like', $search)
+                        ->orWhere('email', 'like', $search);
+                });
+            })
             ->when(! empty($filters['role']), fn ($q) =>
                 $q->role($filters['role'])
             )
@@ -115,6 +121,7 @@ class UserController extends Controller
 
         $user = User::findOrFail($id);
         $user->update(['password' => Hash::make($validated['password'])]);
+        AuditLogger::record('admin.user.password_reset', $user);
 
         return back()->with('success', "تم تعيين كلمة مرور جديدة للمستخدم {$user->name}. لا يتم عرض كلمات المرور الحالية.");
     }
@@ -127,6 +134,9 @@ class UserController extends Controller
         abort_if($user->id === Auth::id(), 403, 'لا يمكنك تعطيل حسابك الخاص.');
 
         $user->update(['is_active' => ! $user->is_active]);
+        AuditLogger::record('admin.user.status_changed', $user, [
+            'is_active' => $user->is_active,
+        ]);
 
         $status = $user->is_active ? 'تفعيل' : 'تعطيل';
 
@@ -144,10 +154,16 @@ class UserController extends Controller
         // Prevent admin from changing their own role
         abort_if($user->id === Auth::id(), 403, 'لا يمكنك تغيير دورك الخاص.');
 
+        $oldRole = $user->getRoleNames()->first();
         $user->syncRoles([$validated['role']]);
         if ($validated['role'] === 'teacher' && $user->commission_percent === null) {
             $user->update(['commission_percent' => (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20)]);
         }
+
+        AuditLogger::record('admin.user.role_changed', $user, [
+            'old_role' => $oldRole,
+            'new_role' => $validated['role'],
+        ]);
 
         return back()->with('success', "تم تحديث دور {$user->name} بنجاح.");
     }
@@ -159,7 +175,12 @@ class UserController extends Controller
         ]);
         $user = User::findOrFail($id);
         abort_unless($user->hasRole('teacher'), 422, 'نسبة العمولة تُحدد للمدرسين فقط.');
+        $oldCommission = $user->commission_percent;
         $user->update(['commission_percent' => $validated['commission_percent']]);
+        AuditLogger::record('admin.user.commission_changed', $user, [
+            'old_percent' => $oldCommission,
+            'new_percent' => $validated['commission_percent'],
+        ]);
 
         return back()->with('success', "تم تحديث نسبة عمولة المدرس {$user->name}.");
     }

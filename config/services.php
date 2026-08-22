@@ -103,6 +103,9 @@ return [
         'recording' => [
             // This is Jitsi's server-side file recording, not browser-local recording.
             'enabled' => filter_var(env('JITSI_FILE_RECORDINGS_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+            // Start recording as soon as the teacher joins a live room. The
+            // Jitsi file-recording service must be configured separately.
+            'auto_start' => filter_var(env('JITSI_FILE_RECORDINGS_AUTO_START', true), FILTER_VALIDATE_BOOLEAN),
             'allowed_hosts' => array_values(array_filter(array_map(
                 'trim',
                 explode(',', (string) env('JITSI_RECORDING_ALLOWED_HOSTS', '')),

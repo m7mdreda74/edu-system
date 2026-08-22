@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\User\Models\User;
+use App\Models\AuditEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -156,4 +158,67 @@ it('allows the admin to control the free youtube section visibility through site
 
     expect(PlatformSetting::where('key', 'home_youtube_visible')->value('value'))
         ->toBe('false');
+});
+
+it('rejects new settings outside the typed registry', function () {
+    $this->actingAs(themeAdmin())
+        ->postJson(route('admin.settings.update'), [
+            'settings' => [[
+                'key' => 'arbitrary_runtime_key',
+                'value' => 'should not be stored',
+                'type' => 'string',
+            ]],
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('settings.0.key');
+
+    expect(PlatformSetting::where('key', 'arbitrary_runtime_key')->exists())->toBeFalse();
+});
+
+it('does not share unknown legacy settings with client pages', function () {
+    PlatformSetting::create([
+        'key' => 'legacy_secret_key',
+        'value' => 'must-not-reach-browser',
+        'type' => 'string',
+    ]);
+    Cache::forget('platform_settings');
+
+    $this->get(route('login'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->missing('settings.legacy_secret_key'));
+});
+
+it('rejects unsafe URLs in structured site content and records only value hashes', function () {
+    $admin = themeAdmin();
+
+    $this->actingAs($admin)
+        ->postJson(route('admin.site-pages.update'), [
+            'settings' => [
+                'navbar_links' => [[
+                    'label' => 'رابط',
+                    'href' => 'javascript:alert(1)',
+                ]],
+            ],
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('settings.navbar_links');
+
+    $this->actingAs($admin)
+        ->postJson(route('admin.settings.update'), [
+            'settings' => [[
+                'key' => 'platform_name',
+                'value' => 'اسم آمن',
+                'type' => 'string',
+            ]],
+        ])
+        ->assertOk();
+
+    $event = AuditEvent::query()
+        ->where('action', 'settings.updated')
+        ->latest('id')
+        ->firstOrFail();
+    $change = $event->metadata['changes'][0];
+
+    expect($change['new_value_hash'])->toBe(hash('sha256', 'اسم آمن'))
+        ->and($event->metadata)->not->toHaveKey('value');
 });

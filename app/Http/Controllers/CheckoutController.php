@@ -13,10 +13,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use LogicException;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Throwable;
 
 /**
  * Pays for one month of a subscription by uploading a Vodafone Cash receipt
@@ -49,7 +51,13 @@ class CheckoutController extends Controller
             'coupon_code'    => ['nullable', 'string', 'max:50'],
             'payment_method' => ['required', 'string', 'in:vodafone_cash'],
             'sender_phone'   => ['required', 'string', 'max:20', 'regex:/^(?:\+20|0020|0)1\d{9}$/'],
-            'receipt'        => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'receipt'        => [
+                'required',
+                'file',
+                'mimes:jpg,jpeg,png,webp,pdf',
+                'mimetypes:image/jpeg,image/png,image/webp,application/pdf',
+                'max:8192',
+            ],
         ], [
             'sender_phone.regex' => 'أدخل رقم الهاتف الذي حوّلت منه بصيغة 01012345678.',
         ]);
@@ -92,24 +100,26 @@ class CheckoutController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        $allowedStudentIds = $user->isParent()
+            ? ParentStudentLink::query()
+                ->where('parent_user_id', $user->id)
+                ->whereNotNull('verified_at')
+                ->select('student_user_id')
+            : null;
+
         $subscription = Subscription::with([
             'student:id,name',
             'assignment.subject:id,name,icon',
-            'assignment.teacher:id,name,avatar',
+            'assignment.teacher:id,name,avatar,commission_percent',
             'assignment.gradeLevel:id,key,name,vodafone_cash_number',
             'group.schedules',
         ])->findOrFail($subscriptionId);
 
-        if ($subscription->student_id === $user->id) {
-            return $subscription;
-        }
+        $isOwnedByUser = (int) $subscription->student_id === (int) $user->id;
+        $isOwnedByVerifiedStudent = $allowedStudentIds !== null
+            && $allowedStudentIds->where('student_user_id', $subscription->student_id)->exists();
 
-        $isLinkedParent = ParentStudentLink::where('parent_user_id', $user->id)
-            ->where('student_user_id', $subscription->student_id)
-            ->whereNotNull('verified_at')
-            ->exists();
-
-        abort_unless($isLinkedParent, 403, 'غير مصرح لك بإتمام عملية الدفع لهذا الاشتراك.');
+        abort_unless($isOwnedByUser || $isOwnedByVerifiedStudent, 403);
 
         return $subscription;
     }
@@ -117,18 +127,36 @@ class CheckoutController extends Controller
     /** Vodafone Cash transfer: store the receipt and queue it for admin review. */
     private function processVodafoneCashPayment(Request $request, array $validated, Subscription $subscription): SymfonyResponse
     {
+        $receiptFile = $request->file('receipt');
+        $receiptMime = $receiptFile?->getMimeType();
+        $receiptHash = $receiptFile?->getRealPath()
+            ? hash_file('sha256', $receiptFile->getRealPath())
+            : false;
+
+        if (! is_string($receiptMime)
+            || ! in_array($receiptMime, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], true)
+            || ! is_string($receiptHash)
+        ) {
+            return $this->fail($request, 'نوع ملف الإيصال غير مسموح أو تعذّر فحصه.');
+        }
+
+        $storedReceiptPath = null;
+
         try {
             if ($subscription->isActive()) {
                 throw new LogicException('هذا الاشتراك مفعّل بالفعل.');
             }
 
-            $payment = DB::transaction(function () use ($request, $validated, $subscription): Payment {
+            $payment = DB::transaction(function () use ($request, $validated, $subscription, $receiptHash, $receiptFile, &$storedReceiptPath): Payment {
                 /** @var Subscription $lockedSubscription */
                 $lockedSubscription = Subscription::query()
                     ->lockForUpdate()
                     ->findOrFail($subscription->id);
 
-                $lockedSubscription->loadMissing('assignment.gradeLevel:id,vodafone_cash_number');
+                $lockedSubscription->loadMissing([
+                    'assignment.gradeLevel:id,vodafone_cash_number',
+                    'assignment.teacher:id,commission_percent',
+                ]);
                 $recipientPhone = $lockedSubscription->assignment?->gradeLevel?->vodafone_cash_number;
 
                 if (! is_string($recipientPhone) || ! preg_match('/^(?:\+20|0020|0)1\d{9}$/', $recipientPhone)) {
@@ -153,6 +181,10 @@ class CheckoutController extends Controller
                     throw new LogicException('يوجد إيصال تحويل قيد المراجعة لهذا الاشتراك بالفعل.');
                 }
 
+                if (Payment::query()->where('receipt_sha256', $receiptHash)->exists()) {
+                    throw new LogicException('تم رفع هذا الإيصال من قبل ولا يمكن استخدامه مرة أخرى.');
+                }
+
                 $originalAmount = (int) $lockedSubscription->monthly_price;
                 $finalAmount = $originalAmount;
                 $coupon = null;
@@ -170,19 +202,36 @@ class CheckoutController extends Controller
                     $finalAmount = $coupon->applyDiscount($originalAmount);
                 }
 
-                return Payment::create([
+                $teacher = $lockedSubscription->assignment?->teacher;
+                $defaultCommission = (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20);
+                $commissionPercent = max(0, min(100, (int) ($teacher?->commission_percent ?? $defaultCommission)));
+                $storedReceiptPath = $receiptFile->store('receipts', 'local');
+
+                try {
+                    return Payment::create([
                     'user_id'         => $lockedSubscription->student_id,
                     'subscription_id' => $lockedSubscription->id,
+                    'teacher_id'      => $teacher?->id,
                     'coupon_id'       => $coupon?->id,
                     'amount'          => $finalAmount,
                     'original_amount' => $originalAmount,
+                    'commission_percent' => $commissionPercent,
                     'currency'        => $lockedSubscription->currency ?? 'QAR',
                     'gateway'         => Payment::GATEWAY_VODAFONE_CASH,
                     'gateway_ref'     => 'Vodafone Cash: ' . $recipientPhone,
                     'sender_phone'    => $validated['sender_phone'],
                     'status'          => Payment::STATUS_PENDING_VERIFICATION,
-                    'receipt_path'    => $request->file('receipt')->store('receipts', 'local'),
-                ]);
+                    'receipt_path'    => $storedReceiptPath,
+                    'receipt_sha256'  => $receiptHash,
+                    ]);
+                } catch (Throwable $e) {
+                    if ($storedReceiptPath) {
+                        Storage::disk('local')->delete($storedReceiptPath);
+                        $storedReceiptPath = null;
+                    }
+
+                    throw $e;
+                }
             });
 
             $payment->load(['user', 'subscription']);
@@ -207,7 +256,17 @@ class CheckoutController extends Controller
 
             return redirect()->route('student.my-classes')->with('success', $message);
         } catch (LogicException $e) {
+            if ($storedReceiptPath) {
+                Storage::disk('local')->delete($storedReceiptPath);
+            }
+
             return $this->fail($request, $e->getMessage());
+        } catch (Throwable $e) {
+            if ($storedReceiptPath) {
+                Storage::disk('local')->delete($storedReceiptPath);
+            }
+
+            throw $e;
         }
     }
 

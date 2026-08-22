@@ -79,6 +79,11 @@ function verifyAuthorization(token, pathname) {
 }
 
 export default async function handler(request, response) {
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('X-Frame-Options', 'DENY');
+    response.setHeader('Referrer-Policy', 'no-referrer');
+    response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+
     if (request.method !== 'POST') {
         response.setHeader('Allow', 'POST');
         return response.status(405).json({ error: 'Method not allowed.' });

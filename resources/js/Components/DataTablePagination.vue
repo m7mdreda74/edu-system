@@ -69,13 +69,15 @@ function goTo(page) {
                         preserve-state
                         class="data-table-page-link"
                         :class="link.active ? 'data-table-page-link-active' : ''"
-                        v-html="serverLabel(link.label)"
-                    />
+                    >
+                        {{ serverLabel(link.label) }}
+                    </Link>
                     <span
                         v-else
                         class="data-table-page-link cursor-not-allowed opacity-35"
-                        v-html="serverLabel(link.label)"
-                    />
+                    >
+                        {{ serverLabel(link.label) }}
+                    </span>
                 </template>
             </template>
 

@@ -47,19 +47,27 @@ class PaymentService
                 return null;
             }
 
-            $payment->loadMissing('subscription.assignment.teacher');
+            $payment->loadMissing(['subscription.assignment.teacher', 'teacher']);
 
-            $teacher            = $payment->subscription?->assignment?->teacher;
+            // Prefer the immutable teacher/commission snapshot captured when
+            // the receipt was submitted. A later assignment edit must not
+            // rewrite the economics of an already submitted payment.
+            $teacher            = $payment->teacher ?? $payment->subscription?->assignment?->teacher;
             $defaultCommission  = (int) (PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20);
-            $commissionPercent  = max(0, min(100, $teacher?->commission_percent ?? $defaultCommission));
+            $commissionPercent  = max(0, min(100, (int) ($payment->commission_percent ?? $teacher?->commission_percent ?? $defaultCommission)));
             $platformCommission = (int) floor(($payment->amount * $commissionPercent) / 100);
+            $teacherEarnings    = $payment->amount - $platformCommission;
+
+            if ($platformCommission + $teacherEarnings !== $payment->amount) {
+                throw new \LogicException('تعذّر موازنة توزيع الدفعة قبل اعتمادها.');
+            }
 
             $payment->update([
                 'status'                     => Payment::STATUS_PAID,
                 'paid_at'                    => now(),
                 'commission_percent'         => $commissionPercent,
                 'platform_commission_amount' => $platformCommission,
-                'teacher_earnings'           => $payment->amount - $platformCommission,
+                'teacher_earnings'           => $teacherEarnings,
             ]);
 
             if (! $payment->invoice()->exists()) {

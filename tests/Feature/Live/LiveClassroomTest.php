@@ -191,7 +191,8 @@ it('lets the teacher enter a scheduled Jitsi room for setup without creating stu
             ->where('jitsi.whiteboard.enabled', true)
             ->where('jitsi.whiteboard.collabServerBaseUrl', 'https://meet.jit.si')
             ->where('jitsi.recording.enabled', true)
-            ->where('jitsi.recording.mode', 'file'));
+            ->where('jitsi.recording.mode', 'file')
+            ->where('jitsi.recording.auto_start', true));
 
 });
 

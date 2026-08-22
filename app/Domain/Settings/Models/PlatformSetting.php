@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Settings\Models;
 
+use App\Support\PlatformSettingRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -33,6 +34,7 @@ class PlatformSetting extends Model
         return Cache::remember('platform_settings', now()->addMinute(), function () {
             return self::query()
                 ->whereNotIn('key', self::HIDDEN_FROM_CLIENT_KEYS)
+                ->whereIn('key', PlatformSettingRegistry::keys())
                 ->pluck('value', 'key')
                 ->toArray();
         });

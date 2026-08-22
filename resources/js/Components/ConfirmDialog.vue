@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
 import { confirmState } from '@/composables/useConfirm';
+import Icon from '@/Components/Icon.vue';
 
 const inputRef = ref(null);
 
@@ -18,22 +19,19 @@ const variantConfig = computed(() => {
             iconBg: 'bg-red-100 dark:bg-red-950/40',
             iconColor: 'text-red-600 dark:text-red-400',
             btnClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white',
-            icon: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />`,
+            iconName: 'error',
         },
         warning: {
             iconBg: 'bg-amber-100 dark:bg-amber-950/40',
             iconColor: 'text-amber-600 dark:text-amber-400',
             btnClass: 'bg-amber-500 hover:bg-amber-600 focus:ring-amber-400 text-white',
-            icon: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />`,
+            iconName: 'error',
         },
         info: {
             iconBg: 'bg-primary-100 dark:bg-primary-950/40',
             iconColor: 'text-primary-600 dark:text-primary-400',
             btnClass: 'bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 text-white',
-            icon: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />`,
+            iconName: 'info',
         },
     }[v] ?? {};
 });
@@ -106,15 +104,10 @@ function onKeydown(e) {
                     <div class="flex items-start gap-4 p-6">
                         <!-- Icon -->
                         <div :class="['flex h-11 w-11 shrink-0 items-center justify-center rounded-full', variantConfig.iconBg]">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke-width="1.5"
-                                stroke="currentColor"
+                            <Icon
+                                :name="variantConfig.iconName"
                                 class="h-6 w-6"
                                 :class="variantConfig.iconColor"
-                                v-html="variantConfig.icon"
                             />
                         </div>
 

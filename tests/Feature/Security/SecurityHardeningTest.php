@@ -28,12 +28,19 @@ class SecurityHardeningTest extends TestCase
 
         $response->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
+            ->assertHeader('X-Frame-Options', 'DENY')
             ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
             ->assertHeader(
                 'Permissions-Policy',
                 sprintf('camera=(self "%s"), microphone=(self "%s"), geolocation=()', $jitsiOrigin, $jitsiOrigin),
             );
+
+        $contentSecurityPolicy = $response->headers->get('Content-Security-Policy');
+
+        $this->assertIsString($contentSecurityPolicy);
+        $this->assertStringContainsString("default-src 'self'", $contentSecurityPolicy);
+        $this->assertStringContainsString("frame-ancestors 'none'", $contentSecurityPolicy);
+        $this->assertStringContainsString($jitsiOrigin, $contentSecurityPolicy);
 
         $this->assertArrayNotHasKey('version', $response->json());
     }

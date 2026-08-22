@@ -134,6 +134,14 @@ class ChatController extends Controller
 
             $studentId = $validated['student_id'] ?? null;
             abort_if(! $studentId, 400, 'يجب تحديد الطالب لبدء المحادثة.');
+            abort_unless(
+                Subscription::active()
+                    ->where('student_id', $studentId)
+                    ->where('teaching_assignment_id', $assignment->id)
+                    ->exists(),
+                403,
+                'يمكنك مراسلة الطلاب المشتركين في هذا التكليف فقط.',
+            );
 
             $teacherId = $user->id;
         } elseif ($user->hasRole('parent')) {
@@ -190,6 +198,7 @@ class ChatController extends Controller
                 'required_without:message',
                 'file',
                 'mimes:pdf,doc,docx,ppt,pptx,zip,png,jpg,jpeg',
+                'mimetypes:application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg',
                 'max:10240',
             ],
         ]);
@@ -243,7 +252,7 @@ class ChatController extends Controller
             $query->where('id', '>', $validated['last_message_id']);
         }
 
-        $messages = $query->orderBy('created_at')->get();
+        $messages = $query->orderBy('created_at')->limit(200)->get();
         $this->decorateMessages($messages);
 
         if ($messages->isNotEmpty()) {

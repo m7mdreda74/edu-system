@@ -393,12 +393,6 @@ const advancedSettings = computed(() => {
     });
 });
 
-// Advanced raw tab methods
-function addRawSetting() {
-    form.settings.push({ key: '', value: '', type: 'string' });
-    isDirty.value = true;
-}
-
 async function removeRawSetting(setting) {
     const actualIndex = form.settings.findIndex(s => s === setting);
     if (actualIndex === -1) return;
@@ -993,11 +987,11 @@ async function saveSettings() {
                                 <Icon name="edit" class="w-5 h-5 text-primary-500" />
                                 <span>إعدادات النظام المتقدمة</span>
                             </h3>
-                            <button type="button" @click="addRawSetting" class="btn-outline text-xs py-1.5 px-3 flex items-center gap-1">
-                                <Icon name="plus" class="w-3.5 h-3.5" />
-                                <span>إضافة متغير جديد</span>
-                            </button>
                         </div>
+
+                        <p class="rounded-xl border border-primary-200 bg-primary-50/60 p-4 text-xs leading-6 text-primary-800 dark:border-primary-900 dark:bg-primary-950/30 dark:text-primary-200">
+                            الإعدادات المتقدمة تقتصر على المفاتيح المعتمدة في المنصة، ولا تسمح بإضافة متغيرات عشوائية قد تُعرض في صفحات عامة.
+                        </p>
                         
                         <div class="space-y-6">
                             <div v-for="(setting, index) in advancedSettings" :key="setting.key || index" class="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50/40 dark:bg-surface-800/40 space-y-3 relative">

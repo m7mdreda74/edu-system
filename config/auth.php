@@ -114,4 +114,7 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    // Shorter re-authentication window for production admin mutations.
+    'sensitive_admin_password_timeout' => env('ADMIN_SENSITIVE_PASSWORD_TIMEOUT', 900),
+
 ];

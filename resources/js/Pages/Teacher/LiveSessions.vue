@@ -34,7 +34,7 @@ const form = useForm({
 
 const isModalOpen = ref(false);
 const actionModal = ref(null);
-const statusForm = useForm({ status: 'ended', recording_url: '' });
+const statusForm = useForm({ status: 'ended' });
 const attendanceForm = useForm({ student_ids: [] });
 const apologyForm = useForm({ reason: '' });
 const makeupForm = useForm({ scheduled_at: '' });
@@ -71,13 +71,11 @@ function updateStatus(id, newStatus) {
         actionModal.value = {
             type: 'end',
             sessionId: id,
-            alreadyEnded: props.sessions.find(session => session.id === id)?.status === 'ended',
         };
         return;
     }
     router.patch(route('teacher.live-sessions.status', id), {
         status: newStatus,
-        recording_url: null,
     });
 }
 
@@ -225,8 +223,8 @@ function formatDate(value) {
                                             دخول غرفة Jitsi
                                         </a>
                                     </div>
-                                    <div v-if="session.recording_url">
-                                        <a :href="session.recording_url" target="_blank" rel="noopener noreferrer" class="text-accent-500 hover:underline text-xs block truncate max-w-[150px]">رابط التسجيل</a>
+                                    <div v-if="session.recording_url" class="text-accent-500 text-xs">
+                                        تم نشر التسجيل داخل المنصة
                                     </div>
                                 </td>
                                 <td class="data-table-actions p-3">
@@ -234,7 +232,6 @@ function formatDate(value) {
                                         <a v-if="session.status === 'scheduled'" :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener noreferrer" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">دخول وبدء الحصة</a>
                                         <button type="button" v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
                                         <button type="button" v-if="session.status === 'live'" @click="updateStatus(session.id, 'ended')" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
-                                        <button type="button" v-if="session.status === 'ended' && !session.recording_url" @click="updateStatus(session.id, 'ended')" class="btn-sm btn-primary">إضافة التسجيل</button>
                                         <button type="button" v-if="['live', 'ended'].includes(session.status)" @click="openAttendance(session)" class="btn-sm btn-outline">تسجيل الحضور</button>
                                         <button type="button" v-if="session.apology?.status === 'pending'" @click="openMakeup(session)" class="btn-sm btn-primary">حدد حصة تعويضية</button>
                                     </div>
@@ -305,17 +302,12 @@ function formatDate(value) {
                         <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-500/10 text-accent-600">
                             <Icon name="live" class="h-6 w-6" />
                         </div>
-                        <h3 class="text-xl font-black text-surface-900 dark:text-white">{{ actionModal.alreadyEnded ? 'إضافة تسجيل الحصة' : 'إنهاء الحصة المباشرة' }}</h3>
-                        <p class="mt-2 text-sm leading-6 text-surface-500">عند إيقاف التسجيل من غرفة Jitsi سيُحفظ الرابط تلقائيًا ويظهر للطلاب داخل المنصة. اترك الحقل فارغًا؛ استخدمه فقط لتسجيل قديم تم رفعه يدويًا.</p>
-                        <div class="mt-5">
-                            <label class="input-label">رابط تسجيل قديم أو مستضاف <span class="font-normal text-surface-400">(اختياري)</span></label>
-                            <input v-model="statusForm.recording_url" type="url" dir="ltr" class="input" :required="actionModal.alreadyEnded" placeholder="https://...">
-                            <p v-if="statusForm.errors.recording_url" class="mt-1 text-xs text-red-500">{{ statusForm.errors.recording_url }}</p>
-                        </div>
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white">إنهاء الحصة المباشرة</h3>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">يتم تسجيل الحصة على خادم Jitsi تلقائيًا، وبعد الإنهاء يُحفظ التسجيل ويظهر للطلاب داخل المنصة. استخدم غرفة Jitsi لإيقاف التسجيل وإنهاء الحصة.</p>
                     </div>
                     <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
                         <button type="button" class="btn-ghost" :disabled="statusForm.processing" @click="actionModal = null">إلغاء</button>
-                        <button type="submit" class="btn-primary" :disabled="statusForm.processing">{{ statusForm.processing ? 'جاري الحفظ...' : (actionModal.alreadyEnded ? 'نشر التسجيل' : 'تأكيد إنهاء الحصة') }}</button>
+                        <button type="submit" class="btn-primary" :disabled="statusForm.processing">{{ statusForm.processing ? 'جاري الحفظ...' : 'تأكيد إنهاء الحصة' }}</button>
                     </div>
                 </form>
                 <form v-else-if="actionModal.type === 'attendance'" @submit.prevent="submitAttendance">

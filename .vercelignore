@@ -1,5 +1,8 @@
 /vendor
 /node_modules
+/database/*.sqlite
+/storage/logs/*.log
+*.zip
 /bootstrap/cache/*.php
 /storage/framework/views/*.php
 .env

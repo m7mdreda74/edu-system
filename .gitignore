@@ -1,6 +1,8 @@
 *.log
+*.zip
 .DS_Store
 .env
+.env.*
 .env.backup
 .env.production
 /.env.vercel
@@ -20,6 +22,9 @@ qa-playwright/package-lock.json
 /public/hot
 /storage/*.key
 /storage/pail
+/storage/logs/*.log
+/database/*.sqlite
+/database/*.sqlite-*
 /vendor
 Homestead.json
 Homestead.yaml

@@ -65,9 +65,9 @@ class LiveSessionRoomController extends Controller
                 'recording' => [
                     'enabled' => (bool) config('services.jitsi.recording.enabled', true),
                     'mode' => 'file',
-                    // Free introductions remain useful after the live slot,
-                    // so their server recording starts when the teacher joins.
-                    'auto_start' => (bool) ($session->privateSessionSlot?->is_free_intro ?? false),
+                    // Every teacher-led room records server-side automatically;
+                    // the browser only receives the finished hosted link.
+                    'auto_start' => (bool) config('services.jitsi.recording.auto_start', true),
                 ],
             ],
         ]);

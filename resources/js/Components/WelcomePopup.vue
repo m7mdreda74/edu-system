@@ -1,10 +1,15 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
 
 const page = usePage();
 const isOpen = ref(false);
+const popupDialog = ref(null);
+const popupCloseButton = ref(null);
+let openTimer = null;
+let returnFocusElement = null;
+let previousBodyOverflow = '';
 
 const settings = computed(() => page.props.settings || {});
 
@@ -94,16 +99,81 @@ onMounted(() => {
     if (isActive.value) {
         const shown = sessionStorage.getItem('altafawwuq_welcome_popup_shown');
         if (!shown) {
-            setTimeout(() => {
+            openTimer = window.setTimeout(() => {
                 isOpen.value = true;
             }, 800);
         }
     }
 });
 
+watch(isOpen, (open) => {
+    if (open) {
+        returnFocusElement = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        nextTick(() => popupCloseButton.value?.focus());
+    } else {
+        document.body.style.overflow = previousBodyOverflow;
+        previousBodyOverflow = '';
+        nextTick(() => {
+            if (returnFocusElement?.isConnected) {
+                returnFocusElement.focus();
+            }
+            returnFocusElement = null;
+        });
+    }
+});
+
+onUnmounted(() => {
+    if (openTimer) {
+        window.clearTimeout(openTimer);
+    }
+
+    document.body.style.overflow = previousBodyOverflow;
+});
+
 function closePopup() {
     isOpen.value = false;
     sessionStorage.setItem('altafawwuq_welcome_popup_shown', 'true');
+}
+
+function handleKeydown(event) {
+    if (!isOpen.value) return;
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        if (isVideoModalOpen.value) {
+            closeVideoModal();
+        } else {
+            closePopup();
+        }
+        return;
+    }
+
+    if (event.key !== 'Tab' || !popupDialog.value) return;
+
+    const focusable = [...popupDialog.value.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), video[controls], iframe'
+    )].filter((element) => element instanceof HTMLElement && element.offsetParent !== null);
+
+    if (!focusable.length) {
+        event.preventDefault();
+        popupDialog.value.focus();
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
 }
 </script>
 
@@ -111,10 +181,14 @@ function closePopup() {
     <Transition name="fade">
         <div v-if="isOpen" 
              @click.self="closePopup"
+             @keydown="handleKeydown"
              class="modal-overlay z-[55] bg-black/60 backdrop-blur-md cursor-pointer"
              role="dialog"
              aria-modal="true"
              aria-labelledby="welcome-popup-title"
+             aria-describedby="welcome-popup-description"
+             tabindex="-1"
+             ref="popupDialog"
              dir="rtl"
         >
             
@@ -122,7 +196,7 @@ function closePopup() {
             <div class="modal-panel relative w-full max-w-2xl bg-gradient-to-br from-primary-900 to-primary-950 text-white rounded-3xl p-8 md:p-10 shadow-2xl border border-primary-800 transform transition-all duration-300 scale-100 flex flex-col items-center cursor-default">
                 
                 <!-- Close Button -->
-                <button type="button" @click="closePopup" class="absolute top-6 left-6 text-white/70 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full" aria-label="إغلاق النافذة">
+                <button ref="popupCloseButton" type="button" @click="closePopup" class="absolute top-6 left-6 text-white/70 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full" aria-label="إغلاق النافذة">
                     <Icon name="close" class="w-5 h-5" />
                 </button>
 
@@ -135,6 +209,7 @@ function closePopup() {
                 <h2 id="welcome-popup-title" class="text-2xl md:text-3xl font-black text-center mb-8 leading-tight">
                     {{ title }}
                 </h2>
+                <p id="welcome-popup-description" class="sr-only">نافذة إرشادية للترحيب والتنقل إلى أدلة المنصة.</p>
 
                 <!-- Items Grid -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full mb-8">
@@ -167,6 +242,9 @@ function closePopup() {
                 <div v-if="isVideoModalOpen" 
                      @click.self="closeVideoModal"
                      class="modal-overlay z-[60] bg-black/85 backdrop-blur-xl cursor-pointer"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-label="الفيديو التوضيحي"
                 >
                     <div class="modal-panel relative w-full max-w-3xl aspect-video bg-black rounded-3xl overflow-hidden border border-surface-800 shadow-2xl flex items-center justify-center cursor-default">
                         
