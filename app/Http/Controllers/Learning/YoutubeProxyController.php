@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Support\YouTubeUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use YouTube\YouTubeDownloader;
 use YouTube\Exception\YouTubeException;
@@ -51,7 +52,8 @@ class YoutubeProxyController extends Controller
             $stream = $streams[0];
             $url    = $stream->url;
         } catch (YouTubeException $e) {
-            abort(503, 'تعذّر الاتصال بيوتيوب: ' . $e->getMessage());
+            Log::warning('YouTube stream resolution failed.', ['exception' => $e]);
+            abort(503, 'تعذّر الاتصال بيوتيوب حاليًا. حاول مرة أخرى بعد قليل.');
         }
 
         // ── Stream the video with Range support ─────────────────────────────

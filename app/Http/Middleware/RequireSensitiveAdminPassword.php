@@ -26,7 +26,7 @@ final class RequireSensitiveAdminPassword
 
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => 'Password confirmation required before this administrative action.',
+                'message' => 'يجب تأكيد كلمة المرور قبل تنفيذ هذا الإجراء الإداري.',
                 'redirect' => route('password.confirm'),
             ], 423);
         }

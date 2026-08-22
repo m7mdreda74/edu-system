@@ -60,7 +60,7 @@ function onReceiptChange(event) {
     if (file && (!RECEIPT_TYPES.includes(file.type) || file.size > MAX_RECEIPT_BYTES)) {
         receiptFile.value = null;
         event.target.value = '';
-        errorMessage.value = 'Invalid receipt file or size.';
+        errorMessage.value = 'نوع إثبات التحويل أو حجمه غير مسموح. ارفع صورة أو PDF بحد أقصى 8 ميجابايت.';
         return;
     }
     receiptFile.value = file;

@@ -18,7 +18,7 @@ class VerifyCronSecret
         abort_if(
             $secret === '' || ! hash_equals('Bearer '.$secret, $provided),
             401,
-            'Unauthorized',
+            'غير مصرح بالوصول.',
         );
 
         return $next($request);

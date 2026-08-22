@@ -34,7 +34,7 @@ function setReceipt(event) {
     if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024)) {
         form.receipt = null;
         event.target.value = '';
-        form.setError('receipt', 'Invalid image format or size.');
+        form.setError('receipt', 'نوع الصورة أو حجمها غير مسموح. استخدم JPG أو PNG أو WebP بحد أقصى 8 ميجابايت.');
         return;
     }
     form.receipt = file;
@@ -46,7 +46,7 @@ function setPayReceipt(event) {
     if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) {
         payForm.receipt = null;
         event.target.value = '';
-        payForm.setError('receipt', 'Invalid image format or size.');
+        payForm.setError('receipt', 'نوع الصورة أو حجمها غير مسموح. استخدم JPG أو PNG أو WebP بحد أقصى 8 ميجابايت.');
         return;
     }
     payForm.receipt = file;

@@ -86,7 +86,7 @@ export default async function handler(request, response) {
 
     if (request.method !== 'POST') {
         response.setHeader('Allow', 'POST');
-        return response.status(405).json({ error: 'Method not allowed.' });
+        return response.status(405).json({ error: 'طريقة الطلب غير مسموحة.' });
     }
 
     try {
@@ -127,7 +127,7 @@ export default async function handler(request, response) {
         );
 
         return response.status(400).json({
-            error: 'Unable to authorize this upload.',
+            error: 'تعذر تجهيز رفع الملف. حاول مرة أخرى.',
         });
     }
 }

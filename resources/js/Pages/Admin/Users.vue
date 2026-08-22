@@ -204,7 +204,7 @@ function onMediaPicked(event) {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > maxBytes) {
         mediaForm[mediaField.value] = null;
         event.target.value = '';
-        mediaForm.setError(mediaField.value, 'Invalid image format or size.');
+        mediaForm.setError(mediaField.value, 'نوع الصورة أو حجمها غير مسموح. استخدم JPG أو PNG أو WebP ضمن الحجم المحدد.');
         return;
     }
 

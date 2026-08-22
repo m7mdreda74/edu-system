@@ -29,6 +29,18 @@ it('requires recent password confirmation for production admin mutations', funct
     expect(PlatformSetting::where('key', 'platform_name')->exists())->toBeFalse();
 
     $this->actingAs($admin)
+        ->postJson(route('admin.settings.update'), [
+            'settings' => [[
+                'key' => 'platform_name',
+                'value' => 'blocked until confirmation',
+                'type' => 'string',
+            ]],
+        ])
+        ->assertStatus(423)
+        ->assertJsonPath('message', 'يجب تأكيد كلمة المرور قبل تنفيذ هذا الإجراء الإداري.')
+        ->assertJsonPath('redirect', route('password.confirm'));
+
+    $this->actingAs($admin)
         ->withSession(['auth.password_confirmed_at' => now()->timestamp])
         ->post(route('admin.settings.update'), [
             'settings' => [[

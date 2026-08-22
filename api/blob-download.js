@@ -62,7 +62,7 @@ export default async function handler(request, response) {
 
     if (request.method !== 'GET') {
         response.setHeader('Allow', 'GET');
-        return response.status(405).json({ error: 'Method not allowed.' });
+        return response.status(405).json({ error: 'طريقة الطلب غير مسموحة.' });
     }
 
     try {
@@ -73,7 +73,7 @@ export default async function handler(request, response) {
         });
 
         if (!result || result.statusCode !== 200) {
-            return response.status(404).json({ error: 'File not found.' });
+            return response.status(404).json({ error: 'الملف المطلوب غير موجود.' });
         }
 
         response.statusCode = 200;
@@ -89,6 +89,6 @@ export default async function handler(request, response) {
             error instanceof Error ? error.message : 'Unknown error',
         );
 
-        return response.status(404).json({ error: 'File not found.' });
+        return response.status(404).json({ error: 'الملف المطلوب غير موجود.' });
     }
 }

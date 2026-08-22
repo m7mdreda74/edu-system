@@ -242,7 +242,7 @@ class ChatController extends Controller
         $conversation = Conversation::findOrFail($validated['conversation_id']);
 
         if (! $this->isParticipant($conversation, $user)) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+            return response()->json(['error' => 'غير مصرح لك بالوصول إلى هذه المحادثة.'], 403);
         }
 
         $query = ChatMessage::with('sender:id,name,avatar')
