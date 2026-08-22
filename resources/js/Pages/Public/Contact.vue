@@ -49,8 +49,8 @@ let captchaScript = null;
 
 function normalizePhone(value) {
     return value
-        .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
-        .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+        .replace(/[\u0660-\u0669]/g, (digit) => String(digit.codePointAt(0) - 0x0660))
+        .replace(/[\u06F0-\u06F9]/g, (digit) => String(digit.codePointAt(0) - 0x06F0))
         .replace(/[\s().-]+/g, '');
 }
 
@@ -264,6 +264,7 @@ onBeforeUnmount(() => {
                                         id="contact-email"
                                         v-model="form.email"
                                         type="email"
+                                        maxlength="255"
                                         autocomplete="email"
                                         class="input py-2 text-sm w-full"
                                         :class="{ 'ring-2 ring-red-500': form.errors.email }"

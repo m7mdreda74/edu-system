@@ -22,6 +22,7 @@ use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Rules\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,8 +40,12 @@ class ParentDashboardController extends Controller
             ->with(['student:id,name,email,grade_level'])
             ->get();
 
-        $selectedStudentId = $request->input('student_id')
-            ? (int) $request->input('student_id')
+        $filters = $request->validate([
+            'student_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $selectedStudentId = ($filters['student_id'] ?? null)
+            ? (int) $filters['student_id']
             : ($links->first()?->student_user_id ?? null);
 
         $studentData = null;
@@ -331,7 +336,7 @@ class ParentDashboardController extends Controller
     public function linkStudent(Request $request, ParentStudentLinkService $parentStudentLinks): RedirectResponse
     {
         $validated = $request->validate([
-            'student_phone' => ['required', 'string', 'max:20'],
+            'student_phone' => ['required', 'string', 'min:7', 'max:20', new PhoneNumber()],
             'relationship' => ['required', 'string', 'in:father,mother,guardian'],
         ]);
 
@@ -376,7 +381,7 @@ class ParentDashboardController extends Controller
 
     public function subscribeToGroup(Request $request, int $groupId, SubscriptionService $subscriptions): RedirectResponse
     {
-        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'exists:users,id']])['student_id'];
+        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'min:1', 'exists:users,id']])['student_id'];
         $this->assertLinkedStudent($studentId);
         $student = User::findOrFail($studentId);
         $group = TeachingGroup::with(['assignment.gradeLevel'])->findOrFail($groupId);
@@ -400,7 +405,7 @@ class ParentDashboardController extends Controller
 
     public function subscribeToPrivate(Request $request, int $assignmentId, SubscriptionService $subscriptions): RedirectResponse
     {
-        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'exists:users,id']])['student_id'];
+        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'min:1', 'exists:users,id']])['student_id'];
         $this->assertLinkedStudent($studentId);
         $student = User::findOrFail($studentId);
         $assignment = TeachingAssignment::with('gradeLevel')->findOrFail($assignmentId);
@@ -421,7 +426,7 @@ class ParentDashboardController extends Controller
 
     public function bookPrivateSlot(Request $request, int $slotId, SessionBookingService $bookings): RedirectResponse
     {
-        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'exists:users,id']])['student_id'];
+        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'min:1', 'exists:users,id']])['student_id'];
         $this->assertLinkedStudent($studentId);
         $student = User::findOrFail($studentId);
         $slot = PrivateSessionSlot::with('assignment.gradeLevel')->findOrFail($slotId);
@@ -453,7 +458,7 @@ class ParentDashboardController extends Controller
 
     public function bookFreeIntro(Request $request, int $slotId, SessionBookingService $bookings): RedirectResponse
     {
-        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'exists:users,id']])['student_id'];
+        $studentId = (int) $request->validate(['student_id' => ['required', 'integer', 'min:1', 'exists:users,id']])['student_id'];
         $this->assertLinkedStudent($studentId);
 
         try {

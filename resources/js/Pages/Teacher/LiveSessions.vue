@@ -49,6 +49,21 @@ const privateOptions = computed(() => matchingAssignments.value.flatMap(assignme
 
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
+function localDateTimeValue(date = new Date()) {
+    const pad = (value) => String(value).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function localDateValue(date = new Date()) {
+    const pad = (value) => String(value).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+const minMakeupDateTime = localDateTimeValue();
+const minScheduledDate = localDateValue(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
 function submit() {
     form.post(route('teacher.live-sessions.store'), {
         onSuccess: () => {
@@ -354,7 +369,7 @@ function formatDate(value) {
                         <p class="mt-2 text-sm leading-6 text-surface-500">اختر موعدًا مستقبليًا مناسبًا. بعد الحفظ يُغلق الاعتذار كتعويض بدون خصم.</p>
                         <div class="mt-5">
                             <label class="input-label">موعد الحصة التعويضية</label>
-                            <input v-model="makeupForm.scheduled_at" type="datetime-local" class="input" required />
+                            <input v-model="makeupForm.scheduled_at" type="datetime-local" :min="minMakeupDateTime" class="input" required />
                             <p v-if="makeupForm.errors.scheduled_at" class="error-msg">{{ makeupForm.errors.scheduled_at }}</p>
                         </div>
                     </div>
@@ -387,7 +402,7 @@ function formatDate(value) {
                             
                             <div>
                                 <label class="input-label">عنوان الحصة</label>
-                                <input v-model="form.title" type="text" class="input" placeholder="مثال: مراجعة الوحدة الأولى" required>
+                                <input v-model="form.title" type="text" minlength="3" maxlength="255" class="input" placeholder="مثال: مراجعة الوحدة الأولى" required>
                             </div>
 
                             <div>
@@ -417,13 +432,13 @@ function formatDate(value) {
 
                             <div v-if="form.source_type === 'group'">
                                 <label class="input-label">تاريخ تنفيذ حصة المجموعة</label>
-                                <input v-model="form.scheduled_date" type="date" class="input" required>
+                                <input v-model="form.scheduled_date" type="date" :min="minScheduledDate" class="input" required>
                                 <p class="text-[11px] text-surface-400 mt-1">اختار نفس يوم المجموعة، والساعة هتتحدد تلقائيًا من الجدول.</p>
                             </div>
 
                             <div>
                                 <label class="input-label">وصف إضافي (اختياري)</label>
-                                <textarea v-model="form.description" class="input resize-y" rows="2" placeholder="معلومات للطلاب قبل بدء الحصة..."></textarea>
+                                <textarea v-model="form.description" class="input resize-y" rows="2" maxlength="2000" placeholder="معلومات للطلاب قبل بدء الحصة..."></textarea>
                             </div>
                         </div>
                     </div>

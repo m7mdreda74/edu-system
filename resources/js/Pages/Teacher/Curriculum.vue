@@ -267,7 +267,7 @@ async function clearVideo(lesson) {
 
 // ─── Lesson slot: ملزمة الشرح ────────────────────────────────────────────────
 async function uploadBooklet(lesson, event) {
-    const file = takeFile(event);
+    const file = takeFile(event, `lesson:${lesson.id}:booklet`);
     if (!file) return;
 
     if (props.directUploads.enabled) {
@@ -290,7 +290,7 @@ async function uploadBooklet(lesson, event) {
 // Each control posts only the field it owns; an absent key keeps its stored
 // value, so moving the due date never wipes the score.
 async function uploadHomework(lesson, event) {
-    const file = takeFile(event);
+    const file = takeFile(event, `lesson:${lesson.id}:homework`);
     if (!file) return;
 
     if (props.directUploads.enabled) {
@@ -328,7 +328,7 @@ function createQuiz(unit) {
 }
 
 async function uploadPaperExam(unit, event) {
-    const file = takeFile(event);
+    const file = takeFile(event, `unit:${unit.id}:paper`);
     if (!file) return;
 
     if (props.directUploads.enabled) {
@@ -363,9 +363,36 @@ async function removeSheet(sheet, message) {
 }
 
 // ─── Presentation helpers ────────────────────────────────────────────────────
-function takeFile(event) {
+const CURRICULUM_ALLOWED_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'odt', 'ppt', 'pptx', 'zip', 'png', 'jpg', 'jpeg']);
+const CURRICULUM_ALLOWED_TYPES = new Set([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/zip',
+    'image/png',
+    'image/jpeg',
+]);
+
+function takeFile(event, key) {
     const file = event.target.files?.[0] ?? null;
     event.target.value = '';   // so picking the same file twice still fires
+
+    if (!file) return null;
+
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (
+        file.size > props.directUploads.max_bytes
+        || (!CURRICULUM_ALLOWED_TYPES.has(file.type) && !CURRICULUM_ALLOWED_EXTENSIONS.has(extension))
+    ) {
+        rowErrors.value[key] = {
+            file: 'نوع الملف أو حجمه غير مسموح. الحد الأقصى 25 ميجابايت.',
+        };
+        return null;
+    }
+
     return file;
 }
 
@@ -672,6 +699,8 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                     :id="`unit-title-${unit.id}`"
                                     v-model="unitDrafts[unit.id].title"
                                     type="text"
+                                    minlength="3"
+                                    maxlength="255"
                                     class="input"
                                     @keyup.enter="saveUnit(unit)"
                                     @blur="saveUnit(unit)"
@@ -683,6 +712,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                     :id="`unit-desc-${unit.id}`"
                                     v-model="unitDrafts[unit.id].description"
                                     type="text"
+                                    maxlength="2000"
                                     class="input"
                                     placeholder="ما الذي تغطيه هذه الوحدة؟"
                                     @keyup.enter="saveUnit(unit)"
@@ -738,6 +768,8 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                     <input
                                         v-model="lessonDrafts[lesson.id].title"
                                         type="text"
+                                        minlength="3"
+                                        maxlength="255"
                                         class="input py-1.5 text-sm font-bold flex-1 min-w-0"
                                         placeholder="عنوان الدرس"
                                         @keyup.enter="saveLessonTitle(lesson)"
@@ -771,6 +803,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                                 v-model="lessonDrafts[lesson.id].video_url"
                                                 type="url"
                                                 dir="ltr"
+                                                maxlength="2048"
                                                 class="input py-1.5 text-xs"
                                                 placeholder="https://..."
                                                 @keyup.enter="saveVideo(lesson)"
@@ -779,6 +812,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                                 v-model.number="lessonDrafts[lesson.id].duration_seconds"
                                                 type="number"
                                                 min="0"
+                                                max="86400"
                                                 class="input py-1.5 text-xs mt-2"
                                                 placeholder="المدة بالثواني"
                                             />
@@ -819,13 +853,13 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                                 <span class="truncate">{{ fileName(lesson.booklet_path) }}</span>
                                             </a>
                                             <label class="btn-ghost btn-sm mt-2 cursor-pointer inline-flex">
-                                                <input type="file" class="hidden" @change="uploadBooklet(lesson, $event)" />
+                                                <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" class="hidden" @change="uploadBooklet(lesson, $event)" />
                                                 <span>استبدال الملف</span>
                                             </label>
                                         </div>
 
                                         <label v-else :class="SLOT_EMPTY">
-                                            <input type="file" class="hidden" @change="uploadBooklet(lesson, $event)" />
+                                            <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" class="hidden" @change="uploadBooklet(lesson, $event)" />
                                             <Icon name="plus" class="w-5 h-5 text-surface-400" />
                                             <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">ارفع الملزمة</span>
                                             <span class="text-[10px] text-surface-400">أي صيغة حتى 25 ميجابايت</span>
@@ -870,7 +904,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
 
                                             <div class="flex gap-1 mt-2">
                                                 <label class="btn-ghost btn-sm cursor-pointer inline-flex">
-                                                    <input type="file" class="hidden" @change="uploadHomework(lesson, $event)" />
+                                                    <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" class="hidden" @change="uploadHomework(lesson, $event)" />
                                                     <span>استبدال</span>
                                                 </label>
                                                 <button type="button" class="btn-ghost btn-sm text-red-500" @click="removeSheet(lesson.homework, 'حذف واجب هذا الدرس؟')">حذف</button>
@@ -878,7 +912,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                         </div>
 
                                         <label v-else :class="SLOT_EMPTY">
-                                            <input type="file" class="hidden" @change="uploadHomework(lesson, $event)" />
+                                            <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" class="hidden" @change="uploadHomework(lesson, $event)" />
                                             <Icon name="plus" class="w-5 h-5 text-surface-400" />
                                             <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">ارفع ملف الواجب</span>
                                             <span class="text-[10px] text-surface-400">الموعد والدرجة بعد الرفع</span>
@@ -896,6 +930,8 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                 <input
                                     v-model="newLesson[unit.id]"
                                     type="text"
+                                    minlength="3"
+                                    maxlength="255"
                                     class="input flex-1 min-w-[200px] py-2 text-sm"
                                     placeholder="عنوان درس جديد"
                                     @keyup.enter="addLesson(unit)"
@@ -987,7 +1023,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
 
                                         <div class="flex gap-1 mt-2">
                                             <label class="btn-ghost btn-sm cursor-pointer inline-flex">
-                                                <input type="file" class="hidden" @change="uploadPaperExam(unit, $event)" />
+                                                <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" class="hidden" @change="uploadPaperExam(unit, $event)" />
                                                 <span>استبدال</span>
                                             </label>
                                             <button type="button" class="btn-ghost btn-sm text-red-500" @click="removeSheet(unit.paper_exam, 'حذف النموذج الورقي لهذه الوحدة؟')">حذف</button>
@@ -995,7 +1031,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                     </div>
 
                                     <label v-else :class="SLOT_EMPTY">
-                                        <input type="file" class="hidden" @change="uploadPaperExam(unit, $event)" />
+                                        <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" class="hidden" @change="uploadPaperExam(unit, $event)" />
                                         <Icon name="plus" class="w-5 h-5 text-surface-400" />
                                         <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">ارفع النموذج الورقي</span>
                                         <span class="text-[10px] text-surface-400">يطبعه الطالب ويرفع إجابته</span>
@@ -1036,12 +1072,12 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                     <div class="grid md:grid-cols-2 gap-3">
                         <div>
                             <label for="new-unit-title" class="input-label">عنوان الوحدة</label>
-                            <input id="new-unit-title" v-model="newUnit.title" type="text" class="input" placeholder="الوحدة الخامسة: الدوال" required />
+                            <input id="new-unit-title" v-model="newUnit.title" type="text" minlength="3" maxlength="255" class="input" placeholder="الوحدة الخامسة: الدوال" required />
                             <p v-if="newUnit.errors.title" class="error-msg">{{ newUnit.errors.title }}</p>
                         </div>
                         <div>
                             <label for="new-unit-desc" class="input-label">وصف مختصر (اختياري)</label>
-                            <input id="new-unit-desc" v-model="newUnit.description" type="text" class="input" />
+                            <input id="new-unit-desc" v-model="newUnit.description" type="text" maxlength="2000" class="input" />
                             <p v-if="newUnit.errors.description" class="error-msg">{{ newUnit.errors.description }}</p>
                         </div>
                     </div>

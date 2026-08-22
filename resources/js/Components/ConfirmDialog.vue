@@ -138,6 +138,7 @@ function onKeydown(e) {
                             v-model="confirmState.inputValue"
                             rows="3"
                             :placeholder="confirmState.inputPlaceholder"
+                            :maxlength="confirmState.inputMaxLength || undefined"
                             class="input w-full resize-none"
                             @keydown.enter.ctrl="onConfirm"
                         />

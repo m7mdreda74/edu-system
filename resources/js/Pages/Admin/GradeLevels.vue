@@ -287,26 +287,26 @@ async function deleteGradeLevel(id) {
                     <form @submit.prevent="submitForm" class="p-6 space-y-4">
                         <div>
                             <label class="input-label mb-1">رمز المرحلة (بالإنجليزية - بدون مسافات)</label>
-                            <input v-model="form.key" type="text" required class="input" placeholder="مثال: grade_10" :disabled="!!editingGradeLevel" />
+                            <input v-model="form.key" type="text" maxlength="20" pattern="[A-Za-z0-9_-]+" required class="input" placeholder="مثال: grade_10" :disabled="!!editingGradeLevel" />
                             <p class="text-[10px] text-surface-400 mt-1">يجب أن يكون فريداً مثل grade_10 ويستخدم كرمز بروتوكولي للمرحلة.</p>
                             <p v-if="form.errors.key" class="text-red-500 text-xs mt-1">{{ form.errors.key }}</p>
                         </div>
 
                         <div>
                             <label class="input-label mb-1">اسم المرحلة (بالعربية)</label>
-                            <input v-model="form.name" type="text" required class="input" placeholder="مثال: الصف العاشر" />
+                            <input v-model="form.name" type="text" maxlength="255" required class="input" placeholder="مثال: الصف العاشر" />
                             <p v-if="form.errors.name" class="text-red-500 text-xs mt-1">{{ form.errors.name }}</p>
                         </div>
 
                         <div>
                             <label class="input-label mb-1">اسم المرحلة (بالإنجليزية - اختياري)</label>
-                            <input v-model="form.name_en" type="text" class="input" placeholder="مثال: Grade 10" />
+                            <input v-model="form.name_en" type="text" maxlength="255" class="input" placeholder="مثال: Grade 10" />
                             <p v-if="form.errors.name_en" class="text-red-500 text-xs mt-1">{{ form.errors.name_en }}</p>
                         </div>
 
                         <div>
                             <label class="input-label mb-1">رقم فودافون كاش لاستلام تحويلات هذه المرحلة</label>
-                            <input v-model="form.vodafone_cash_number" type="tel" inputmode="tel" class="input font-mono" dir="ltr" placeholder="01012345678" />
+                            <input v-model="form.vodafone_cash_number" type="tel" inputmode="tel" minlength="11" maxlength="20" pattern="(?:\+20|0020|0)1[0-9]{9}" class="input font-mono" dir="ltr" placeholder="01012345678" />
                             <p class="text-[10px] text-surface-400 mt-1">يظهر هذا الرقم فقط للطلاب أو أولياء الأمور المشتركين في هذه المرحلة.</p>
                             <p v-if="form.errors.vodafone_cash_number" class="text-red-500 text-xs mt-1">{{ form.errors.vodafone_cash_number }}</p>
                         </div>

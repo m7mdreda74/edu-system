@@ -416,7 +416,22 @@ const uploadNotices   = ref({});
 const uploadingSheet  = ref(null);
 
 function onFileChange(e, sheetId) {
-    submitFiles.value[sheetId]   = e.target.files[0] ?? null;
+    const file = e.target.files[0] ?? null;
+    const allowedTypes = new Set([
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/png',
+        'image/jpeg',
+    ]);
+
+    if (file && (!allowedTypes.has(file.type) || file.size > 10 * 1024 * 1024)) {
+        submitFiles.value[sheetId] = null;
+        e.target.value = '';
+        uploadNotices.value[sheetId] = 'نوع الملف أو حجمه غير مسموح. الحد الأقصى 10 ميجابايت.';
+        return;
+    }
+
+    submitFiles.value[sheetId]   = file;
     uploadNotices.value[sheetId] = '';
 }
 
@@ -741,7 +756,7 @@ function uploadAnswer(sheetId) {
                         <!-- Post Question Form -->
                         <form @submit.prevent="submitQuestion" class="space-y-3 bg-surface-900/40 p-4 rounded-2xl border border-surface-800">
                             <h4 class="font-bold text-sm text-white">اطرح سؤالاً أو استفساراً حول هذا الدرس:</h4>
-                            <textarea v-model="newQuestionContent" required rows="3" class="input p-3 text-sm bg-surface-950 border-surface-800 text-white rounded-xl focus:ring-primary-500/20" placeholder="اكتب سؤالك هنا..."></textarea>
+                            <textarea v-model="newQuestionContent" required minlength="2" maxlength="2000" rows="3" class="input p-3 text-sm bg-surface-950 border-surface-800 text-white rounded-xl focus:ring-primary-500/20" placeholder="اكتب سؤالك هنا..."></textarea>
                             <div class="flex items-center justify-between gap-3 flex-wrap">
                                 <label v-if="player" class="flex items-center gap-2 text-xs text-surface-400 cursor-pointer">
                                     <input type="checkbox" v-model="includeTimestamp" class="rounded border-surface-800 text-primary-600 bg-surface-950" />
@@ -787,7 +802,7 @@ function uploadAnswer(sheetId) {
                                 </div>
 
                                 <form @submit.prevent="submitReply(q.id)" class="flex gap-2 ms-6 border-t border-surface-800/50 pt-3">
-                                    <input v-model="replyContents[q.id]" required class="input py-1 px-3 text-xs bg-surface-950 border-surface-800 text-white rounded-xl flex-1 focus:ring-primary-500/20" placeholder="اكتب رداً أو توضيحاً..." />
+                                    <input v-model="replyContents[q.id]" required minlength="2" maxlength="2000" class="input py-1 px-3 text-xs bg-surface-950 border-surface-800 text-white rounded-xl flex-1 focus:ring-primary-500/20" placeholder="اكتب رداً أو توضيحاً..." />
                                     <button type="submit" class="btn-outline btn-sm py-1 px-3 text-xs">رد</button>
                                 </form>
                             </div>

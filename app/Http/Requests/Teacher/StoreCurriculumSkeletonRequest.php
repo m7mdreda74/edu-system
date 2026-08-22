@@ -27,7 +27,7 @@ class StoreCurriculumSkeletonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'academic_term_id' => ['required', 'integer', 'exists:academic_terms,id'],
+            'academic_term_id' => ['required', 'integer', 'min:1', 'exists:academic_terms,id'],
             'units_count'      => ['required', 'integer', 'min:1', 'max:20'],
             'lessons_per_unit' => ['required', 'integer', 'min:1', 'max:20'],
         ];

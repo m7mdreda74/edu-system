@@ -67,13 +67,13 @@ class WorksheetController extends Controller
         $group = $this->ownedGroupOrFail($groupId);
 
         $validated = $request->validate([
-            'lesson_id'           => ['nullable', 'exists:group_materials,id'],
-            'title'               => ['required', 'string', 'max:255'],
+            'lesson_id'           => ['nullable', 'integer', 'min:1', 'exists:group_materials,id'],
+            'title'               => ['required', 'string', 'min:3', 'max:255'],
             'file'                => ['required', 'file', 'mimes:pdf,doc,docx,ppt,pptx,zip,png,jpg,jpeg', 'max:10240'],
             'type'                => ['required', 'string', 'in:study,homework'],
             'requires_submission' => ['required', 'boolean'],
             'due_date'            => ['nullable', 'date'],
-            'max_score'           => ['nullable', 'integer', 'min:1'],
+            'max_score'           => ['nullable', 'integer', 'min:1', 'max:1000'],
         ]);
 
         $validated['file_path'] = 'private://' . $request->file('file')->store('worksheets', 'local');

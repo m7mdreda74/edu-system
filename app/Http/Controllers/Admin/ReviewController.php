@@ -22,15 +22,21 @@ class ReviewController extends Controller
 {
     public function index(Request $request): Response
     {
-        $filters = $request->only(['status', 'search']);
+        $filters = $request->validate([
+            'status' => ['nullable', 'string', 'in:pending,approved'],
+            'search' => ['nullable', 'string', 'max:100'],
+        ]);
         $status  = $filters['status'] ?? 'pending';
 
         $reviews = TeacherReview::with(['user:id,name,email,avatar', 'teacher:id,name,avatar'])
             ->when($status === 'pending',  fn ($q) => $q->where('is_approved', false))
             ->when($status === 'approved', fn ($q) => $q->where('is_approved', true))
             ->when(! empty($filters['search']), fn ($q) => $q
-                ->whereHas('teacher', fn ($t) => $t->where('name', 'like', '%' . $filters['search'] . '%'))
-                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%' . $filters['search'] . '%')))
+                ->where(function ($searchQuery) use ($filters): void {
+                    $searchQuery
+                        ->whereHas('teacher', fn ($t) => $t->where('name', 'like', '%' . $filters['search'] . '%'))
+                        ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%' . $filters['search'] . '%'));
+                }))
             ->latest()
             ->paginate(10)
             ->withQueryString();

@@ -18,7 +18,7 @@ class FreeIntroSessionController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'teaching_assignment_id' => ['required', 'integer', 'exists:teaching_assignments,id'],
+            'teaching_assignment_id' => ['required', 'integer', 'min:1', 'exists:teaching_assignments,id'],
             'starts_at' => ['required', 'date', 'after:now'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
             'timezone' => ['nullable', 'timezone'],
@@ -126,7 +126,7 @@ class FreeIntroSessionController extends Controller
     private function validatedSlot(Request $request): array
     {
         return $request->validate([
-            'teaching_assignment_id' => ['required', 'integer', 'exists:teaching_assignments,id'],
+            'teaching_assignment_id' => ['required', 'integer', 'min:1', 'exists:teaching_assignments,id'],
             'starts_at' => ['required', 'date', 'after:now'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
             'timezone' => ['nullable', 'timezone'],

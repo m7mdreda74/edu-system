@@ -98,7 +98,7 @@ async function destroy(id) {
                 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                         <label for="year_label" class="input-label">العام الدراسي</label>
-                        <input id="year_label" v-model="form.year_label" type="text" dir="ltr" class="input" placeholder="2026/2027" required />
+                        <input id="year_label" v-model="form.year_label" type="text" dir="ltr" class="input" placeholder="2026/2027" minlength="9" maxlength="9" pattern="[0-9]{4}/[0-9]{4}" required />
                         <p v-if="form.errors.year_label" class="text-xs text-red-500 mt-1">{{ form.errors.year_label }}</p>
                     </div>
 
@@ -114,7 +114,7 @@ async function destroy(id) {
 
                     <div>
                         <label for="name" class="input-label">الاسم المعروض</label>
-                        <input id="name" v-model="form.name" type="text" class="input" required />
+                        <input id="name" v-model="form.name" type="text" class="input" maxlength="255" required />
                     </div>
 
                     <div>
@@ -125,7 +125,7 @@ async function destroy(id) {
 
                     <div>
                         <label for="ends_on" class="input-label">تاريخ النهاية</label>
-                        <input id="ends_on" v-model="form.ends_on" type="date" class="input" required />
+                        <input id="ends_on" v-model="form.ends_on" type="date" class="input" :min="form.starts_on || undefined" required />
                         <p v-if="form.errors.ends_on" class="text-xs text-red-500 mt-1">{{ form.errors.ends_on }}</p>
                     </div>
                 </div>

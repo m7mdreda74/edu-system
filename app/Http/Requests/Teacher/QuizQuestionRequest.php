@@ -37,7 +37,7 @@ class QuizQuestionRequest extends FormRequest
             'points'                => ['nullable', 'integer', 'min:1', 'max:100'],
             'order'                 => ['nullable', 'integer', 'min:1', 'max:999'],
             'options'               => ['required', 'array', 'min:' . self::MIN_OPTIONS, 'max:' . self::MAX_OPTIONS],
-            'options.*.option_text' => ['required', 'string', 'max:500'],
+            'options.*.option_text' => ['required', 'string', 'min:1', 'max:500'],
             'options.*.is_correct'  => ['required', 'boolean'],
         ];
     }

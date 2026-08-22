@@ -56,6 +56,8 @@ const updatePassword = () => {
                     type="password"
                     class="mt-1 block w-full"
                     autocomplete="current-password"
+                    maxlength="255"
+                    required
                 />
 
                 <InputError
@@ -74,6 +76,9 @@ const updatePassword = () => {
                     type="password"
                     class="mt-1 block w-full"
                     autocomplete="new-password"
+                    minlength="8"
+                    maxlength="255"
+                    required
                 />
 
                 <InputError :message="form.errors.password" class="mt-2" />
@@ -91,6 +96,9 @@ const updatePassword = () => {
                     type="password"
                     class="mt-1 block w-full"
                     autocomplete="new-password"
+                    minlength="8"
+                    maxlength="255"
+                    required
                 />
 
                 <InputError

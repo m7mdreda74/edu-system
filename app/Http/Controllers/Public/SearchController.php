@@ -20,7 +20,10 @@ class SearchController extends Controller
 
     public function autocomplete(Request $request): JsonResponse
     {
-        $query = trim((string) $request->query('q', ''));
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+        $query = trim((string) ($validated['q'] ?? ''));
 
         if (mb_strlen($query) < 2) {
             return response()->json([]);

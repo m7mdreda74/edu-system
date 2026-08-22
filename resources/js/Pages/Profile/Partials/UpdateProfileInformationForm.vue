@@ -76,7 +76,7 @@ function submit() {
                         v-else
                         id="avatar"
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         class="text-sm text-surface-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                         @input="form.avatar = $event.target.files[0]"
                     />
@@ -92,6 +92,7 @@ function submit() {
                     type="text"
                     class="mt-1 block w-full"
                     v-model="form.name"
+                    maxlength="255"
                     required
                     autofocus
                     autocomplete="name"
@@ -108,6 +109,7 @@ function submit() {
                         id="email"
                         v-model="emailPrefix"
                         type="text"
+                        maxlength="240"
                         class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-gray-900 outline-none focus:ring-0 dark:text-gray-100"
                         placeholder="username"
                         required
@@ -136,6 +138,7 @@ function submit() {
                         type="text"
                         class="mt-1 block w-full"
                         v-model="form.headline"
+                        maxlength="255"
                         placeholder="معلم رياضيات — 12 سنة خبرة"
                     />
                     <InputError class="mt-2" :message="form.errors.headline" />
@@ -147,6 +150,7 @@ function submit() {
                         id="bio"
                         v-model="form.bio"
                         rows="4"
+                        maxlength="2000"
                         class="input mt-1 block w-full"
                         placeholder="اكتب عن أسلوبك في الشرح وخبرتك مع المنهج."
                     ></textarea>
@@ -161,6 +165,7 @@ function submit() {
                         dir="ltr"
                         class="mt-1 block w-full"
                         v-model="form.intro_video_url"
+                        maxlength="2048"
                         placeholder="https://www.youtube.com/watch?v=..."
                     />
                     <p class="text-xs text-surface-400 mt-1">يدعم روابط يوتيوب وفيميو.</p>
@@ -175,6 +180,7 @@ function submit() {
                         dir="ltr"
                         class="mt-1 block w-full"
                         v-model="form.intro_video_thumbnail"
+                        maxlength="2048"
                         placeholder="https://..."
                     />
                     <InputError class="mt-2" :message="form.errors.intro_video_thumbnail" />

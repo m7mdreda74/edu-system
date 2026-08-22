@@ -9,6 +9,7 @@ use App\Domain\Payment\Models\Payment;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
+use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,8 +48,12 @@ class CheckoutController extends Controller
 
     public function process(Request $request, int $subscriptionId): SymfonyResponse
     {
+        $request->merge([
+            'sender_phone' => PhoneNumber::normalize($request->input('sender_phone')),
+        ]);
+
         $validated = $request->validate([
-            'coupon_code'    => ['nullable', 'string', 'max:50'],
+            'coupon_code'    => ['nullable', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
             'payment_method' => ['required', 'string', 'in:vodafone_cash'],
             'sender_phone'   => ['required', 'string', 'max:20', 'regex:/^(?:\+20|0020|0)1\d{9}$/'],
             'receipt'        => [
@@ -70,8 +75,8 @@ class CheckoutController extends Controller
     public function checkCoupon(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'coupon_code'     => ['required', 'string', 'max:50'],
-            'subscription_id' => ['required', 'integer', 'exists:subscriptions,id'],
+            'coupon_code'     => ['required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'subscription_id' => ['required', 'integer', 'min:1', 'exists:subscriptions,id'],
         ]);
 
         /** @var Coupon|null $coupon */

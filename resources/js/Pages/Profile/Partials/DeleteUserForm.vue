@@ -77,6 +77,8 @@ const closeModal = () => {
                         v-model="form.password"
                         type="password"
                         class="mt-1 block w-3/4"
+                        maxlength="255"
+                        required
                         placeholder="كلمة المرور"
                         @keyup.enter="deleteUser"
                     />

@@ -171,6 +171,8 @@ function payForRequest(requestId) {
                                 type="tel"
                                 inputmode="tel"
                                 autocomplete="tel"
+                                minlength="7"
+                                maxlength="20"
                                 class="input w-full text-sm"
                                 placeholder="رقم جوال الطالب"
                                 required
@@ -522,7 +524,7 @@ function payForRequest(requestId) {
                         <form @submit.prevent="submitReject" class="space-y-4">
                             <div>
                                 <label class="label mb-1">سبب الرفض (اختياري)</label>
-                                <textarea v-model="rejectNotes" class="input h-24 p-3" placeholder="اكتب سبب الرفض هنا..."></textarea>
+                                <textarea v-model="rejectNotes" class="input h-24 p-3" maxlength="500" placeholder="اكتب سبب الرفض هنا..."></textarea>
                                 <p v-if="rejectForm.errors.notes" class="error-msg mt-1">{{ rejectForm.errors.notes }}</p>
                             </div>
 

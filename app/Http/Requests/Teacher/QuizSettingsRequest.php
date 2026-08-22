@@ -36,7 +36,7 @@ class QuizSettingsRequest extends FormRequest
             'is_active'          => ['required', 'boolean'],
             // Only read when creating: a drill quiz sits on one lesson, the
             // unit exam on none.
-            'lesson_id'          => ['nullable', 'integer', 'exists:group_materials,id'],
+            'lesson_id'          => ['nullable', 'integer', 'min:1', 'exists:group_materials,id'],
         ];
 
         // `after:` falls back to reading its argument as a literal date when the

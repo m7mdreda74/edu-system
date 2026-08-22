@@ -81,8 +81,16 @@ function onImagePicked(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 4 * 1024 * 1024) {
+        form.image = null;
+        event.target.value = '';
+        form.setError('image', 'نوع الصورة أو حجمها غير مسموح. الحد الأقصى 4 ميجابايت.');
+        return;
+    }
+
     form.image = file;
     form.remove_image = false;
+    form.clearErrors('image');
     imagePreview.value = URL.createObjectURL(file);
 }
 
@@ -151,13 +159,13 @@ async function destroy(id) {
                 <div class="grid sm:grid-cols-3 gap-4">
                     <div>
                         <label for="name" class="input-label">الاسم بالعربية</label>
-                        <input id="name" v-model="form.name" type="text" class="input" required />
+                        <input id="name" v-model="form.name" type="text" maxlength="255" class="input" required />
                         <p v-if="form.errors.name" class="text-xs text-red-500 mt-1">{{ form.errors.name }}</p>
                     </div>
 
                     <div>
                         <label for="name_en" class="input-label">الاسم بالإنجليزية</label>
-                        <input id="name_en" v-model="form.name_en" type="text" dir="ltr" class="input" />
+                        <input id="name_en" v-model="form.name_en" type="text" maxlength="255" dir="ltr" class="input" />
                     </div>
 
                     <div>

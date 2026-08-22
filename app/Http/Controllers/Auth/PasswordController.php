@@ -18,8 +18,8 @@ class PasswordController extends Controller
         abort_if($request->user()->hasRole('teacher'), 403, 'تغيير كلمة مرور المدرس يتم عن طريق الإدارة فقط.');
 
         $validated = $request->validate([
-            'current_password' => ['required', 'current_password'],
-            'password' => ['required', Password::defaults(), 'confirmed'],
+            'current_password' => ['required', 'string', 'max:255', 'current_password'],
+            'password' => ['required', 'string', Password::defaults()->max(255), 'confirmed'],
         ], [
             'current_password.required' => 'يرجى إدخال كلمة المرور الحالية.',
             'current_password.current_password' => 'كلمة المرور الحالية غير صحيحة.',

@@ -72,11 +72,11 @@ class PayoutController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'teacher_id' => ['required', 'exists:users,id'],
-            'period_start' => ['required', 'date'],
-            'period_end' => ['required', 'date'],
-            'notes' => ['nullable', 'string'],
-            'receipt' => ['nullable', 'file', 'image', 'max:8192'],
+            'teacher_id' => ['required', 'integer', 'min:1', 'exists:users,id'],
+            'period_start' => ['required', 'date', 'date_format:Y-m-d'],
+            'period_end' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:period_start'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'receipt' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
         ]);
 
         abort_if($validated['period_end'] < $validated['period_start'], 422, 'نهاية الفترة يجب أن تكون بعد بدايتها.');
@@ -149,7 +149,7 @@ class PayoutController extends Controller
     public function markAsPaid(Request $request, int $id): RedirectResponse
     {
         $request->validate([
-            'receipt' => ['required', 'file', 'image', 'max:8192'],
+            'receipt' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
         $payout = TeacherPayout::findOrFail($id);

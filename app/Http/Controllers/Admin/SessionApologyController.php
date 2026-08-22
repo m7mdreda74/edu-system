@@ -18,7 +18,10 @@ class SessionApologyController extends Controller
 {
     public function index(Request $request): Response
     {
-        $status = $request->string('status')->toString();
+        $filters = $request->validate([
+            'status' => ['nullable', 'string', 'in:pending,makeup_scheduled,deducted'],
+        ]);
+        $status = $filters['status'] ?? '';
 
         $apologies = LiveSessionApology::with([
             'teacher:id,name,email,avatar',

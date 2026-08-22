@@ -22,7 +22,7 @@ class StudentPurchaseRequestController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'teaching_group_id' => ['required', 'integer', 'exists:teaching_groups,id'],
+            'teaching_group_id' => ['required', 'integer', 'min:1', 'exists:teaching_groups,id'],
         ]);
 
         /** @var \App\Domain\User\Models\User $user */

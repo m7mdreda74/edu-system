@@ -75,8 +75,12 @@ class TeacherProfileController extends Controller
             ->groupBy(fn (GroupMaterial $material): int => (int) $material->unit->teaching_assignment_id);
 
         // A student arriving from a subject page should land on that subject.
-        $focusGradeKey = $request->query('grade');
-        $focusSubjectId = $request->query('subject');
+        $focus = $request->validate([
+            'grade' => ['nullable', 'string', 'max:20'],
+            'subject' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $focusGradeKey = $focus['grade'] ?? null;
+        $focusSubjectId = $focus['subject'] ?? null;
 
         $student = $request->user();
         $isStudent = $student?->hasRole('student') ?? false;

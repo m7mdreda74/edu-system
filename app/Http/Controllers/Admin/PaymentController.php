@@ -19,8 +19,12 @@ class PaymentController extends Controller
 {
     public function index(Request $request): Response
     {
+        $filters = $request->validate([
+            'status' => ['nullable', 'string', 'in:pending,pending_verification,paid,failed,refunded'],
+        ]);
+
         $payments = Payment::with(['user:id,name,email', 'subscription.assignment.subject:id,name', 'subscription.assignment.teacher:id,name', 'subscription.group:id,name'])
-            ->when($request->status, fn ($q) => $q->where('status', $request->status))
+            ->when($filters['status'] ?? null, fn ($q, string $status) => $q->where('status', $status))
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -36,7 +40,7 @@ class PaymentController extends Controller
 
         return Inertia::render('Admin/Payments', [
             'payments' => $payments,
-            'filters'  => $request->only('status'),
+            'filters'  => $filters,
         ]);
     }
 
@@ -75,7 +79,7 @@ class PaymentController extends Controller
 
     public function reject(Request $request, Payment $payment)
     {
-        $validated = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+        $validated = $request->validate(['reason' => ['required', 'string', 'min:1', 'max:1000']]);
 
         $rejected = DB::transaction(function () use ($payment, $validated): bool {
             $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->id);

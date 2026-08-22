@@ -32,10 +32,10 @@ class CouponController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'max:50', 'unique:coupons,code'],
+            'code' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/', 'unique:coupons,code'],
             'discount_percent' => ['required', 'integer', 'between:1,100'],
             'expires_at' => ['nullable', 'date'],
-            'usage_limit' => ['nullable', 'integer', 'min:1'],
+            'usage_limit' => ['nullable', 'integer', 'min:1', 'max:1000000'],
         ]);
 
         $validated['code'] = strtoupper($validated['code']);

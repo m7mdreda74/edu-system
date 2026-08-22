@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Support\PhoneNumber;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -19,7 +20,7 @@ class StoreContactRequest extends FormRequest
         $this->merge([
             'name' => trim((string) $this->input('name')),
             'email' => trim((string) $this->input('email')),
-            'phone' => $this->normalizePhone((string) $this->input('phone')),
+            'phone' => PhoneNumber::normalize((string) $this->input('phone')),
             'message' => trim((string) $this->input('message')),
             'captcha_token' => trim((string) $this->input('captcha_token')),
         ]);
@@ -75,15 +76,4 @@ class StoreContactRequest extends FormRequest
         ];
     }
 
-    private function normalizePhone(string $phone): string
-    {
-        $phone = strtr($phone, [
-            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
-            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
-            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
-            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
-        ]);
-
-        return (string) preg_replace('/[\s().-]+/u', '', trim($phone));
-    }
 }

@@ -6,6 +6,7 @@ namespace App\Application\User\Services;
 
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
+use App\Support\PhoneNumber;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Notifications\Notification;
 
@@ -30,7 +31,7 @@ class ParentStudentLinkService
         string $relationship = 'guardian',
     ): ParentStudentLink {
         $student = User::query()
-            ->where('phone', trim($studentPhone))
+            ->where('phone', PhoneNumber::normalize($studentPhone))
             ->where('is_active', true)
             ->first();
 
@@ -62,7 +63,7 @@ class ParentStudentLinkService
     public function linkExistingParent(User $student, string $parentPhone): ParentStudentLink
     {
         $parent = User::query()
-            ->where('phone', trim($parentPhone))
+            ->where('phone', PhoneNumber::normalize($parentPhone))
             ->where('is_active', true)
             ->first();
 

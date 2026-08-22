@@ -30,7 +30,27 @@ function submitPayout() {
 }
 
 function setReceipt(event) {
-    form.receipt = event.target.files[0] || null;
+    const file = event.target.files?.[0] || null;
+    if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024)) {
+        form.receipt = null;
+        event.target.value = '';
+        form.setError('receipt', 'Invalid image format or size.');
+        return;
+    }
+    form.receipt = file;
+    form.clearErrors('receipt');
+}
+
+function setPayReceipt(event) {
+    const file = event.target.files?.[0] || null;
+    if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) {
+        payForm.receipt = null;
+        event.target.value = '';
+        payForm.setError('receipt', 'Invalid image format or size.');
+        return;
+    }
+    payForm.receipt = file;
+    payForm.clearErrors('receipt');
 }
 
 function openPay(payout) {
@@ -124,9 +144,9 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
                     <p class="text-red-500">خصومات الحصص: <b>- {{ formatQAR(selectedBalance.pending_deductions) }}</b></p>
                     <p>صافي التسوية المتوقع: <b class="text-green-600">{{ formatQAR(selectedBalance.net_teacher_earnings) }}</b></p>
                 </div>
-                <div class="grid grid-cols-2 gap-3"><div><label class="input-label">من تاريخ</label><input v-model="form.period_start" type="date" dir="ltr" class="input" required /></div><div><label class="input-label">إلى تاريخ</label><input v-model="form.period_end" type="date" dir="ltr" class="input" required /></div></div>
-                <div class="rounded-2xl border-2 border-dashed border-accent-400/60 bg-accent-50/30 dark:bg-accent-950/20 p-4"><label class="input-label">صورة إثبات تحويل مستحقات المدرس <span class="text-red-500">(اختياري هنا، ومطلوب قبل اعتبارها مدفوعة)</span></label><input type="file" accept="image/*" class="input" @change="setReceipt" /><p class="text-[11px] text-surface-500 mt-2">لو رفعت الصورة الآن سيتم تسجيل التصفية كـ «تم التحويل» مباشرة، وإلا ستظهر في الجدول بزر «رفع إثبات الدفع».</p></div>
-                <textarea v-model="form.notes" class="input" placeholder="ملاحظات اختيارية"></textarea>
+                <div class="grid grid-cols-2 gap-3"><div><label class="input-label">من تاريخ</label><input v-model="form.period_start" type="date" dir="ltr" class="input" required /></div><div><label class="input-label">إلى تاريخ</label><input v-model="form.period_end" type="date" dir="ltr" class="input" :min="form.period_start || undefined" required /></div></div>
+                <div class="rounded-2xl border-2 border-dashed border-accent-400/60 bg-accent-50/30 dark:bg-accent-950/20 p-4"><label class="input-label">صورة إثبات تحويل مستحقات المدرس <span class="text-red-500">(اختياري هنا، ومطلوب قبل اعتبارها مدفوعة)</span></label><input type="file" accept="image/jpeg,image/png,image/webp" class="input" @change="setReceipt" /><p class="text-[11px] text-surface-500 mt-2">لو رفعت الصورة الآن سيتم تسجيل التصفية كـ «تم التحويل» مباشرة، وإلا ستظهر في الجدول بزر «رفع إثبات الدفع».</p></div>
+                <textarea v-model="form.notes" maxlength="2000" class="input" placeholder="ملاحظات اختيارية"></textarea>
                 <p v-if="Object.keys(form.errors).length" class="error-msg">{{ Object.values(form.errors)[0] }}</p>
                 <div class="flex justify-end gap-2"><button type="button" @click="createOpen = false" class="btn-ghost">إلغاء</button><button type="submit" class="btn-primary" :disabled="form.processing">إنشاء التصفية وتسجيل التحويل</button></div>
             </form>
@@ -135,8 +155,8 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
         <div v-if="payOpen" class="modal-overlay z-50 bg-black/60" role="dialog" aria-modal="true" aria-label="تسجيل إثبات الدفع">
             <form @submit.prevent="submitPaymentProof" class="modal-panel-compact card p-6 w-full max-w-lg space-y-4">
                 <h3 class="text-xl font-black">تأكيد تحويل {{ formatQAR(selectedPayout?.amount) }}</h3>
-                <div><label class="input-label">صورة إثبات التحويل</label><input type="file" accept="image/*" class="input" required @change="payForm.receipt = $event.target.files[0]" /><p v-if="payForm.errors.receipt" class="error-msg">{{ payForm.errors.receipt }}</p></div>
-                <textarea v-model="payForm.notes" class="input" placeholder="رقم العملية أو ملاحظات التحويل"></textarea>
+                <div><label class="input-label">صورة إثبات التحويل</label><input type="file" accept="image/jpeg,image/png,image/webp" class="input" required @change="setPayReceipt" /><p v-if="payForm.errors.receipt" class="error-msg">{{ payForm.errors.receipt }}</p></div>
+                <textarea v-model="payForm.notes" maxlength="2000" class="input" placeholder="رقم العملية أو ملاحظات التحويل"></textarea>
                 <div class="flex justify-end gap-2"><button type="button" @click="payOpen = false" class="btn-ghost">إلغاء</button><button type="submit" class="btn-primary" :disabled="payForm.processing">تسجيل الدفع</button></div>
             </form>
         </div>

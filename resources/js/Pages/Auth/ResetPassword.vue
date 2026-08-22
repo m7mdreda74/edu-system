@@ -44,6 +44,7 @@ const submit = () => {
                     type="email"
                     class="mt-1 block w-full"
                     v-model="form.email"
+                    maxlength="255"
                     required
                     autofocus
                     autocomplete="username"
@@ -60,6 +61,8 @@ const submit = () => {
                     type="password"
                     class="mt-1 block w-full"
                     v-model="form.password"
+                    minlength="8"
+                    maxlength="255"
                     required
                     autocomplete="new-password"
                 />
@@ -78,6 +81,8 @@ const submit = () => {
                     type="password"
                     class="mt-1 block w-full"
                     v-model="form.password_confirmation"
+                    minlength="8"
+                    maxlength="255"
                     required
                     autocomplete="new-password"
                 />

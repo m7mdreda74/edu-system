@@ -39,9 +39,9 @@ class ProfileUpdateRequest extends FormRequest
             ],
             // A teacher's photo appears on the public browse pages, so the
             // platform owns it — an admin sets it from the users screen.
-            'avatar' => $isTeacher
+                'avatar' => $isTeacher
                 ? ['prohibited']
-                : ['nullable', 'image', 'max:2048'], // Max 2MB
+                : ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'], // Max 2MB
         ];
 
         // A teacher's public profile is the platform's shop window: students

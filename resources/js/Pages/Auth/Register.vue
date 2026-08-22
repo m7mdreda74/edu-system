@@ -186,6 +186,7 @@ const submit = () => {
                             placeholder="مثال: محمد أحمد"
                             autocomplete="name"
                             required
+                            maxlength="255"
                             autofocus
                         />
                         <p v-if="form.errors.name" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.name }}</p>
@@ -209,6 +210,7 @@ const submit = () => {
                                 placeholder="username"
                                 autocomplete="username"
                                 required
+                                maxlength="240"
                             />
                             <span class="shrink-0 pe-5 text-xs font-bold text-primary-700">@altafawwuq.com</span>
                         </div>
@@ -225,6 +227,9 @@ const submit = () => {
                             id="reg-phone"
                             v-model="form.phone"
                             type="text"
+                            inputmode="tel"
+                            minlength="7"
+                            maxlength="20"
                             class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
                             :class="{ 'ring-2 ring-red-500': form.errors.phone }"
                             placeholder="مثال: +97433554858"
@@ -243,6 +248,8 @@ const submit = () => {
                             v-model="form.parent_phone"
                             type="text"
                             inputmode="tel"
+                            minlength="7"
+                            maxlength="20"
                             class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
                             :class="{ 'ring-2 ring-red-500': form.errors.parent_phone }"
                             placeholder="يرجى تسجيل رقم ولي الأمر المربوط بالمنصة"
@@ -334,6 +341,8 @@ const submit = () => {
                                 placeholder="8 أحرف على الأقل"
                                 autocomplete="new-password"
                                 required
+                                minlength="8"
+                                maxlength="255"
                             />
                             <p v-if="form.errors.password" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.password }}</p>
                         </div>
@@ -351,6 +360,8 @@ const submit = () => {
                                 placeholder="••••••••"
                                 autocomplete="new-password"
                                 required
+                                minlength="8"
+                                maxlength="255"
                             />
                         </div>
                     </div>

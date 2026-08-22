@@ -17,6 +17,8 @@ const couponCode     = ref('');
 const couponState    = ref({ status: 'idle', message: '', discountedPrice: null });
 const processing     = ref(false);
 const errorMessage   = ref('');
+const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
+const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 const basePrice  = computed(() => props.subscription.monthly_price ?? 0);
 const finalPrice = computed(() => couponState.value.discountedPrice ?? basePrice.value);
@@ -54,7 +56,22 @@ async function applyCoupon() {
 }
 
 function onReceiptChange(event) {
-    receiptFile.value = event.target.files?.[0] ?? null;
+    const file = event.target.files?.[0] ?? null;
+    if (file && (!RECEIPT_TYPES.includes(file.type) || file.size > MAX_RECEIPT_BYTES)) {
+        receiptFile.value = null;
+        event.target.value = '';
+        errorMessage.value = 'Invalid receipt file or size.';
+        return;
+    }
+    receiptFile.value = file;
+    errorMessage.value = '';
+}
+
+function normalizeSenderPhone(value) {
+    return value
+        .replace(/[\u0660-\u0669]/g, (digit) => String(digit.codePointAt(0) - 0x0660))
+        .replace(/[\u06F0-\u06F9]/g, (digit) => String(digit.codePointAt(0) - 0x06F0))
+        .replace(/[\s().-]+/g, '');
 }
 
 async function submit() {
@@ -64,7 +81,8 @@ async function submit() {
         errorMessage.value = 'لم يتم ضبط رقم فودافون كاش لهذه المرحلة بعد. تواصل مع إدارة المنصة.';
         return;
     }
-    if (!senderPhone.value.trim()) {
+    const normalizedSenderPhone = normalizeSenderPhone(senderPhone.value.trim());
+    if (!/^(?:\+20|0020|0)1\d{9}$/.test(normalizedSenderPhone)) {
         errorMessage.value = 'اكتب رقم الهاتف الذي حوّلت منه أولاً.';
         return;
     }
@@ -77,7 +95,7 @@ async function submit() {
 
     const formData = new FormData();
     formData.append('payment_method', 'vodafone_cash');
-    formData.append('sender_phone', senderPhone.value.trim());
+    formData.append('sender_phone', normalizedSenderPhone);
 
     if (couponCode.value.trim()) {
         formData.append('coupon_code', couponCode.value.trim());
@@ -160,6 +178,10 @@ async function submit() {
                                     dir="ltr"
                                     class="input font-mono"
                                     placeholder="01012345678"
+                                    minlength="11"
+                                    maxlength="20"
+                                    pattern="(?:\+20|0020|0)1[0-9]{9}"
+                                    required
                                 />
                                 <p class="input-hint">اكتب رقم محفظة فودافون كاش المُرسِلة بصيغة 01012345678.</p>
                             </div>
@@ -170,6 +192,7 @@ async function submit() {
                                     id="receipt"
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp,application/pdf"
+                                    required
                                     class="input"
                                     @change="onReceiptChange"
                                 />
@@ -187,6 +210,8 @@ async function submit() {
                                 v-model="couponCode"
                                 type="text"
                                 class="input flex-1"
+                                minlength="3"
+                                maxlength="50"
                                 placeholder="أدخل الكود"
                                 @keyup.enter="applyCoupon"
                             />

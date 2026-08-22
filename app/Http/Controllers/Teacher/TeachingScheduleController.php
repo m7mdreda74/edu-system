@@ -52,7 +52,7 @@ class TeachingScheduleController extends Controller
         abort_if($group->assignment->teacher_id !== Auth::id(), 403);
 
         $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['required', 'string', 'min:3', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
         ]);
 

@@ -208,7 +208,7 @@ async function destroyGroup(group) {
                         </label>
                         <div>
                             <label class="text-[11px] text-surface-500">سعر البرايفيت الشهري (ر.ق)</label>
-                            <input v-model.number="assignmentForm.private_monthly_price_qar" type="number" min="0" step="0.01" class="input w-full" :disabled="!assignmentForm.accepts_private" />
+                            <input v-model.number="assignmentForm.private_monthly_price_qar" type="number" min="0" max="1000000" step="0.01" class="input w-full" :disabled="!assignmentForm.accepts_private" />
                         </div>
                         <button type="submit" class="btn-primary" :disabled="assignmentForm.processing">إسناد بواسطة الإدارة</button>
                     </form>
@@ -250,7 +250,7 @@ async function destroyGroup(group) {
                         </label>
                         <div>
                             <label class="text-[11px] text-surface-500">السعر الشهري (ر.ق)</label>
-                            <input v-model.number="assignmentEdit.private_monthly_price_qar" type="number" min="0" step="0.01" class="input w-full" />
+                            <input v-model.number="assignmentEdit.private_monthly_price_qar" type="number" min="0" max="1000000" step="0.01" class="input w-full" />
                         </div>
                         <label class="flex items-center gap-2 text-sm">
                             <input v-model="assignmentEdit.is_active" type="checkbox" />
@@ -273,9 +273,9 @@ async function destroyGroup(group) {
                                 <option value="">بدون فصل محدد</option>
                                 <option v-for="item in terms" :key="item.id" :value="item.id">{{ item.name }} {{ item.year_label }}</option>
                             </select>
-                            <input v-model="groupForm.name" class="input" placeholder="اسم المجموعة" required />
+                            <input v-model="groupForm.name" maxlength="100" class="input" placeholder="اسم المجموعة" required />
                             <input v-model.number="groupForm.capacity" type="number" min="1" max="1000" class="input" placeholder="السعة (الافتراضي 5)" />
-                            <input v-model.number="groupForm.monthly_price_qar" type="number" min="0" step="0.01" class="input" placeholder="السعر الشهري ر.ق" required />
+                            <input v-model.number="groupForm.monthly_price_qar" type="number" min="0" max="1000000" step="0.01" class="input" placeholder="السعر الشهري ر.ق" required />
                             <button type="submit" class="btn-primary" :disabled="groupForm.processing">إنشاء وتسعير المجموعة</button>
                         </div>
                         <p class="text-xs text-surface-500">السعة الافتراضية للمجموعة 5 طلاب، ويمكن للإدارة تعديلها لكل مجموعة.</p>
@@ -283,9 +283,9 @@ async function destroyGroup(group) {
                     </form>
 
                     <form v-if="groupEdit.id" class="rounded-xl border border-primary-500/20 p-4 grid md:grid-cols-3 gap-3 items-end" @submit.prevent="updateGroup">
-                        <input v-model="groupEdit.name" class="input" placeholder="اسم المجموعة" required />
-                        <input v-model.number="groupEdit.capacity" type="number" min="1" class="input" placeholder="السعة" required />
-                        <input v-model.number="groupEdit.monthly_price_qar" type="number" min="0" step="0.01" class="input" placeholder="السعر الشهري ر.ق" required />
+                        <input v-model="groupEdit.name" maxlength="100" class="input" placeholder="اسم المجموعة" required />
+                        <input v-model.number="groupEdit.capacity" type="number" min="1" max="1000" class="input" placeholder="السعة" required />
+                        <input v-model.number="groupEdit.monthly_price_qar" type="number" min="0" max="1000000" step="0.01" class="input" placeholder="السعر الشهري ر.ق" required />
                         <select v-model="groupEdit.academic_term_id" class="input">
                             <option value="">بدون فصل محدد</option>
                             <option v-for="item in terms" :key="item.id" :value="item.id">{{ item.name }} {{ item.year_label }}</option>
@@ -298,7 +298,7 @@ async function destroyGroup(group) {
             </section>
 
             <div class="card p-4 flex flex-wrap gap-3">
-                <input v-model="search" type="text" class="input flex-1 min-w-[200px]" placeholder="ابحث باسم المجموعة أو المعلم..." />
+                <input v-model="search" type="text" maxlength="100" class="input flex-1 min-w-[200px]" placeholder="ابحث باسم المجموعة أو المعلم..." />
                 <select v-model="status" class="input w-auto">
                     <option value="">كل الحالات</option>
                     <option value="active">مفعّلة</option>

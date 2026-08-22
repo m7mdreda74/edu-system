@@ -37,7 +37,7 @@ class UploadBookletRequest extends FormRequest
                 'max:'.self::MAX_KILOBYTES,
             ],
             'blob_url' => ['nullable', 'required_without:booklet', 'url:https', 'max:2048'],
-            'blob_pathname' => ['nullable', 'required_with:blob_url', 'string', 'max:1024'],
+            'blob_pathname' => ['nullable', 'required_with:blob_url', 'string', 'max:950'],
         ];
     }
 

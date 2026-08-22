@@ -147,12 +147,12 @@ function formatDate(value) {
                 </div>
                 <div>
                     <label class="input-label">قيمة الخصم بالريال القطري</label>
-                    <input v-model="form.amount_qar" type="number" min="0.01" step="0.01" class="input" required />
+                    <input v-model="form.amount_qar" type="number" min="0.01" max="1000000" step="0.01" class="input" required />
                     <p v-if="form.errors.amount_qar" class="error-msg">{{ form.errors.amount_qar }}</p>
                 </div>
                 <div>
                     <label class="input-label">ملاحظة الإدارة</label>
-                    <textarea v-model="form.admin_note" rows="3" class="input" placeholder="سبب وقيمة الخصم"></textarea>
+                    <textarea v-model="form.admin_note" rows="3" maxlength="2000" class="input" placeholder="سبب وقيمة الخصم"></textarea>
                 </div>
                 <div class="flex justify-end gap-2">
                     <button type="button" class="btn-ghost" @click="selected = null">إلغاء</button>

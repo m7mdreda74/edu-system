@@ -24,9 +24,9 @@ class ReportController extends Controller
     public function index(Request $request): Response
     {
         $filters = $request->validate([
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'teacher_id' => ['nullable', 'integer', 'exists:users,id'],
+            'start_date' => ['nullable', 'date', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'teacher_id' => ['nullable', 'integer', 'min:1', 'exists:users,id'],
             'status' => ['nullable', 'in:scheduled,live,ended,cancelled'],
             'print' => ['nullable', 'boolean'],
         ]);

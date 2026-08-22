@@ -36,7 +36,7 @@ class UploadPaperExamRequest extends FormRequest
                 'max:'.UploadBookletRequest::MAX_KILOBYTES,
             ],
             'blob_url' => [$alreadyExists ? 'nullable' : 'required_without:file', 'nullable', 'url:https', 'max:2048'],
-            'blob_pathname' => ['nullable', 'required_with:blob_url', 'string', 'max:1024'],
+            'blob_pathname' => ['nullable', 'required_with:blob_url', 'string', 'max:950'],
             'title' => ['nullable', 'string', 'max:255'],
             'due_date' => ['nullable', 'date'],
             'max_score' => ['nullable', 'integer', 'min:1', 'max:1000'],

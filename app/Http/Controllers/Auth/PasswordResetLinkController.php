@@ -31,7 +31,7 @@ class PasswordResetLinkController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'email' => 'required|email',
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255'],
         ]);
 
         if (User::where('email', $request->string('email')->toString())->first()?->hasRole('teacher')) {

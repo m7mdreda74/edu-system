@@ -21,8 +21,8 @@ class StoreCurriculumUnitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'academic_term_id' => ['required', 'integer', 'exists:academic_terms,id'],
-            'title'            => ['required', 'string', 'max:255'],
+            'academic_term_id' => ['required', 'integer', 'min:1', 'exists:academic_terms,id'],
+            'title'            => ['required', 'string', 'min:3', 'max:255'],
             'description'      => ['nullable', 'string', 'max:2000'],
             'is_published'     => ['nullable', 'boolean'],
         ];

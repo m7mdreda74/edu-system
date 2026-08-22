@@ -23,7 +23,11 @@ class SubscriptionController extends Controller
 
     public function index(Request $request): Response
     {
-        $filters = $request->only(['status', 'type', 'search']);
+        $filters = $request->validate([
+            'status' => ['nullable', 'string', 'in:pending,active,expired,cancelled'],
+            'type' => ['nullable', 'string', 'in:group,private'],
+            'search' => ['nullable', 'string', 'max:100'],
+        ]);
         $today = now()->toDateString();
 
         $subscriptions = Subscription::with([

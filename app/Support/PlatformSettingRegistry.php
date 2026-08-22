@@ -129,6 +129,11 @@ final class PlatformSettingRegistry
             $definitions[$key] = ['type' => 'integer', 'max' => 3, 'site_page' => false];
         }
 
+        foreach (self::EMAIL_KEYS as $key) {
+            $definitions[$key]['max'] = 255;
+        }
+
+        $definitions['contact_phone']['max'] = 25;
         $definitions['site_theme'] = ['type' => 'string', 'max' => 20, 'site_page' => false];
 
         return self::$definitions = $definitions;

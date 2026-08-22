@@ -51,7 +51,7 @@ class MaterialManagerController extends Controller
         $group = $this->ownedGroupOrFail($groupId);
 
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['required', 'string', 'min:3', 'max:255'],
             'video_url' => ['nullable', 'url', 'max:2048'],
             'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
             'order' => ['nullable', 'integer', 'min:1', 'max:999'],
@@ -85,7 +85,7 @@ class MaterialManagerController extends Controller
         $this->assertOwnsAssignment($material->unit?->assignment);
 
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['required', 'string', 'min:3', 'max:255'],
             'video_url' => ['nullable', 'url', 'max:2048'],
             'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
             'order' => ['nullable', 'integer', 'min:1', 'max:999'],

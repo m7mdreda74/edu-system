@@ -128,6 +128,22 @@ const siteThemes = [
 // Helper to locate a setting object by key safely
 const getSetting = (key) => form.settings.find(s => s.key === key);
 
+const settingMaxLength = (setting) => {
+    if (!setting) return 10000;
+    if (setting.type === 'integer') return 3;
+    if (setting.type === 'boolean') return 5;
+    if (setting.key === 'site_theme') return 20;
+    if (setting.key?.includes('url')) return 2048;
+    if (['home_features', 'home_results', 'home_why_choose_us', 'home_youtube_videos', 'home_faqs', 'about_values', 'about_pillars', 'navbar_links', 'footer_links', 'footer_social_links'].includes(setting.key)) {
+        return 100000;
+    }
+
+    return 10000;
+};
+
+const settingMinValue = (setting) => setting?.key === 'commission_percent' ? 0 : undefined;
+const settingMaxValue = (setting) => setting?.key === 'commission_percent' ? 100 : undefined;
+
 const selectSiteTheme = (themeId) => {
     const setting = getSetting('site_theme');
     if (!setting) return;
@@ -494,7 +510,7 @@ async function saveSettings() {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div v-for="setting in generalSettings" :key="setting.key" :class="(setting.key === 'whatsapp_url' || setting.key === 'contact_title') ? 'md:col-span-2' : ''" class="space-y-1">
                                 <label class="block text-xs font-bold text-surface-700 dark:text-surface-300">{{ getSettingLabel(setting.key) }}</label>
-                                <input v-model="setting.value" type="text" class="input w-full text-xs py-2 px-3" @input="isDirty = true" />
+                                <input v-model="setting.value" type="text" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-2 px-3" @input="isDirty = true" />
                             </div>
                         </div>
                     </div>
@@ -566,7 +582,7 @@ async function saveSettings() {
                                     <option value="true">نعم / مفعل</option>
                                     <option value="false">لا / معطل</option>
                                 </select>
-                                <input v-else v-model="setting.value" type="text" class="input w-full text-xs py-2 px-3" @input="isDirty = true" />
+                                <input v-else v-model="setting.value" type="text" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-2 px-3" @input="isDirty = true" />
                             </div>
                         </div>
                     </div>
@@ -580,8 +596,8 @@ async function saveSettings() {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div v-for="setting in heroSettings" :key="setting.key" :class="(setting.key.includes('desc') || setting.key === 'home_hero_title') ? 'md:col-span-2' : ''" class="space-y-1">
                                 <label class="block text-xs font-bold text-surface-700 dark:text-surface-300">{{ getSettingLabel(setting.key) }}</label>
-                                <textarea v-if="setting.key.includes('desc')" v-model="setting.value" rows="3" class="input w-full text-xs py-2 px-3 resize-y" @input="isDirty = true"></textarea>
-                                <input v-else v-model="setting.value" type="text" class="input w-full text-xs py-2 px-3" @input="isDirty = true" />
+                                <textarea v-if="setting.key.includes('desc')" v-model="setting.value" rows="3" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-2 px-3 resize-y" @input="isDirty = true"></textarea>
+                                <input v-else v-model="setting.value" type="text" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-2 px-3" @input="isDirty = true" />
                             </div>
                         </div>
                     </div>
@@ -606,11 +622,11 @@ async function saveSettings() {
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">نص الرابط (مثال: الرئيسية)</label>
-                                            <input v-model="link.label" type="text" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
+                                    <input v-model="link.label" type="text" maxlength="255" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
                                         </div>
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">العنوان أو المسار (URL / Path)</label>
-                                            <input v-model="link.href" type="text" dir="ltr" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="/grades/grade_12, https://..." @input="isDirty = true" />
+                                    <input v-model="link.href" type="text" dir="ltr" maxlength="2048" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="/grades/grade_12, https://..." @input="isDirty = true" />
                                         </div>
                                     </div>
                                 </div>
@@ -636,11 +652,11 @@ async function saveSettings() {
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">نص الرابط</label>
-                                            <input v-model="link.label" type="text" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
+                                    <input v-model="link.label" type="text" maxlength="255" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
                                         </div>
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">العنوان أو المسار (URL / Path)</label>
-                                            <input v-model="link.href" type="text" dir="ltr" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="/grades/grade_12, https://..." @input="isDirty = true" />
+                                    <input v-model="link.href" type="text" dir="ltr" maxlength="2048" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="/grades/grade_12, https://..." @input="isDirty = true" />
                                         </div>
                                     </div>
                                 </div>
@@ -659,8 +675,8 @@ async function saveSettings() {
                             <div class="grid grid-cols-1 gap-6">
                                 <div v-for="setting in aboutSettings" :key="setting.key" class="space-y-1">
                                     <label class="block text-xs font-bold text-surface-700 dark:text-surface-300">{{ getSettingLabel(setting.key) }}</label>
-                                    <textarea v-if="setting.key.includes('desc')" v-model="setting.value" rows="3" class="input w-full text-xs py-2 px-3 resize-y" @input="isDirty = true"></textarea>
-                                    <input v-else v-model="setting.value" type="text" class="input w-full text-xs py-2 px-3 font-bold" @input="isDirty = true" />
+                                    <textarea v-if="setting.key.includes('desc')" v-model="setting.value" rows="3" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-2 px-3 resize-y" @input="isDirty = true"></textarea>
+                                    <input v-else v-model="setting.value" type="text" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-2 px-3 font-bold" @input="isDirty = true" />
                                 </div>
                             </div>
                         </div>
@@ -683,15 +699,15 @@ async function saveSettings() {
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">العنوان (مثل: رؤيتنا)</label>
-                                            <input v-model="val.title" type="text" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
+                                            <input v-model="val.title" type="text" maxlength="255" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
                                         </div>
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">أيقونة العنصر</label>
-                                            <input v-model="val.icon" type="text" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="student, courses, globe" @input="isDirty = true" />
+                                            <input v-model="val.icon" type="text" maxlength="100" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="student, courses, globe" @input="isDirty = true" />
                                         </div>
                                         <div class="space-y-1 md:col-span-2">
                                             <label class="block text-[10px] font-bold text-surface-500">الوصف</label>
-                                            <textarea v-model="val.desc" rows="2" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
+                                            <textarea v-model="val.desc" rows="2" maxlength="1000" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -717,11 +733,11 @@ async function saveSettings() {
                                     <div class="grid grid-cols-1 gap-4">
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">عنوان الركيزة</label>
-                                            <input v-model="pil.title" type="text" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
+                                            <input v-model="pil.title" type="text" maxlength="255" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
                                         </div>
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">الوصف</label>
-                                            <textarea v-model="pil.desc" rows="2" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
+                                            <textarea v-model="pil.desc" rows="2" maxlength="1000" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -739,8 +755,8 @@ async function saveSettings() {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div v-for="setting in appSettings" :key="setting.key" :class="(setting.key === 'app_desc' || setting.key === 'app_title') ? 'md:col-span-2' : ''" class="space-y-1">
                                 <label class="block text-xs font-bold text-surface-700 dark:text-surface-300">{{ getSettingLabel(setting.key) }}</label>
-                                <textarea v-if="setting.key.includes('desc')" v-model="setting.value" rows="3" class="input w-full text-xs py-2 px-3 resize-y" @input="isDirty = true"></textarea>
-                                <input v-else v-model="setting.value" type="text" class="input w-full text-xs py-2 px-3 font-mono" :dir="setting.key.includes('url') ? 'ltr' : 'rtl'" @input="isDirty = true" />
+                                <textarea v-if="setting.key.includes('desc')" v-model="setting.value" rows="3" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-2 px-3 resize-y" @input="isDirty = true"></textarea>
+                                <input v-else v-model="setting.value" type="text" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-2 px-3 font-mono" :dir="setting.key.includes('url') ? 'ltr' : 'rtl'" @input="isDirty = true" />
                             </div>
                         </div>
                     </div>
@@ -755,7 +771,7 @@ async function saveSettings() {
                             <div class="grid grid-cols-1 gap-6">
                                 <div v-for="setting in footerSettings" :key="setting.key" class="space-y-1">
                                     <label class="block text-xs font-bold text-surface-700 dark:text-surface-300">{{ getSettingLabel(setting.key) }}</label>
-                                    <textarea v-model="setting.value" rows="4" class="input w-full text-xs py-2 px-3 resize-y" @input="isDirty = true"></textarea>
+                                <textarea v-model="setting.value" rows="4" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-2 px-3 resize-y" @input="isDirty = true"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -778,15 +794,15 @@ async function saveSettings() {
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">اسم الشبكة (مثال: facebook)</label>
-                                            <input v-model="social.platform" type="text" class="input w-full text-xs py-1.5 px-3" placeholder="facebook, instagram, telegram..." @input="isDirty = true" />
+                                            <input v-model="social.platform" type="text" maxlength="50" class="input w-full text-xs py-1.5 px-3" placeholder="facebook, instagram, telegram..." @input="isDirty = true" />
                                         </div>
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">رمز الأيقونة (من الـ SVG Icons)</label>
-                                            <input v-model="social.icon" type="text" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="facebook, instagram, whatsapp..." @input="isDirty = true" />
+                                            <input v-model="social.icon" type="text" maxlength="100" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="facebook, instagram, whatsapp..." @input="isDirty = true" />
                                         </div>
                                         <div class="space-y-1">
                                             <label class="block text-[10px] font-bold text-surface-500">رابط الحساب (URL)</label>
-                                            <input v-model="social.url" type="text" dir="ltr" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="https://..." @input="isDirty = true" />
+                                            <input v-model="social.url" type="text" dir="ltr" maxlength="2048" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="https://..." @input="isDirty = true" />
                                         </div>
                                     </div>
                                 </div>
@@ -813,15 +829,15 @@ async function saveSettings() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">عنوان الميزة</label>
-                                        <input v-model="feat.title" type="text" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
+                                        <input v-model="feat.title" type="text" maxlength="255" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">رمز الأيقونة</label>
-                                        <input v-model="feat.icon" type="text" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="courses, live, chart" @input="isDirty = true" />
+                                        <input v-model="feat.icon" type="text" maxlength="100" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="courses, live, chart" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1 md:col-span-2">
                                         <label class="block text-[10px] font-bold text-surface-500">الوصف</label>
-                                        <textarea v-model="feat.desc" rows="2" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
+                                        <textarea v-model="feat.desc" rows="2" maxlength="1000" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -847,15 +863,15 @@ async function saveSettings() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">العنوان</label>
-                                        <input v-model="item.title" type="text" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
+                                        <input v-model="item.title" type="text" maxlength="255" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">رمز الأيقونة</label>
-                                        <input v-model="item.icon" type="text" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="globe, video, success" @input="isDirty = true" />
+                                        <input v-model="item.icon" type="text" maxlength="100" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="globe, video, success" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1 md:col-span-2">
                                         <label class="block text-[10px] font-bold text-surface-500">الوصف</label>
-                                        <textarea v-model="item.desc" rows="2" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
+                                        <textarea v-model="item.desc" rows="2" maxlength="1000" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -881,15 +897,15 @@ async function saveSettings() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="space-y-1 md:col-span-2">
                                         <label class="block text-[10px] font-bold text-surface-500">عنوان الفيديو</label>
-                                        <input v-model="vid.title" type="text" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
+                                        <input v-model="vid.title" type="text" maxlength="255" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">رابط الفيديو (URL)</label>
-                                        <input v-model="vid.url" type="text" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="https://youtube.com/..." @input="isDirty = true" />
+                                        <input v-model="vid.url" type="text" maxlength="2048" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="https://youtube.com/..." @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">رابط الصورة المصغرة (Thumbnail)</label>
-                                        <input v-model="vid.thumbnail" type="text" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="https://..." @input="isDirty = true" />
+                                        <input v-model="vid.thumbnail" type="text" maxlength="2048" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="https://..." @input="isDirty = true" />
                                     </div>
                                 </div>
                             </div>
@@ -915,11 +931,11 @@ async function saveSettings() {
                                 <div class="grid grid-cols-1 gap-4">
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">السؤال</label>
-                                        <input v-model="faq.q" type="text" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
+                                        <input v-model="faq.q" type="text" maxlength="500" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">الإجابة</label>
-                                        <textarea v-model="faq.a" rows="3" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
+                                        <textarea v-model="faq.a" rows="3" maxlength="2000" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -945,19 +961,19 @@ async function saveSettings() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">اسم الطالب</label>
-                                        <input v-model="res.name" type="text" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
+                                        <input v-model="res.name" type="text" maxlength="255" class="input w-full text-xs py-1.5 px-3 font-bold" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">العنوان / الدفعة (مثال: دفعة 2026)</label>
-                                        <input v-model="res.title" type="text" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
+                                        <input v-model="res.title" type="text" maxlength="255" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1 md:col-span-2">
                                         <label class="block text-[10px] font-bold text-surface-500">الصف الدراسي</label>
-                                        <input v-model="res.grade" type="text" class="input w-full text-xs py-1.5 px-3" placeholder="الصف الثاني عشر" @input="isDirty = true" />
+                                        <input v-model="res.grade" type="text" maxlength="100" class="input w-full text-xs py-1.5 px-3" placeholder="الصف الثاني عشر" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1 md:col-span-2">
                                         <label class="block text-[10px] font-bold text-surface-500">الوصف / الإنجاز</label>
-                                        <textarea v-model="res.desc" rows="2" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
+                                        <textarea v-model="res.desc" rows="2" maxlength="1000" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -1003,7 +1019,7 @@ async function saveSettings() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">اسم المتغير (Key)</label>
-                                        <input v-model="setting.key" type="text" dir="ltr" :disabled="setting.key === 'commission_percent' || setting.key === 'platform_email'" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="custom_key_name" @input="isDirty = true" />
+                                        <input v-model="setting.key" type="text" dir="ltr" maxlength="100" :disabled="setting.key === 'commission_percent' || setting.key === 'platform_email'" class="input w-full text-xs py-1.5 px-3 font-mono" placeholder="custom_key_name" @input="isDirty = true" />
                                     </div>
                                     <div class="space-y-1">
                                         <label class="block text-[10px] font-bold text-surface-500">النوع (Type)</label>
@@ -1015,8 +1031,8 @@ async function saveSettings() {
                                     </div>
                                     <div class="space-y-1 md:col-span-2">
                                         <label class="block text-xs font-bold text-surface-700 dark:text-surface-300">{{ getSettingLabel(setting.key) }}</label>
-                                        <textarea v-if="setting.type === 'string'" v-model="setting.value" rows="2" class="input w-full text-xs py-1.5 px-3" placeholder="القيمة..." @input="isDirty = true"></textarea>
-                                        <input v-else-if="setting.type === 'integer'" v-model="setting.value" type="number" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true">
+                                        <textarea v-if="setting.type === 'string'" v-model="setting.value" rows="2" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-1.5 px-3" placeholder="القيمة..." @input="isDirty = true"></textarea>
+                                        <input v-else-if="setting.type === 'integer'" v-model="setting.value" type="number" :min="settingMinValue(setting)" :max="settingMaxValue(setting)" :maxlength="settingMaxLength(setting)" class="input w-full text-xs py-1.5 px-3" @input="isDirty = true">
                                         <select v-else-if="setting.type === 'boolean'" v-model="setting.value" class="input w-full text-xs py-1.5 px-3" @change="isDirty = true">
                                             <option value="true">نعم / مفعل</option>
                                             <option value="false">لا / معطل</option>

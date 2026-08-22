@@ -78,7 +78,7 @@ class AcademicTermController extends Controller
         $unique = 'unique:academic_terms,term_number,' . ($ignoreId ?? 'NULL') . ',id,year_label,' . $request->input('year_label');
 
         return $request->validate([
-            'year_label'     => ['required', 'string', 'max:20', 'regex:/^\d{4}\/\d{4}$/'],
+            'year_label'     => ['required', 'string', 'size:9', 'max:9', 'regex:/^\d{4}\/\d{4}$/'],
             'term_number'    => ['required', 'integer', 'between:1,3', $unique],
             'name'           => ['required', 'string', 'max:255'],
             'starts_on'      => ['required', 'date'],

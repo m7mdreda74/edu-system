@@ -154,7 +154,7 @@ async function deleteCoupon(id) {
                         <form @submit.prevent="submitCoupon" class="space-y-4">
                             <div>
                                 <label class="label mb-1">رمز الكوبون (كود الاستخدام)</label>
-                                <input v-model="form.code" type="text" required class="input font-mono uppercase" placeholder="مثال: BACKTOSCHOOL" />
+                                <input v-model="form.code" type="text" minlength="3" maxlength="50" pattern="[A-Za-z0-9_-]+" required class="input font-mono uppercase" placeholder="مثال: BACKTOSCHOOL" />
                             </div>
 
                             <div>
@@ -164,7 +164,7 @@ async function deleteCoupon(id) {
 
                             <div>
                                 <label class="label mb-1">الحد الأقصى للاستخدام (عدد المرات الإجمالي)</label>
-                                <input v-model="form.usage_limit" type="number" class="input" placeholder="مثال: 100 (اتركه فارغاً للاستخدام غير المحدود)" />
+                                <input v-model="form.usage_limit" type="number" min="1" max="1000000" class="input" placeholder="مثال: 100 (اتركه فارغاً للاستخدام غير المحدود)" />
                             </div>
 
                             <div>

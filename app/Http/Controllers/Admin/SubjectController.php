@@ -116,8 +116,8 @@ class SubjectController extends Controller
             'image'             => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'remove_image'      => ['sometimes', 'boolean'],
             'is_active'         => ['sometimes', 'boolean'],
-            'grade_level_ids'   => ['required', 'array', 'min:1'],
-            'grade_level_ids.*' => ['integer', 'exists:grade_levels,id'],
+            'grade_level_ids'   => ['required', 'array', 'min:1', 'max:100'],
+            'grade_level_ids.*' => ['integer', 'min:1', 'distinct', 'exists:grade_levels,id'],
         ]);
     }
 

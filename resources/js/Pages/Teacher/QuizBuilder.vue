@@ -34,6 +34,8 @@ const settings = useForm({
     is_active:          props.quiz.is_active,
 });
 
+const availableUntilMin = computed(() => settings.available_from || undefined);
+
 function saveSettings() {
     settings.put(route('teacher.quizzes.update', props.quiz.id), {
         preserveScroll: true,
@@ -450,7 +452,7 @@ function optionError(draft, index) {
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
                         <label for="quiz-title" class="input-label">عنوان الاختبار</label>
-                        <input id="quiz-title" v-model="settings.title" type="text" class="input"
+                        <input id="quiz-title" v-model="settings.title" type="text" minlength="3" maxlength="255" class="input"
                                :class="{ 'input-error': settings.errors.title }" required />
                         <p v-if="settings.errors.title" class="error-msg">{{ settings.errors.title }}</p>
                     </div>
@@ -480,7 +482,7 @@ function optionError(draft, index) {
 
                     <div>
                         <label for="quiz-until" class="input-label">متاح إلى</label>
-                        <input id="quiz-until" v-model="settings.available_until" type="datetime-local" dir="ltr"
+                        <input id="quiz-until" v-model="settings.available_until" type="datetime-local" dir="ltr" :min="availableUntilMin"
                                class="input" :class="{ 'input-error': settings.errors.available_until }" />
                         <p class="input-hint">اترك الحقلين فارغين ليبقى الاختبار متاحاً في أي وقت.</p>
                         <p v-if="settings.errors.available_until" class="error-msg">{{ settings.errors.available_until }}</p>
@@ -566,7 +568,7 @@ function optionError(draft, index) {
                     <div v-show="isOpen(draft)" class="space-y-4">
                         <div>
                             <label class="input-label">نص السؤال</label>
-                            <textarea v-model="draft.question_text" rows="2" class="input"
+                            <textarea v-model="draft.question_text" rows="2" minlength="3" maxlength="1000" class="input"
                                       :class="{ 'input-error': draft.errors.question_text }"
                                       placeholder="اكتب السؤال كما يقرأه الطالب"
                                       @input="draft.dirty = true"></textarea>
@@ -633,7 +635,7 @@ function optionError(draft, index) {
                                     </label>
 
                                     <div class="flex-1 min-w-0">
-                                        <input v-model="option.option_text" type="text" class="input"
+                                        <input v-model="option.option_text" type="text" minlength="1" maxlength="500" class="input"
                                                :class="{ 'input-error': optionError(draft, index) }"
                                                :placeholder="`الإجابة ${OPTION_LABELS[index] ?? index + 1}`"
                                                @input="draft.dirty = true" />

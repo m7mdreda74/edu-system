@@ -8,6 +8,8 @@ use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Rules\AltafawwuqEmail;
+use App\Rules\PhoneNumber;
+use App\Support\PhoneNumber as PhoneNumberValue;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,22 +35,23 @@ class RegisteredUserController extends Controller
     {
         $request->merge([
             'email' => AltafawwuqEmail::normalize($request->input('email')),
-            'phone' => trim((string) $request->input('phone')),
-            'parent_phone' => trim((string) $request->input('parent_phone')),
+            'phone' => PhoneNumberValue::normalize($request->input('phone')),
+            'parent_phone' => PhoneNumberValue::normalize($request->input('parent_phone')),
         ]);
 
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'email'       => ['required', 'string', 'lowercase', 'email', 'max:255', new AltafawwuqEmail(), 'unique:users'],
-            'phone'       => ['required', 'string', 'max:20', 'unique:users'],
-            'parent_phone' => ['nullable', 'required_if:role,student', 'string', 'max:20', 'different:phone'],
-            'password'    => ['required', 'confirmed', Rules\Password::defaults()],
+            'phone'       => ['required', 'string', 'min:7', 'max:20', new PhoneNumber(), 'unique:users'],
+            'parent_phone' => ['exclude_unless:role,student', 'required', 'string', 'min:7', 'max:20', new PhoneNumber(), 'different:phone'],
+            'password'    => ['required', 'confirmed', Rules\Password::defaults()->max(255)],
             // Teacher is a privileged role and must be assigned by an admin.
             // Never trust a client-supplied role to create teaching access.
             'role'        => ['required', 'in:student,parent'],
             'grade_level' => [
                 'required_if:role,student',
-                'nullable',
+                'exclude_unless:role,student',
+                'required',
                 Rule::exists('grade_levels', 'key')
                     ->where(fn ($query) => $query
                         ->where('is_active', true)

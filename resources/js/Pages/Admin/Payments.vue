@@ -88,6 +88,7 @@ async function rejectPayment(p) {
         variant: 'danger',
         inputLabel: 'سبب الرفض',
         inputPlaceholder: 'اكتب سبب رفض إيصال التحويل...',
+        inputMaxLength: 1000,
     });
     if (result?.confirmed) {
         router.post(route('admin.payments.reject', { payment: p.id }), { reason: result.value });

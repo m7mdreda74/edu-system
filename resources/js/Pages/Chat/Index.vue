@@ -61,7 +61,25 @@ function handleFileChange(event) {
     const file = event.target.files[0];
     if (!file) return;
 
+    const allowedTypes = new Set([
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/zip',
+        'image/png',
+        'image/jpeg',
+    ]);
+
+    if (!allowedTypes.has(file.type) || file.size > 10 * 1024 * 1024) {
+        event.target.value = '';
+        form.setError('attachment', 'نوع الملف أو حجمه غير مسموح. الحد الأقصى 10 ميجابايت.');
+        return;
+    }
+
     form.attachment = file;
+    form.clearErrors('attachment');
     selectedFile.value = file;
 
     if (file.type.startsWith('image/')) {
@@ -348,7 +366,7 @@ onUnmounted(() => {
 
                             <form @submit.prevent="sendMessage" class="flex items-center gap-2 relative">
                                 <!-- Hidden File Input -->
-                                <input type="file" ref="attachmentInput" @change="handleFileChange" class="hidden" />
+                                <input type="file" ref="attachmentInput" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" @change="handleFileChange" class="hidden" />
 
                                 <!-- Attachment Trigger -->
                                 <button type="button" @click="triggerFileInput" class="w-11 h-11 bg-white dark:bg-surface-950 rounded-full flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border border-surface-200 dark:border-surface-800 text-surface-500" title="إرفاق ملف" aria-label="إرفاق ملف">
@@ -372,6 +390,8 @@ onUnmounted(() => {
                                 <!-- Text Input -->
                                 <input v-model="form.message" 
                                        type="text" 
+                                       minlength="1"
+                                       maxlength="2000"
                                        @keydown.enter.prevent="sendMessage"
                                        class="input flex-1 py-3 px-4 bg-white dark:bg-surface-950 rounded-full border border-surface-200 dark:border-surface-800" 
                                        placeholder="اكتب رسالتك هنا..." 
@@ -414,7 +434,7 @@ onUnmounted(() => {
                     <!-- Search Input -->
                     <div class="p-4 bg-surface-50 dark:bg-surface-850">
                         <div class="relative">
-                            <input v-model="searchStudentQuery" type="text" class="input w-full pr-10 pl-4 py-2 text-sm bg-white dark:bg-surface-950 rounded-xl" placeholder="البحث باسم الطالب أو المادة..." />
+                            <input v-model="searchStudentQuery" type="text" maxlength="100" class="input w-full pr-10 pl-4 py-2 text-sm bg-white dark:bg-surface-950 rounded-xl" placeholder="البحث باسم الطالب أو المادة..." />
                             <Icon name="search" class="w-4 h-4 text-surface-400 absolute right-3 top-3.5" />
                         </div>
                     </div>

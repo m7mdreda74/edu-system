@@ -8,8 +8,10 @@ use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Rules\AltafawwuqEmail;
+use App\Rules\PhoneNumber;
 use App\Services\AuditLogger;
 use App\Services\ImageUploadService;
+use App\Support\PhoneNumber as PhoneNumberValue;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -64,20 +66,21 @@ class UserController extends Controller
     {
         $request->merge([
             'email' => AltafawwuqEmail::normalize($request->input('email')),
-            'phone' => trim((string) $request->input('phone')),
-            'parent_phone' => trim((string) $request->input('parent_phone')),
+            'phone' => PhoneNumberValue::normalize($request->input('phone')),
+            'parent_phone' => PhoneNumberValue::normalize($request->input('parent_phone')),
         ]);
 
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'email'       => ['required', 'string', 'lowercase', 'email', 'max:255', new AltafawwuqEmail(), 'unique:users'],
-            'phone'       => ['required', 'string', 'max:20', 'unique:users'],
-            'parent_phone' => ['nullable', 'required_if:role,student', 'string', 'max:20', 'different:phone'],
-            'password'    => ['required', 'string', 'min:8'],
+            'phone'       => ['required', 'string', 'min:7', 'max:20', new PhoneNumber(), 'unique:users'],
+            'parent_phone' => ['exclude_unless:role,student', 'required', 'string', 'min:7', 'max:20', new PhoneNumber(), 'different:phone'],
+            'password'    => ['required', 'string', 'min:8', 'max:255'],
             'role'        => ['required', 'string', 'in:admin,teacher,student,parent'],
             'grade_level' => [
                 'required_if:role,student',
-                'nullable',
+                'exclude_unless:role,student',
+                'required',
                 Rule::exists('grade_levels', 'key')
                     ->where(fn ($query) => $query
                         ->where('is_active', true)
@@ -116,7 +119,7 @@ class UserController extends Controller
     public function resetPassword(Request $request, int $id): RedirectResponse
     {
         $validated = $request->validate([
-            'password' => ['required', Password::defaults(), 'confirmed'],
+            'password' => ['required', Password::defaults()->max(255), 'confirmed'],
         ]);
 
         $user = User::findOrFail($id);

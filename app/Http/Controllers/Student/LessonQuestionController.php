@@ -39,9 +39,9 @@ class LessonQuestionController extends Controller
         Gate::authorize('watch', $material);
 
         $validated = $request->validate([
-            'content'         => ['required', 'string', 'max:2000'],
-            'video_timestamp' => ['nullable', 'integer', 'min:0'],
-            'parent_id'       => ['nullable', 'integer', 'exists:lesson_questions,id'],
+            'content'         => ['required', 'string', 'min:2', 'max:2000'],
+            'video_timestamp' => ['nullable', 'integer', 'min:0', 'max:86400'],
+            'parent_id'       => ['nullable', 'integer', 'min:1', 'exists:lesson_questions,id'],
         ]);
 
         if ($validated['parent_id'] ?? null) {

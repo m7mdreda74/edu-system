@@ -30,7 +30,11 @@ class TeachingGroupController extends Controller
 
     public function index(Request $request): Response
     {
-        $filters = $request->only(['search', 'status', 'term']);
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', 'string', 'in:active,inactive,full'],
+            'term' => ['nullable', 'integer', 'min:1', 'exists:academic_terms,id'],
+        ]);
 
         $groups = TeachingGroup::with([
             'assignment.teacher:id,name,avatar',
@@ -117,9 +121,9 @@ class TeachingGroupController extends Controller
     public function storeAssignment(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'teacher_id' => ['required', 'integer', 'exists:users,id'],
-            'subject_id' => ['required', 'integer', 'exists:subjects,id'],
-            'grade_level_id' => ['required', 'integer', 'exists:grade_levels,id'],
+            'teacher_id' => ['required', 'integer', 'min:1', 'exists:users,id'],
+            'subject_id' => ['required', 'integer', 'min:1', 'exists:subjects,id'],
+            'grade_level_id' => ['required', 'integer', 'min:1', 'exists:grade_levels,id'],
             'accepts_private' => ['nullable', 'boolean'],
             'private_monthly_price_qar' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
         ]);
@@ -192,8 +196,8 @@ class TeachingGroupController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'teaching_assignment_id' => ['required', 'integer', 'exists:teaching_assignments,id'],
-            'academic_term_id' => ['nullable', 'integer', 'exists:academic_terms,id'],
+            'teaching_assignment_id' => ['required', 'integer', 'min:1', 'exists:teaching_assignments,id'],
+            'academic_term_id' => ['nullable', 'integer', 'min:1', 'exists:academic_terms,id'],
             'name' => ['required', 'string', 'max:100'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'monthly_price_qar' => ['required', 'numeric', 'min:0', 'max:1000000'],
@@ -236,7 +240,7 @@ class TeachingGroupController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'capacity' => ['required', 'integer', 'min:1', 'max:1000'],
             'monthly_price_qar' => ['required', 'numeric', 'min:0', 'max:1000000'],
-            'academic_term_id' => ['nullable', 'integer', 'exists:academic_terms,id'],
+            'academic_term_id' => ['nullable', 'integer', 'min:1', 'exists:academic_terms,id'],
             'is_active' => ['required', 'boolean'],
         ]);
 

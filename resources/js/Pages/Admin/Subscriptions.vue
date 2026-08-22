@@ -91,7 +91,7 @@ async function cancel(id) {
 
             <!-- Filters -->
             <div class="card p-4 flex flex-wrap gap-3">
-                <input v-model="search" type="text" class="input flex-1 min-w-[200px]" placeholder="ابحث باسم أو بريد الطالب..." />
+                <input v-model="search" type="text" maxlength="100" class="input flex-1 min-w-[200px]" placeholder="ابحث باسم أو بريد الطالب..." />
 
                 <select v-model="status" class="input w-auto">
                     <option value="">كل الحالات</option>

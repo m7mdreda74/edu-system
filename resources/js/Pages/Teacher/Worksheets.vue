@@ -45,7 +45,27 @@ function openAddModal() {
 }
 
 function handleFileUpload(e) {
-    form.file = e.target.files[0];
+    const file = e.target.files?.[0] ?? null;
+    const allowedTypes = new Set([
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/zip',
+        'image/png',
+        'image/jpeg',
+    ]);
+
+    if (file && (!allowedTypes.has(file.type) || file.size > 10 * 1024 * 1024)) {
+        form.file = null;
+        e.target.value = '';
+        form.setError('file', 'نوع الملف أو حجمه غير مسموح. الحد الأقصى 10 ميجابايت.');
+        return;
+    }
+
+    form.file = file;
+    form.clearErrors('file');
 }
 
 function submitWorksheet() {
@@ -249,7 +269,7 @@ function submitGrade(subId, maxScore) {
                         <form @submit.prevent="submitWorksheet" class="space-y-4">
                             <div>
                                 <label class="label mb-1">العنوان</label>
-                                <input v-model="form.title" type="text" required class="input" placeholder="مثال: واجب الدرس الأول - المصفوفات" />
+                                <input v-model="form.title" type="text" minlength="3" maxlength="255" required class="input" placeholder="مثال: واجب الدرس الأول - المصفوفات" />
                             </div>
 
                             <div>
@@ -280,13 +300,13 @@ function submitGrade(subId, maxScore) {
                                 </div>
                                 <div>
                                     <label class="label mb-1">الدرجة الكبرى</label>
-                                    <input v-model="form.max_score" type="number" required class="input" />
+                                    <input v-model="form.max_score" type="number" min="1" max="1000" required class="input" />
                                 </div>
                             </div>
 
                             <div>
                                 <label class="label mb-1">ملف الشيت (PDF/Word/صورة)</label>
-                                <input type="file" required @change="handleFileUpload" class="input py-2" />
+                                <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" required @change="handleFileUpload" class="input py-2" />
                             </div>
 
                             <div class="flex gap-3 pt-4">

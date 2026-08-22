@@ -105,10 +105,10 @@ class QuizController extends Controller
         $this->authorizeAccess($user, $quiz);
 
         $validated = $request->validate([
-            'attempt_id'          => ['required', 'integer'],
-            'answers'             => ['required', 'array'],
-            'answers.*'           => ['array'],
-            'answers.*.*'         => ['integer'],
+            'attempt_id'          => ['required', 'integer', 'min:1'],
+            'answers'             => ['required', 'array', 'max:200'],
+            'answers.*'           => ['array', 'max:6'],
+            'answers.*.*'         => ['integer', 'min:1'],
         ]);
 
         $attempt = \App\Domain\Quiz\Models\QuizAttempt::where('id', $validated['attempt_id'])
@@ -149,7 +149,7 @@ class QuizController extends Controller
         $this->authorizeAccess($user, $quiz);
 
         $validated = $request->validate([
-            'attempt_id' => ['required', 'integer'],
+            'attempt_id' => ['required', 'integer', 'min:1'],
         ]);
 
         $attempt = \App\Domain\Quiz\Models\QuizAttempt::where('id', $validated['attempt_id'])

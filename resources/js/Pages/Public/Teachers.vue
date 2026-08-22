@@ -71,6 +71,7 @@ const filteredTeachers = computed(() => {
                         <input
                             v-model="search"
                             type="search"
+                            maxlength="100"
                             placeholder="ابحث باسم المعلم أو المادة أو الصف..."
                             class="input w-full pe-10"
                         />

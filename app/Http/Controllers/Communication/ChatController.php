@@ -84,10 +84,10 @@ class ChatController extends Controller
     public function startConversation(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'kind'                   => ['nullable', 'in:academic,support'],
-            'teaching_assignment_id' => ['nullable', 'required_unless:kind,support', 'exists:teaching_assignments,id'],
-            'student_id'             => ['nullable', 'exists:users,id'],
-            'recipient_id'           => ['nullable', 'exists:users,id'],
+            'kind'                   => ['nullable', 'string', 'in:academic,support'],
+            'teaching_assignment_id' => ['nullable', 'required_unless:kind,support', 'integer', 'min:1', 'exists:teaching_assignments,id'],
+            'student_id'             => ['nullable', 'integer', 'min:1', 'exists:users,id'],
+            'recipient_id'           => ['nullable', 'integer', 'min:1', 'exists:users,id'],
         ]);
 
         /** @var \App\Domain\User\Models\User $user */
@@ -191,8 +191,8 @@ class ChatController extends Controller
     public function sendMessage(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'conversation_id' => ['required', 'exists:conversations,id'],
-            'message'         => ['nullable', 'required_without:attachment', 'string', 'max:2000'],
+            'conversation_id' => ['required', 'integer', 'min:1', 'exists:conversations,id'],
+            'message'         => ['nullable', 'required_without:attachment', 'string', 'min:1', 'max:2000'],
             'attachment'      => [
                 'nullable',
                 'required_without:message',
@@ -234,8 +234,8 @@ class ChatController extends Controller
     public function fetchMessages(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'conversation_id' => ['required', 'exists:conversations,id'],
-            'last_message_id' => ['nullable', 'integer'],
+            'conversation_id' => ['required', 'integer', 'min:1', 'exists:conversations,id'],
+            'last_message_id' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $user         = Auth::user();

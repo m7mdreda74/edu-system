@@ -25,7 +25,7 @@ class UpdateCurriculumLessonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title'            => ['sometimes', 'required', 'string', 'max:255'],
+            'title'            => ['sometimes', 'required', 'string', 'min:3', 'max:255'],
             'video_url'        => ['sometimes', 'nullable', 'url', 'max:2048'],
             'duration_seconds' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:86400'],
             'description'      => ['sometimes', 'nullable', 'string', 'max:2000'],

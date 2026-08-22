@@ -23,6 +23,26 @@ const form = useForm({
     attachment: null,
 });
 
+function onAttachmentChange(event) {
+    const file = event.target.files?.[0] ?? null;
+    const allowedTypes = new Set([
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/zip',
+    ]);
+
+    if (file && (!allowedTypes.has(file.type) || file.size > 20 * 1024 * 1024)) {
+        form.attachment = null;
+        event.target.value = '';
+        form.setError('attachment', 'نوع الملف أو حجمه غير مسموح. الحد الأقصى 20 ميجابايت.');
+        return;
+    }
+
+    form.attachment = file;
+    form.clearErrors('attachment');
+}
+
 function submit() {
     form.post(route('teacher.materials.store', { groupId: props.group.id }), {
         forceFormData: true,
@@ -91,35 +111,35 @@ function formatDuration(seconds) {
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
                         <label for="title" class="input-label">العنوان</label>
-                        <input id="title" v-model="form.title" type="text" class="input" required />
+                        <input id="title" v-model="form.title" type="text" minlength="3" maxlength="255" class="input" required />
                         <p v-if="form.errors.title" class="text-xs text-red-500 mt-1">{{ form.errors.title }}</p>
                     </div>
 
                     <div>
                         <label for="video_url" class="input-label">رابط الفيديو</label>
-                        <input id="video_url" v-model="form.video_url" type="url" class="input" dir="ltr" placeholder="https://..." />
+                        <input id="video_url" v-model="form.video_url" type="url" maxlength="2048" class="input" dir="ltr" placeholder="https://..." />
                         <p v-if="form.errors.video_url" class="text-xs text-red-500 mt-1">{{ form.errors.video_url }}</p>
                     </div>
 
                     <div>
                         <label for="duration" class="input-label">المدة (بالثواني)</label>
-                        <input id="duration" v-model.number="form.duration_seconds" type="number" min="0" class="input" />
+                        <input id="duration" v-model.number="form.duration_seconds" type="number" min="0" max="86400" class="input" />
                         <p class="input-hint">تُستخدم لحساب تقدّم الطالب تلقائياً.</p>
                     </div>
 
                     <div>
                         <label for="order" class="input-label">الترتيب</label>
-                        <input id="order" v-model.number="form.order" type="number" min="1" class="input" placeholder="تلقائي" />
+                        <input id="order" v-model.number="form.order" type="number" min="1" max="999" class="input" placeholder="تلقائي" />
                     </div>
 
                     <div>
                         <label for="attachment" class="input-label">ملف مرفق</label>
-                        <input id="attachment" type="file" class="input" @input="form.attachment = $event.target.files[0]" />
+                        <input id="attachment" type="file" accept=".pdf,.docx,.pptx,.zip,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip" class="input" @change="onAttachmentChange" />
                     </div>
 
                     <div class="sm:col-span-2">
                         <label for="description" class="input-label">الوصف</label>
-                        <textarea id="description" v-model="form.description" rows="3" class="input"></textarea>
+                        <textarea id="description" v-model="form.description" rows="3" maxlength="2000" class="input"></textarea>
                     </div>
 
                     <label class="sm:col-span-2 flex items-center gap-2 text-sm text-surface-600 dark:text-surface-300">

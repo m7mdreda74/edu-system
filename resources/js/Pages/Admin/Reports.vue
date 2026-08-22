@@ -124,7 +124,7 @@ const printFilterSummary = computed(() => {
                 </div>
                 <div>
                     <label class="input-label">إلى تاريخ</label>
-                    <input name="end_date" type="date" class="input" :value="filters.end_date || ''" />
+                    <input name="end_date" type="date" class="input" :min="filters.start_date || undefined" :value="filters.end_date || ''" />
                 </div>
                 <div>
                     <label class="input-label">المدرس</label>

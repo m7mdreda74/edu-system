@@ -47,9 +47,9 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'settings' => ['required', 'array', 'max:100'],
-            'settings.*.id' => ['nullable', 'integer'],
+            'settings.*.id' => ['nullable', 'integer', 'min:1'],
             'settings.*.key' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{1,63}$/', 'distinct'],
-            'settings.*.value' => ['nullable', 'string'],
+            'settings.*.value' => ['nullable', 'string', 'max:100000'],
             'settings.*.type' => ['required', 'string', 'in:string,integer,boolean'],
         ]);
 
@@ -171,6 +171,7 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'settings' => ['required', 'array', 'max:100'],
+            'settings.*' => ['nullable', 'string', 'max:100000'],
         ]);
 
         $incoming = collect($validated['settings']);

@@ -112,7 +112,7 @@ async function approveAll() {
                     </button>
                 </div>
 
-                <input v-model="search" type="text" class="input flex-1 min-w-[200px]" placeholder="ابحث باسم المعلم أو الطالب..." />
+                <input v-model="search" type="text" maxlength="100" class="input flex-1 min-w-[200px]" placeholder="ابحث باسم المعلم أو الطالب..." />
             </div>
 
             <!-- List -->

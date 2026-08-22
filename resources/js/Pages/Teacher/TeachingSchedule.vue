@@ -14,6 +14,14 @@ const scheduleDrafts = ref({});
 const freeSlotDrafts = ref({});
 const privateSlotDrafts = ref({});
 
+function localDateTimeValue(date = new Date()) {
+    const pad = (value) => String(value).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+const minSlotDateTime = localDateTimeValue();
+
 watch(() => props.assignments, (assignments) => {
     assignments.flatMap((item) => item.groups || []).forEach((group) => {
         lessonDrafts.value[group.id] ??= { title: '', description: '' };
@@ -155,8 +163,8 @@ function formatDate(value) {
                     </div>
 
                     <form class="grid md:grid-cols-3 gap-3" @submit.prevent="publishFreeSlot(assignment.id)">
-                        <input v-model="freeSlotDrafts[assignment.id].starts_at" type="datetime-local" class="input" required />
-                        <input v-model="freeSlotDrafts[assignment.id].ends_at" type="datetime-local" class="input" required />
+                        <input v-model="freeSlotDrafts[assignment.id].starts_at" type="datetime-local" :min="minSlotDateTime" class="input" required />
+                        <input v-model="freeSlotDrafts[assignment.id].ends_at" type="datetime-local" :min="minSlotDateTime" class="input" required />
                         <button type="submit" class="btn-accent">نشر الموعد المجاني</button>
                     </form>
 
@@ -191,8 +199,8 @@ function formatDate(value) {
                     </div>
 
                     <form class="grid md:grid-cols-3 gap-3" @submit.prevent="publishPrivateSlot(assignment.id)">
-                        <input v-model="privateSlotDrafts[assignment.id].starts_at" type="datetime-local" class="input" required />
-                        <input v-model="privateSlotDrafts[assignment.id].ends_at" type="datetime-local" class="input" required />
+                        <input v-model="privateSlotDrafts[assignment.id].starts_at" type="datetime-local" :min="minSlotDateTime" class="input" required />
+                        <input v-model="privateSlotDrafts[assignment.id].ends_at" type="datetime-local" :min="minSlotDateTime" class="input" required />
                         <button type="submit" class="btn-primary">نشر موعد برايفيت</button>
                     </form>
 
@@ -296,8 +304,8 @@ function formatDate(value) {
                         </div>
 
                         <form class="grid md:grid-cols-4 gap-3" @submit.prevent="addLesson(group.id)">
-                            <input v-model="lessonDrafts[group.id].title" class="input md:col-span-2" placeholder="عنوان الحصة" required />
-                            <input v-model="lessonDrafts[group.id].description" class="input" placeholder="ملاحظات أكاديمية" />
+                            <input v-model="lessonDrafts[group.id].title" class="input md:col-span-2" minlength="3" maxlength="255" placeholder="عنوان الحصة" required />
+                            <input v-model="lessonDrafts[group.id].description" class="input" maxlength="2000" placeholder="ملاحظات أكاديمية" />
                                 <button type="submit" class="btn-outline">+ إضافة للخطة</button>
                         </form>
                     </div>

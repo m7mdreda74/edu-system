@@ -298,27 +298,27 @@ function addAboutPillar() {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="md:col-span-2">
                                 <label class="label mb-1 block">الشارة أعلى العنوان الرئيسي</label>
-                                <input v-model="form.home_hero_badge" type="text" class="input text-xs w-full">
+                                <input v-model="form.home_hero_badge" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">العنوان العريض الأول</label>
-                                <input v-model="form.home_hero_title" type="text" class="input text-xs w-full">
+                                <input v-model="form.home_hero_title" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">العنوان الفرعي الثاني</label>
-                                <input v-model="form.home_hero_subtitle" type="text" class="input text-xs w-full">
+                                <input v-model="form.home_hero_subtitle" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div class="md:col-span-2">
                                 <label class="label mb-1 block">نص الوصف والتحفيز</label>
-                                <textarea v-model="form.home_hero_desc" rows="3" class="input text-xs w-full"></textarea>
+                                <textarea v-model="form.home_hero_desc" rows="3" maxlength="10000" class="input text-xs w-full"></textarea>
                             </div>
                             <div>
                                 <label class="label mb-1 block">نص الزر الأول (ابدأ الآن)</label>
-                                <input v-model="form.home_hero_btn1" type="text" class="input text-xs w-full">
+                                <input v-model="form.home_hero_btn1" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">نص الزر الثاني (إنشاء حساب)</label>
-                                <input v-model="form.home_hero_btn2" type="text" class="input text-xs w-full">
+                                <input v-model="form.home_hero_btn2" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                         </div>
                     </div>
@@ -341,7 +341,7 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div class="md:col-span-2">
                                         <label class="label mb-1 block text-[10px]">العنوان</label>
-                                        <input v-model="feat.title" type="text" class="input text-xs w-full">
+                                        <input v-model="feat.title" type="text" maxlength="255" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label mb-1 block text-[10px]">الأيقونة</label>
@@ -354,7 +354,7 @@ function addAboutPillar() {
                                     </div>
                                     <div class="md:col-span-3">
                                         <label class="label mb-1 block text-[10px]">الوصف</label>
-                                        <textarea v-model="feat.desc" rows="2" class="input text-xs w-full"></textarea>
+                                        <textarea v-model="feat.desc" rows="2" maxlength="1000" class="input text-xs w-full"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -379,19 +379,19 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label class="label mb-1 block text-[10px]">اسم الطالب</label>
-                                        <input v-model="res.name" type="text" class="input text-xs w-full">
+                                        <input v-model="res.name" type="text" maxlength="255" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label mb-1 block text-[10px]">الدفعة والفصل</label>
-                                        <input v-model="res.title" type="text" class="input text-xs w-full" placeholder="دفعة ٢٠٢٦">
+                                        <input v-model="res.title" type="text" maxlength="255" class="input text-xs w-full" placeholder="دفعة ٢٠٢٦">
                                     </div>
                                     <div>
                                         <label class="label mb-1 block text-[10px]">الصف الدراسي</label>
-                                        <input v-model="res.grade" type="text" class="input text-xs w-full" placeholder="الصف الثاني عشر">
+                                        <input v-model="res.grade" type="text" maxlength="100" class="input text-xs w-full" placeholder="الصف الثاني عشر">
                                     </div>
                                     <div class="md:col-span-3">
                                         <label class="label mb-1 block text-[10px]">نص الإشادة والتفوق</label>
-                                        <textarea v-model="res.desc" rows="2" class="input text-xs w-full"></textarea>
+                                        <textarea v-model="res.desc" rows="2" maxlength="1000" class="input text-xs w-full"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -416,7 +416,7 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div class="md:col-span-2">
                                         <label class="label mb-1 block text-[10px]">العنوان</label>
-                                        <input v-model="item.title" type="text" class="input text-xs w-full">
+                                        <input v-model="item.title" type="text" maxlength="255" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label mb-1 block text-[10px]">الأيقونة</label>
@@ -431,7 +431,7 @@ function addAboutPillar() {
                                     </div>
                                     <div class="md:col-span-3">
                                         <label class="label mb-1 block text-[10px]">الوصف</label>
-                                        <textarea v-model="item.desc" rows="2" class="input text-xs w-full"></textarea>
+                                        <textarea v-model="item.desc" rows="2" maxlength="1000" class="input text-xs w-full"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -463,15 +463,15 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="md:col-span-2">
                                         <label class="label mb-1 block text-[10px]">عنوان الفيديو الرئيسي</label>
-                                        <input v-model="vid.title" type="text" class="input text-xs w-full">
+                                        <input v-model="vid.title" type="text" maxlength="255" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label mb-1 block text-[10px]">رابط الفيديو (Link)</label>
-                                        <input v-model="vid.url" type="text" dir="ltr" class="input text-xs w-full">
+                                        <input v-model="vid.url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label mb-1 block text-[10px]">رابط الصورة المصغرة (Thumbnail Image)</label>
-                                        <input v-model="vid.thumbnail" type="text" dir="ltr" class="input text-xs w-full">
+                                        <input v-model="vid.thumbnail" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                                     </div>
                                 </div>
                             </div>
@@ -496,11 +496,11 @@ function addAboutPillar() {
                                 <div class="space-y-3">
                                     <div>
                                         <label class="label mb-1 block text-[10px]">السؤال</label>
-                                        <input v-model="faq.q" type="text" class="input text-xs w-full">
+                                        <input v-model="faq.q" type="text" maxlength="500" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label mb-1 block text-[10px]">الإجابة</label>
-                                        <textarea v-model="faq.a" rows="3" class="input text-xs w-full"></textarea>
+                                        <textarea v-model="faq.a" rows="3" maxlength="2000" class="input text-xs w-full"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -513,15 +513,15 @@ function addAboutPillar() {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="md:col-span-2">
                                 <label class="label mb-1 block">العنوان العريض للبانر</label>
-                                <input v-model="form.home_cta_title" type="text" class="input text-xs w-full">
+                                <input v-model="form.home_cta_title" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div class="md:col-span-2">
                                 <label class="label mb-1 block">نص الوصف المصاحب</label>
-                                <textarea v-model="form.home_cta_desc" rows="2" class="input text-xs w-full"></textarea>
+                                <textarea v-model="form.home_cta_desc" rows="2" maxlength="10000" class="input text-xs w-full"></textarea>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="label mb-1 block">نص زر الإجراء (إنشاء حساب)</label>
-                                <input v-model="form.home_cta_btn" type="text" class="input text-xs w-full">
+                                <input v-model="form.home_cta_btn" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                         </div>
                     </div>
@@ -534,15 +534,15 @@ function addAboutPillar() {
                         <div class="grid grid-cols-1 gap-4">
                             <div>
                                 <label class="label mb-1 block">شارة الصفحة العلوية (Badge)</label>
-                                <input v-model="form.about_badge" type="text" class="input text-xs w-full" placeholder="منصتكم التعليمية الأولى">
+                                <input v-model="form.about_badge" type="text" maxlength="10000" class="input text-xs w-full" placeholder="منصتكم التعليمية الأولى">
                             </div>
                             <div>
                                 <label class="label mb-1 block">عنوان الصفحة الرئيسي</label>
-                                <input v-model="form.about_title" type="text" class="input text-xs w-full">
+                                <input v-model="form.about_title" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">نص المقدمة والتعريف</label>
-                                <textarea v-model="form.about_desc" rows="4" class="input text-xs w-full"></textarea>
+                                <textarea v-model="form.about_desc" rows="4" maxlength="10000" class="input text-xs w-full"></textarea>
                             </div>
                         </div>
                     </div>
@@ -565,7 +565,7 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div class="md:col-span-2">
                                         <label class="label mb-1 block text-[10px]">العنوان</label>
-                                        <input v-model="val.title" type="text" class="input text-xs w-full">
+                                        <input v-model="val.title" type="text" maxlength="255" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label mb-1 block text-[10px]">الأيقونة</label>
@@ -576,7 +576,7 @@ function addAboutPillar() {
                                     </div>
                                     <div class="md:col-span-3">
                                         <label class="label mb-1 block text-[10px]">الوصف والتفاصيل</label>
-                                        <textarea v-model="val.desc" rows="2" class="input text-xs w-full"></textarea>
+                                        <textarea v-model="val.desc" rows="2" maxlength="1000" class="input text-xs w-full"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -601,11 +601,11 @@ function addAboutPillar() {
                                 <div class="space-y-3">
                                     <div>
                                         <label class="label mb-1 block text-[10px]">العنوان الرئيسي</label>
-                                        <input v-model="pillar.title" type="text" class="input text-xs w-full">
+                                        <input v-model="pillar.title" type="text" maxlength="255" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label mb-1 block text-[10px]">الوصف التوضيحي</label>
-                                        <textarea v-model="pillar.desc" rows="2" class="input text-xs w-full"></textarea>
+                                        <textarea v-model="pillar.desc" rows="2" maxlength="1000" class="input text-xs w-full"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -620,15 +620,15 @@ function addAboutPillar() {
                         <div class="grid grid-cols-1 gap-4">
                             <div>
                                 <label class="label mb-1 block">شارة التطبيقات العلوية (Badge)</label>
-                                <input v-model="form.app_badge" type="text" class="input text-xs w-full">
+                                <input v-model="form.app_badge" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">عنوان الصفحة الرئيسي</label>
-                                <input v-model="form.app_title" type="text" class="input text-xs w-full">
+                                <input v-model="form.app_title" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">الوصف والنص الإرشادي</label>
-                                <textarea v-model="form.app_desc" rows="3" class="input text-xs w-full"></textarea>
+                                <textarea v-model="form.app_desc" rows="3" maxlength="10000" class="input text-xs w-full"></textarea>
                             </div>
                         </div>
                     </div>
@@ -639,23 +639,23 @@ function addAboutPillar() {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="label mb-1 block">رابط تطبيق ويندوز (Windows)</label>
-                                <input v-model="form.app_win_url" type="text" dir="ltr" class="input text-xs w-full">
+                                <input v-model="form.app_win_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">رابط تطبيق ماك (macOS)</label>
-                                <input v-model="form.app_mac_url" type="text" dir="ltr" class="input text-xs w-full">
+                                <input v-model="form.app_mac_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">رابط تطبيق آيفون/آيباد (iOS)</label>
-                                <input v-model="form.app_ios_url" type="text" dir="ltr" class="input text-xs w-full">
+                                <input v-model="form.app_ios_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">رابط تطبيق أندرويد (Google Play)</label>
-                                <input v-model="form.app_android_url" type="text" dir="ltr" class="input text-xs w-full">
+                                <input v-model="form.app_android_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                             </div>
                             <div class="md:col-span-2">
                                 <label class="label mb-1 block">رابط تطبيق هواوي (AppGallery)</label>
-                                <input v-model="form.app_huawei_url" type="text" dir="ltr" class="input text-xs w-full">
+                                <input v-model="form.app_huawei_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                             </div>
                         </div>
                     </div>
@@ -668,23 +668,23 @@ function addAboutPillar() {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="label mb-1 block">شارة الاتصال العلوية (Badge)</label>
-                                <input v-model="form.contact_badge" type="text" class="input text-xs w-full">
+                                <input v-model="form.contact_badge" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">العنوان الرئيسي للصفحة</label>
-                                <input v-model="form.contact_title" type="text" class="input text-xs w-full">
+                                <input v-model="form.contact_title" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">البريد الإلكتروني للدعم</label>
-                                <input v-model="form.contact_email" type="email" dir="ltr" class="input text-xs w-full">
+                                <input v-model="form.contact_email" type="email" maxlength="255" dir="ltr" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">رقم هاتف الاتصال المباشر</label>
-                                <input v-model="form.contact_phone" type="text" dir="ltr" class="input text-xs w-full">
+                                <input v-model="form.contact_phone" type="text" maxlength="25" dir="ltr" class="input text-xs w-full">
                             </div>
                             <div class="md:col-span-2">
                                 <label class="label mb-1 block">رابط المحادثة المباشرة على واتساب (WhatsApp URL)</label>
-                                <input v-model="form.whatsapp_url" type="text" dir="ltr" class="input text-xs w-full" placeholder="https://wa.me/...">
+                                <input v-model="form.whatsapp_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full" placeholder="https://wa.me/...">
                             </div>
                         </div>
                     </div>
@@ -702,15 +702,15 @@ function addAboutPillar() {
                             </div>
                             <div>
                                 <label class="label mb-1 block">عنوان النافذة الترحيبية العريض</label>
-                                <input v-model="form.welcome_popup_title" type="text" class="input text-xs w-full">
+                                <input v-model="form.welcome_popup_title" type="text" maxlength="10000" class="input text-xs w-full">
                             </div>
                             <div>
                                 <label class="label mb-1 block">اسم رابط الدليل السفلي</label>
-                                <input v-model="form.welcome_popup_bottom_label" type="text" class="input text-xs w-full" placeholder="للمزيد الإطلاع على دليل المستخدم">
+                                <input v-model="form.welcome_popup_bottom_label" type="text" maxlength="10000" class="input text-xs w-full" placeholder="للمزيد الإطلاع على دليل المستخدم">
                             </div>
                             <div>
                                 <label class="label mb-1 block">عنوان رابط الدليل السفلي (URL)</label>
-                                <input v-model="form.welcome_popup_bottom_url" type="text" dir="ltr" class="input text-xs w-full">
+                                <input v-model="form.welcome_popup_bottom_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                             </div>
                         </div>
                     </div>
@@ -725,11 +725,11 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="label text-[10px] mb-1 block">اسم البطاقة</label>
-                                        <input v-model="form.welcome_popup_item1_label" type="text" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item1_label" type="text" maxlength="10000" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label text-[10px] mb-1 block">رابط التوجيه أو رابط الفيديو التوضيحي</label>
-                                        <input v-model="form.welcome_popup_item1_url" type="text" dir="ltr" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item1_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                                     </div>
                                 </div>
                             </div>
@@ -739,11 +739,11 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="label text-[10px] mb-1 block">اسم البطاقة</label>
-                                        <input v-model="form.welcome_popup_item2_label" type="text" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item2_label" type="text" maxlength="10000" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label text-[10px] mb-1 block">رابط التوجيه أو رابط الفيديو التوضيحي</label>
-                                        <input v-model="form.welcome_popup_item2_url" type="text" dir="ltr" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item2_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                                     </div>
                                 </div>
                             </div>
@@ -753,11 +753,11 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="label text-[10px] mb-1 block">اسم البطاقة</label>
-                                        <input v-model="form.welcome_popup_item3_label" type="text" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item3_label" type="text" maxlength="10000" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label text-[10px] mb-1 block">رابط التوجيه أو رابط الفيديو التوضيحي</label>
-                                        <input v-model="form.welcome_popup_item3_url" type="text" dir="ltr" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item3_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                                     </div>
                                 </div>
                             </div>
@@ -767,11 +767,11 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="label text-[10px] mb-1 block">اسم البطاقة</label>
-                                        <input v-model="form.welcome_popup_item4_label" type="text" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item4_label" type="text" maxlength="10000" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label text-[10px] mb-1 block">رابط التوجيه أو رابط الفيديو التوضيحي</label>
-                                        <input v-model="form.welcome_popup_item4_url" type="text" dir="ltr" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item4_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                                     </div>
                                 </div>
                             </div>
@@ -781,11 +781,11 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="label text-[10px] mb-1 block">اسم البطاقة</label>
-                                        <input v-model="form.welcome_popup_item5_label" type="text" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item5_label" type="text" maxlength="10000" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label text-[10px] mb-1 block">رابط التوجيه أو رابط الفيديو التوضيحي</label>
-                                        <input v-model="form.welcome_popup_item5_url" type="text" dir="ltr" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item5_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                                     </div>
                                 </div>
                             </div>
@@ -795,11 +795,11 @@ function addAboutPillar() {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="label text-[10px] mb-1 block">اسم البطاقة</label>
-                                        <input v-model="form.welcome_popup_item6_label" type="text" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item6_label" type="text" maxlength="10000" class="input text-xs w-full">
                                     </div>
                                     <div>
                                         <label class="label text-[10px] mb-1 block">رابط التوجيه أو رابط الفيديو التوضيحي</label>
-                                        <input v-model="form.welcome_popup_item6_url" type="text" dir="ltr" class="input text-xs w-full">
+                                        <input v-model="form.welcome_popup_item6_url" type="text" dir="ltr" maxlength="2048" class="input text-xs w-full">
                                     </div>
                                 </div>
                             </div>

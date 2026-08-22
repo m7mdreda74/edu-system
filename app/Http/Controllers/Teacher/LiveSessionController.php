@@ -131,11 +131,11 @@ class LiveSessionController extends Controller
     {
         $validated = $request->validate([
             'source_type' => ['required', 'in:group,private'],
-            'teaching_group_id' => ['nullable', 'integer', 'exists:teaching_groups,id'],
-            'private_session_slot_id' => ['nullable', 'integer', 'exists:private_session_slots,id'],
-            'scheduled_date' => ['nullable', 'date', 'after:today'],
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            'teaching_group_id' => ['exclude_unless:source_type,group', 'required', 'integer', 'min:1', 'exists:teaching_groups,id'],
+            'private_session_slot_id' => ['exclude_unless:source_type,private', 'required', 'integer', 'min:1', 'exists:private_session_slots,id'],
+            'scheduled_date' => ['exclude_unless:source_type,group', 'required', 'date', 'after:today'],
+            'title' => ['required', 'string', 'min:3', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
             // External meeting links were retired in favor of Jitsi rooms.
             'room_id' => ['prohibited'],
         ]);
@@ -467,8 +467,8 @@ class LiveSessionController extends Controller
         );
 
         $data = $request->validate([
-            'student_ids' => ['present', 'array'],
-            'student_ids.*' => ['integer', 'distinct', 'exists:users,id'],
+            'student_ids' => ['present', 'array', 'max:1000'],
+            'student_ids.*' => ['integer', 'min:1', 'distinct', 'exists:users,id'],
         ]);
 
         $eligibleIds = $this->eligibleStudents($session)->pluck('id');

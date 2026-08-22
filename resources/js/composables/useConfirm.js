@@ -13,6 +13,7 @@ export const confirmState = ref({
     variant: 'danger', // 'danger' | 'warning' | 'info'
     inputLabel: null,  // if set → shows a text input (replaces prompt())
     inputPlaceholder: '',
+    inputMaxLength: null,
     inputValue: '',
     resolve: null,
 });
@@ -31,6 +32,7 @@ export const confirmState = ref({
  * @param {string} [options.cancelLabel='إلغاء']
  * @param {string|null} [options.inputLabel=null]
  * @param {string} [options.inputPlaceholder='']
+ * @param {number|null} [options.inputMaxLength=null]
  */
 export function useConfirm() {
     function confirm(options = {}) {
@@ -44,6 +46,7 @@ export function useConfirm() {
                 variant: options.variant ?? 'danger',
                 inputLabel: options.inputLabel ?? null,
                 inputPlaceholder: options.inputPlaceholder ?? '',
+                inputMaxLength: options.inputMaxLength ?? null,
                 inputValue: '',
                 resolve,
             });

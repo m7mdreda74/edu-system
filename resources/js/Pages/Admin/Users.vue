@@ -200,7 +200,16 @@ function onMediaPicked(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const maxBytes = (mediaIsCover.value ? 8 : 4) * 1024 * 1024;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > maxBytes) {
+        mediaForm[mediaField.value] = null;
+        event.target.value = '';
+        mediaForm.setError(mediaField.value, 'Invalid image format or size.');
+        return;
+    }
+
     mediaForm[mediaField.value] = file;
+    mediaForm.clearErrors(mediaField.value);
     mediaPreview.value = URL.createObjectURL(file);
 }
 
@@ -265,6 +274,7 @@ async function removeMedia() {
                     v-model="search"
                     @input="debouncedSearch"
                     type="text"
+                    maxlength="100"
                     placeholder="بحث بالاسم أو الإيميل..."
                     class="input flex-1 min-w-48"
                     id="users-search"
@@ -418,12 +428,12 @@ async function removeMedia() {
                 </div>
                 <div>
                     <label class="input-label" for="admin-reset-password">كلمة المرور الجديدة</label>
-                    <input id="admin-reset-password" v-model="passwordForm.password" type="password" class="input" autocomplete="new-password" minlength="8" required />
+                    <input id="admin-reset-password" v-model="passwordForm.password" type="password" class="input" autocomplete="new-password" minlength="8" maxlength="255" required />
                     <p v-if="passwordForm.errors.password" class="error-msg">{{ passwordForm.errors.password }}</p>
                 </div>
                 <div>
                     <label class="input-label" for="admin-reset-password-confirmation">تأكيد كلمة المرور</label>
-                    <input id="admin-reset-password-confirmation" v-model="passwordForm.password_confirmation" type="password" class="input" autocomplete="new-password" minlength="8" required />
+                    <input id="admin-reset-password-confirmation" v-model="passwordForm.password_confirmation" type="password" class="input" autocomplete="new-password" minlength="8" maxlength="255" required />
                     <p v-if="passwordForm.errors.password_confirmation" class="error-msg">{{ passwordForm.errors.password_confirmation }}</p>
                 </div>
                 <div class="flex gap-2 justify-end">
@@ -513,7 +523,7 @@ async function removeMedia() {
                         <!-- Name -->
                         <div>
                             <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-name">الاسم الكامل</label>
-                            <input id="create-name" v-model="createForm.name" type="text" class="input w-full text-sm" placeholder="أدخل الاسم الكامل..." required />
+                            <input id="create-name" v-model="createForm.name" type="text" maxlength="255" class="input w-full text-sm" placeholder="أدخل الاسم الكامل..." required />
                             <p v-if="createForm.errors.name" class="text-red-500 text-xs mt-1">{{ createForm.errors.name }}</p>
                         </div>
 
@@ -521,7 +531,7 @@ async function removeMedia() {
                         <div>
                             <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-email">البريد الإلكتروني</label>
                             <div dir="ltr" class="flex items-center overflow-hidden rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-950">
-                                <input id="create-email" v-model="emailPrefix" type="text" class="min-w-0 flex-1 input border-0 rounded-none text-sm" placeholder="username" autocomplete="username" required />
+                                <input id="create-email" v-model="emailPrefix" type="text" maxlength="240" class="min-w-0 flex-1 input border-0 rounded-none text-sm" placeholder="username" autocomplete="username" required />
                                 <span class="shrink-0 px-3 text-xs font-bold text-primary-700 dark:text-primary-300">@altafawwuq.com</span>
                             </div>
                             <p class="text-surface-400 text-[11px] mt-1">نطاق البريد ثابت لحسابات المنصة.</p>
@@ -531,14 +541,14 @@ async function removeMedia() {
                         <!-- Phone -->
                         <div>
                             <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-phone">رقم الهاتف / الجوال</label>
-                            <input id="create-phone" v-model="createForm.phone" type="text" class="input w-full text-sm" placeholder="مثال: +97433554858" required />
+                            <input id="create-phone" v-model="createForm.phone" type="text" inputmode="tel" minlength="7" maxlength="20" class="input w-full text-sm" placeholder="مثال: +97433554858" required />
                             <p v-if="createForm.errors.phone" class="text-red-500 text-xs mt-1">{{ createForm.errors.phone }}</p>
                         </div>
 
                         <!-- Parent phone for Student -->
                         <div v-if="createForm.role === 'student'">
                             <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-parent-phone">رقم جوال ولي الأمر <span class="text-red-500">*</span></label>
-                            <input id="create-parent-phone" v-model="createForm.parent_phone" type="tel" inputmode="tel" class="input w-full text-sm" placeholder="نفس الرقم المسجل بحساب ولي الأمر" required />
+                            <input id="create-parent-phone" v-model="createForm.parent_phone" type="tel" inputmode="tel" minlength="7" maxlength="20" class="input w-full text-sm" placeholder="نفس الرقم المسجل بحساب ولي الأمر" required />
                             <p class="mt-1 text-[11px] text-surface-400">يُستخدم لربط الطالب مباشرة بحساب ولي الأمر.</p>
                             <p v-if="createForm.errors.parent_phone" class="text-red-500 text-xs mt-1">{{ createForm.errors.parent_phone }}</p>
                         </div>
@@ -546,7 +556,7 @@ async function removeMedia() {
                         <!-- Password -->
                         <div>
                             <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-password">كلمة المرور</label>
-                            <input id="create-password" v-model="createForm.password" type="password" class="input w-full text-sm" placeholder="••••••••" required />
+                            <input id="create-password" v-model="createForm.password" type="password" minlength="8" maxlength="255" class="input w-full text-sm" placeholder="••••••••" required />
                             <p v-if="createForm.errors.password" class="text-red-500 text-xs mt-1">{{ createForm.errors.password }}</p>
                         </div>
 

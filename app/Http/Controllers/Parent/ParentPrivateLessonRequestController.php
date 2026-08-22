@@ -23,7 +23,7 @@ class ParentPrivateLessonRequestController extends Controller
     public function store(Request $request, int $assignmentId): RedirectResponse
     {
         $validated = $request->validate([
-            'student_id' => ['required', 'integer', 'exists:users,id'],
+            'student_id' => ['required', 'integer', 'min:1', 'exists:users,id'],
         ]);
 
         try {
