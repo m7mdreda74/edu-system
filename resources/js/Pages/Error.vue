@@ -1,6 +1,14 @@
 <script setup>
 import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
+
+function goBack() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        router.visit(route('home'));
+    }
+}
 
 const props = defineProps({
     status: { type: Number, required: true },
@@ -83,7 +91,7 @@ const config = computed(() => ({
                     </svg>
                     العودة للرئيسية
                 </Link>
-                <button type="button" @click="history.back()" class="btn glass text-white border-white/30 hover:bg-white/20 btn-lg">
+                <button type="button" @click="goBack()" class="btn glass text-white border-white/30 hover:bg-white/20 btn-lg">
                     ← رجوع
                 </button>
             </div>
