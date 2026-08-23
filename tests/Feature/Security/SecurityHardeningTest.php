@@ -12,8 +12,11 @@ use App\Domain\Learning\Models\LessonQuestion;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Tests\TestCase;
 
 class SecurityHardeningTest extends TestCase
@@ -43,6 +46,44 @@ class SecurityHardeningTest extends TestCase
         $this->assertStringContainsString($jitsiOrigin, $contentSecurityPolicy);
 
         $this->assertArrayNotHasKey('version', $response->json());
+    }
+
+    public function test_inertia_shell_allows_only_nonce_authorized_inline_scripts(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertOk();
+        $contentSecurityPolicy = (string) $response->headers->get('Content-Security-Policy');
+        $html = (string) $response->getContent();
+
+        preg_match("/script-src[^;]*'nonce-([^']+)'/", $contentSecurityPolicy, $matches);
+        $this->assertArrayHasKey(1, $matches);
+        $nonce = $matches[1];
+
+        $this->assertStringNotContainsString("script-src 'self' 'unsafe-inline'", $contentSecurityPolicy);
+        $this->assertStringContainsString('<script nonce="'.$nonce.'">', $html);
+        $this->assertStringContainsString('<script type="text/javascript" nonce="'.$nonce.'">', $html);
+
+        preg_match_all('/<script\b(?:(?!\bsrc=)[^>])*?>/i', $html, $inlineScriptTags);
+        $this->assertNotEmpty($inlineScriptTags[0]);
+
+        foreach ($inlineScriptTags[0] as $inlineScriptTag) {
+            $this->assertStringContainsString('nonce="'.$nonce.'"', $inlineScriptTag);
+        }
+    }
+
+    public function test_production_audit_logging_fails_closed_when_the_table_is_missing(): void
+    {
+        $this->app->instance('env', 'production');
+        Schema::shouldReceive('hasTable')
+            ->once()
+            ->with('audit_events')
+            ->andReturnFalse();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Audit logging is unavailable');
+
+        AuditLogger::record('security.test');
     }
 
     public function test_public_production_migration_seed_endpoint_does_not_exist(): void

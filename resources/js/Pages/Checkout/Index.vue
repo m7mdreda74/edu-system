@@ -17,6 +17,7 @@ const couponCode     = ref('');
 const couponState    = ref({ status: 'idle', message: '', discountedPrice: null });
 const processing     = ref(false);
 const errorMessage   = ref('');
+const idempotencyKey = ref(null);
 const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
 const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
@@ -93,6 +94,11 @@ async function submit() {
 
     processing.value = true;
 
+    if (!idempotencyKey.value) {
+        idempotencyKey.value = globalThis.crypto?.randomUUID?.()
+            ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
     const formData = new FormData();
     formData.append('payment_method', 'vodafone_cash');
     formData.append('sender_phone', normalizedSenderPhone);
@@ -107,10 +113,16 @@ async function submit() {
         const res = await axios.post(
             route('checkout.process', { subscription: props.subscription.id }),
             formData,
-            { headers: { 'Content-Type': 'multipart/form-data' } },
+            {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'Idempotency-Key': idempotencyKey.value,
+                },
+            },
         );
 
         if (res.data.redirect_url) {
+            idempotencyKey.value = null;
             window.location.href = res.data.redirect_url;
         }
     } catch (e) {

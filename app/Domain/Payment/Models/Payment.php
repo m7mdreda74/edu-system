@@ -48,6 +48,7 @@ class Payment extends Model
         'status',
         'receipt_path',
         'receipt_sha256',
+        'idempotency_key',
         'paid_at',
         'purchase_request_id',
         'teacher_payout_id',

@@ -48,11 +48,19 @@ class CheckoutController extends Controller
 
     public function process(Request $request, int $subscriptionId): SymfonyResponse
     {
+        $idempotencyKey = trim((string) $request->header('Idempotency-Key'));
+
+        if ($idempotencyKey === '') {
+            $idempotencyKey = trim((string) $request->input('idempotency_key'));
+        }
+
         $request->merge([
             'sender_phone' => PhoneNumber::normalize($request->input('sender_phone')),
+            'idempotency_key' => $idempotencyKey,
         ]);
 
         $validated = $request->validate([
+            'idempotency_key' => ['required', 'string', 'min:16', 'max:64', 'regex:/^[A-Za-z0-9._:-]+$/'],
             'coupon_code'    => ['nullable', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
             'payment_method' => ['required', 'string', 'in:vodafone_cash'],
             'sender_phone'   => ['required', 'string', 'max:20', 'regex:/^(?:\+20|0020|0)1\d{9}$/'],
@@ -158,6 +166,26 @@ class CheckoutController extends Controller
                     ->lockForUpdate()
                     ->findOrFail($subscription->id);
 
+                $existingPayment = Payment::query()
+                    ->lockForUpdate()
+                    ->where('idempotency_key', $validated['idempotency_key'])
+                    ->first();
+
+                if ($existingPayment) {
+                    if (
+                        (int) $existingPayment->user_id !== (int) $lockedSubscription->student_id
+                        || (int) $existingPayment->subscription_id !== (int) $lockedSubscription->id
+                    ) {
+                        throw new LogicException('معرّف العملية مستخدم مع طلب دفع مختلف. ابدأ المحاولة من صفحة الدفع الحالية.');
+                    }
+
+                    if ($existingPayment->status === Payment::STATUS_FAILED) {
+                        throw new LogicException('تم رفض طلب الدفع المرتبط بهذه المحاولة. ابدأ طلب دفع جديدًا.');
+                    }
+
+                    return $existingPayment;
+                }
+
                 $lockedSubscription->loadMissing([
                     'assignment.gradeLevel:id,vodafone_cash_number',
                     'assignment.teacher:id,commission_percent',
@@ -228,6 +256,7 @@ class CheckoutController extends Controller
                     'status'          => Payment::STATUS_PENDING_VERIFICATION,
                     'receipt_path'    => $storedReceiptPath,
                     'receipt_sha256'  => $receiptHash,
+                    'idempotency_key' => $validated['idempotency_key'],
                     ]);
                 } catch (Throwable $e) {
                     if ($storedReceiptPath) {
@@ -241,11 +270,15 @@ class CheckoutController extends Controller
 
             $payment->load(['user', 'subscription']);
 
-            foreach (User::role('admin')->get() as $admin) {
-                $admin->notify(new \App\Domain\Communication\Notifications\ManualPaymentSubmittedNotification($payment));
+            if ($payment->wasRecentlyCreated) {
+                foreach (User::role('admin')->get() as $admin) {
+                    $admin->notify(new \App\Domain\Communication\Notifications\ManualPaymentSubmittedNotification($payment));
+                }
             }
 
-            $message = 'تم رفع الإيصال بنجاح. سيتم مراجعته وتفعيل الاشتراك خلال لحظات.';
+            $message = $payment->wasRecentlyCreated
+                ? 'تم رفع الإيصال بنجاح. سيتم مراجعته وتفعيل الاشتراك خلال لحظات.'
+                : 'تم استلام طلب التحويل مسبقًا، وهو قيد المراجعة بالفعل.';
 
             if ($request->wantsJson() || $request->ajax()) {
                 // The Vue checkout redirects after this JSON response. Flash the

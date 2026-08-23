@@ -8,6 +8,7 @@ use App\Models\AuditEvent;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
+use RuntimeException;
 
 final class AuditLogger
 {
@@ -22,10 +23,15 @@ final class AuditLogger
         ?Authenticatable $actorOverride = null,
     ): ?AuditEvent
     {
-        // This keeps older deployments bootable during a rolling migration. A
-        // production deploy must apply the audit_events migration before
-        // enabling sensitive mutations.
         if (! Schema::hasTable('audit_events')) {
+            // Local and test environments may boot before migrations run, but
+            // production must never silently lose security/audit evidence.
+            if (app()->environment('production')) {
+                throw new RuntimeException(
+                    'Audit logging is unavailable; apply the audit_events migration before enabling sensitive mutations.',
+                );
+            }
+
             return null;
         }
 

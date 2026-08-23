@@ -16,7 +16,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, dom, fileinfo, sqlite3, pdo_sqlite
+          extensions: mbstring, dom, fileinfo, sqlite3, pdo_sqlite, zip
           coverage: none
 
       - name: Install PHP dependencies
@@ -24,6 +24,15 @@ jobs:
 
       - name: Scan tracked files for secrets
         run: php scripts/scan-secrets.php
+
+      - name: Scan release archives for sensitive artifacts
+        shell: bash
+        run: |
+          if [ -z "$(find . -maxdepth 1 -type f -name '*.zip' -print -quit)" ]; then
+            echo "No release archives found."
+          else
+            find . -maxdepth 1 -type f -name '*.zip' -print0 | xargs -0 -n1 php scripts/scan-archive.php
+          fi
 
       - name: Run PHP tests
         env:

@@ -2,6 +2,7 @@
     $allowedSiteThemes = ['royal', 'ocean', 'emerald', 'violet'];
     $siteTheme = data_get($page, 'props.settings.site_theme', 'royal');
     $siteTheme = in_array($siteTheme, $allowedSiteThemes, true) ? $siteTheme : 'royal';
+    $cspNonce = request()->attributes->get('csp_nonce');
 @endphp
 <!DOCTYPE html>
 <html lang="ar" dir="rtl" data-site-theme="{{ $siteTheme }}">
@@ -13,7 +14,7 @@
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
         <!-- Theme Detection script to prevent screen flash -->
-        <script>
+        <script nonce="{{ $cspNonce }}">
             if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');
             } else {
@@ -27,7 +28,7 @@
         <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
 
         <!-- Scripts -->
-        @routes
+        @routes(null, $cspNonce)
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
         @inertiaHead
     </head>

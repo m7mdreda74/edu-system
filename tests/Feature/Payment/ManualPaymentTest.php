@@ -19,6 +19,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -59,6 +60,7 @@ beforeEach(function (): void {
 function vodafoneCashPayload(array $overrides = []): array
 {
     return array_merge([
+        'idempotency_key' => (string) Str::uuid(),
         'payment_method' => Payment::GATEWAY_VODAFONE_CASH,
         'sender_phone' => '01009876543',
         'receipt' => UploadedFile::fake()->image('transfer-receipt.jpg'),
@@ -147,6 +149,29 @@ it('stores one Vodafone Cash receipt and keeps the subscription pending until ad
         ->assertSessionHas('error');
 
     expect(Payment::count())->toBe(1);
+});
+
+it('replays the same checkout idempotency key without creating or notifying twice', function (): void {
+    Storage::fake('local');
+    Notification::fake();
+
+    $key = (string) Str::uuid();
+
+    $this->actingAs($this->student)
+        ->post(route('checkout.process', $this->subscription->id), vodafoneCashPayload([
+            'idempotency_key' => $key,
+        ]))
+        ->assertRedirect(route('student.my-classes'));
+
+    $this->actingAs($this->student)
+        ->withHeaders(['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'])
+        ->post(route('checkout.process', $this->subscription->id), vodafoneCashPayload([
+            'idempotency_key' => $key,
+        ]))
+        ->assertOk()
+        ->assertJsonPath('message', 'تم استلام طلب التحويل مسبقًا، وهو قيد المراجعة بالفعل.');
+
+    expect(Payment::where('idempotency_key', $key)->count())->toBe(1);
 });
 
 it('keeps the checkout success message when the Vue client submits JSON', function (): void {

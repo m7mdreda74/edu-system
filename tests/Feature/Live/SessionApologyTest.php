@@ -146,6 +146,7 @@ it('applies the deduction exactly once to the next payout', function () {
     Payment::factory()->paid()->create([
         'user_id' => $student->id,
         'subscription_id' => $subscription->id,
+        'teacher_id' => $this->teacher->id,
         'amount' => 50_000,
         'original_amount' => 50_000,
         'teacher_earnings' => 40_000,
@@ -168,4 +169,40 @@ it('applies the deduction exactly once to the next payout', function () {
         ->and($payout->deductions_amount)->toBe(10_000)
         ->and($payout->amount)->toBe(30_000)
         ->and($apology->fresh()->teacher_payout_id)->toBe($payout->id);
+});
+
+it('uses the immutable payment teacher snapshot after an assignment changes owner', function () {
+    $student = User::factory()->create();
+    $student->assignRole('student');
+    $subscription = Subscription::factory()->active()->create([
+        'student_id' => $student->id,
+        'teaching_assignment_id' => $this->assignment->id,
+        'teaching_group_id' => $this->group->id,
+    ]);
+    $payment = Payment::factory()->paid()->create([
+        'user_id' => $student->id,
+        'subscription_id' => $subscription->id,
+        'teacher_id' => $this->teacher->id,
+        'amount' => 50_000,
+        'original_amount' => 50_000,
+        'teacher_earnings' => 40_000,
+        'platform_commission_amount' => 10_000,
+        'commission_percent' => 20,
+    ]);
+
+    $newTeacher = User::factory()->create(['email_verified_at' => now()]);
+    $newTeacher->assignRole('teacher');
+    $this->assignment->update(['teacher_id' => $newTeacher->id]);
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.payouts.store'), [
+            'teacher_id' => $this->teacher->id,
+            'period_start' => now()->subDay()->toDateString(),
+            'period_end' => now()->addDay()->toDateString(),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(TeacherPayout::firstOrFail()->teacher_id)->toBe($this->teacher->id)
+        ->and($payment->fresh()->teacher_payout_id)->not->toBeNull();
 });

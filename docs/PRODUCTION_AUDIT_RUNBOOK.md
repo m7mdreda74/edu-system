@@ -17,10 +17,13 @@ This runbook is intentionally operational. Run it against the production deploym
    - `2026_08_22_000100_create_audit_events_table`
    - `2026_08_22_000200_add_payment_integrity_fields`
    - `2026_08_22_000300_add_current_query_indexes`
+   - `2026_08_23_000100_add_payment_idempotency_key`
+   - `2026_08_23_000200_add_payment_query_indexes`
 5. Check that `audit_events` is writable, `payments.receipt_sha256` is unique, and the new indexes exist.
 6. Do not delete demo users/payments automatically. First export a reviewed list, obtain approval, then use a targeted reversible cleanup plan.
 
 For a non-destructive summary of the same deployment prerequisites, run `php artisan audit:production-readiness`. It reports presence/absence only and never prints secret values.
+For a read-only financial invariant check, run `php artisan audit:payment-reconciliation`.
 
 ## 3. Required production environment
 
@@ -54,13 +57,15 @@ Use the actual HTTPS Jitsi/recording/collaboration hosts. The recording service 
 - Approve and reject a Vodafone Cash receipt from the admin UI. Verify the audit event contains hashes/identifiers, not raw receipt notes or payment secrets.
 - Verify the table masks the sender phone and the receipt endpoint is private, `no-store`, MIME-checked, and outside the public disk.
 - Submit the same receipt twice and confirm only one payment exists.
+- Retry the same checkout request with the same `Idempotency-Key` and confirm it returns the existing pending payment without a second notification.
 
 ## 6. Headers and monitoring
 
 - Check the real HTTPS response for CSP, HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and the absence of `X-Powered-By`.
+- Run `php scripts/scan-archive.php path/to/release.zip` for every release archive before it leaves the approved build workspace.
 - Monitor failed logins, 423 password-confirmation responses, payment duplicate attempts, receipt access, Jitsi recording failures, and `audit_events` growth.
 - Run the responsive smoke matrix at 375, 768, 1024, and 1366 pixels for `/`, `/login`, `/register`, dashboard, settings, payments, and the live room.
 
 ## Rollback
 
-Keep the backup and migration output. If rollback is approved, use the migration rollback commands for these three migrations in reverse order and verify the application version matches the database schema. Never roll back by deleting users, payments, receipts, or audit events.
+Keep the backup and migration output. If rollback is approved, use the migration rollback commands for these five migrations in reverse order and verify the application version matches the database schema. Never roll back by deleting users, payments, receipts, or audit events.

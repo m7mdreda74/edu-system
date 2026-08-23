@@ -22,10 +22,54 @@ $patterns = [
     '/^(?:APP_KEY|DB_PASSWORD|BLOB_READ_WRITE_TOKEN|CRON_SECRET|TURNSTILE_SECRET_KEY|STRIPE_SECRET|TAP_SECRET_KEY|FATORA_API_KEY|JITSI_APP_SECRET|MAIL_PASSWORD)=[ \t]*(?!\r?$|null(?:\r?$)|your[-_]|change[-_]|base64:\$)/mi',
 ];
 
+$isSensitiveArchiveEntry = static function (string $entry): bool {
+    $entry = str_replace('\\', '/', $entry);
+    $entry = preg_replace('#^(?:\./)+#', '', $entry) ?? $entry;
+    $baseName = basename($entry);
+
+    return (
+        (preg_match('/(?:^|\/)\.env(?:\.[^\/]+)?$/i', $entry) === 1 && $baseName !== '.env.example')
+        || preg_match('/(?:^|\/)database\/[^\/]+\.sqlite(?:[^\/]*)?$/i', $entry) === 1
+        || preg_match('/(?:^|\/)storage\/logs\/[^\/]+\.log(?:[^\/]*)?$/i', $entry) === 1
+        || preg_match('/(?:^|\/)storage\/app\/private(?:\/|$)/i', $entry) === 1
+        || preg_match('/(?:^|\/)\.git(?:\/|$)/i', $entry) === 1
+    );
+};
+
 $findings = [];
 
 foreach ($files as $file) {
-    if (! is_file($file) || filesize($file) > 5_000_000) {
+    if (! is_file($file)) {
+        continue;
+    }
+
+    if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'zip') {
+        if (! class_exists(ZipArchive::class)) {
+            $findings[] = $file;
+            continue;
+        }
+
+        $zip = new ZipArchive();
+
+        if ($zip->open($file) !== true) {
+            $findings[] = $file;
+            continue;
+        }
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entry = $zip->getNameIndex($index);
+
+            if (is_string($entry) && $isSensitiveArchiveEntry($entry)) {
+                $findings[] = $file;
+                break;
+            }
+        }
+
+        $zip->close();
+        continue;
+    }
+
+    if (filesize($file) > 5_000_000) {
         continue;
     }
 

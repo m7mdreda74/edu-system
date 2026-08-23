@@ -6,19 +6,27 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
 
 class AddSecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // The Blade shell and Ziggy both need a tiny inline bootstrap script.
+        // Give only those scripts a per-request nonce instead of weakening the
+        // policy with `unsafe-inline` in script-src.
+        $nonce = base64_encode(random_bytes(16));
+        $request->attributes->set('csp_nonce', $nonce);
+        Vite::useCspNonce($nonce);
+
         /** @var Response $response */
         $response = $next($request);
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->headers->set('Content-Security-Policy', $this->contentSecurityPolicy($request));
+        $response->headers->set('Content-Security-Policy', $this->contentSecurityPolicy($request, $nonce));
         $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
 
         $jitsiOrigin = $this->jitsiOrigin();
@@ -55,7 +63,7 @@ class AddSecurityHeaders
             : 'https://' . trim($domain, '/');
     }
 
-    private function contentSecurityPolicy(Request $request): string
+    private function contentSecurityPolicy(Request $request, string $nonce): string
     {
         $jitsiOrigin = $this->jitsiOrigin();
 
@@ -65,7 +73,7 @@ class AddSecurityHeaders
             "object-src 'none'",
             "frame-ancestors 'none'",
             "form-action 'self'",
-            "script-src 'self' {$jitsiOrigin} https://challenges.cloudflare.com",
+            "script-src 'self' 'nonce-{$nonce}' {$jitsiOrigin} https://challenges.cloudflare.com",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' data: https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",

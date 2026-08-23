@@ -160,6 +160,7 @@ return [
     'attributes' => [
         'name' => 'الاسم',
         'email' => 'البريد الإلكتروني',
+        'idempotency_key' => 'معرّف العملية',
         'login_field' => 'البريد الإلكتروني أو رقم الهاتف',
         'password' => 'كلمة المرور',
         'password_confirmation' => 'تأكيد كلمة المرور',
