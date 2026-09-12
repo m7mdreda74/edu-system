@@ -258,16 +258,44 @@ class LiveSessionRoomController extends Controller
 
     /**
      * Entry requires a confirmed booking for the session's group or private
-     * slot — and, for groups, a live subscription behind it.
+     * slot — or an active subscription covering the group.
      */
     private function studentMayJoin(LiveSession $session, User $user): bool
     {
         if ($session->teaching_group_id) {
-            $hasSeat = $session->teachingGroup?->activeBookings()
-                ->where('student_id', $user->id)
-                ->exists() ?? false;
+            $group = $session->teachingGroup;
+            if (! $group) {
+                return false;
+            }
 
-            return $hasSeat && $user->hasActiveSubscriptionTo($session->teachingGroup);
+            $hasActiveSubToGroup = $user->hasActiveSubscriptionTo($group);
+
+            // Active subscription covering this specific group grants entry.
+            if ($hasActiveSubToGroup) {
+                return true;
+            }
+
+            // Confirmed booking for this group grants entry, provided the student
+            // does not actively belong exclusively to a different group.
+            $hasSeat = $group->activeBookings()
+                ->where('student_id', $user->id)
+                ->exists();
+
+            if ($hasSeat) {
+                $hasOtherActiveGroupSub = $user->subscriptions()
+                    ->active()
+                    ->whereNotNull('teaching_group_id')
+                    ->where('teaching_group_id', '!=', $group->id)
+                    ->exists();
+
+                if ($hasOtherActiveGroupSub && ! $hasActiveSubToGroup) {
+                    return false;
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         if ($session->private_session_slot_id) {

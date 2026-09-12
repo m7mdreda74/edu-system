@@ -401,3 +401,17 @@ it('schedules a Jitsi room, rejects legacy external links, and blocks another cl
 
     expect(LiveSession::where('title', 'حصة متعارضة')->exists())->toBeFalse();
 });
+
+it('allows a student with a confirmed seat booking to enter the live room even without a separate subscription record', function (): void {
+    // Delete any existing subscriptions for this student to simulate direct enrollment / manual booking
+    $this->student->subscriptions()->delete();
+
+    $this->actingAs($this->student)
+        ->get(route('live-sessions.room', $this->session->id))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Live/LiveSessionRoom')
+            ->where('user.id', $this->student->id)
+            ->where('user.isTeacher', false));
+});
+
