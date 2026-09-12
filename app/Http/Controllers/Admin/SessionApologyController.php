@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Application\Learning\Services\MissedLiveSessionService;
 use App\Domain\Communication\Notifications\TeacherDeductionRecordedNotification;
 use App\Domain\Learning\Models\LiveSessionApology;
 use App\Http\Controllers\Controller;
@@ -23,10 +24,14 @@ class SessionApologyController extends Controller
         ]);
         $status = $filters['status'] ?? '';
 
+        $missedService = app(MissedLiveSessionService::class);
+        $missedService->cancelOverdueSessions();
+
         $apologies = LiveSessionApology::with([
             'teacher:id,name,email,avatar',
             'session:id,title,scheduled_at,teaching_group_id,private_session_slot_id,status',
-            'session.teachingGroup:id,name',
+            'session.teachingGroup:id,name,monthly_price',
+            'session.privateSessionSlot.assignment:id,private_monthly_price',
             'makeupSession:id,title,scheduled_at,status',
             'resolver:id,name',
             'payout:id,status',
@@ -35,6 +40,13 @@ class SessionApologyController extends Controller
             ->latest()
             ->paginate(10)
             ->withQueryString();
+
+        $apologies->getCollection()->transform(function (LiveSessionApology $apology) use ($missedService): LiveSessionApology {
+            $suggestedCents = $missedService->suggestedDeductionAmount($apology);
+            $apology->setAttribute('suggested_amount_qar', round($suggestedCents / 100, 2));
+
+            return $apology;
+        });
 
         return Inertia::render('Admin/SessionApologies', [
             'apologies' => $apologies,

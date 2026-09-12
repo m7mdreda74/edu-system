@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -7,6 +8,19 @@ defineProps({
     stats:  { type: Object, default: () => ({}) },
     groups: { type: Array, default: () => [] },
 });
+
+const selectedGroupForStudents = ref(null);
+const studentSearchQuery = ref('');
+
+function openStudentsModal(group) {
+    selectedGroupForStudents.value = group;
+    studentSearchQuery.value = '';
+}
+
+function closeStudentsModal() {
+    selectedGroupForStudents.value = null;
+    studentSearchQuery.value = '';
+}
 </script>
 
 <template>
@@ -90,6 +104,14 @@ defineProps({
                         </div>
 
                         <div class="flex items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                class="btn-outline btn-sm flex items-center gap-1.5"
+                                @click="openStudentsModal(group)"
+                            >
+                                <Icon name="users" class="w-3.5 h-3.5 text-primary-500" />
+                                <span>الطلاب ({{ group.students_count }})</span>
+                            </button>
                             <Link v-if="group.assignment_id" :href="route('teacher.curriculum', { assignment: group.assignment_id })" class="btn-primary btn-sm">المنهج</Link>
                             <Link :href="route('teacher.materials', { groupId: group.id })" class="btn-outline btn-sm">المواد</Link>
                             <Link :href="route('teacher.worksheets.index', { groupId: group.id })" class="btn-ghost btn-sm">الواجبات</Link>
@@ -102,6 +124,78 @@ defineProps({
                     <p class="text-sm text-surface-400">لم تسند الإدارة إليك مجموعات بعد.</p>
                 </div>
             </section>
+        </div>
+
+        <!-- Students Modal -->
+        <div
+            v-if="selectedGroupForStudents"
+            class="modal-overlay z-[70] bg-black/60 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="`طلاب ${selectedGroupForStudents.name}`"
+            @click.self="closeStudentsModal"
+        >
+            <div class="card w-full max-w-2xl max-h-[85vh] flex flex-col p-6 space-y-4 shadow-2xl">
+                <div class="flex items-start justify-between gap-3 border-b border-surface-200 dark:border-surface-700 pb-4">
+                    <div>
+                        <h2 class="text-xl font-black text-surface-900 dark:text-white flex items-center gap-2">
+                            <Icon name="users" class="w-6 h-6 text-primary-500" />
+                            <span>طلاب مجموعة: {{ selectedGroupForStudents.name }}</span>
+                        </h2>
+                        <p class="text-xs text-surface-500 mt-1">
+                            {{ selectedGroupForStudents.students?.length ?? 0 }} طالب مشترك في هذه المجموعة
+                        </p>
+                    </div>
+                    <button type="button" class="text-surface-400 hover:text-surface-600 text-lg font-bold" @click="closeStudentsModal">✕</button>
+                </div>
+
+                <div v-if="selectedGroupForStudents.students?.length" class="space-y-2">
+                    <input
+                        v-model="studentSearchQuery"
+                        type="text"
+                        class="input text-xs"
+                        placeholder="ابحث بالاسم أو البريد الإلكتروني..."
+                    />
+                </div>
+
+                <div class="overflow-y-auto no-scrollbar flex-1 space-y-2.5 py-1">
+                    <div
+                        v-for="(student, sIdx) in (selectedGroupForStudents.students || []).filter(s => !studentSearchQuery || s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.email.toLowerCase().includes(studentSearchQuery.toLowerCase()))"
+                        :key="student.id"
+                        class="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/60 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="text-xs font-mono text-surface-400 w-5">{{ sIdx + 1 }}.</span>
+                            <div class="w-10 h-10 rounded-full bg-primary-500/10 text-primary-600 flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
+                                <img v-if="student.avatar" :src="student.avatar" :alt="student.name" class="w-full h-full object-cover" />
+                                <span v-else>{{ student.name?.charAt(0) }}</span>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-bold text-sm text-surface-900 dark:text-white truncate">{{ student.name }}</p>
+                                <p class="text-xs text-surface-500 dark:text-surface-400 font-mono truncate">{{ student.email }}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="badge-green text-xs">مشترك</span>
+                            <Link :href="route('chat.index')" class="btn-ghost btn-sm text-primary-600">
+                                رسالة
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div v-if="!selectedGroupForStudents.students?.length" class="py-12 text-center text-surface-400 text-sm">
+                        لا يوجد طلاب مسجلون في هذه المجموعة بعد.
+                    </div>
+                    <div v-else-if="studentSearchQuery && !(selectedGroupForStudents.students || []).some(s => s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.email.toLowerCase().includes(studentSearchQuery.toLowerCase()))" class="py-8 text-center text-surface-400 text-xs">
+                        لا يوجد نتائج تطابق بحثك.
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-surface-200 dark:border-surface-700 flex justify-end">
+                    <button type="button" class="btn-outline btn-sm" @click="closeStudentsModal">إغلاق</button>
+                </div>
+            </div>
         </div>
     </DashboardLayout>
 </template>

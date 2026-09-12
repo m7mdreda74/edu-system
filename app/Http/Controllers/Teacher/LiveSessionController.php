@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Application\Learning\Services\MissedLiveSessionService;
 use App\Application\Subscription\Services\SubscriptionRenewalReminderService;
 use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\Academic\Models\AcademicTerm;
@@ -51,6 +52,7 @@ class LiveSessionController extends Controller
     public function index(): Response
     {
         $teacherId = Auth::id();
+        app(MissedLiveSessionService::class)->cancelOverdueSessions((int) $teacherId);
 
         $assignments = TeachingAssignment::with([
             'subject:id,name',

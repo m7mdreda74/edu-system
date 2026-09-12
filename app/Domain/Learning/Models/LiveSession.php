@@ -103,6 +103,14 @@ class LiveSession extends Model
         return $this->private_session_slot_id !== null;
     }
 
+    public function isOverdueUnstarted(int $bufferHours = 2): bool
+    {
+        return $this->status === self::STATUS_SCHEDULED
+            && $this->started_at === null
+            && $this->scheduled_at !== null
+            && $this->scheduled_at->lessThanOrEqualTo(now()->subHours($bufferHours));
+    }
+
     public function scopeForStudent(Builder $query, int $studentId): Builder
     {
         return $query->where(function (Builder $query) use ($studentId): void {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
+use App\Application\Learning\Services\MissedLiveSessionService;
 use App\Domain\Learning\Models\LiveSession;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,8 @@ class ScheduleController extends Controller
 {
     public function index(): Response
     {
+        app(MissedLiveSessionService::class)->cancelOverdueSessions();
+
         $sessions = LiveSession::query()
             ->forStudent((int) Auth::id())
             ->upcoming()

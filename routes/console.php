@@ -1,6 +1,7 @@
 <?php
 
 use App\Application\Learning\Services\LiveSessionReminderService;
+use App\Application\Learning\Services\MissedLiveSessionService;
 use App\Application\Subscription\Services\SubscriptionRenewalReminderService;
 use App\Domain\Payment\Models\Payment;
 use Illuminate\Foundation\Inspiring;
@@ -28,6 +29,15 @@ Artisan::command(
         $this->info("Sent {$count} live session reminder(s).");
     },
 )->purpose('Notify students up to 24 hours before every scheduled class');
+
+Artisan::command(
+    'sessions:cancel-overdue',
+    function (MissedLiveSessionService $service): void {
+        $count = $service->cancelOverdueSessions();
+
+        $this->info("Cancelled {$count} overdue unstarted live session(s) and logged absence apologies.");
+    },
+)->purpose('Cancel overdue unstarted live sessions and record pending unexcused absence apologies');
 
 Artisan::command('audit:production-readiness', function (): int {
     $checks = [];

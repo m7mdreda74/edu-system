@@ -38,6 +38,10 @@ function filter(status = '') {
 function openDeduction(apology) {
     selected.value = apology;
     form.reset();
+    form.amount_qar = apology.suggested_amount_qar ? String(apology.suggested_amount_qar) : '';
+    if (apology.reason?.includes('غياب بدون عذر')) {
+        form.admin_note = 'خصم حصة ملغية لغياب المعلم دون عذر مسبق ولم يتم تعويضها.';
+    }
 }
 
 function submitDeduction() {

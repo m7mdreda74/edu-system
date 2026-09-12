@@ -18,6 +18,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Communication\ChatController;
 use App\Http\Controllers\Communication\NotificationController;
 use App\Http\Controllers\Cron\LiveSessionReminderController;
+use App\Http\Controllers\Cron\MissedLiveSessionCronController;
 use App\Http\Controllers\Cron\SubscriptionRenewalReminderController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Learning\ProtectedFileController;
@@ -67,6 +68,9 @@ Route::get('/api/cron/subscription-renewal-reminders', SubscriptionRenewalRemind
     ->middleware(['throttle:10,1', 'cron.secret']);
 Route::get('/api/cron/live-session-reminders', LiveSessionReminderController::class)
     ->name('cron.live-session-reminders')
+    ->middleware(['throttle:10,1', 'cron.secret']);
+Route::get('/api/cron/missed-live-sessions', MissedLiveSessionCronController::class)
+    ->name('cron.missed-live-sessions')
     ->middleware(['throttle:10,1', 'cron.secret']);
 
 // ─── Public Browse Flow: grade → subject → teachers → profile ─────────────────

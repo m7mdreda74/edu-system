@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Application\Learning\Services\MissedLiveSessionService;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -22,11 +23,18 @@ class TeachingScheduleController extends Controller
 {
     public function index(): Response
     {
+        app(MissedLiveSessionService::class)->cancelOverdueSessions((int) Auth::id());
+
         $assignments = TeachingAssignment::with([
             'subject:id,name,name_en',
             'gradeLevel:id,key,name,name_en',
             'groups' => fn ($query) => $query
-                ->with(['schedules', 'lessons.liveSession:id,scheduled_at,status'])
+                ->with([
+                    'schedules',
+                    'lessons.liveSession:id,scheduled_at,status',
+                    'activeBookings.student:id,name,email,avatar',
+                    'subscriptions.student:id,name,email,avatar',
+                ])
                 ->withCount('activeBookings')
                 ->orderBy('day_of_week')
                 ->orderBy('start_time'),
@@ -40,6 +48,26 @@ class TeachingScheduleController extends Controller
             ->where('is_active', true)
             ->latest()
             ->get();
+
+        $assignments->each(function (TeachingAssignment $assignment): void {
+            $assignment->groups->each(function (TeachingGroup $group): void {
+                $students = $group->activeBookings
+                    ->map(fn ($b) => $b->student)
+                    ->merge($group->subscriptions->where('status', 'active')->map(fn ($s) => $s->student))
+                    ->filter()
+                    ->unique('id')
+                    ->values()
+                    ->map(fn ($student) => [
+                        'id' => $student->id,
+                        'name' => $student->name,
+                        'email' => $student->email,
+                        'avatar' => $student->avatar,
+                    ]);
+
+                $group->setAttribute('students', $students);
+                $group->setAttribute('students_count', $students->count() ?: $group->active_bookings_count);
+            });
+        });
 
         return Inertia::render('Teacher/TeachingSchedule', [
             'assignments' => $assignments,

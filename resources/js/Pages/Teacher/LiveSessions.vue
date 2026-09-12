@@ -214,6 +214,31 @@ const statusLabels = {
     cancelled: 'معتذر عنها',
 };
 
+function isOverdueSession(session) {
+    if (session.status !== 'scheduled' || !session.scheduled_at) return false;
+    return new Date(session.scheduled_at).getTime() < Date.now() - (2 * 60 * 60 * 1000);
+}
+
+function getSessionStatusLabel(session) {
+    if (session.status === 'cancelled') {
+        if (session.apology?.reason?.includes('غياب بدون عذر')) {
+            return 'ملغية (غياب)';
+        }
+        return 'معتذر عنها';
+    }
+    if (isOverdueSession(session)) {
+        return 'ملغية (فات موعدها)';
+    }
+    return statusLabels[session.status] || session.status;
+}
+
+function getSessionStatusColor(session) {
+    if (session.status === 'cancelled' || isOverdueSession(session)) {
+        return 'badge-red';
+    }
+    return statusColors[session.status] || 'badge-gray';
+}
+
 function formatDate(value) {
     return value
         ? new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
@@ -270,8 +295,8 @@ function formatDate(value) {
                                     {{ new Date(session.scheduled_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
                                 </td>
                                 <td class="p-4">
-                                    <span :class="statusColors[session.status]" class="text-xs">
-                                        {{ statusLabels[session.status] }}
+                                    <span :class="getSessionStatusColor(session)" class="text-xs">
+                                        {{ getSessionStatusLabel(session) }}
                                     </span>
                                     <p v-if="session.apology?.status === 'makeup_scheduled'" class="mt-2 text-[11px] text-green-600">
                                         تم التعويض: {{ new Date(session.apology.makeup_scheduled_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
@@ -288,10 +313,13 @@ function formatDate(value) {
                                     </div>
                                 </td>
                                 <td class="p-4">
-                                    <div v-if="['scheduled', 'live'].includes(session.status)">
+                                    <div v-if="['scheduled', 'live'].includes(session.status) && !isOverdueSession(session)">
                                         <a :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener noreferrer" class="text-primary-500 hover:underline text-xs block truncate max-w-[180px]">
                                             دخول غرفة Jitsi
                                         </a>
+                                    </div>
+                                    <div v-else-if="session.status === 'cancelled' || isOverdueSession(session)" class="text-xs text-red-400">
+                                        الحصة ملغية (غير متاحة)
                                     </div>
                                     <div v-if="session.recording_url" class="text-accent-500 text-xs mt-1">
                                         تم نشر التسجيل داخل المنصة
@@ -302,9 +330,9 @@ function formatDate(value) {
                                 </td>
                                 <td class="data-table-actions p-3">
                                     <div class="flex max-w-[22rem] flex-wrap items-center gap-2">
-                                        <a v-if="session.status === 'scheduled'" :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener noreferrer" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">دخول وبدء الحصة</a>
-                                        <button type="button" v-if="session.status === 'scheduled'" @click="openEdit(session)" class="btn-sm btn-outline">تعديل</button>
-                                        <button type="button" v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
+                                        <a v-if="session.status === 'scheduled' && !isOverdueSession(session)" :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener noreferrer" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">دخول وبدء الحصة</a>
+                                        <button type="button" v-if="session.status === 'scheduled' && !isOverdueSession(session)" @click="openEdit(session)" class="btn-sm btn-outline">تعديل</button>
+                                        <button type="button" v-if="session.status === 'scheduled' && !isOverdueSession(session)" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
                                         <button type="button" v-if="session.status === 'live'" @click="openEndModal(session)" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
                                         <button type="button" v-if="session.status === 'ended' && !session.is_published_as_lesson" @click="openRecordingModal(session)" class="btn-sm btn-primary">إضافة تسجيل</button>
                                         <button type="button" v-if="['live', 'ended'].includes(session.status)" @click="openAttendance(session)" class="btn-sm btn-outline">تسجيل الحضور</button>

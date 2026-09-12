@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Live;
 
 use App\Application\Learning\Services\JitsiMeetingTokenService;
+use App\Application\Learning\Services\MissedLiveSessionService;
 use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\Communication\Notifications\StudentLiveSessionActivityNotification;
 use App\Domain\Learning\Models\LiveSession;
@@ -211,7 +212,12 @@ class LiveSessionRoomController extends Controller
      */
     private function authorizeRoom(LiveSession $session, User $user): bool
     {
-        abort_if($session->status === LiveSession::STATUS_CANCELLED, 403, 'تم إلغاء هذه الحصة بعد اعتذار المدرس.');
+        if ($session->isOverdueUnstarted()) {
+            app(MissedLiveSessionService::class)->cancelIfOverdue($session);
+            $session->refresh();
+        }
+
+        abort_if($session->status === LiveSession::STATUS_CANCELLED, 403, 'تم إلغاء هذه الحصة.');
 
         $isTeacher = $session->teacher_id === $user->id;
 
@@ -233,6 +239,11 @@ class LiveSessionRoomController extends Controller
 
     private function authorizeStudentAttendance(LiveSession $session, User $user, bool $joining): void
     {
+        if ($session->isOverdueUnstarted()) {
+            app(MissedLiveSessionService::class)->cancelIfOverdue($session);
+            $session->refresh();
+        }
+
         abort_if($session->teacher_id === $user->id || ! $user->hasRole('student'), 403, 'غير مصرح لك بتسجيل حضور هذه الحصة.');
         abort_if($session->status === LiveSession::STATUS_CANCELLED, 403, 'تم إلغاء هذه الحصة.');
         abort_unless(
