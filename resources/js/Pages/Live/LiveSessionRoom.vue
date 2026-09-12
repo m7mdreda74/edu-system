@@ -21,13 +21,30 @@ const isScreenSharing = ref(false);
 const isRecording = ref(false);
 const isRecordingLinkPending = ref(false);
 const isWhiteboardOpen = ref(false);
+const isWhiteboardFullscreen = ref(false);
+const whiteboardBg = ref('dark');
+const currentTool = ref('pen');
+const currentColor = ref('#38bdf8');
+const currentLineWidth = ref(4);
+const whiteboardCanvas = ref(null);
+const whiteboardContainer = ref(null);
+const textInputElem = ref(null);
+const textInputState = ref({
+    visible: false,
+    x: 0,
+    y: 0,
+    text: '',
+});
+const strokes = ref([]);
+const redoStack = ref([]);
+const isDrawing = ref(false);
+let activeStroke = null;
+let canvasCtx = null;
 const sessionStatus = ref(props.session.status);
 const sessionStartedAt = ref(props.startedAt);
 const isEndingSession = ref(false);
 
-const whiteboardEnabled = computed(() => props.jitsi.whiteboard?.enabled === true
-    && typeof props.jitsi.whiteboard?.collabServerBaseUrl === 'string'
-    && props.jitsi.whiteboard.collabServerBaseUrl.trim() !== '');
+const whiteboardEnabled = computed(() => true);
 
 const autoStartRecording = computed(() => props.jitsi.recording?.auto_start === true);
 
@@ -473,35 +490,381 @@ function toggleRecording() {
     startServerRecording(false);
 }
 
-function openWhiteboard() {
-    toolNotice.value = '';
+function initWhiteboardCanvas() {
+    if (!whiteboardCanvas.value || !whiteboardContainer.value) return;
+    const canvas = whiteboardCanvas.value;
+    const container = whiteboardContainer.value;
+    const rect = container.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
 
-    if (!isJoined.value) {
-        toolNotice.value = 'السبورة ستكون متاحة بعد الاتصال بالجلسة.';
-        return;
-    }
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
 
-    if (!jitsiApi) {
-        toolNotice.value = 'جاري تجهيز غرفة Jitsi، جرّب مرة أخرى خلال لحظات.';
-        return;
-    }
+    canvasCtx = canvas.getContext('2d');
+    canvasCtx.scale(dpr, dpr);
+    redrawWhiteboard();
+}
 
-    if (!whiteboardEnabled.value) {
-        toolNotice.value = 'السبورة غير مفعّلة في إعدادات Jitsi الحالية.';
-        return;
-    }
+function redrawWhiteboard() {
+    if (!canvasCtx || !whiteboardCanvas.value || !whiteboardContainer.value) return;
+    const canvas = whiteboardCanvas.value;
+    const container = whiteboardContainer.value;
+    const rect = container.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    if (width <= 0 || height <= 0) return;
 
-    try {
-        const commands = jitsiApi.getSupportedCommands?.();
-        if (Array.isArray(commands) && !commands.includes('toggleWhiteboard')) {
-            toolNotice.value = 'خادم Jitsi الحالي لا يدعم السبورة التفاعلية.';
-            return;
+    canvasCtx.save();
+    canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+    const dpr = window.devicePixelRatio || 1;
+    canvasCtx.scale(dpr, dpr);
+
+    if (whiteboardBg.value === 'white') {
+        canvasCtx.fillStyle = '#ffffff';
+        canvasCtx.fillRect(0, 0, width, height);
+    } else if (whiteboardBg.value === 'grid') {
+        canvasCtx.fillStyle = '#0f172a';
+        canvasCtx.fillRect(0, 0, width, height);
+        canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        canvasCtx.lineWidth = 1;
+        const gridSize = 28;
+        canvasCtx.beginPath();
+        for (let x = 0; x < width; x += gridSize) {
+            canvasCtx.moveTo(x, 0);
+            canvasCtx.lineTo(x, height);
         }
+        for (let y = 0; y < height; y += gridSize) {
+            canvasCtx.moveTo(0, y);
+            canvasCtx.lineTo(width, y);
+        }
+        canvasCtx.stroke();
+    } else {
+        canvasCtx.fillStyle = '#0f172a';
+        canvasCtx.fillRect(0, 0, width, height);
+    }
 
-        jitsiApi.executeCommand('toggleWhiteboard');
-    } catch (error) {
-        console.error('Could not open the Jitsi whiteboard.', error);
-        toolNotice.value = 'تعذّر فتح السبورة التفاعلية.';
+    for (const stroke of strokes.value) {
+        drawSingleStroke(canvasCtx, stroke);
+    }
+
+    canvasCtx.restore();
+}
+
+function drawSingleStroke(ctx, stroke) {
+    if (!stroke) return;
+    ctx.save();
+    ctx.strokeStyle = stroke.color || '#38bdf8';
+    ctx.fillStyle = stroke.color || '#38bdf8';
+    ctx.lineWidth = stroke.width || 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (stroke.tool === 'highlighter') {
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = (stroke.width || 4) * 3;
+    } else if (stroke.tool === 'eraser') {
+        ctx.strokeStyle = whiteboardBg.value === 'white' ? '#ffffff' : '#0f172a';
+        ctx.lineWidth = (stroke.width || 4) * 4;
+    }
+
+    if (stroke.type === 'path' && Array.isArray(stroke.points) && stroke.points.length > 0) {
+        ctx.beginPath();
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length; i++) {
+            ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+        ctx.stroke();
+    } else if (stroke.type === 'rect') {
+        ctx.strokeRect(stroke.x, stroke.y, stroke.w, stroke.h);
+    } else if (stroke.type === 'circle') {
+        ctx.beginPath();
+        const rx = Math.abs(stroke.w) / 2;
+        const ry = Math.abs(stroke.h) / 2;
+        const cx = stroke.x + stroke.w / 2;
+        const cy = stroke.y + stroke.h / 2;
+        ctx.ellipse(cx, cy, Math.max(1, rx), Math.max(1, ry), 0, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (stroke.type === 'line') {
+        ctx.beginPath();
+        ctx.moveTo(stroke.x1, stroke.y1);
+        ctx.lineTo(stroke.x2, stroke.y2);
+        ctx.stroke();
+    } else if (stroke.type === 'arrow') {
+        drawArrowShape(ctx, stroke.x1, stroke.y1, stroke.x2, stroke.y2, stroke.width || 3);
+    } else if (stroke.type === 'text') {
+        ctx.font = `${Math.max(16, stroke.size || 20)}px sans-serif`;
+        ctx.fillText(stroke.text, stroke.x, stroke.y);
+    }
+
+    ctx.restore();
+}
+
+function drawArrowShape(ctx, fromX, fromY, toX, toY, width) {
+    const headLen = Math.max(12, width * 3);
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+}
+
+function getCanvasCoords(e) {
+    if (!whiteboardCanvas.value) return { x: 0, y: 0 };
+    const rect = whiteboardCanvas.value.getBoundingClientRect();
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+    };
+}
+
+function onBoardMouseDown(e) {
+    if (textInputState.value.visible) {
+        commitTextInput();
+    }
+    const coords = getCanvasCoords(e);
+
+    if (currentTool.value === 'text') {
+        textInputState.value = {
+            visible: true,
+            x: coords.x,
+            y: coords.y,
+            text: '',
+        };
+        nextTick(() => textInputElem.value?.focus());
+        return;
+    }
+
+    isDrawing.value = true;
+    redoStack.value = [];
+
+    if (['pen', 'highlighter', 'eraser'].includes(currentTool.value)) {
+        activeStroke = {
+            type: 'path',
+            tool: currentTool.value,
+            color: currentColor.value,
+            width: currentLineWidth.value,
+            points: [coords],
+        };
+    } else if (['rect', 'circle'].includes(currentTool.value)) {
+        activeStroke = {
+            type: currentTool.value,
+            tool: currentTool.value,
+            color: currentColor.value,
+            width: currentLineWidth.value,
+            startX: coords.x,
+            startY: coords.y,
+            x: coords.x,
+            y: coords.y,
+            w: 0,
+            h: 0,
+        };
+    } else if (['line', 'arrow'].includes(currentTool.value)) {
+        activeStroke = {
+            type: currentTool.value,
+            tool: currentTool.value,
+            color: currentColor.value,
+            width: currentLineWidth.value,
+            x1: coords.x,
+            y1: coords.y,
+            x2: coords.x,
+            y2: coords.y,
+        };
+    }
+}
+
+function onBoardMouseMove(e) {
+    if (!isDrawing.value || !activeStroke) return;
+    const coords = getCanvasCoords(e);
+
+    if (activeStroke.type === 'path') {
+        activeStroke.points.push(coords);
+        redrawWhiteboard();
+        drawSingleStroke(canvasCtx, activeStroke);
+    } else if (activeStroke.type === 'rect' || activeStroke.type === 'circle') {
+        activeStroke.x = Math.min(activeStroke.startX, coords.x);
+        activeStroke.y = Math.min(activeStroke.startY, coords.y);
+        activeStroke.w = coords.x - activeStroke.startX;
+        activeStroke.h = coords.y - activeStroke.startY;
+        redrawWhiteboard();
+        drawSingleStroke(canvasCtx, activeStroke);
+    } else if (activeStroke.type === 'line' || activeStroke.type === 'arrow') {
+        activeStroke.x2 = coords.x;
+        activeStroke.y2 = coords.y;
+        redrawWhiteboard();
+        drawSingleStroke(canvasCtx, activeStroke);
+    }
+}
+
+function onBoardMouseUp() {
+    if (!isDrawing.value || !activeStroke) return;
+    isDrawing.value = false;
+
+    strokes.value.push(activeStroke);
+    broadcastWhiteboardMessage({ action: 'stroke', stroke: activeStroke });
+    activeStroke = null;
+    redrawWhiteboard();
+}
+
+function onBoardTouchStart(e) {
+    if (e.touches?.length === 1) {
+        onBoardMouseDown(e);
+    }
+}
+
+function onBoardTouchMove(e) {
+    if (e.touches?.length === 1) {
+        onBoardMouseMove(e);
+    }
+}
+
+function onBoardTouchEnd() {
+    onBoardMouseUp();
+}
+
+function commitTextInput() {
+    if (!textInputState.value.visible || !textInputState.value.text.trim()) {
+        textInputState.value.visible = false;
+        return;
+    }
+
+    const stroke = {
+        type: 'text',
+        tool: 'text',
+        text: textInputState.value.text.trim(),
+        color: currentColor.value,
+        size: currentLineWidth.value * 4 + 14,
+        x: textInputState.value.x,
+        y: textInputState.value.y + 16,
+    };
+
+    strokes.value.push(stroke);
+    broadcastWhiteboardMessage({ action: 'stroke', stroke });
+    textInputState.value = { visible: false, x: 0, y: 0, text: '' };
+    redrawWhiteboard();
+}
+
+function undoWhiteboard() {
+    if (strokes.value.length === 0) return;
+    const popped = strokes.value.pop();
+    redoStack.value.push(popped);
+    broadcastWhiteboardMessage({ action: 'undo' });
+    redrawWhiteboard();
+}
+
+function redoWhiteboard() {
+    if (redoStack.value.length === 0) return;
+    const restored = redoStack.value.pop();
+    strokes.value.push(restored);
+    broadcastWhiteboardMessage({ action: 'stroke', stroke: restored });
+    redrawWhiteboard();
+}
+
+function clearWhiteboard() {
+    if (strokes.value.length === 0) return;
+    if (!window.confirm('هل تريد مسح محتويات السبورة بالكامل؟')) return;
+    strokes.value = [];
+    redoStack.value = [];
+    broadcastWhiteboardMessage({ action: 'clear', bg: whiteboardBg.value });
+    redrawWhiteboard();
+}
+
+function setWhiteboardBg(bg) {
+    whiteboardBg.value = bg;
+    broadcastWhiteboardMessage({ action: 'set_bg', bg });
+    redrawWhiteboard();
+}
+
+function exportWhiteboardImage() {
+    if (!whiteboardCanvas.value) return;
+    const link = document.createElement('a');
+    link.download = `altafawwuq-whiteboard-${props.session.id}.png`;
+    link.href = whiteboardCanvas.value.toDataURL('image/png');
+    link.click();
+}
+
+function toggleWhiteboard() {
+    isWhiteboardOpen.value = !isWhiteboardOpen.value;
+    if (isWhiteboardOpen.value) {
+        nextTick(() => {
+            initWhiteboardCanvas();
+            broadcastWhiteboardMessage({ action: 'request_sync' });
+        });
+        try {
+            jitsiApi?.executeCommand?.('toggleWhiteboard');
+        } catch (e) {}
+    }
+}
+
+function broadcastWhiteboardMessage(message) {
+    if (!jitsiApi || !isJoined.value) return;
+    try {
+        jitsiApi.executeCommand('sendEndpointTextMessage', '', JSON.stringify({
+            source: 'altafawwuq_whiteboard',
+            ...message,
+        }));
+    } catch (e) {
+        console.warn('Whiteboard broadcast failed', e);
+    }
+}
+
+function handleEndpointTextMessage(event) {
+    try {
+        const text = event?.data?.eventData?.text || event?.text || '';
+        if (!text) return;
+        const payload = JSON.parse(text);
+        if (payload.source !== 'altafawwuq_whiteboard') return;
+
+        if (payload.action === 'stroke' && payload.stroke) {
+            strokes.value.push(payload.stroke);
+            if (isWhiteboardOpen.value) {
+                redrawWhiteboard();
+            }
+        } else if (payload.action === 'clear') {
+            strokes.value = [];
+            if (payload.bg) whiteboardBg.value = payload.bg;
+            if (isWhiteboardOpen.value) {
+                redrawWhiteboard();
+            }
+        } else if (payload.action === 'undo') {
+            strokes.value.pop();
+            if (isWhiteboardOpen.value) {
+                redrawWhiteboard();
+            }
+        } else if (payload.action === 'set_bg') {
+            whiteboardBg.value = payload.bg;
+            if (isWhiteboardOpen.value) {
+                redrawWhiteboard();
+            }
+        } else if (payload.action === 'request_sync') {
+            if (strokes.value.length > 0) {
+                broadcastWhiteboardMessage({
+                    action: 'sync_response',
+                    strokes: strokes.value,
+                    bg: whiteboardBg.value,
+                });
+            }
+        } else if (payload.action === 'sync_response') {
+            strokes.value = payload.strokes || [];
+            if (payload.bg) whiteboardBg.value = payload.bg;
+            if (isWhiteboardOpen.value) {
+                redrawWhiteboard();
+            }
+        }
+    } catch (e) {
+        // ignore non-json messages
     }
 }
 
@@ -679,6 +1042,7 @@ function createMeeting() {
     jitsiApi.addListener('recordingStatusChanged', handleRecordingStatusChanged);
     jitsiApi.addListener('recordingLinkAvailable', handleRecordingLinkAvailable);
     jitsiApi.addListener('whiteboardStatusChanged', handleWhiteboardStatusChanged);
+    jitsiApi.addListener('endpointTextMessageReceived', handleEndpointTextMessage);
     jitsiApi.addListener('cameraError', handleMediaPermissionError);
     jitsiApi.addListener('micError', handleMediaPermissionError);
     jitsiApi.addListener('errorOccurred', (event) => {
@@ -695,7 +1059,12 @@ function createMeeting() {
         isLoading.value = false;
     });
 
-    resizeHandler = () => jitsiApi?.resizeHeight?.(jitsiFrameHeight());
+    resizeHandler = () => {
+        jitsiApi?.resizeHeight?.(jitsiFrameHeight());
+        if (isWhiteboardOpen.value) {
+            initWhiteboardCanvas();
+        }
+    };
     window.addEventListener('resize', resizeHandler);
 
     conferenceJoinTimeout = window.setTimeout(() => {
@@ -754,6 +1123,7 @@ onBeforeUnmount(() => {
     clearRecordingLinkTimeout();
     api?.removeListener?.('recordingLinkAvailable', handleRecordingLinkAvailable);
     api?.removeListener?.('whiteboardStatusChanged', handleWhiteboardStatusChanged);
+    api?.removeListener?.('endpointTextMessageReceived', handleEndpointTextMessage);
     api?.dispose();
 });
 </script>
@@ -815,12 +1185,13 @@ onBeforeUnmount(() => {
                 <button
                     type="button"
                     class="whiteboard-button"
+                    :class="{ active: isWhiteboardOpen }"
                     :aria-pressed="isWhiteboardOpen"
-                    :disabled="!isJoined || !whiteboardEnabled"
-                    @click="openWhiteboard"
+                    :disabled="!isJoined"
+                    @click="toggleWhiteboard"
                 >
                     <span aria-hidden="true">✎</span>
-                    السبورة التفاعلية
+                    {{ isWhiteboardOpen ? 'إغلاق السبورة' : 'السبورة التفاعلية' }}
                 </button>
                 <span class="connection-status" :class="{ connected: isJoined }" aria-live="polite">
                     <span class="status-dot" aria-hidden="true"></span>
@@ -831,6 +1202,244 @@ onBeforeUnmount(() => {
 
         <main class="jitsi-stage">
             <div ref="jitsiContainer" class="jitsi-container"></div>
+
+            <!-- Built-in Interactive Whiteboard Workspace -->
+            <div
+                v-show="isWhiteboardOpen"
+                ref="whiteboardContainer"
+                class="whiteboard-workspace"
+                :class="{ fullscreen: isWhiteboardFullscreen }"
+            >
+                <div class="whiteboard-toolbar">
+                    <div class="wb-group">
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: currentTool === 'pen' }"
+                            title="قلم عادي"
+                            @click="currentTool = 'pen'"
+                        >
+                            ✏️
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: currentTool === 'highlighter' }"
+                            title="قلم تمييز"
+                            @click="currentTool = 'highlighter'"
+                        >
+                            🖍️
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: currentTool === 'eraser' }"
+                            title="ممحاة"
+                            @click="currentTool = 'eraser'"
+                        >
+                            🧹
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: currentTool === 'rect' }"
+                            title="مستطيل"
+                            @click="currentTool = 'rect'"
+                        >
+                            🔲
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: currentTool === 'circle' }"
+                            title="دائرة"
+                            @click="currentTool = 'circle'"
+                        >
+                            ⭕
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: currentTool === 'line' }"
+                            title="خط مستقيم"
+                            @click="currentTool = 'line'"
+                        >
+                            ➖
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: currentTool === 'arrow' }"
+                            title="سهم"
+                            @click="currentTool = 'arrow'"
+                        >
+                            ➡️
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: currentTool === 'text' }"
+                            title="كتابة نص"
+                            @click="currentTool = 'text'"
+                        >
+                            🔤
+                        </button>
+                    </div>
+
+                    <div class="wb-divider"></div>
+
+                    <!-- Color Swatches -->
+                    <div class="wb-group wb-colors">
+                        <button
+                            v-for="color in ['#ffffff', '#38bdf8', '#ef4444', '#22c55e', '#eab308', '#a855f7', '#f97316', '#0f172a']"
+                            :key="color"
+                            type="button"
+                            class="wb-color-dot"
+                            :class="{ active: currentColor === color && currentTool !== 'eraser' }"
+                            :style="{ backgroundColor: color }"
+                            :title="color"
+                            @click="currentColor = color; if (currentTool === 'eraser') currentTool = 'pen';"
+                        ></button>
+                    </div>
+
+                    <div class="wb-divider"></div>
+
+                    <!-- Line Width -->
+                    <div class="wb-group">
+                        <button
+                            v-for="w in [2, 4, 8, 14]"
+                            :key="w"
+                            type="button"
+                            class="wb-width-btn"
+                            :class="{ active: currentLineWidth === w }"
+                            :title="w + 'px'"
+                            @click="currentLineWidth = w"
+                        >
+                            <span class="width-circle" :style="{ width: Math.max(4, w) + 'px', height: Math.max(4, w) + 'px' }"></span>
+                        </button>
+                    </div>
+
+                    <div class="wb-divider"></div>
+
+                    <!-- Backgrounds -->
+                    <div class="wb-group">
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: whiteboardBg === 'dark' }"
+                            title="سبورة داكنة"
+                            @click="setWhiteboardBg('dark')"
+                        >
+                            ⬛
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: whiteboardBg === 'grid' }"
+                            title="شبكة هندسية"
+                            @click="setWhiteboardBg('grid')"
+                        >
+                            📐
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-tool-btn"
+                            :class="{ active: whiteboardBg === 'white' }"
+                            title="سبورة بيضاء"
+                            @click="setWhiteboardBg('white')"
+                        >
+                            ⬜
+                        </button>
+                    </div>
+
+                    <div class="wb-divider"></div>
+
+                    <!-- Actions -->
+                    <div class="wb-group">
+                        <button
+                            type="button"
+                            class="wb-action-btn"
+                            title="تراجع"
+                            :disabled="strokes.length === 0"
+                            @click="undoWhiteboard"
+                        >
+                            ↩️
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-action-btn"
+                            title="إعادة"
+                            :disabled="redoStack.length === 0"
+                            @click="redoWhiteboard"
+                        >
+                            ↪️
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-action-btn danger"
+                            title="مسح السبورة بالكامل"
+                            :disabled="strokes.length === 0"
+                            @click="clearWhiteboard"
+                        >
+                            🗑️
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-action-btn"
+                            title="تحميل كصورة PNG"
+                            @click="exportWhiteboardImage"
+                        >
+                            💾
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-action-btn"
+                            :title="isWhiteboardFullscreen ? 'تصغير' : 'ملء الشاشة'"
+                            @click="isWhiteboardFullscreen = !isWhiteboardFullscreen; nextTick(initWhiteboardCanvas)"
+                        >
+                            {{ isWhiteboardFullscreen ? '⤡' : '⤢' }}
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-action-btn close-btn"
+                            title="إغلاق السبورة"
+                            @click="toggleWhiteboard"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                </div>
+
+                <canvas
+                    ref="whiteboardCanvas"
+                    class="whiteboard-canvas"
+                    @mousedown="onBoardMouseDown"
+                    @mousemove="onBoardMouseMove"
+                    @mouseup="onBoardMouseUp"
+                    @mouseleave="onBoardMouseUp"
+                    @touchstart.prevent="onBoardTouchStart"
+                    @touchmove.prevent="onBoardTouchMove"
+                    @touchend.prevent="onBoardTouchEnd"
+                ></canvas>
+
+                <div
+                    v-if="textInputState.visible"
+                    class="whiteboard-text-input-wrap"
+                    :style="{ top: textInputState.y + 'px', left: textInputState.x + 'px' }"
+                >
+                    <input
+                        ref="textInputElem"
+                        v-model="textInputState.text"
+                        type="text"
+                        class="wb-inline-input"
+                        :style="{ color: currentColor, fontSize: (currentLineWidth * 3 + 14) + 'px' }"
+                        placeholder="اكتب هنا ثم اضغط Enter..."
+                        @keydown.enter.prevent="commitTextInput"
+                        @keydown.esc.prevent="textInputState.visible = false"
+                        @blur="commitTextInput"
+                    />
+                </div>
+            </div>
 
             <div v-if="isLoading && !roomError" class="room-overlay" role="status" aria-live="polite">
                 <span class="loader" aria-hidden="true"></span>
@@ -1196,5 +1805,169 @@ onBeforeUnmount(() => {
         flex-direction: column;
         padding: 9px 16px;
     }
+}
+
+/* Built-in Interactive Whiteboard Styles */
+.whiteboard-workspace {
+    position: absolute;
+    inset: 16px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+    user-select: none;
+}
+
+.whiteboard-workspace.fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    border-radius: 0;
+    border: 0;
+}
+
+.whiteboard-toolbar {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 9999px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    max-width: 95%;
+    overflow-x: auto;
+}
+
+.wb-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.wb-divider {
+    width: 1px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 0 4px;
+}
+
+.wb-tool-btn,
+.wb-action-btn,
+.wb-width-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #cbd5e1;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.wb-tool-btn:hover,
+.wb-action-btn:hover:not(:disabled),
+.wb-width-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.wb-tool-btn.active,
+.wb-width-btn.active {
+    background: #2563eb;
+    border-color: #3b82f6;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
+}
+
+.wb-action-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.wb-action-btn.danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.wb-action-btn.close-btn {
+    font-weight: bold;
+    color: #f87171;
+}
+
+.wb-action-btn.close-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #ffffff;
+}
+
+.wb-colors {
+    gap: 6px;
+}
+
+.wb-color-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.wb-color-dot:hover {
+    transform: scale(1.15);
+}
+
+.wb-color-dot.active {
+    border-color: #ffffff;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+    transform: scale(1.15);
+}
+
+.width-circle {
+    display: inline-block;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.whiteboard-canvas {
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.whiteboard-text-input-wrap {
+    position: absolute;
+    z-index: 70;
+}
+
+.wb-inline-input {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px dashed #38bdf8;
+    border-radius: 6px;
+    padding: 4px 8px;
+    outline: none;
+    font-family: inherit;
+    min-width: 180px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.whiteboard-button.active {
+    background: #059669;
+    box-shadow: 0 5px 16px rgba(5, 150, 105, 0.4);
 }
 </style>
