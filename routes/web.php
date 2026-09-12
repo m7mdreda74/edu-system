@@ -236,6 +236,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 // ─── Teacher Routes ────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/my-groups', [App\Http\Controllers\Teacher\TeacherGroupController::class, 'index'])->name('groups.index');
+    Route::get('/my-students', [App\Http\Controllers\Teacher\TeacherStudentController::class, 'index'])->name('students.index');
 
     // Curriculum builder — the syllabus hangs off the assignment, not the group,
     // so the teacher writes it once for every group and private student on it.

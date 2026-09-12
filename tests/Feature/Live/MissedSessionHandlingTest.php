@@ -170,3 +170,43 @@ it('runs sessions:cancel-overdue console command cleanly', function () {
         ->expectsOutputToContain('Cancelled 1 overdue unstarted live session(s)')
         ->assertExitCode(0);
 });
+
+it('allows teacher to view their groups page with student details and blocks non-teachers', function () {
+    $response = $this->actingAs($this->teacher)
+        ->get(route('teacher.groups.index'));
+
+    $response->assertOk();
+
+    $groups = $response->viewData('page')['props']['groups'];
+    expect($groups)->toHaveCount(1)
+        ->and($groups[0]['students'])->toHaveCount(1)
+        ->and($groups[0]['students'][0]['id'])->toBe($this->student->id);
+
+    $this->actingAs($this->student)
+        ->get(route('teacher.groups.index'))
+        ->assertForbidden();
+});
+
+it('allows teacher to view their students directory with search and filter', function () {
+    $response = $this->actingAs($this->teacher)
+        ->get(route('teacher.students.index'));
+
+    $response->assertOk();
+
+    $students = $response->viewData('page')['props']['students'];
+    expect($students)->toHaveCount(1)
+        ->and($students[0]['id'])->toBe($this->student->id)
+        ->and($students[0]['groups'])->toContain($this->group->name);
+
+    // Test search filter
+    $filteredResponse = $this->actingAs($this->teacher)
+        ->get(route('teacher.students.index', ['q' => $this->student->name]));
+    $filteredResponse->assertOk();
+    expect($filteredResponse->viewData('page')['props']['students'])->toHaveCount(1);
+
+    // Non-teacher forbidden
+    $this->actingAs($this->student)
+        ->get(route('teacher.students.index'))
+        ->assertForbidden();
+});
+

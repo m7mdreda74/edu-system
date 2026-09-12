@@ -109,6 +109,8 @@ const menuGroups = computed(() => {
                 title: 'لوحة المعلم',
                 links: [
                     { label: 'الرئيسية',     icon: 'dashboard', href: route('teacher.dashboard'), name: 'teacher.dashboard' },
+                    { label: 'مجموعاتي',     icon: 'courses',   href: route('teacher.groups.index'), name: 'teacher.groups.index' },
+                    { label: 'طلابي',        icon: 'student',   href: route('teacher.students.index'), name: 'teacher.students.index' },
                     { label: 'الخطة الأكاديمية', icon: 'book', href: route('teacher.teaching-schedule'), name: 'teacher.teaching-schedule' },
                     { label: 'الحصص المباشرة',icon: 'live',      href: route('teacher.live-sessions'), name: 'teacher.live-sessions' },
                     { label: 'الرسائل',      icon: 'chat',      href: route('chat.index'),       name: 'chat.index' },
