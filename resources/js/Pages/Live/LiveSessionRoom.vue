@@ -20,6 +20,22 @@ const elapsedSeconds = ref(0);
 const isScreenSharing = ref(false);
 const isRecording = ref(false);
 const isRecordingLinkPending = ref(false);
+const isBrowserRecording = ref(false);
+const browserRecordingSeconds = ref(0);
+const showRecordingSavedModal = ref(false);
+const savedRecordingFilename = ref('');
+const savedRecordingBlobUrl = ref('');
+const postRecordingUrl = ref('');
+const isSavingPostRecording = ref(false);
+const postRecordingNotice = ref('');
+
+const browserRecordingTimeFormatted = computed(() => {
+    const total = browserRecordingSeconds.value;
+    const m = Math.floor(total / 60).toString().padStart(2, '0');
+    const s = (total % 60).toString().padStart(2, '0');
+    const h = Math.floor(total / 3600);
+    return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+});
 const isWhiteboardOpen = ref(false);
 const isWhiteboardFullscreen = ref(false);
 const whiteboardBg = ref('dark');
@@ -468,20 +484,192 @@ function startServerRecording(automatic = false) {
     }
 }
 
-function toggleRecording() {
+let localMediaRecorder = null;
+let localRecordedChunks = [];
+let localRecordingTimer = null;
+
+async function startBrowserRecording() {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+        toolNotice.value = 'متصفحك لا يدعم تسجيل الشاشة المباشر. استخدم Chrome أو Edge أو Firefox.';
+        return;
+    }
+
+    try {
+        toolNotice.value = 'يرجى اختيار شاشة أو نافذة الحصة وتفعيل مشاركة الصوت لبدء التسجيل...';
+
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+                displaySurface: 'browser',
+                frameRate: { ideal: 30, max: 60 },
+            },
+            audio: true,
+        });
+
+        // Mix teacher's mic audio if available
+        let mixedStream = displayStream;
+        let micStream = null;
+        try {
+            micStream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true },
+            });
+        } catch (e) {
+            console.warn('Microphone stream could not be captured, recording display audio only', e);
+        }
+
+        if (micStream && micStream.getAudioTracks().length > 0) {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) {
+                    const audioCtx = new AudioCtx();
+                    const dest = audioCtx.createMediaStreamDestination();
+
+                    if (displayStream.getAudioTracks().length > 0) {
+                        const displaySource = audioCtx.createMediaStreamSource(displayStream);
+                        displaySource.connect(dest);
+                    }
+                    const micSource = audioCtx.createMediaStreamSource(micStream);
+                    micSource.connect(dest);
+
+                    mixedStream = new MediaStream([
+                        ...displayStream.getVideoTracks(),
+                        ...dest.stream.getAudioTracks(),
+                    ]);
+                }
+            } catch (mixErr) {
+                console.warn('Audio mixing failed, using display audio', mixErr);
+                mixedStream = displayStream;
+            }
+        }
+
+        const candidateMimes = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm',
+            'video/mp4',
+        ];
+        const selectedMime = candidateMimes.find((mime) => MediaRecorder.isTypeSupported(mime)) || '';
+
+        localRecordedChunks = [];
+        localMediaRecorder = new MediaRecorder(mixedStream, selectedMime ? { mimeType: selectedMime } : {});
+
+        localMediaRecorder.ondataavailable = (event) => {
+            if (event.data && event.data.size > 0) {
+                localRecordedChunks.push(event.data);
+            }
+        };
+
+        localMediaRecorder.onstop = () => {
+            // Stop all tracks
+            displayStream.getTracks().forEach((track) => track.stop());
+            micStream?.getTracks().forEach((track) => track.stop());
+
+            if (localRecordingTimer) {
+                window.clearInterval(localRecordingTimer);
+                localRecordingTimer = null;
+            }
+            isBrowserRecording.value = false;
+
+            if (localRecordedChunks.length > 0) {
+                const blob = new Blob(localRecordedChunks, { type: selectedMime || 'video/webm' });
+                const blobUrl = URL.createObjectURL(blob);
+                const safeTitle = (props.session.title || 'حصة').replace(/[\s/\\?%*:|"<>]+/g, '_');
+                const dateStr = new Date().toISOString().slice(0, 10);
+                const ext = selectedMime.includes('mp4') ? 'mp4' : 'webm';
+                const filename = `تسجيل_${safeTitle}_${dateStr}.${ext}`;
+
+                savedRecordingBlobUrl.value = blobUrl;
+                savedRecordingFilename.value = filename;
+
+                // Automatically trigger download to teacher's computer
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.href = blobUrl;
+                downloadAnchor.download = filename;
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                window.setTimeout(() => {
+                    document.body.removeChild(downloadAnchor);
+                }, 1000);
+
+                showRecordingSavedModal.value = true;
+                toolNotice.value = `تم حفظ ملف تسجيل الحصة (${filename}) بنجاح في مجلد التنزيلات (Downloads).`;
+            }
+        };
+
+        displayStream.getVideoTracks()[0].onended = () => {
+            if (isBrowserRecording.value) {
+                stopBrowserRecording();
+            }
+        };
+
+        localMediaRecorder.start(1000);
+        isBrowserRecording.value = true;
+        browserRecordingSeconds.value = 0;
+        localRecordingTimer = window.setInterval(() => {
+            browserRecordingSeconds.value++;
+        }, 1000);
+
+        toolNotice.value = 'بدأ تسجيل الحصة الآن! سيتم حفظ الفيديو تلقائياً على جهازك في مجلد التنزيلات عند الإيقاف.';
+    } catch (err) {
+        console.error('Failed to start browser screen recording:', err);
+        if (err.name === 'NotAllowedError') {
+            toolNotice.value = 'تم إلغاء مشاركة الشاشة للتسجيل.';
+        } else {
+            toolNotice.value = 'تعذّر بدء تسجيل الشاشة: ' + (err.message || 'خطأ غير معروف');
+        }
+    }
+}
+
+function stopBrowserRecording() {
+    if (localMediaRecorder && localMediaRecorder.state !== 'inactive') {
+        try {
+            localMediaRecorder.stop();
+        } catch (e) {
+            console.error('Error stopping local media recorder:', e);
+        }
+    }
+}
+
+async function toggleRecording() {
     toolNotice.value = '';
+
+    if (isBrowserRecording.value) {
+        stopBrowserRecording();
+        return;
+    }
 
     if (isRecording.value) {
         try {
             jitsiApi?.executeCommand('stopRecording', recordingMode || 'file', false);
         } catch (error) {
             console.error('Could not stop server recording.', error);
-            toolNotice.value = 'تعذّر إيقاف التسجيل السحابي.';
         }
+        isRecording.value = false;
         return;
     }
 
-    startServerRecording(false);
+    await startBrowserRecording();
+}
+
+async function submitPostRecordingUrl() {
+    if (!postRecordingUrl.value.trim()) return;
+
+    isSavingPostRecording.value = true;
+    postRecordingNotice.value = '';
+
+    try {
+        await axios.patch(route('teacher.live-sessions.status', props.session.id), {
+            status: 'ended',
+            recording_url: postRecordingUrl.value.trim(),
+        });
+        postRecordingNotice.value = 'تم حفظ ونشر رابط التسجيل لطلاب الحصة بنجاح!';
+        window.setTimeout(() => {
+            showRecordingSavedModal.value = false;
+        }, 2000);
+    } catch (error) {
+        postRecordingNotice.value = error.response?.data?.message || 'تعذّر حفظ الرابط. تأكد أنه رابط YouTube صالح.';
+    } finally {
+        isSavingPostRecording.value = false;
+    }
 }
 
 function initWhiteboardCanvas() {
@@ -938,6 +1126,10 @@ async function endSession() {
         return;
     }
 
+    if (isBrowserRecording.value) {
+        stopBrowserRecording();
+    }
+
     isEndingSession.value = true;
     toolNotice.value = 'جاري إنهاء الحصة...';
 
@@ -1172,12 +1364,12 @@ onBeforeUnmount(() => {
                     <button
                         type="button"
                         class="classroom-tool-button recording-button"
-                        :class="{ active: isRecording }"
-                        :disabled="!isJoined || isRecordingLinkPending"
+                        :class="{ active: isRecording || isBrowserRecording, recording: isBrowserRecording }"
+                        :disabled="!isJoined"
                         @click="toggleRecording"
                     >
-                        <span aria-hidden="true">●</span>
-                        {{ isRecordingLinkPending ? 'جاري تجهيز الرابط...' : (isRecording ? 'إيقاف التسجيل' : 'تسجيل الحصة') }}
+                        <span aria-hidden="true" class="recording-dot">●</span>
+                        {{ isBrowserRecording ? `إيقاف التسجيل (${browserRecordingTimeFormatted})` : (isRecording ? 'إيقاف التسجيل' : 'تسجيل الحصة') }}
                     </button>
                     <button
                         v-if="sessionStatus === 'live'"
@@ -1504,6 +1696,65 @@ onBeforeUnmount(() => {
             </div>
 
             <p v-if="toolNotice" class="tool-notice" role="status">{{ toolNotice }}</p>
+
+            <!-- Recording Saved Success Modal -->
+            <div v-if="showRecordingSavedModal" class="recording-modal-overlay" dir="rtl" role="dialog" aria-modal="true">
+                <div class="recording-modal-card animate-fade-up">
+                    <div class="recording-modal-icon">
+                        <span>🎬</span>
+                    </div>
+                    <h3 class="recording-modal-title">تم تسجيل وحفظ الحصة بنجاح!</h3>
+                    <p class="recording-modal-subtext">
+                        تم تنزيل ملف الفيديو تلقائياً على جهازك باسم:
+                        <br>
+                        <strong class="filename-badge">{{ savedRecordingFilename }}</strong>
+                        <br>
+                        ستجد الملف داخل مجلد <strong>التنزيلات (Downloads)</strong> على جهازك.
+                    </p>
+
+                    <div class="recording-modal-steps">
+                        <div class="steps-title">
+                            <span>💡</span>
+                            <span>خطوات نشر التسجيل للطلاب داخل المنصة:</span>
+                        </div>
+                        <ol class="steps-list">
+                            <li>ارفع الفيديو على قناتك في <strong>YouTube</strong> واجعله <strong>غير مدرج (Unlisted)</strong> لضمان الخصوصية.</li>
+                            <li>انسخ رابط الفيديو والصقه في الحقل أدناه واضغط نشر (أو يمكنك وضعه لاحقاً من جدول الحصص).</li>
+                        </ol>
+                    </div>
+
+                    <div class="recording-input-wrap">
+                        <label class="recording-input-label">رابط الفيديو (YouTube)</label>
+                        <input
+                            v-model="postRecordingUrl"
+                            type="url"
+                            class="recording-input"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            :disabled="isSavingPostRecording"
+                        />
+                        <p v-if="postRecordingNotice" class="recording-notice">{{ postRecordingNotice }}</p>
+                    </div>
+
+                    <div class="recording-modal-actions">
+                        <button
+                            v-if="postRecordingUrl.trim()"
+                            type="button"
+                            class="btn-publish-recording"
+                            :disabled="isSavingPostRecording"
+                            @click="submitPostRecordingUrl"
+                        >
+                            {{ isSavingPostRecording ? 'جاري النشر...' : 'نشر التسجيل للطلاب الآن' }}
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-dismiss-recording"
+                            @click="showRecordingSavedModal = false"
+                        >
+                            إغلاق (سأنشره لاحقاً من جدول الحصص)
+                        </button>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <footer class="jitsi-footer">
@@ -2032,5 +2283,194 @@ onBeforeUnmount(() => {
 .whiteboard-button.active {
     background: #059669;
     box-shadow: 0 5px 16px rgba(5, 150, 105, 0.4);
+}
+
+.recording-button.recording {
+    background: #dc2626 !important;
+    border-color: #f87171 !important;
+    color: #fff !important;
+    animation: pulseRecording 1.5s infinite;
+}
+
+.recording-button .recording-dot {
+    display: inline-block;
+    color: #ef4444;
+}
+
+.recording-button.recording .recording-dot {
+    color: #fff;
+}
+
+@keyframes pulseRecording {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.recording-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+}
+
+.recording-modal-card {
+    width: 100%;
+    max-width: 480px;
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    color: #f8fafc;
+    text-align: center;
+}
+
+.recording-modal-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    border-radius: 16px;
+    background: rgba(56, 189, 248, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+
+.recording-modal-title {
+    margin: 0 0 10px;
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.recording-modal-subtext {
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #94a3b8;
+}
+
+.filename-badge {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 3px 10px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 8px;
+    color: #38bdf8;
+    word-break: break-all;
+}
+
+.recording-modal-steps {
+    text-align: right;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    font-size: 12px;
+}
+
+.steps-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    color: #fbbf24;
+    margin-bottom: 8px;
+}
+
+.steps-list {
+    margin: 0;
+    padding-right: 18px;
+    color: #cbd5e1;
+    line-height: 1.6;
+}
+
+.steps-list li {
+    margin-bottom: 4px;
+}
+
+.recording-input-wrap {
+    text-align: right;
+    margin-bottom: 20px;
+}
+
+.recording-input-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #94a3b8;
+}
+
+.recording-input {
+    width: 100%;
+    padding: 10px 14px;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 13px;
+    direction: ltr;
+    text-align: left;
+    outline: none;
+    transition: border-color 150ms ease;
+}
+
+.recording-input:focus {
+    border-color: #38bdf8;
+}
+
+.recording-notice {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: #38bdf8;
+}
+
+.recording-modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn-publish-recording {
+    width: 100%;
+    padding: 11px;
+    border-radius: 10px;
+    background: #2563eb;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    transition: background 150ms ease;
+}
+
+.btn-publish-recording:hover {
+    background: #1d4ed8;
+}
+
+.btn-dismiss-recording {
+    width: 100%;
+    padding: 9px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #94a3b8;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+}
+
+.btn-dismiss-recording:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
 }
 </style>

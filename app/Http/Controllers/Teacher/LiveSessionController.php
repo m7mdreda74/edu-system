@@ -705,6 +705,10 @@ class LiveSessionController extends Controller
     private function publishRecording(LiveSession $session, ?int $unitId = null): void
     {
         if ($session->is_published_as_lesson && $session->lesson_id) {
+            GroupMaterial::where('id', $session->lesson_id)->update([
+                'video_url' => $session->recording_url,
+            ]);
+
             return;
         }
 

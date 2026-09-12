@@ -321,8 +321,10 @@ function formatDate(value) {
                                     <div v-else-if="session.status === 'cancelled' || isOverdueSession(session)" class="text-xs text-red-400">
                                         الحصة ملغية (غير متاحة)
                                     </div>
-                                    <div v-if="session.recording_url" class="text-accent-500 text-xs mt-1">
-                                        تم نشر التسجيل داخل المنصة
+                                    <div v-if="session.recording_url" class="text-accent-500 text-xs mt-1 flex items-center gap-1.5 flex-wrap">
+                                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-accent-500"></span>
+                                        <span>تم نشر التسجيل</span>
+                                        <a :href="session.recording_url" target="_blank" rel="noopener noreferrer" class="font-semibold underline hover:text-accent-400 text-[11px]">معاينة التسجيل ↗</a>
                                     </div>
                                     <div v-else-if="session.status === 'ended'" class="text-xs text-surface-400 mt-1">
                                         لا يوجد تسجيل منشور
@@ -334,7 +336,9 @@ function formatDate(value) {
                                         <button type="button" v-if="session.status === 'scheduled' && !isOverdueSession(session)" @click="openEdit(session)" class="btn-sm btn-outline">تعديل</button>
                                         <button type="button" v-if="session.status === 'scheduled' && !isOverdueSession(session)" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
                                         <button type="button" v-if="session.status === 'live'" @click="openEndModal(session)" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
-                                        <button type="button" v-if="session.status === 'ended' && !session.is_published_as_lesson" @click="openRecordingModal(session)" class="btn-sm btn-primary">إضافة تسجيل</button>
+                                        <button type="button" v-if="session.status === 'ended'" @click="openRecordingModal(session)" class="btn-sm" :class="session.recording_url ? 'btn-outline text-accent-500 border-accent-500/40' : 'btn-primary'">
+                                            {{ session.recording_url ? 'تعديل التسجيل' : 'إضافة تسجيل' }}
+                                        </button>
                                         <button type="button" v-if="['live', 'ended'].includes(session.status)" @click="openAttendance(session)" class="btn-sm btn-outline">تسجيل الحضور</button>
                                         <button type="button" v-if="session.apology?.status === 'pending'" @click="openMakeup(session)" class="btn-sm btn-primary">حدد حصة تعويضية</button>
                                     </div>
@@ -438,12 +442,29 @@ function formatDate(value) {
                         <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-600">
                             <Icon name="video" class="h-6 w-6" />
                         </div>
-                        <h3 class="text-xl font-black text-surface-900 dark:text-white">إضافة تسجيل الحصة</h3>
-                        <p class="mt-2 text-sm leading-6 text-surface-500">أدخل رابط تسجيل الحصة (YouTube أو Jitsi) لنشره كدرس للطلاب المشتركين داخل المنصة.</p>
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white">
+                            {{ actionModal.session.recording_url ? 'تعديل تسجيل الحصة' : 'إضافة تسجيل الحصة' }}
+                        </h3>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">
+                            انشر تسجيل الحصة كدرس محمي للطلاب المشتركين في المجموعة ليتمكنوا من مشاهدته في أي وقت.
+                        </p>
+
+                        <!-- Explainer Banner -->
+                        <div class="mt-4 rounded-xl border border-accent-500/20 bg-accent-500/5 p-4 text-xs leading-relaxed text-surface-700 dark:text-surface-300">
+                            <div class="font-bold text-accent-600 dark:text-accent-400 mb-1.5 flex items-center gap-1.5">
+                                <span>💡</span>
+                                <span>خطوات نشر التسجيل للطلاب:</span>
+                            </div>
+                            <ol class="list-decimal list-inside space-y-1 text-surface-600 dark:text-surface-400">
+                                <li>إذا كنت سجلت الحصة، ستجد ملف الفيديو في مجلد التنزيلات (Downloads) على جهازك.</li>
+                                <li>ارفع الفيديو على قناتك في <strong>YouTube</strong> بحالة <strong>غير مدرج (Unlisted)</strong> لضمان الخصوصية.</li>
+                                <li>انسخ رابط الفيديو والصقه في الحقل أدناه ليظهر للطلاب حصرياً بدون إعلانات.</li>
+                            </ol>
+                        </div>
 
                         <div class="mt-5 space-y-4">
                             <div>
-                                <label class="input-label">رابط التسجيل (YouTube أو رابط تسجيل معتمد)</label>
+                                <label class="input-label">رابط الفيديو (YouTube)</label>
                                 <input v-model="statusForm.recording_url" type="url" class="input" required placeholder="https://www.youtube.com/watch?v=..." />
                                 <p v-if="statusForm.errors.recording_url" class="error-msg">{{ statusForm.errors.recording_url }}</p>
                             </div>
