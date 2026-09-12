@@ -625,6 +625,7 @@ function getCanvasCoords(e) {
 }
 
 function onBoardMouseDown(e) {
+    if (!props.user.isTeacher) return;
     if (textInputState.value.visible) {
         commitTextInput();
     }
@@ -790,6 +791,7 @@ function exportWhiteboardImage() {
 }
 
 function toggleWhiteboard() {
+    if (!props.user.isTeacher) return;
     isWhiteboardOpen.value = !isWhiteboardOpen.value;
     if (isWhiteboardOpen.value) {
         nextTick(() => {
@@ -1193,6 +1195,7 @@ onBeforeUnmount(() => {
                     <strong>{{ sessionDuration }}</strong>
                 </div>
                 <button
+                    v-if="user.isTeacher"
                     type="button"
                     class="whiteboard-button"
                     :class="{ active: isWhiteboardOpen }"
@@ -1218,9 +1221,9 @@ onBeforeUnmount(() => {
                 v-show="isWhiteboardOpen"
                 ref="whiteboardContainer"
                 class="whiteboard-workspace"
-                :class="{ fullscreen: isWhiteboardFullscreen }"
+                :class="{ fullscreen: isWhiteboardFullscreen, readonly: !user.isTeacher }"
             >
-                <div class="whiteboard-toolbar">
+                <div v-if="user.isTeacher" class="whiteboard-toolbar">
                     <div class="wb-group">
                         <button
                             type="button"
@@ -1414,6 +1417,40 @@ onBeforeUnmount(() => {
                             class="wb-action-btn close-btn"
                             title="إغلاق السبورة"
                             @click="toggleWhiteboard"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Student Readonly Bar -->
+                <div v-else class="whiteboard-toolbar whiteboard-student-bar">
+                    <div class="wb-group">
+                        <span class="wb-student-badge">✎ سبورة المعلم المباشرة</span>
+                    </div>
+                    <div class="wb-divider"></div>
+                    <div class="wb-group">
+                        <button
+                            type="button"
+                            class="wb-action-btn"
+                            title="تنزيل الشرح كصورة PNG"
+                            @click="exportWhiteboardImage"
+                        >
+                            💾 حفظ كصورة
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-action-btn"
+                            :title="isWhiteboardFullscreen ? 'تصغير' : 'ملء الشاشة'"
+                            @click="isWhiteboardFullscreen = !isWhiteboardFullscreen; nextTick(initWhiteboardCanvas)"
+                        >
+                            {{ isWhiteboardFullscreen ? '⤡' : '⤢' }}
+                        </button>
+                        <button
+                            type="button"
+                            class="wb-action-btn close-btn"
+                            title="إخفاء السبورة"
+                            @click="isWhiteboardOpen = false"
                         >
                             ✕
                         </button>
@@ -1830,6 +1867,22 @@ onBeforeUnmount(() => {
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
     user-select: none;
+}
+
+.whiteboard-workspace.readonly .whiteboard-canvas {
+    cursor: default;
+}
+
+.wb-student-badge {
+    font-size: 13px;
+    font-weight: 700;
+    color: #38bdf8;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    background: rgba(56, 189, 248, 0.12);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .whiteboard-workspace.fullscreen {
