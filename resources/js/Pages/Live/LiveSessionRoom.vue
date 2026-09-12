@@ -57,6 +57,27 @@ let recordingLinkTimeout = null;
 let endAfterRecording = false;
 let studentAttendanceJoined = false;
 let studentAttendanceLeft = false;
+let attendanceHeartbeatTimer = null;
+
+function startAttendanceHeartbeat() {
+    stopAttendanceHeartbeat();
+    attendanceHeartbeatTimer = window.setInterval(async () => {
+        if (!props.user.isTeacher && isJoined.value && studentAttendanceJoined && !studentAttendanceLeft) {
+            try {
+                await axios.post(route('live-sessions.attendance.heartbeat', props.session.id));
+            } catch (error) {
+                // Heartbeat fails silently so student experience is uninterrupted
+            }
+        }
+    }, 45000);
+}
+
+function stopAttendanceHeartbeat() {
+    if (attendanceHeartbeatTimer) {
+        window.clearInterval(attendanceHeartbeatTimer);
+        attendanceHeartbeatTimer = null;
+    }
+}
 
 function updateSessionDuration() {
     const startedAt = Date.parse(sessionStartedAt.value || '');
@@ -205,6 +226,7 @@ async function recordStudentJoin() {
     try {
         await axios.post(route('live-sessions.attendance.join', props.session.id));
         studentAttendanceJoined = true;
+        startAttendanceHeartbeat();
     } catch (error) {
         console.error('Could not record student attendance join.', error);
         toolNotice.value = error.response?.data?.message
@@ -218,6 +240,7 @@ async function recordStudentLeave() {
     }
 
     studentAttendanceLeft = true;
+    stopAttendanceHeartbeat();
 
     try {
         await axios.post(route('live-sessions.attendance.leave', props.session.id));
@@ -251,6 +274,8 @@ function clearRecordingLinkTimeout() {
 }
 
 async function handleConferenceLeft() {
+    stopAttendanceHeartbeat();
+
     if (!props.user.isTeacher && isJoined.value) {
         await recordStudentLeave();
     }
@@ -702,6 +727,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    stopAttendanceHeartbeat();
     clearConferenceJoinTimeout();
 
     if (sessionTimer) {

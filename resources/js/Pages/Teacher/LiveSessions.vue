@@ -34,10 +34,19 @@ const form = useForm({
 
 const isModalOpen = ref(false);
 const actionModal = ref(null);
-const statusForm = useForm({ status: 'ended' });
+const statusForm = useForm({ status: 'ended', recording_url: '', curriculum_unit_id: '' });
+const editForm = useForm({ title: '', description: '' });
 const attendanceForm = useForm({ student_ids: [] });
 const apologyForm = useForm({ reason: '' });
 const makeupForm = useForm({ scheduled_at: '' });
+
+function getUnitsForSession(session) {
+    const assignmentId = session?.teaching_group?.teaching_assignment_id
+        || session?.private_session_slot?.teaching_assignment_id;
+    if (!assignmentId) return [];
+    const assignment = props.assignments.find(a => String(a.id) === String(assignmentId));
+    return assignment?.units || [];
+}
 
 // A session hangs off a teaching assignment now — pick the subject first.
 const selectedAssignmentId = ref('');
@@ -79,15 +88,60 @@ function resetScheduleSelection() {
     form.scheduled_date = '';
 }
 
+function openEndModal(session) {
+    statusForm.reset();
+    statusForm.clearErrors();
+    statusForm.status = 'ended';
+    statusForm.recording_url = '';
+    statusForm.curriculum_unit_id = '';
+    actionModal.value = {
+        type: 'end',
+        session,
+        sessionId: session.id,
+    };
+}
+
+function openRecordingModal(session) {
+    statusForm.reset();
+    statusForm.clearErrors();
+    statusForm.status = 'ended';
+    statusForm.recording_url = session.recording_url || '';
+    statusForm.curriculum_unit_id = '';
+    actionModal.value = {
+        type: 'recording',
+        session,
+        sessionId: session.id,
+    };
+}
+
+function openEdit(session) {
+    editForm.reset();
+    editForm.clearErrors();
+    editForm.title = session.title;
+    editForm.description = session.description || '';
+    actionModal.value = {
+        type: 'edit',
+        session,
+    };
+}
+
+function submitEdit() {
+    editForm.patch(route('teacher.live-sessions.update', actionModal.value.session.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            actionModal.value = null;
+            editForm.reset();
+        },
+    });
+}
+
 function updateStatus(id, newStatus) {
     if (newStatus === 'ended') {
-        statusForm.reset();
-        statusForm.status = 'ended';
-        actionModal.value = {
-            type: 'end',
-            sessionId: id,
-        };
-        return;
+        const session = props.sessions.find(s => s.id === id);
+        if (session) {
+            openEndModal(session);
+            return;
+        }
     }
     router.patch(route('teacher.live-sessions.status', id), {
         status: newStatus,
@@ -95,7 +149,8 @@ function updateStatus(id, newStatus) {
 }
 
 function submitEndSession() {
-    statusForm.patch(route('teacher.live-sessions.status', actionModal.value.sessionId), {
+    const sessionId = actionModal.value.sessionId || actionModal.value.session?.id;
+    statusForm.patch(route('teacher.live-sessions.status', sessionId), {
         preserveScroll: true,
         onSuccess: () => { actionModal.value = null; statusForm.reset(); },
     });
@@ -238,15 +293,20 @@ function formatDate(value) {
                                             دخول غرفة Jitsi
                                         </a>
                                     </div>
-                                    <div v-if="session.recording_url" class="text-accent-500 text-xs">
+                                    <div v-if="session.recording_url" class="text-accent-500 text-xs mt-1">
                                         تم نشر التسجيل داخل المنصة
+                                    </div>
+                                    <div v-else-if="session.status === 'ended'" class="text-xs text-surface-400 mt-1">
+                                        لا يوجد تسجيل منشور
                                     </div>
                                 </td>
                                 <td class="data-table-actions p-3">
                                     <div class="flex max-w-[22rem] flex-wrap items-center gap-2">
                                         <a v-if="session.status === 'scheduled'" :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener noreferrer" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">دخول وبدء الحصة</a>
+                                        <button type="button" v-if="session.status === 'scheduled'" @click="openEdit(session)" class="btn-sm btn-outline">تعديل</button>
                                         <button type="button" v-if="session.status === 'scheduled'" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
-                                        <button type="button" v-if="session.status === 'live'" @click="updateStatus(session.id, 'ended')" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
+                                        <button type="button" v-if="session.status === 'live'" @click="openEndModal(session)" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
+                                        <button type="button" v-if="session.status === 'ended' && !session.is_published_as_lesson" @click="openRecordingModal(session)" class="btn-sm btn-primary">إضافة تسجيل</button>
                                         <button type="button" v-if="['live', 'ended'].includes(session.status)" @click="openAttendance(session)" class="btn-sm btn-outline">تسجيل الحضور</button>
                                         <button type="button" v-if="session.apology?.status === 'pending'" @click="openMakeup(session)" class="btn-sm btn-primary">حدد حصة تعويضية</button>
                                     </div>
@@ -318,11 +378,91 @@ function formatDate(value) {
                             <Icon name="live" class="h-6 w-6" />
                         </div>
                         <h3 class="text-xl font-black text-surface-900 dark:text-white">إنهاء الحصة المباشرة</h3>
-                        <p class="mt-2 text-sm leading-6 text-surface-500">يتم تسجيل الحصة على خادم Jitsi تلقائيًا، وبعد الإنهاء يُحفظ التسجيل ويظهر للطلاب داخل المنصة. استخدم غرفة Jitsi لإيقاف التسجيل وإنهاء الحصة.</p>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">عند تأكيد الإنهاء سيتم إغلاق الغرفة وتثبيت حضور الطلاب. إذا كان لديك رابط تسجيل (YouTube أو Jitsi)، يمكنك إدخاله الآن لنشره كدرس للطلاب تلقائياً، أو إضافته لاحقاً.</p>
+                        
+                        <div class="mt-5 space-y-4">
+                            <div>
+                                <label class="input-label">رابط التسجيل (اختياري - YouTube أو رابط Jitsi معتمد)</label>
+                                <input v-model="statusForm.recording_url" type="url" class="input" placeholder="https://www.youtube.com/watch?v=..." />
+                                <p v-if="statusForm.errors.recording_url" class="error-msg">{{ statusForm.errors.recording_url }}</p>
+                            </div>
+
+                            <div v-if="getUnitsForSession(actionModal.session).length">
+                                <label class="input-label">الوحدة التعليمية للنشر (اختياري)</label>
+                                <select v-model="statusForm.curriculum_unit_id" class="input">
+                                    <option value="">-- الوحدة الأولى (افتراضي) --</option>
+                                    <option v-for="unit in getUnitsForSession(actionModal.session)" :key="unit.id" :value="unit.id">
+                                        {{ unit.title }}
+                                    </option>
+                                </select>
+                                <p v-if="statusForm.errors.curriculum_unit_id" class="error-msg">{{ statusForm.errors.curriculum_unit_id }}</p>
+                            </div>
+                        </div>
                     </div>
                     <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
                         <button type="button" class="btn-ghost" :disabled="statusForm.processing" @click="actionModal = null">إلغاء</button>
                         <button type="submit" class="btn-primary" :disabled="statusForm.processing">{{ statusForm.processing ? 'جاري الحفظ...' : 'تأكيد إنهاء الحصة' }}</button>
+                    </div>
+                </form>
+
+                <form v-else-if="actionModal.type === 'recording'" @submit.prevent="submitEndSession">
+                    <div class="p-6">
+                        <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-600">
+                            <Icon name="video" class="h-6 w-6" />
+                        </div>
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white">إضافة تسجيل الحصة</h3>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">أدخل رابط تسجيل الحصة (YouTube أو Jitsi) لنشره كدرس للطلاب المشتركين داخل المنصة.</p>
+
+                        <div class="mt-5 space-y-4">
+                            <div>
+                                <label class="input-label">رابط التسجيل (YouTube أو رابط تسجيل معتمد)</label>
+                                <input v-model="statusForm.recording_url" type="url" class="input" required placeholder="https://www.youtube.com/watch?v=..." />
+                                <p v-if="statusForm.errors.recording_url" class="error-msg">{{ statusForm.errors.recording_url }}</p>
+                            </div>
+
+                            <div v-if="getUnitsForSession(actionModal.session).length">
+                                <label class="input-label">الوحدة التعليمية للنشر في المنهج</label>
+                                <select v-model="statusForm.curriculum_unit_id" class="input">
+                                    <option value="">-- الوحدة الأولى (افتراضي) --</option>
+                                    <option v-for="unit in getUnitsForSession(actionModal.session)" :key="unit.id" :value="unit.id">
+                                        {{ unit.title }}
+                                    </option>
+                                </select>
+                                <p v-if="statusForm.errors.curriculum_unit_id" class="error-msg">{{ statusForm.errors.curriculum_unit_id }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
+                        <button type="button" class="btn-ghost" :disabled="statusForm.processing" @click="actionModal = null">إلغاء</button>
+                        <button type="submit" class="btn-primary" :disabled="statusForm.processing">{{ statusForm.processing ? 'جاري النشر...' : 'حفظ ونشر التسجيل' }}</button>
+                    </div>
+                </form>
+
+                <form v-else-if="actionModal.type === 'edit'" @submit.prevent="submitEdit">
+                    <div class="p-6">
+                        <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-600">
+                            <Icon name="edit" class="h-6 w-6" />
+                        </div>
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white">تعديل بيانات الحصة المجدولة</h3>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">يمكنك تعديل عنوان الحصة ووصفها قبل موعد بدئها.</p>
+
+                        <div class="mt-5 space-y-4">
+                            <div>
+                                <label class="input-label">عنوان الحصة</label>
+                                <input v-model="editForm.title" type="text" minlength="3" maxlength="255" class="input" required />
+                                <p v-if="editForm.errors.title" class="error-msg">{{ editForm.errors.title }}</p>
+                            </div>
+
+                            <div>
+                                <label class="input-label">وصف الحصة (اختياري)</label>
+                                <textarea v-model="editForm.description" rows="3" maxlength="2000" class="input resize-y"></textarea>
+                                <p v-if="editForm.errors.description" class="error-msg">{{ editForm.errors.description }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-950">
+                        <button type="button" class="btn-ghost" :disabled="editForm.processing" @click="actionModal = null">إلغاء</button>
+                        <button type="submit" class="btn-primary" :disabled="editForm.processing">{{ editForm.processing ? 'جاري الحفظ...' : 'حفظ التعديلات' }}</button>
                     </div>
                 </form>
                 <form v-else-if="actionModal.type === 'attendance'" @submit.prevent="submitAttendance">

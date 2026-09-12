@@ -24,13 +24,15 @@ class LiveSessionAttendee extends Model
         'user_id',
         'joined_at',
         'left_at',
+        'last_heartbeat_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'joined_at' => 'datetime',
-            'left_at'   => 'datetime',
+            'joined_at'         => 'datetime',
+            'left_at'           => 'datetime',
+            'last_heartbeat_at' => 'datetime',
         ];
     }
 
@@ -50,6 +52,8 @@ class LiveSessionAttendee extends Model
             return 0;
         }
 
-        return max(0, (int) $this->joined_at->diffInSeconds($this->left_at ?? now()));
+        $endTime = $this->left_at ?? $this->last_heartbeat_at ?? now();
+
+        return max(0, (int) $this->joined_at->diffInSeconds($endTime));
     }
 }

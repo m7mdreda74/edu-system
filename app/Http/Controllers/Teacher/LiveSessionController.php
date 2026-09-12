@@ -55,6 +55,7 @@ class LiveSessionController extends Controller
         $assignments = TeachingAssignment::with([
             'subject:id,name',
             'gradeLevel:id,key,name',
+            'units:id,teaching_assignment_id,academic_term_id,title,order',
             'groups' => fn ($q) => $q->where('is_active', true)->with('schedules')->orderBy('day_of_week')->orderBy('start_time'),
             // A private class only exists once a student confirms the slot.
             'privateSlots' => fn ($q) => $q->where('status', 'booked')->where('starts_at', '>=', now())->orderBy('starts_at'),
@@ -202,6 +203,26 @@ class LiveSessionController extends Controller
         return back()->with('success', 'تم إنشاء الحصة بنجاح.');
     }
 
+    public function update(Request $request, int $id): RedirectResponse
+    {
+        $session = LiveSession::findOrFail($id);
+
+        abort_if($session->teacher_id !== Auth::id(), 403, 'غير مصرح.');
+        abort_unless($session->status === LiveSession::STATUS_SCHEDULED, 422, 'يمكن تعديل بيانات الحصة المجدولة فقط قبل بدئها.');
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'min:3', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $session->update([
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        return back()->with('success', 'تم تعديل بيانات الحصة بنجاح.');
+    }
+
     public function updateStatus(Request $request, int $id): RedirectResponse
     {
         $session = LiveSession::findOrFail($id);
@@ -210,6 +231,7 @@ class LiveSessionController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', 'in:scheduled,live,ended'],
+            'curriculum_unit_id' => ['nullable', 'integer', 'min:1', 'exists:curriculum_units,id'],
             'recording_url' => [
                 'nullable',
                 'url',
@@ -264,7 +286,7 @@ class LiveSessionController extends Controller
 
         $studentsForcedOutIds = [];
 
-        DB::transaction(function () use ($session, &$studentsForcedOutIds): void {
+        DB::transaction(function () use ($session, $validated, &$studentsForcedOutIds): void {
             $session->save();
 
             if ($session->status === LiveSession::STATUS_ENDED && $session->ended_at) {
@@ -275,16 +297,26 @@ class LiveSessionController extends Controller
                     ->pluck('user_id')
                     ->all();
 
-                LiveSessionAttendee::where('live_session_id', $session->id)
+                $now = now();
+                $unclosedAttendees = LiveSessionAttendee::query()
+                    ->where('live_session_id', $session->id)
                     ->whereNull('left_at')
-                    ->update([
-                        'left_at' => $session->ended_at,
-                        'updated_at' => now(),
+                    ->get();
+
+                foreach ($unclosedAttendees as $attendee) {
+                    $leftAt = ($attendee->last_heartbeat_at && $attendee->last_heartbeat_at->diffInSeconds($session->ended_at) > 120)
+                        ? $attendee->last_heartbeat_at
+                        : $session->ended_at;
+
+                    $attendee->update([
+                        'left_at' => $leftAt,
+                        'updated_at' => $now,
                     ]);
+                }
             }
 
             if ($session->status === LiveSession::STATUS_ENDED && filled($session->recording_url)) {
-                $this->publishRecording($session);
+                $this->publishRecording($session, $validated['curriculum_unit_id'] ?? null);
             }
         });
 
@@ -374,12 +406,22 @@ class LiveSessionController extends Controller
                     ->pluck('user_id')
                     ->all();
 
-                LiveSessionAttendee::where('live_session_id', $session->id)
+                $now = now();
+                $unclosedAttendees = LiveSessionAttendee::query()
+                    ->where('live_session_id', $session->id)
                     ->whereNull('left_at')
-                    ->update([
-                        'left_at' => $session->ended_at,
-                        'updated_at' => now(),
+                    ->get();
+
+                foreach ($unclosedAttendees as $attendee) {
+                    $leftAt = ($attendee->last_heartbeat_at && $attendee->last_heartbeat_at->diffInSeconds($session->ended_at) > 120)
+                        ? $attendee->last_heartbeat_at
+                        : $session->ended_at;
+
+                    $attendee->update([
+                        'left_at' => $leftAt,
+                        'updated_at' => $now,
                     ]);
+                }
             }
 
             return $session->fresh();
@@ -614,7 +656,7 @@ class LiveSessionController extends Controller
     }
 
     /** Publish a completed recording once and permanently link it to its live class. */
-    private function publishRecording(LiveSession $session): void
+    private function publishRecording(LiveSession $session, ?int $unitId = null): void
     {
         if ($session->is_published_as_lesson && $session->lesson_id) {
             return;
@@ -636,14 +678,24 @@ class LiveSessionController extends Controller
             ]);
         }
 
-        $unit = CurriculumUnit::firstOrCreate(
-            [
-                'teaching_assignment_id' => $assignmentId,
-                'academic_term_id' => $termId,
-                'order' => 1,
-            ],
-            ['title' => 'الوحدة الأولى', 'is_published' => true],
-        );
+        $unit = null;
+        if ($unitId) {
+            $unit = CurriculumUnit::query()
+                ->where('id', $unitId)
+                ->where('teaching_assignment_id', $assignmentId)
+                ->first();
+        }
+
+        if (! $unit) {
+            $unit = CurriculumUnit::firstOrCreate(
+                [
+                    'teaching_assignment_id' => $assignmentId,
+                    'academic_term_id' => $termId,
+                    'order' => 1,
+                ],
+                ['title' => 'الوحدة الأولى', 'is_published' => true],
+            );
+        }
 
         $duration = $session->started_at && $session->ended_at
             ? max(0, $session->started_at->diffInSeconds($session->ended_at))

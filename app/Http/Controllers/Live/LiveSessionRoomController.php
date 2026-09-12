@@ -93,9 +93,10 @@ class LiveSessionRoomController extends Controller
 
         if (! $attendee) {
             $attendee = LiveSessionAttendee::create([
-                'live_session_id' => $session->id,
-                'user_id' => $user->id,
-                'joined_at' => now(),
+                'live_session_id'   => $session->id,
+                'user_id'           => $user->id,
+                'joined_at'         => now(),
+                'last_heartbeat_at' => now(),
             ]);
 
             $this->parentStudentLinks->notifyLinkedParents(
@@ -106,12 +107,39 @@ class LiveSessionRoomController extends Controller
                     StudentLiveSessionActivityNotification::ACTIVITY_JOINED,
                 ),
             );
+        } else {
+            $attendee->update(['last_heartbeat_at' => now()]);
         }
 
         return response()->json([
             'joined' => true,
             'attendee_id' => $attendee->id,
         ]);
+    }
+
+    public function heartbeatAttendance(int $id): JsonResponse
+    {
+        $session = LiveSession::with([
+            'teachingGroup',
+            'privateSessionSlot',
+        ])->findOrFail($id);
+
+        /** @var User $user */
+        $user = Auth::user();
+        $this->authorizeStudentAttendance($session, $user, true);
+
+        $attendee = LiveSessionAttendee::query()
+            ->where('live_session_id', $session->id)
+            ->where('user_id', $user->id)
+            ->whereNull('left_at')
+            ->latest('joined_at')
+            ->first();
+
+        if ($attendee) {
+            $attendee->update(['last_heartbeat_at' => now()]);
+        }
+
+        return response()->json(['alive' => true]);
     }
 
     public function leaveAttendance(int $id): JsonResponse
@@ -133,7 +161,11 @@ class LiveSessionRoomController extends Controller
             ->first();
 
         if ($attendee) {
-            $attendee->update(['left_at' => now()]);
+            $now = now();
+            $attendee->update([
+                'left_at'           => $now,
+                'last_heartbeat_at' => $now,
+            ]);
 
             $this->parentStudentLinks->notifyLinkedParents(
                 $user,

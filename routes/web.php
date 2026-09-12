@@ -114,6 +114,9 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::get('/live-sessions/{id}/room', [LiveSessionRoomController::class, 'show'])->name('live-sessions.room');
     Route::post('/live-sessions/{id}/attendance/join', [LiveSessionRoomController::class, 'joinAttendance'])
         ->name('live-sessions.attendance.join');
+    Route::post('/live-sessions/{id}/attendance/heartbeat', [LiveSessionRoomController::class, 'heartbeatAttendance'])
+        ->name('live-sessions.attendance.heartbeat')
+        ->middleware('throttle:60,1');
     Route::post('/live-sessions/{id}/attendance/leave', [LiveSessionRoomController::class, 'leaveAttendance'])
         ->name('live-sessions.attendance.leave');
 
@@ -269,6 +272,7 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     // Live Sessions
     Route::get('/live-sessions', [LiveSessionController::class, 'index'])->name('live-sessions');
     Route::post('/live-sessions', [LiveSessionController::class, 'store'])->name('live-sessions.store');
+    Route::patch('/live-sessions/{id}', [LiveSessionController::class, 'update'])->name('live-sessions.update');
     Route::patch('/live-sessions/{id}/status', [LiveSessionController::class, 'updateStatus'])->name('live-sessions.status');
     Route::post('/live-sessions/{id}/start', [LiveSessionController::class, 'startFromRoom'])->name('live-sessions.start');
     Route::post('/live-sessions/{id}/end', [LiveSessionController::class, 'endFromRoom'])->name('live-sessions.end');
