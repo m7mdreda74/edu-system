@@ -38,7 +38,9 @@ class HandleInertiaRequests extends Middleware
                     'email_verified_at' => $user->email_verified_at?->toIso8601String(),
                     'avatar'      => $user->avatar,
                     'grade_level' => $user->grade_level,
-                    'roles'       => $user->getRoleNames()->toArray(),
+                    'roles'       => $user->relationLoaded('roles')
+                        ? $user->roles->pluck('name')->toArray()
+                        : Cache::remember("user.{$user->id}.roles", 300, fn () => $user->getRoleNames()->toArray()),
 
                     // Public teacher profile — needed by the profile form.
                     'headline'              => $user->headline,
@@ -62,13 +64,13 @@ class HandleInertiaRequests extends Middleware
             'grade_levels' => fn () => Cache::remember(
                 // Versioned so deployments never reuse a pre-stage/track payload.
                 'shared.active_grade_levels.v2',
-                now()->addHour(),
+                now()->addHours(6),
                 fn () => GradeLevel::where('is_active', true)
                     ->select('id', 'key', 'name', 'name_en', 'stage', 'track')
                     ->orderByRaw("CASE stage WHEN 'primary' THEN 1 WHEN 'preparatory' THEN 2 WHEN 'secondary' THEN 3 ELSE 4 END")
                     ->orderBy('id')
                     ->get()
-                    ->all(),
+                    ->toArray(),
             ),
 
         ];

@@ -31,7 +31,7 @@ class PlatformSetting extends Model
      */
     public static function getAllCached(): array
     {
-        return Cache::remember('platform_settings', now()->addMinute(), function () {
+        return Cache::remember('platform_settings', now()->addHours(6), function () {
             return self::query()
                 ->whereNotIn('key', self::HIDDEN_FROM_CLIENT_KEYS)
                 ->whereIn('key', PlatformSettingRegistry::keys())

@@ -33,7 +33,7 @@ class TeachingScheduleController extends Controller
                     'schedules',
                     'lessons.liveSession:id,scheduled_at,status',
                     'activeBookings.student:id,name,email,avatar',
-                    'subscriptions.student:id,name,email,avatar',
+                    'subscriptions' => fn ($q) => $q->where('status', 'active')->with('student:id,name,email,avatar'),
                 ])
                 ->withCount('activeBookings')
                 ->orderBy('day_of_week')

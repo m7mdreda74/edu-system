@@ -24,6 +24,14 @@ class TeacherGroupController extends Controller
             ->where('is_active', true)
             ->pluck('id');
 
+        $materialsCounts = GroupMaterial::countsByAssignment($assignmentIds);
+        $worksheetsCounts = Worksheet::query()
+            ->join('curriculum_units', 'worksheets.curriculum_unit_id', '=', 'curriculum_units.id')
+            ->whereIn('curriculum_units.teaching_assignment_id', $assignmentIds)
+            ->groupBy('curriculum_units.teaching_assignment_id')
+            ->selectRaw('curriculum_units.teaching_assignment_id, count(*) as count')
+            ->pluck('count', 'teaching_assignment_id');
+
         $groups = TeachingGroup::with([
             'assignment.subject:id,name',
             'assignment.gradeLevel:id,key,name',
@@ -31,13 +39,13 @@ class TeacherGroupController extends Controller
             'schedules',
             'lessons.liveSession:id,title,scheduled_at,status',
             'activeBookings.student:id,name,email,avatar',
-            'subscriptions.student:id,name,email,avatar',
+            'subscriptions' => fn ($q) => $q->where('status', 'active')->with('student:id,name,email,avatar'),
         ])
             ->whereIn('teaching_assignment_id', $assignmentIds)
             ->withCount(['activeBookings', 'lessons'])
             ->latest()
             ->get()
-            ->map(function (TeachingGroup $group): array {
+            ->map(function (TeachingGroup $group) use ($materialsCounts, $worksheetsCounts): array {
                 $students = $group->activeBookings
                     ->map(fn ($b) => $b->student)
                     ->merge($group->subscriptions->where('status', 'active')->map(fn ($s) => $s->student))
@@ -51,8 +59,8 @@ class TeacherGroupController extends Controller
                         'avatar' => $student->avatar,
                     ]);
 
-                $materialsCount = GroupMaterial::whereHas('unit', fn ($q) => $q->where('teaching_assignment_id', $group->teaching_assignment_id))->count();
-                $worksheetsCount = Worksheet::whereHas('unit', fn ($q) => $q->where('teaching_assignment_id', $group->teaching_assignment_id))->count();
+                $materialsCount = (int) ($materialsCounts[$group->teaching_assignment_id] ?? 0);
+                $worksheetsCount = (int) ($worksheetsCounts[$group->teaching_assignment_id] ?? 0);
 
                 return [
                     'id' => $group->id,

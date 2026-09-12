@@ -81,8 +81,52 @@ class LiveSessionController extends Controller
             ->latest('scheduled_at')
             ->get();
 
-        $sessions->each(function (LiveSession $session): void {
-            $students = $this->eligibleStudents($session);
+        $groupIds = $sessions->pluck('teaching_group_id')->filter()->unique()->values();
+        $slotIds = $sessions->pluck('private_session_slot_id')->filter()->unique()->values();
+
+        $groupBookings = $groupIds->isNotEmpty()
+            ? SessionBooking::query()
+                ->where('status', 'confirmed')
+                ->whereIn('teaching_group_id', $groupIds)
+                ->get(['id', 'student_id', 'teaching_group_id'])
+            : collect();
+
+        $slotBookings = $slotIds->isNotEmpty()
+            ? SessionBooking::query()
+                ->where('status', 'confirmed')
+                ->whereIn('private_session_slot_id', $slotIds)
+                ->get(['id', 'student_id', 'private_session_slot_id'])
+            : collect();
+
+        $allStudentIds = $groupBookings->pluck('student_id')
+            ->merge($slotBookings->pluck('student_id'))
+            ->unique()
+            ->values();
+
+        $allStudents = $allStudentIds->isNotEmpty()
+            ? User::query()->whereIn('id', $allStudentIds)->orderBy('name')->get(['id', 'name', 'email'])->keyBy('id')
+            : collect();
+
+        $groupStudentsMap = [];
+        foreach ($groupBookings as $b) {
+            if ($st = $allStudents->get($b->student_id)) {
+                $groupStudentsMap[$b->teaching_group_id][$st->id] = $st;
+            }
+        }
+
+        $slotStudentsMap = [];
+        foreach ($slotBookings as $b) {
+            if ($st = $allStudents->get($b->student_id)) {
+                $slotStudentsMap[$b->private_session_slot_id][$st->id] = $st;
+            }
+        }
+
+        $sessions->each(function (LiveSession $session) use ($groupStudentsMap, $slotStudentsMap): void {
+            $students = collect(
+                $session->teaching_group_id
+                    ? array_values($groupStudentsMap[$session->teaching_group_id] ?? [])
+                    : ($session->private_session_slot_id ? array_values($slotStudentsMap[$session->private_session_slot_id] ?? []) : [])
+            );
             $studentIds = $students->pluck('id');
             $studentAttendees = $session->attendees->whereIn('user_id', $studentIds);
             $presentIds = $studentAttendees->pluck('user_id')->unique();

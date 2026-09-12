@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LiveSessionAttendee;
+use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -33,42 +35,50 @@ class TeacherStudentController extends Controller
         $selectedGroupId = $request->filled('group_id') ? (int) $request->input('group_id') : null;
         $search = trim((string) $request->input('q', ''));
 
+        $teacherGroupIds = $teacherGroups->pluck('id')->all();
+        $targetGroupIds = $selectedGroupId ? [$selectedGroupId] : $teacherGroupIds;
+
         // 1. Group Bookings
-        $groupBookings = SessionBooking::with([
-            'student:id,name,email,avatar',
-            'group:id,name,teaching_assignment_id',
-            'group.assignment.subject:id,name',
-            'group.assignment.gradeLevel:id,key,name',
-        ])
-            ->whereHas('group.assignment', fn ($q) => $q->where('teacher_id', $teacherId))
-            ->where('status', 'confirmed')
-            ->when($selectedGroupId, fn ($q) => $q->where('teaching_group_id', $selectedGroupId))
-            ->get();
+        $groupBookings = ! empty($targetGroupIds)
+            ? SessionBooking::with([
+                'student:id,name,email,avatar',
+                'group:id,name,teaching_assignment_id',
+                'group.assignment.subject:id,name',
+                'group.assignment.gradeLevel:id,key,name',
+            ])
+                ->whereIn('teaching_group_id', $targetGroupIds)
+                ->where('status', 'confirmed')
+                ->get()
+            : collect();
 
         // 2. Group Subscriptions
-        $subscriptions = Subscription::with([
-            'student:id,name,email,avatar',
-            'group:id,name,teaching_assignment_id',
-            'group.assignment.subject:id,name',
-            'group.assignment.gradeLevel:id,key,name',
-        ])
-            ->whereHas('group.assignment', fn ($q) => $q->where('teacher_id', $teacherId))
-            ->where('status', 'active')
-            ->when($selectedGroupId, fn ($q) => $q->where('teaching_group_id', $selectedGroupId))
-            ->get();
+        $subscriptions = ! empty($targetGroupIds)
+            ? Subscription::with([
+                'student:id,name,email,avatar',
+                'group:id,name,teaching_assignment_id',
+                'group.assignment.subject:id,name',
+                'group.assignment.gradeLevel:id,key,name',
+            ])
+                ->whereIn('teaching_group_id', $targetGroupIds)
+                ->where('status', 'active')
+                ->get()
+            : collect();
 
         // 3. Private Bookings (if no group filter is applied)
         $privateBookings = collect();
         if (! $selectedGroupId) {
-            $privateBookings = SessionBooking::with([
-                'student:id,name,email,avatar',
-                'privateSlot:id,teaching_assignment_id,starts_at,ends_at,is_free_intro',
-                'privateSlot.assignment.subject:id,name',
-                'privateSlot.assignment.gradeLevel:id,key,name',
-            ])
-                ->whereHas('privateSlot.assignment', fn ($q) => $q->where('teacher_id', $teacherId))
-                ->where('status', 'confirmed')
-                ->get();
+            $privateSlotIds = PrivateSessionSlot::whereIn('teaching_assignment_id', $assignmentIds)->pluck('id')->all();
+            $privateBookings = ! empty($privateSlotIds)
+                ? SessionBooking::with([
+                    'student:id,name,email,avatar',
+                    'privateSlot:id,teaching_assignment_id,starts_at,ends_at,is_free_intro',
+                    'privateSlot.assignment.subject:id,name',
+                    'privateSlot.assignment.gradeLevel:id,key,name',
+                ])
+                    ->whereIn('private_session_slot_id', $privateSlotIds)
+                    ->where('status', 'confirmed')
+                    ->get()
+                : collect();
         }
 
         // Aggregate by distinct student
@@ -162,12 +172,15 @@ class TeacherStudentController extends Controller
 
         // Attendance count for each student with this teacher
         $studentIds = array_keys($studentMap);
-        $attendanceCounts = LiveSessionAttendee::query()
-            ->whereIn('user_id', $studentIds)
-            ->whereHas('session', fn ($q) => $q->where('teacher_id', $teacherId))
-            ->groupBy('user_id')
-            ->selectRaw('user_id, count(*) as count')
-            ->pluck('count', 'user_id');
+        $teacherSessionIds = LiveSession::where('teacher_id', $teacherId)->pluck('id')->all();
+        $attendanceCounts = (! empty($studentIds) && ! empty($teacherSessionIds))
+            ? LiveSessionAttendee::query()
+                ->whereIn('user_id', $studentIds)
+                ->whereIn('live_session_id', $teacherSessionIds)
+                ->groupBy('user_id')
+                ->selectRaw('user_id, count(*) as count')
+                ->pluck('count', 'user_id')
+            : collect();
 
         $students = collect($studentMap)->map(function ($s) use ($attendanceCounts) {
             $s['groups'] = array_values($s['groups']);
