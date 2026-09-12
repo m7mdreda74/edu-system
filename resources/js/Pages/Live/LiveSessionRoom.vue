@@ -381,13 +381,7 @@ async function handleRecordingLinkAvailable(event) {
 }
 
 function handleWhiteboardStatusChanged(event) {
-    const status = String(event?.status || '').toLowerCase();
-
-    isWhiteboardOpen.value = status.includes('open') || status.includes('visible');
-
-    if (status.includes('error') || status.includes('fail') || status.includes('unavailable')) {
-        toolNotice.value = 'تعذّر تشغيل السبورة. تأكد من إعداد خادم التعاون الخاص بـ Jitsi.';
-    }
+    // Intentionally no-op: built-in canvas whiteboard is self-contained and does not rely on 3rd-party Jitsi backend
 }
 
 function commandSupported(command) {
@@ -802,10 +796,11 @@ function toggleWhiteboard() {
             initWhiteboardCanvas();
             broadcastWhiteboardMessage({ action: 'request_sync' });
         });
-        try {
-            jitsiApi?.executeCommand?.('toggleWhiteboard');
-        } catch (e) {}
     }
+    broadcastWhiteboardMessage({
+        action: 'visibility',
+        isOpen: isWhiteboardOpen.value,
+    });
 }
 
 function broadcastWhiteboardMessage(message) {
@@ -832,6 +827,16 @@ function handleEndpointTextMessage(event) {
             if (isWhiteboardOpen.value) {
                 redrawWhiteboard();
             }
+        } else if (payload.action === 'visibility') {
+            if (typeof payload.isOpen === 'boolean' && !props.user.isTeacher) {
+                isWhiteboardOpen.value = payload.isOpen;
+                if (isWhiteboardOpen.value) {
+                    nextTick(() => {
+                        initWhiteboardCanvas();
+                        redrawWhiteboard();
+                    });
+                }
+            }
         } else if (payload.action === 'clear') {
             strokes.value = [];
             if (payload.bg) whiteboardBg.value = payload.bg;
@@ -849,18 +854,25 @@ function handleEndpointTextMessage(event) {
                 redrawWhiteboard();
             }
         } else if (payload.action === 'request_sync') {
-            if (strokes.value.length > 0) {
+            if (strokes.value.length > 0 || isWhiteboardOpen.value) {
                 broadcastWhiteboardMessage({
                     action: 'sync_response',
                     strokes: strokes.value,
                     bg: whiteboardBg.value,
+                    isOpen: isWhiteboardOpen.value,
                 });
             }
         } else if (payload.action === 'sync_response') {
             strokes.value = payload.strokes || [];
             if (payload.bg) whiteboardBg.value = payload.bg;
+            if (typeof payload.isOpen === 'boolean' && !props.user.isTeacher) {
+                isWhiteboardOpen.value = payload.isOpen;
+            }
             if (isWhiteboardOpen.value) {
-                redrawWhiteboard();
+                nextTick(() => {
+                    initWhiteboardCanvas();
+                    redrawWhiteboard();
+                });
             }
         }
     } catch (e) {
@@ -1041,7 +1053,6 @@ function createMeeting() {
     jitsiApi.addListener('screenSharingStatusChanged', handleScreenSharingStatusChanged);
     jitsiApi.addListener('recordingStatusChanged', handleRecordingStatusChanged);
     jitsiApi.addListener('recordingLinkAvailable', handleRecordingLinkAvailable);
-    jitsiApi.addListener('whiteboardStatusChanged', handleWhiteboardStatusChanged);
     jitsiApi.addListener('endpointTextMessageReceived', handleEndpointTextMessage);
     jitsiApi.addListener('cameraError', handleMediaPermissionError);
     jitsiApi.addListener('micError', handleMediaPermissionError);
@@ -1122,7 +1133,6 @@ onBeforeUnmount(() => {
     jitsiApi = null;
     clearRecordingLinkTimeout();
     api?.removeListener?.('recordingLinkAvailable', handleRecordingLinkAvailable);
-    api?.removeListener?.('whiteboardStatusChanged', handleWhiteboardStatusChanged);
     api?.removeListener?.('endpointTextMessageReceived', handleEndpointTextMessage);
     api?.dispose();
 });
@@ -1811,7 +1821,7 @@ onBeforeUnmount(() => {
 .whiteboard-workspace {
     position: absolute;
     inset: 16px;
-    z-index: 50;
+    z-index: 100;
     display: flex;
     flex-direction: column;
     border-radius: 14px;
@@ -1835,7 +1845,7 @@ onBeforeUnmount(() => {
     top: 14px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 60;
+    z-index: 110;
     display: flex;
     align-items: center;
     gap: 8px;
