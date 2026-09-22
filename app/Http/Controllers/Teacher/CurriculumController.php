@@ -19,6 +19,7 @@ use App\Http\Requests\Teacher\UpdateCurriculumLessonRequest;
 use App\Http\Requests\Teacher\UpdateCurriculumUnitRequest;
 use App\Http\Requests\Teacher\UploadBookletRequest;
 use App\Http\Requests\Teacher\UploadHomeworkRequest;
+use App\Http\Requests\Teacher\UploadLessonVideoRequest;
 use App\Http\Requests\Teacher\UploadPaperExamRequest;
 use App\Services\CurriculumBlobUpload;
 use App\Support\ArabicOrdinal;
@@ -100,6 +101,7 @@ class CurriculumController extends Controller
                 'authorize_url' => route('teacher.curriculum-uploads.authorize'),
                 'handle_url' => (string) config('services.vercel_blob.handle_url', '/api/blob-upload'),
                 'max_bytes' => CurriculumBlobUpload::MAX_BYTES,
+                'video_max_bytes' => CurriculumBlobUpload::MAX_VIDEO_BYTES,
             ],
         ]);
     }
@@ -113,20 +115,28 @@ class CurriculumController extends Controller
     {
         if (! $this->blobUploads->enabled()) {
             return response()->json([
-                'message' => 'تخزين الملفات غير مهيأ في بيئة الإنتاج بعد.',
+                'message' => 'اربط Vercel Blob وأضف BLOB_STORE_ID ثم أعد النشر قبل رفع الملفات على الإنتاج.',
             ], 503);
         }
 
         $data = $request->validate([
-            'kind' => ['required', 'in:booklet,homework,exam'],
+            'kind' => ['required', 'in:booklet,homework,exam,video'],
             'target_id' => ['required', 'integer', 'min:1'],
             'pathname' => ['required', 'string', 'max:950'],
-            'file_size' => ['required', 'integer', 'min:1', 'max:'.CurriculumBlobUpload::MAX_BYTES],
+            'file_size' => ['required', 'integer', 'min:1', 'max:'.CurriculumBlobUpload::MAX_VIDEO_BYTES],
         ]);
 
         $kind = (string) $data['kind'];
         $targetId = (int) $data['target_id'];
         $teacher = Auth::id();
+
+        if ((int) $data['file_size'] > $this->blobUploads->maxBytesFor($kind)) {
+            throw ValidationException::withMessages([
+                'file_size' => $kind === CurriculumBlobUpload::KIND_VIDEO
+                    ? 'حجم الفيديو يجب ألا يتجاوز 512 ميجابايت.'
+                    : 'حجم الملف يجب ألا يتجاوز 25 ميجابايت.',
+            ]);
+        }
 
         $this->assertUploadTargetOwned($kind, $targetId);
 
@@ -306,6 +316,7 @@ class CurriculumController extends Controller
     {
         $lesson = $this->ownedLesson($lessonId);
         $data = $request->validated();
+        $oldVideoPath = $lesson->video_path;
 
         if ($lesson->liveSession && array_key_exists('video_url', $data)
             && $data['video_url'] !== $lesson->video_url) {
@@ -316,7 +327,15 @@ class CurriculumController extends Controller
             $data['title'] = trim($data['title']);
         }
 
+        // Saving or clearing a link replaces an uploaded video file. Do not
+        // leave an old private object attached to the lesson.
+        if (array_key_exists('video_url', $data)
+            && ($data['video_url'] !== $lesson->video_url || filled($lesson->video_path))) {
+            $data['video_path'] = null;
+        }
+
         $lesson->update($data);
+        $this->forgetUpload($oldVideoPath, $lesson->video_path);
 
         return back()->with('success', 'تم حفظ بيانات الدرس.');
     }
@@ -354,6 +373,31 @@ class CurriculumController extends Controller
         $this->forgetUpload($oldPath);
 
         return back()->with('success', 'تم رفع ملزمة الدرس.');
+    }
+
+    /** A private explanation video — a link remains supported through updateLesson. */
+    public function storeVideo(UploadLessonVideoRequest $request, int $lessonId): RedirectResponse
+    {
+        $lesson = $this->ownedLesson($lessonId);
+
+        abort_if($lesson->liveSession, 403, 'تسجيلات الحصص محمية ولا يمكن استبدالها من هنا.');
+
+        $oldPath = $lesson->video_path;
+        $newPath = $this->storeUploadFromRequest(
+            $request,
+            'video',
+            'videos',
+            CurriculumBlobUpload::KIND_VIDEO,
+            $lesson->id,
+        );
+
+        $lesson->update([
+            'video_url' => null,
+            'video_path' => $newPath,
+        ]);
+        $this->forgetUpload($oldPath, $newPath);
+
+        return back()->with('success', 'تم رفع فيديو الشرح وحفظه.');
     }
 
     /** "الواجب" — one per lesson; posting again replaces the file in place. */
@@ -486,12 +530,16 @@ class CurriculumController extends Controller
             'title' => $lesson->title,
             'description' => $lesson->description,
             'video_url' => $lesson->video_url,
+            'has_uploaded_video' => filled($lesson->video_path),
+            'video_file_name' => filled($lesson->video_path)
+                ? $this->storedFileName($lesson->video_path)
+                : null,
             'duration_seconds' => $lesson->duration_seconds,
             'is_free_preview' => $lesson->is_free_preview,
             'booklet_path' => filled($lesson->attachment_path)
                 ? route('learning.material.download', $lesson->id)
                 : null,
-            'has_video' => filled($lesson->video_url),
+            'has_video' => filled($lesson->video_url) || filled($lesson->video_path),
             'has_booklet' => filled($lesson->attachment_path),
             'is_live_recording' => $lesson->liveSession !== null,
             'homework' => $this->presentWorksheet($lesson->homework),
@@ -681,7 +729,8 @@ class CurriculumController extends Controller
     {
         match ($kind) {
             CurriculumBlobUpload::KIND_BOOKLET,
-            CurriculumBlobUpload::KIND_HOMEWORK => $this->ownedLesson($targetId),
+            CurriculumBlobUpload::KIND_HOMEWORK,
+            CurriculumBlobUpload::KIND_VIDEO => $this->ownedLesson($targetId),
             CurriculumBlobUpload::KIND_EXAM => $this->ownedUnit($targetId),
             default => throw ValidationException::withMessages([
                 'kind' => 'نوع الرفع غير صالح.',
@@ -692,6 +741,14 @@ class CurriculumController extends Controller
     private function titleOr(?string $given, string $fallback): string
     {
         return trim((string) $given) ?: $fallback;
+    }
+
+    private function storedFileName(string $path): string
+    {
+        $parsedPath = parse_url($path, PHP_URL_PATH);
+        $name = basename(is_string($parsedPath) ? $parsedPath : $path);
+
+        return urldecode($name) ?: 'video';
     }
 
     /**

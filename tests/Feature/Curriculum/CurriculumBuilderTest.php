@@ -133,6 +133,79 @@ it('accepts safe lesson files homework and a paper unit exam', function () {
     Storage::disk('local')->assertExists(substr($paperExam->file_path, strlen('private://')));
 });
 
+it('stores an uploaded explanation video privately and clears it when a link is removed', function () {
+    Storage::fake('local');
+
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $this->term->id,
+    ]);
+    $lesson = GroupMaterial::factory()->create(['curriculum_unit_id' => $unit->id]);
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.lessons.video', ['lesson' => $lesson->id]), [
+            'video' => UploadedFile::fake()->create('lesson-explanation.mp4', 120, 'video/mp4'),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $lesson->refresh();
+
+    expect($lesson->video_url)->toBeNull()
+        ->and($lesson->video_path)->toStartWith('private://videos/');
+
+    $storedPath = substr($lesson->video_path, strlen('private://'));
+    Storage::disk('local')->assertExists($storedPath);
+
+    $this->actingAs($this->teacher)
+        ->put(route('teacher.lessons.update', ['lesson' => $lesson->id]), [
+            'video_url' => '',
+            'duration_seconds' => 90,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($lesson->refresh()->video_path)->toBeNull();
+    Storage::disk('local')->assertMissing($storedPath);
+});
+
+it('authorizes and records a direct Blob explanation video', function () {
+    config()->set([
+        'services.vercel_blob.enabled' => true,
+        'services.vercel_blob.store_id' => '1sxstfwepd7zn41q',
+    ]);
+
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $this->term->id,
+    ]);
+    $lesson = GroupMaterial::factory()->create(['curriculum_unit_id' => $unit->id]);
+    $pathname = "curriculum/{$this->teacher->id}/video/{$lesson->id}/lesson-video-oYnXSVczoLa9.mp4";
+    $url = "https://1sxstfwepd7zn41q.public.blob.vercel-storage.com/{$pathname}";
+
+    $this->actingAs($this->teacher)
+        ->postJson(route('teacher.curriculum-uploads.authorize'), [
+            'kind' => 'video',
+            'target_id' => $lesson->id,
+            'pathname' => $pathname,
+            'file_size' => 1024,
+        ])
+        ->assertOk()
+        ->assertJsonPath('kind', 'video')
+        ->assertJsonPath('max_bytes', 512 * 1024 * 1024);
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.lessons.video', $lesson->id), [
+            'blob_url' => $url,
+            'blob_pathname' => $pathname,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($lesson->refresh()->video_path)->toBe($url)
+        ->and($lesson->video_url)->toBeNull();
+});
+
 it('does not write curriculum uploads to the read-only Vercel filesystem', function () {
     Storage::fake('local');
     config()->set([

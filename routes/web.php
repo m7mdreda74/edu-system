@@ -256,6 +256,7 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     // The {lesson} and {unit} placeholders are read by UploadHomeworkRequest and
     // UploadPaperExamRequest to decide whether the file is required — do not rename.
     Route::post('/lessons/{lesson}/booklet', [CurriculumController::class, 'storeBooklet'])->name('lessons.booklet');
+    Route::post('/lessons/{lesson}/video', [CurriculumController::class, 'storeVideo'])->name('lessons.video');
     Route::post('/lessons/{lesson}/homework', [CurriculumController::class, 'storeHomework'])->name('lessons.homework');
     Route::post('/units/{unit}/paper-exam', [CurriculumController::class, 'storePaperExam'])->name('units.paper-exam');
 

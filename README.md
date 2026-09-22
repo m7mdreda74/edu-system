@@ -144,8 +144,11 @@ redeploy. New Vercel connections use rotating OIDC credentials automatically
 and expose `BLOB_STORE_ID`; no long-lived secret needs to be committed.
 
 The curriculum page then uploads directly from the browser to Blob, avoiding
-Vercel's 4.5 MB Function request limit while retaining the application's 25 MB
-file limit. Local development continues to use Laravel's `public` disk.
+Vercel's 4.5 MB Function request limit. Study files remain limited to 25 MB;
+explanation videos support MP4, WebM, MOV, and M4V up to 512 MB. Uploaded
+videos are stored separately from external video links and are streamed through
+a signed, access-checked route. Local development continues to use Laravel's
+private `local` disk.
 
 ### Scheduled notifications
 

@@ -319,7 +319,7 @@ class LearnController extends Controller
                 'is_free_preview'  => $lesson->is_free_preview,
                 // The URL itself is never shipped — the player asks for a
                 // signed one — so the page only needs to know there is a video.
-                'has_video'        => filled($lesson->video_url),
+                'has_video'        => filled($lesson->video_url) || filled($lesson->video_path),
                 'booklet_path'     => filled($lesson->attachment_path)
                     ? route('learning.material.download', $lesson->id)
                     : null,

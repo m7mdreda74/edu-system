@@ -35,6 +35,7 @@ class GroupMaterial extends Model
         'academic_term_id',
         'title',
         'video_url',
+        'video_path',
         'duration_seconds',
         'order',
         'is_free_preview',

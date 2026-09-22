@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
 import { issueSignedToken, presignUrl } from '@vercel/blob';
 
-const ALLOWED_KINDS = new Set(['booklet', 'homework', 'exam']);
+const ALLOWED_KINDS = new Set(['booklet', 'homework', 'exam', 'video']);
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_VIDEO_UPLOAD_BYTES = 512 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
     'application/msword',
     'application/pdf',
@@ -12,6 +13,10 @@ const ALLOWED_CONTENT_TYPES = new Set([
     'application/zip',
     'image/jpeg',
     'image/png',
+    'video/mp4',
+    'video/quicktime',
+    'video/webm',
+    'video/x-m4v',
 ]);
 
 function parseBody(body) {
@@ -60,7 +65,7 @@ function verifyAuthorization(token, pathname) {
         || !Number.isInteger(payload.target_id)
         || !Number.isInteger(payload.max_bytes)
         || payload.max_bytes < 1
-        || payload.max_bytes > MAX_UPLOAD_BYTES
+        || payload.max_bytes > MAX_VIDEO_UPLOAD_BYTES
         || !Array.isArray(payload.allowed_content_types)
         || payload.allowed_content_types.some((contentType) => !ALLOWED_CONTENT_TYPES.has(contentType))
         || !Number.isInteger(payload.expires_at_ms)
@@ -71,7 +76,16 @@ function verifyAuthorization(token, pathname) {
 
     const prefix = `curriculum/${payload.teacher_id}/${payload.kind}/${payload.target_id}/`;
 
-    if (!pathname.startsWith(prefix) || pathname.length > 950 || pathname.includes('//')) {
+    const extension = pathname.split('.').pop()?.toLowerCase() ?? '';
+    const isVideo = new Set(['m4v', 'mov', 'mp4', 'webm']).has(extension);
+
+    if (
+        !pathname.startsWith(prefix)
+        || pathname.length > 950
+        || pathname.includes('//')
+        || (payload.kind === 'video') !== isVideo
+        || (payload.kind !== 'video' && payload.max_bytes > MAX_UPLOAD_BYTES)
+    ) {
         throw new Error('Invalid upload pathname.');
     }
 

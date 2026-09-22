@@ -21,6 +21,7 @@ const props = defineProps({
             authorize_url: null,
             handle_url: '/api/blob-upload',
             max_bytes: 25 * 1024 * 1024,
+            video_max_bytes: 512 * 1024 * 1024,
         }),
     },
 });
@@ -252,6 +253,31 @@ function saveVideo(lesson) {
     });
 }
 
+async function uploadVideo(lesson, event) {
+    const file = takeFile(event, `lesson:${lesson.id}:video`, props.directUploads.video_max_bytes, true);
+    if (!file) return;
+
+    if (props.directUploads.enabled) {
+        await uploadDirect(
+            'video',
+            lesson.id,
+            file,
+            route('teacher.lessons.video', lesson.id),
+            `lesson:${lesson.id}:video`,
+            props.directUploads.video_max_bytes,
+            () => { editingVideo.value[lesson.id] = false; },
+        );
+        return;
+    }
+
+    if (blockUnconfiguredServerlessUpload(`lesson:${lesson.id}:video`)) return;
+
+    send('post', route('teacher.lessons.video', lesson.id), { video: file }, `lesson:${lesson.id}:video`, {
+        forceFormData: true,
+        onSuccess: () => { editingVideo.value[lesson.id] = false; },
+    });
+}
+
 async function clearVideo(lesson) {
     const ok = await confirm({
         title: 'إزالة الفيديو',
@@ -375,20 +401,26 @@ const CURRICULUM_ALLOWED_TYPES = new Set([
     'image/png',
     'image/jpeg',
 ]);
+const CURRICULUM_VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'mov', 'm4v']);
+const CURRICULUM_VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v']);
 
-function takeFile(event, key) {
+function takeFile(event, key, maxBytes = props.directUploads.max_bytes, isVideo = false) {
     const file = event.target.files?.[0] ?? null;
     event.target.value = '';   // so picking the same file twice still fires
 
     if (!file) return null;
 
     const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const allowedTypes = isVideo ? CURRICULUM_VIDEO_TYPES : CURRICULUM_ALLOWED_TYPES;
+    const allowedExtensions = isVideo ? CURRICULUM_VIDEO_EXTENSIONS : CURRICULUM_ALLOWED_EXTENSIONS;
     if (
-        file.size > props.directUploads.max_bytes
-        || (!CURRICULUM_ALLOWED_TYPES.has(file.type) && !CURRICULUM_ALLOWED_EXTENSIONS.has(extension))
+        file.size > maxBytes
+        || (!allowedTypes.has(file.type) && !allowedExtensions.has(extension))
     ) {
         rowErrors.value[key] = {
-            file: 'نوع الملف أو حجمه غير مسموح. الحد الأقصى 25 ميجابايت.',
+            file: isVideo
+                ? 'صيغة الفيديو أو حجمه غير مسموح. الحد الأقصى 512 ميجابايت.'
+                : 'نوع الملف أو حجمه غير مسموح. الحد الأقصى 25 ميجابايت.',
         };
         return null;
     }
@@ -400,17 +432,21 @@ function blockUnconfiguredServerlessUpload(key) {
     if (!props.directUploads.serverless) return false;
 
     rowErrors.value[key] = {
-        upload: 'تخزين الملفات غير مهيأ في بيئة الإنتاج بعد.',
+        upload: 'اربط Vercel Blob وأضف BLOB_STORE_ID ثم أعد النشر قبل رفع الملفات على الإنتاج.',
     };
 
     return true;
 }
 
-async function uploadDirect(kind, targetId, file, finalizeUrl, key) {
+async function uploadDirect(kind, targetId, file, finalizeUrl, key, maxBytes = props.directUploads.max_bytes, onSuccess = null) {
     rowErrors.value[key] = {};
 
-    if (file.size > props.directUploads.max_bytes) {
-        rowErrors.value[key] = { file: 'حجم الملف يجب ألا يتجاوز 25 ميجابايت.' };
+    if (file.size > maxBytes) {
+        rowErrors.value[key] = {
+            file: kind === 'video'
+                ? 'حجم الفيديو يجب ألا يتجاوز 512 ميجابايت.'
+                : 'حجم الملف يجب ألا يتجاوز 25 ميجابايت.',
+        };
         return;
     }
 
@@ -447,7 +483,7 @@ async function uploadDirect(kind, targetId, file, finalizeUrl, key) {
         send('post', finalizeUrl, {
             blob_url: blob.url,
             blob_pathname: blob.pathname,
-        }, key);
+        }, key, { onSuccess });
     } catch (error) {
         const validationErrors = error.response?.data?.errors;
         const firstValidationError = validationErrors
@@ -808,6 +844,10 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                                 placeholder="https://..."
                                                 @keyup.enter="saveVideo(lesson)"
                                             />
+                                            <label class="btn-ghost btn-sm mt-2 cursor-pointer inline-flex w-full justify-center">
+                                                <input type="file" accept=".mp4,.webm,.mov,.m4v,video/mp4,video/webm,video/quicktime,video/x-m4v" class="hidden" @change="uploadVideo(lesson, $event)" />
+                                                <span>أو ارفع فيديو من الجهاز</span>
+                                            </label>
                                             <input
                                                 v-model.number="lessonDrafts[lesson.id].duration_seconds"
                                                 type="number"
@@ -824,7 +864,10 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                         </div>
 
                                         <div v-else-if="lesson.has_video" :class="SLOT_BOX">
-                                            <a :href="lesson.video_url" target="_blank" rel="noopener" dir="ltr" class="block text-xs text-primary-600 dark:text-primary-400 hover:underline truncate">
+                                            <template v-if="lesson.has_uploaded_video">
+                                                <p class="text-xs text-primary-600 dark:text-primary-400 truncate">فيديو مرفوع: {{ lesson.video_file_name }}</p>
+                                            </template>
+                                            <a v-else :href="lesson.video_url" target="_blank" rel="noopener" dir="ltr" class="block text-xs text-primary-600 dark:text-primary-400 hover:underline truncate">
                                                 {{ lesson.video_url }}
                                             </a>
                                             <p class="text-[11px] text-surface-400 mt-1">{{ formatDuration(lesson.duration_seconds) }}</p>
@@ -835,10 +878,16 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                             <p v-else class="text-[11px] text-primary-500 mt-2 font-semibold">تسجيل حصة محمي — الحذف متاح للإدارة فقط</p>
                                         </div>
 
-                                        <button v-else type="button" :class="SLOT_EMPTY" aria-label="إضافة فيديو للدرس" @click="openVideo(lesson)">
-                                            <Icon name="plus" class="w-5 h-5 text-surface-400" />
-                                            <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">أضف رابط الفيديو</span>
-                                        </button>
+                                        <div v-else :class="SLOT_EMPTY">
+                                            <button type="button" class="flex flex-col items-center gap-1" aria-label="إضافة رابط فيديو للدرس" @click="openVideo(lesson)">
+                                                <Icon name="plus" class="w-5 h-5 text-surface-400" />
+                                                <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">أضف رابط الفيديو</span>
+                                            </button>
+                                            <label class="text-[11px] font-semibold text-primary-600 dark:text-primary-400 cursor-pointer hover:underline">
+                                                <input type="file" accept=".mp4,.webm,.mov,.m4v,video/mp4,video/webm,video/quicktime,video/x-m4v" class="hidden" @change="uploadVideo(lesson, $event)" />
+                                                أو ارفع فيديو من الجهاز
+                                            </label>
+                                        </div>
 
                                         <p v-if="firstError(`lesson:${lesson.id}:video`)" class="error-msg">{{ firstError(`lesson:${lesson.id}:video`) }}</p>
                                     </div>

@@ -70,17 +70,31 @@ export default async function handler(request, response) {
         const result = await get(pathname, {
             access: 'private',
             useCache: false,
+            headers: request.headers.range
+                ? { Range: request.headers.range }
+                : undefined,
         });
 
-        if (!result || result.statusCode !== 200) {
+        if (!result || ![200, 206].includes(result.statusCode)) {
             return response.status(404).json({ error: 'الملف المطلوب غير موجود.' });
         }
 
-        response.statusCode = 200;
+        response.statusCode = result.statusCode;
         response.setHeader('Content-Type', result.blob.contentType || 'application/octet-stream');
-        response.setHeader('Content-Disposition', result.blob.contentDisposition || 'attachment');
+        const isVideo = (result.blob.contentType || '').startsWith('video/');
+        response.setHeader(
+            'Content-Disposition',
+            isVideo ? 'inline' : (result.blob.contentDisposition || 'attachment'),
+        );
         response.setHeader('Cache-Control', 'private, no-store');
         response.setHeader('X-Content-Type-Options', 'nosniff');
+
+        for (const header of ['accept-ranges', 'content-length', 'content-range', 'etag', 'last-modified']) {
+            const value = result.headers.get(header);
+            if (value) {
+                response.setHeader(header, value);
+            }
+        }
 
         Readable.fromWeb(result.stream).pipe(response);
     } catch (error) {

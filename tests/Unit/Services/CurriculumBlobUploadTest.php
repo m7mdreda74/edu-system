@@ -36,6 +36,7 @@ it('builds a scoped prefix for every supported curriculum upload kind', function
     CurriculumBlobUpload::KIND_BOOKLET,
     CurriculumBlobUpload::KIND_HOMEWORK,
     CurriculumBlobUpload::KIND_EXAM,
+    CurriculumBlobUpload::KIND_VIDEO,
 ]);
 
 it('rejects unsupported upload kinds and invalid identifiers', function () {
@@ -86,6 +87,25 @@ it('issues a short lived hmac authorization with the complete upload scope', fun
             'expires_at_ms' => 1785240300000,
         ])
         ->and($issued)->toMatchArray($payload);
+});
+
+it('issues a larger, video-only authorization for video uploads', function () {
+    $pathname = 'curriculum/42/video/99/lesson-video.mp4';
+
+    $issued = $this->uploads->issueAuthorization(
+        42,
+        CurriculumBlobUpload::KIND_VIDEO,
+        99,
+        $pathname,
+    );
+
+    expect($issued['max_bytes'])->toBe(CurriculumBlobUpload::MAX_VIDEO_BYTES)
+        ->and($issued['allowed_content_types'])->toBe([
+            'video/mp4',
+            'video/quicktime',
+            'video/webm',
+            'video/x-m4v',
+        ]);
 });
 
 it('will not authorize a pathname outside the exact target prefix', function (string $pathname) {

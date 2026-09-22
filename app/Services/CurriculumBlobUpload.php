@@ -25,7 +25,11 @@ final class CurriculumBlobUpload
 
     public const KIND_EXAM = 'exam';
 
+    public const KIND_VIDEO = 'video';
+
     public const MAX_BYTES = 25 * 1024 * 1024;
+
+    public const MAX_VIDEO_BYTES = 512 * 1024 * 1024;
 
     public const AUTHORIZATION_TTL_SECONDS = 300;
 
@@ -44,6 +48,10 @@ final class CurriculumBlobUpload
         'png',
         'pptx',
         'zip',
+        'm4v',
+        'mov',
+        'mp4',
+        'webm',
     ];
 
     /** @var list<string> */
@@ -56,6 +64,10 @@ final class CurriculumBlobUpload
         'application/zip',
         'image/jpeg',
         'image/png',
+        'video/mp4',
+        'video/quicktime',
+        'video/webm',
+        'video/x-m4v',
     ];
 
     /** @var list<string> */
@@ -63,6 +75,7 @@ final class CurriculumBlobUpload
         self::KIND_BOOKLET,
         self::KIND_HOMEWORK,
         self::KIND_EXAM,
+        self::KIND_VIDEO,
     ];
 
     public function enabled(): bool
@@ -80,6 +93,13 @@ final class CurriculumBlobUpload
         $this->assertPositiveId($targetId, 'target');
 
         return "curriculum/{$teacherId}/{$kind}/{$targetId}/";
+    }
+
+    public function maxBytesFor(string $kind): int
+    {
+        $this->assertKind($kind);
+
+        return $kind === self::KIND_VIDEO ? self::MAX_VIDEO_BYTES : self::MAX_BYTES;
     }
 
     /**
@@ -107,8 +127,8 @@ final class CurriculumBlobUpload
             'teacher_id' => $teacherId,
             'kind' => $kind,
             'target_id' => $targetId,
-            'max_bytes' => self::MAX_BYTES,
-            'allowed_content_types' => self::ALLOWED_CONTENT_TYPES,
+            'max_bytes' => $this->maxBytesFor($kind),
+            'allowed_content_types' => $this->allowedContentTypesFor($kind),
             'expires_at_ms' => now()->getTimestampMs() + (self::AUTHORIZATION_TTL_SECONDS * 1000),
         ];
 
@@ -232,6 +252,13 @@ final class CurriculumBlobUpload
         }
 
         $this->assertSafePathname($pathname);
+
+        $extension = strtolower((string) pathinfo($pathname, PATHINFO_EXTENSION));
+        $isVideo = in_array($extension, ['m4v', 'mov', 'mp4', 'webm'], true);
+
+        if (($kind === self::KIND_VIDEO) !== $isVideo) {
+            throw new InvalidArgumentException('The Blob file type does not match the upload kind.');
+        }
     }
 
     private function assertSafePathname(string $pathname): void
@@ -256,6 +283,28 @@ final class CurriculumBlobUpload
         if (! in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
             throw new InvalidArgumentException('The Blob file type is not allowed.');
         }
+    }
+
+    /** @return list<string> */
+    private function allowedContentTypesFor(string $kind): array
+    {
+        return $kind === self::KIND_VIDEO
+            ? [
+                'video/mp4',
+                'video/quicktime',
+                'video/webm',
+                'video/x-m4v',
+            ]
+            : [
+                'application/msword',
+                'application/pdf',
+                'application/vnd.oasis.opendocument.text',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'application/zip',
+                'image/jpeg',
+                'image/png',
+            ];
     }
 
     private function assertPublicBlobHost(string $host): void
