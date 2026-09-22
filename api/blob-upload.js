@@ -133,7 +133,7 @@ export default async function handler(request, response) {
             pathname,
             access: 'private',
             allowedContentTypes: authorization.allowed_content_types,
-            addRandomSuffix: true,
+            addRandomSuffix: false,
             maximumSizeInBytes: authorization.max_bytes,
             validUntil: authorization.expires_at_ms,
         });

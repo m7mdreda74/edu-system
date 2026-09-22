@@ -697,6 +697,14 @@ class CurriculumController extends Controller
                 $targetId,
             );
         } catch (\Throwable $exception) {
+            \Illuminate\Support\Facades\Log::warning('Blob upload validateCompleted failed: '.$exception->getMessage(), [
+                'blob_url' => $request->input('blob_url'),
+                'blob_pathname' => $request->input('blob_pathname'),
+                'teacher_id' => Auth::id(),
+                'kind' => $kind,
+                'target_id' => $targetId,
+            ]);
+
             throw ValidationException::withMessages([
                 'blob_url' => 'تعذر التحقق من الملف المرفوع. أعد رفعه من فضلك.',
             ]);

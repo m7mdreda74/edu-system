@@ -186,7 +186,14 @@ final class CurriculumBlobUpload
         $urlPathname = rawurldecode(substr($parts['path'], 1));
 
         if ($urlPathname !== $pathname) {
-            throw new InvalidArgumentException('The completed Blob URL does not match its pathname.');
+            $expectedStem = (string) pathinfo($pathname, PATHINFO_FILENAME);
+            $expectedExt = strtolower((string) pathinfo($pathname, PATHINFO_EXTENSION));
+            $urlStem = (string) pathinfo($urlPathname, PATHINFO_FILENAME);
+            $urlExt = strtolower((string) pathinfo($urlPathname, PATHINFO_EXTENSION));
+
+            if ($expectedExt !== $urlExt || ! str_starts_with($urlStem, $expectedStem)) {
+                throw new InvalidArgumentException('The completed Blob URL does not match its pathname.');
+            }
         }
 
         return $url;
