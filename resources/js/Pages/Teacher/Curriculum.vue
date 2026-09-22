@@ -500,22 +500,31 @@ async function uploadDirect(kind, targetId, file, finalizeUrl, key, maxBytes = p
 }
 
 function directUploadPath(kind, targetId, originalName) {
-    const cleanName = originalName
-        .normalize('NFKC')
-        .replace(/[^\p{L}\p{N}._-]+/gu, '-')
+    const extension = (originalName.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
+
+    let cleanName = nameWithoutExt
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
         .replace(/^-+|-+$/g, '')
-        .slice(-160) || 'upload.bin';
+        .slice(-80);
+
+    if (!cleanName) {
+        cleanName = `${kind}-${targetId}`;
+    }
 
     const nonce = globalThis.crypto?.randomUUID?.()
         ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-    return `curriculum/${props.assignment.teacher.id}/${kind}/${targetId}/${nonce}-${cleanName}`;
+    return `curriculum/${props.assignment.teacher.id}/${kind}/${targetId}/${nonce}-${cleanName}.${extension}`;
 }
 
 function fileName(path) {
     if (!path) return '';
     try {
-        return decodeURIComponent(path.split('/').pop());
+        const raw = decodeURIComponent(path.split('/').pop());
+        return raw.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, '');
     } catch {
         return path.split('/').pop();
     }
