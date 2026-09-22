@@ -355,12 +355,27 @@ final class CurriculumBlobUpload
             return $configured;
         }
 
-        // Read-write tokens encode the store ID as the fourth underscore-
-        // separated segment (`vercel_blob_rw_<store-id>_...`).
         $token = trim((string) config('services.vercel_blob.token', ''));
-        $segments = explode('_', $token);
 
-        return isset($segments[3]) && $segments[3] !== '' ? $segments[3] : '';
+        if (str_starts_with($token, 'vercel_blob_rw_')) {
+            $segments = explode('_', $token);
+
+            if (isset($segments[3]) && $segments[3] !== '') {
+                return $segments[3];
+            }
+        }
+
+        if (str_starts_with($token, 'eyJ')) {
+            $parts = explode('.', $token);
+            if (isset($parts[1])) {
+                $decoded = json_decode(base64_decode(strtr($parts[1], '-_', '+/'), true) ?: '', true);
+                if (is_array($decoded) && ! empty($decoded['storeId'])) {
+                    return (string) $decoded['storeId'];
+                }
+            }
+        }
+
+        return '';
     }
 
     private function assertKind(string $kind): void
