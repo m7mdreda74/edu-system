@@ -138,7 +138,7 @@ npm run build
 ### Vercel file uploads
 
 Vercel Functions have a read-only deployment filesystem, so curriculum files
-must use durable object storage in production. Connect a **public Vercel Blob
+must use durable object storage in production. Connect a **private Vercel Blob
 store** to this project from the Vercel dashboard (Storage → Blob), then
 redeploy. New Vercel connections use rotating OIDC credentials automatically
 and expose `BLOB_STORE_ID`; no long-lived secret needs to be committed.

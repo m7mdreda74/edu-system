@@ -326,9 +326,11 @@ final class CurriculumBlobUpload
             throw new RuntimeException('A Vercel Blob store ID is required to validate completed uploads.');
         }
 
+        $storeId = trim($storeId, " \t\n\r\0\x0B\"'");
         $storeId = preg_replace('/^store_/', '', $storeId) ?? $storeId;
+        $storeId = preg_replace('/[^a-zA-Z0-9-]/', '', $storeId) ?? $storeId;
 
-        if (preg_match('/^[a-z0-9-]+$/i', $storeId) !== 1) {
+        if ($storeId === '') {
             throw new RuntimeException('The configured Vercel Blob store ID is invalid.');
         }
 
@@ -350,12 +352,14 @@ final class CurriculumBlobUpload
     private function configuredStoreId(): string
     {
         $configured = trim((string) config('services.vercel_blob.store_id', ''));
+        $configured = trim($configured, " \t\n\r\0\x0B\"'");
 
         if ($configured !== '') {
             return $configured;
         }
 
         $token = trim((string) config('services.vercel_blob.token', ''));
+        $token = trim($token, " \t\n\r\0\x0B\"'");
 
         if (str_starts_with($token, 'vercel_blob_rw_')) {
             $segments = explode('_', $token);
