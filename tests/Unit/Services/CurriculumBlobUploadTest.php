@@ -149,9 +149,9 @@ it('requires uploads to be enabled and app key to be present', function () {
     ))->toThrow(RuntimeException::class, 'APP_KEY');
 });
 
-it('accepts a completed public blob from the configured store and exact prefix', function () {
+it('accepts a completed blob from the configured store and exact prefix', function (string $hostSuffix) {
     $pathname = 'curriculum/42/booklet/99/lesson-notes-oYnXSVczoLa9.pdf';
-    $url = "https://1sxstfwepd7zn41q.public.blob.vercel-storage.com/{$pathname}";
+    $url = "https://1sxstfwepd7zn41q{$hostSuffix}/{$pathname}";
 
     expect($this->uploads->validateCompleted(
         $url,
@@ -160,7 +160,10 @@ it('accepts a completed public blob from the configured store and exact prefix',
         CurriculumBlobUpload::KIND_BOOKLET,
         99,
     ))->toBe($url);
-});
+})->with([
+    'public blob' => '.public.blob.vercel-storage.com',
+    'private blob' => '.private.blob.vercel-storage.com',
+]);
 
 it('normalizes the store prefix used by OIDC project connections', function () {
     config()->set('services.vercel_blob.store_id', 'store_1sxstfwepd7zn41q');
@@ -229,8 +232,8 @@ it('rejects an untrusted or mismatched completed blob', function (
         'https://wrong-store.public.blob.vercel-storage.com/curriculum/42/booklet/99/notes.pdf',
         'curriculum/42/booklet/99/notes.pdf',
     ],
-    'private blob' => [
-        'https://1sxstfwepd7zn41q.private.blob.vercel-storage.com/curriculum/42/booklet/99/notes.pdf',
+    'untrusted host suffix' => [
+        'https://1sxstfwepd7zn41q.custom.blob.vercel-storage.com/curriculum/42/booklet/99/notes.pdf',
         'curriculum/42/booklet/99/notes.pdf',
     ],
     'lookalike host' => [

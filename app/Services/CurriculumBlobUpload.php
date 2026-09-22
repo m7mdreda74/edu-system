@@ -35,7 +35,11 @@ final class CurriculumBlobUpload
 
     public const DOWNLOAD_TTL_SECONDS = 900;
 
-    private const PUBLIC_BLOB_HOST_SUFFIX = '.public.blob.vercel-storage.com';
+    private const ALLOWED_BLOB_HOST_SUFFIXES = [
+        '.private.blob.vercel-storage.com',
+        '.public.blob.vercel-storage.com',
+        '.blob.vercel-storage.com',
+    ];
 
     /** @var list<string> */
     private const ALLOWED_EXTENSIONS = [
@@ -321,7 +325,17 @@ final class CurriculumBlobUpload
             throw new RuntimeException('The configured Vercel Blob store ID is invalid.');
         }
 
-        if ($host !== strtolower($storeId).self::PUBLIC_BLOB_HOST_SUFFIX) {
+        $normalizedStoreId = strtolower($storeId);
+        $isValidHost = false;
+
+        foreach (self::ALLOWED_BLOB_HOST_SUFFIXES as $suffix) {
+            if ($host === $normalizedStoreId . $suffix) {
+                $isValidHost = true;
+                break;
+            }
+        }
+
+        if (! $isValidHost) {
             throw new InvalidArgumentException('The completed Blob URL belongs to another store.');
         }
     }
