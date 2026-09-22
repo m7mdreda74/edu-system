@@ -114,7 +114,12 @@ export default async function handler(request, response) {
         // issueSignedToken uses Vercel's rotating OIDC credentials when the
         // project is connected to a Blob store, and falls back to the legacy
         // BLOB_READ_WRITE_TOKEN when one is explicitly configured.
+        const token = process.env.BLOB_READ_WRITE_TOKEN;
+        const storeId = process.env.BLOB_STORE_ID;
+
         const signedToken = await issueSignedToken({
+            ...(token ? { token } : {}),
+            ...(storeId ? { storeId } : {}),
             pathname,
             operations: ['put'],
             maximumSizeInBytes: authorization.max_bytes,
@@ -122,6 +127,8 @@ export default async function handler(request, response) {
             validUntil: authorization.expires_at_ms,
         });
         const { presignedUrl } = await presignUrl(signedToken, {
+            ...(token ? { token } : {}),
+            ...(storeId ? { storeId } : {}),
             operation: 'put',
             pathname,
             access: 'private',

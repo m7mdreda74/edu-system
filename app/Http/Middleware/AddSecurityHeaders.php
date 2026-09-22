@@ -78,7 +78,7 @@ class AddSecurityHeaders
             "font-src 'self' data: https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
             "media-src 'self' blob: https:",
-            "connect-src 'self' {$jitsiOrigin} wss://{$this->jitsiHost()} https://challenges.cloudflare.com https://*.vercel-storage.com",
+            "connect-src 'self' {$jitsiOrigin} wss://{$this->jitsiHost()} https://challenges.cloudflare.com https://vercel.com https://*.vercel-storage.com",
             "frame-src 'self' {$jitsiOrigin} https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
             "child-src 'self' {$jitsiOrigin} https://www.youtube-nocookie.com https://player.vimeo.com",
             "worker-src 'self' blob:",

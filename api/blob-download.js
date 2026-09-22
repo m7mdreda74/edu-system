@@ -67,7 +67,12 @@ export default async function handler(request, response) {
 
     try {
         const { pathname } = decodeToken(request.query?.token);
+        const token = process.env.BLOB_READ_WRITE_TOKEN;
+        const storeId = process.env.BLOB_STORE_ID;
+
         const result = await get(pathname, {
+            ...(token ? { token } : {}),
+            ...(storeId ? { storeId } : {}),
             access: 'private',
             useCache: false,
             headers: request.headers.range
