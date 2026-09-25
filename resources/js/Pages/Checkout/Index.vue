@@ -103,6 +103,7 @@ async function uploadReceiptToBlob(file) {
     });
     const uploadResponse = await fetch(presigned.upload_url, {
         method: 'PUT',
+        headers: { 'Content-Type': file.type },
         body: file,
     });
 

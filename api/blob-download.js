@@ -5,6 +5,22 @@ import { get } from '@vercel/blob';
 const MAX_TOKEN_LENGTH = 4096;
 const MAX_DOWNLOAD_SECONDS = 15 * 60;
 
+function blobAuthOptions() {
+    const oidcToken = process.env.VERCEL_OIDC_TOKEN;
+    const storeId = process.env.BLOB_STORE_ID;
+
+    if (oidcToken && storeId) {
+        return { oidcToken, storeId };
+    }
+
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+
+    return {
+        ...(token ? { token } : {}),
+        ...(storeId ? { storeId } : {}),
+    };
+}
+
 function decodeToken(token) {
     const [encodedPayload, suppliedSignature, extra] = String(token ?? '').split('.');
     const signingKey = process.env.APP_KEY;
@@ -74,12 +90,8 @@ export default async function handler(request, response) {
             response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'self'");
         }
 
-        const token = process.env.BLOB_READ_WRITE_TOKEN;
-        const storeId = process.env.BLOB_STORE_ID;
-
         const result = await get(pathname, {
-            ...(token ? { token } : {}),
-            ...(storeId ? { storeId } : {}),
+            ...blobAuthOptions(),
             access: 'private',
             useCache: false,
             headers: request.headers.range

@@ -21,6 +21,22 @@ const ALLOWED_CONTENT_TYPES = new Set([
     'video/x-m4v',
 ]);
 
+function blobAuthOptions() {
+    const oidcToken = process.env.VERCEL_OIDC_TOKEN;
+    const storeId = process.env.BLOB_STORE_ID;
+
+    if (oidcToken && storeId) {
+        return { oidcToken, storeId };
+    }
+
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+
+    return {
+        ...(token ? { token } : {}),
+        ...(storeId ? { storeId } : {}),
+    };
+}
+
 function parseBody(body) {
     if (typeof body === 'string') {
         return JSON.parse(body);
@@ -122,12 +138,10 @@ export default async function handler(request, response) {
         // issueSignedToken uses Vercel's rotating OIDC credentials when the
         // project is connected to a Blob store, and falls back to the legacy
         // BLOB_READ_WRITE_TOKEN when one is explicitly configured.
-        const token = process.env.BLOB_READ_WRITE_TOKEN;
-        const storeId = process.env.BLOB_STORE_ID;
+        const blobAuth = blobAuthOptions();
 
         const signedToken = await issueSignedToken({
-            ...(token ? { token } : {}),
-            ...(storeId ? { storeId } : {}),
+            ...blobAuth,
             pathname,
             operations: ['put'],
             maximumSizeInBytes: authorization.max_bytes,
@@ -135,8 +149,7 @@ export default async function handler(request, response) {
             validUntil: authorization.expires_at_ms,
         });
         const { presignedUrl } = await presignUrl(signedToken, {
-            ...(token ? { token } : {}),
-            ...(storeId ? { storeId } : {}),
+            ...blobAuth,
             operation: 'put',
             pathname,
             access: 'private',

@@ -222,7 +222,18 @@ async function rejectPayment(p) {
                         <button type="button" @click="selectedReceipt = null" class="btn-ghost p-1.5 rounded-lg text-surface-400 hover:text-surface-700" aria-label="إغلاق الإيصال">✕</button>
                     </div>
                     <div class="w-full h-[70vh] rounded-2xl overflow-hidden bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 p-2">
-                        <iframe :src="selectedReceipt.url" class="w-full h-full rounded-xl border-0" title="إيصال التحويل"></iframe>
+                        <img
+                            v-if="!selectedReceipt.isPdf"
+                            :src="selectedReceipt.url"
+                            class="w-full h-full rounded-xl object-contain"
+                            alt="إيصال التحويل"
+                        />
+                        <iframe
+                            v-else
+                            :src="selectedReceipt.url"
+                            class="w-full h-full rounded-xl border-0"
+                            title="إيصال التحويل"
+                        ></iframe>
                     </div>
                 </div>
             </div>
