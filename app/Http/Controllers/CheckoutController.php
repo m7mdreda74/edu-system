@@ -279,7 +279,13 @@ class CheckoutController extends Controller
                     throw new LogicException('يوجد إيصال تحويل قيد المراجعة لهذا الاشتراك بالفعل.');
                 }
 
-                if (Payment::query()->where('receipt_sha256', $receiptHash)->exists()) {
+                // A rejected receipt may be uploaded again after the student
+                // fixes the issue. Keep the duplicate guard for receipts that
+                // are still under review or have already been accepted.
+                if (Payment::query()
+                    ->where('receipt_sha256', $receiptHash)
+                    ->where('status', '!=', Payment::STATUS_FAILED)
+                    ->exists()) {
                     throw new LogicException('تم رفع هذا الإيصال من قبل ولا يمكن استخدامه مرة أخرى.');
                 }
 

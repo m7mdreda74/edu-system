@@ -14,6 +14,7 @@ use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use App\Infrastructure\Payment\Gateways\FatoraGateway;
 use App\Infrastructure\Payment\Gateways\TapGateway;
+use App\Notifications\PaymentRejectedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -346,6 +347,68 @@ it('lets only an admin reject a Vodafone Cash receipt without activating it', fu
     expect($payment->fresh()->status)->toBe(Payment::STATUS_FAILED)
         ->and($payment->fresh()->reviewed_by)->toBe($this->admin->id)
         ->and($this->subscription->fresh()->status)->toBe(Subscription::STATUS_PENDING);
+});
+
+it('notifies the student and verified parents and allows a new receipt after rejection', function (): void {
+    config()->set([
+        'services.vercel_blob.enabled' => true,
+        'services.vercel_blob.serverless' => true,
+        'services.vercel_blob.store_id' => '1sxstfwepd7zn41q',
+    ]);
+    Notification::fake();
+
+    $parent = User::factory()->create(['email_verified_at' => now()]);
+    $parent->assignRole('parent');
+    ParentStudentLink::create([
+        'parent_user_id' => $parent->id,
+        'student_user_id' => $this->student->id,
+        'relationship' => 'guardian',
+        'verified_at' => now(),
+    ]);
+
+    $receiptHash = str_repeat('c', 64);
+    $submitReceipt = function (string $filename, string $idempotencyKey) use ($receiptHash): void {
+        $pathname = "payments/receipts/{$this->student->id}/{$this->subscription->id}/{$filename}";
+        $receiptUrl = "https://1sxstfwepd7zn41q.private.blob.vercel-storage.com/{$pathname}";
+
+        $this->actingAs($this->student)
+            ->withHeaders([
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])
+            ->post(route('checkout.process', $this->subscription->id), [
+                'idempotency_key' => $idempotencyKey,
+                'payment_method' => Payment::GATEWAY_VODAFONE_CASH,
+                'sender_phone' => '01009876543',
+                'receipt_blob_url' => $receiptUrl,
+                'receipt_blob_pathname' => $pathname,
+                'receipt_blob_sha256' => $receiptHash,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+    };
+
+    $submitReceipt('receipt-1.jpg', (string) Str::uuid());
+    $payment = Payment::firstOrFail();
+    $paymentId = $payment->id;
+    $reason = 'Receipt is not clear.';
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.payments.reject', $payment), ['reason' => $reason])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    Notification::assertSentTo($this->student, PaymentRejectedNotification::class, function (PaymentRejectedNotification $notification) use ($paymentId, $reason): bool {
+        return $notification->payment->id === $paymentId && $notification->reason === $reason;
+    });
+    Notification::assertSentTo($parent, PaymentRejectedNotification::class, function (PaymentRejectedNotification $notification) use ($paymentId, $reason): bool {
+        return $notification->payment->id === $paymentId && $notification->reason === $reason;
+    });
+
+    $submitReceipt('receipt-2.jpg', (string) Str::uuid());
+
+    expect(Payment::count())->toBe(2)
+        ->and(Payment::latest('id')->firstOrFail()->status)->toBe(Payment::STATUS_PENDING_VERIFICATION);
 });
 
 it('lets a verified parent submit a Vodafone Cash receipt for the linked student', function (): void {

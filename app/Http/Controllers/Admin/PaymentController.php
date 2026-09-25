@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Application\Payment\Services\PaymentService;
+use App\Application\User\Services\ParentStudentLinkService;
 use App\Domain\Payment\Models\Payment;
 use App\Http\Controllers\Controller;
+use App\Notifications\PaymentRejectedNotification;
 use App\Services\AuditLogger;
 use App\Services\CurriculumBlobUpload;
 use App\Services\SecureStoredFileResponse;
@@ -78,7 +80,7 @@ class PaymentController extends Controller
         return back()->with('success', 'تم تأكيد الدفع وتفعيل الاشتراك للطالب بنجاح.');
     }
 
-    public function reject(Request $request, Payment $payment)
+    public function reject(Request $request, Payment $payment, ParentStudentLinkService $parentStudentLinks)
     {
         $validated = $request->validate(['reason' => ['required', 'string', 'min:1', 'max:1000']]);
 
@@ -103,7 +105,21 @@ class PaymentController extends Controller
             return back()->with('error', 'هذه العملية غير معلقة للتحقق.');
         }
 
-        AuditLogger::record('admin.payment.rejected', $payment->fresh(), [
+        $rejectedPayment = $payment->fresh(['user', 'subscription']);
+
+        if ($rejectedPayment?->user) {
+            $rejectedPayment->user->notify(new PaymentRejectedNotification(
+                $rejectedPayment,
+                $validated['reason'],
+            ));
+
+            $parentStudentLinks->notifyLinkedParents(
+                $rejectedPayment->user,
+                new PaymentRejectedNotification($rejectedPayment, $validated['reason']),
+            );
+        }
+
+        AuditLogger::record('admin.payment.rejected', $rejectedPayment ?? $payment->fresh(), [
             'reason_hash' => AuditLogger::hashValue($validated['reason']),
         ]);
 
