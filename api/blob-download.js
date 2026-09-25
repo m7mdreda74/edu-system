@@ -53,6 +53,7 @@ function decodeToken(token) {
         Buffer.from(encodedPayload, 'base64url').toString('utf8'),
     );
     const pathname = String(payload?.pathname ?? '');
+    const blobUrl = payload?.blob_url ? String(payload.blob_url) : null;
     const expiresAt = Number(payload?.expires_at_ms ?? 0);
 
     if (
@@ -67,7 +68,23 @@ function decodeToken(token) {
         throw new Error('Expired or invalid download token.');
     }
 
-    return { pathname, expiresAt };
+    if (blobUrl) {
+        const parsedUrl = new URL(blobUrl);
+        const blobPathname = decodeURIComponent(parsedUrl.pathname.replace(/^\//, ''));
+
+        if (
+            parsedUrl.protocol !== 'https:'
+            || !parsedUrl.hostname.endsWith('.blob.vercel-storage.com')
+            || parsedUrl.username
+            || parsedUrl.password
+            || parsedUrl.port
+            || blobPathname !== pathname
+        ) {
+            throw new Error('Invalid Blob URL in download token.');
+        }
+    }
+
+    return { pathname, blobUrl, expiresAt };
 }
 
 export default async function handler(request, response) {
@@ -82,7 +99,7 @@ export default async function handler(request, response) {
     }
 
     try {
-        const { pathname } = decodeToken(request.query?.token);
+        const { pathname, blobUrl } = decodeToken(request.query?.token);
         const isReceipt = pathname.startsWith('payments/receipts/');
 
         if (isReceipt) {
@@ -90,7 +107,7 @@ export default async function handler(request, response) {
             response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'self'");
         }
 
-        const result = await get(pathname, {
+        const result = await get(blobUrl || pathname, {
             ...blobAuthOptions(),
             access: 'private',
             useCache: false,

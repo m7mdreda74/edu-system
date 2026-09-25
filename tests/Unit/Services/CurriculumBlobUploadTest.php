@@ -289,3 +289,15 @@ it('issues and validates a private payment receipt upload', function () {
         ->and(fn () => $this->uploads->validateCompletedReceipt($url, $issued['pathname'], 18, 29))
         ->toThrow(InvalidArgumentException::class);
 });
+
+it('binds private download tokens to the original Blob URL', function () {
+    $pathname = 'payments/receipts/17/29/receipt.jpg';
+    $url = "https://1sxstfwepd7zn41q.private.blob.vercel-storage.com/{$pathname}";
+
+    parse_str((string) parse_url($this->uploads->downloadUrlFor($url, 7), PHP_URL_QUERY), $query);
+    [$encodedPayload] = explode('.', (string) ($query['token'] ?? ''), 2);
+    $payload = json_decode(base64_decode(strtr($encodedPayload, '-_', '+/'), true) ?: '', true, flags: JSON_THROW_ON_ERROR);
+
+    expect($payload['pathname'])->toBe($pathname)
+        ->and($payload['blob_url'])->toBe($url);
+});

@@ -318,6 +318,7 @@ final class CurriculumBlobUpload
 
         $payload = [
             'pathname' => $pathname,
+            'blob_url' => $url,
             'user_id' => $userId,
             'expires_at_ms' => now()->getTimestampMs() + (self::DOWNLOAD_TTL_SECONDS * 1000),
         ];
