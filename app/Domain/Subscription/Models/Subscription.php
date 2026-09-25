@@ -96,7 +96,9 @@ class Subscription extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_ACTIVE)
-            ->whereDate('period_end', '>=', now()->toDateString());
+            // `period_end` is a DATE column; comparing it directly keeps the
+            // student/status/period composite index usable.
+            ->where('period_end', '>=', today()->toDateString());
     }
 
     public function scopeForStudent(Builder $query, int $studentId): Builder

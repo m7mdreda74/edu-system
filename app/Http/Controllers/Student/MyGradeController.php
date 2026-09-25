@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
+use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
@@ -66,6 +67,16 @@ class MyGradeController extends Controller
             ->get()
             ->groupBy('subject_id');
 
+        // Load all approved teacher ratings in one grouped query. Calling
+        // averageRating() inside the subject/teacher loop caused one AVG query
+        // per teacher on the student's grade page.
+        $approvedRatings = TeacherReview::query()
+            ->whereIn('teacher_id', $assignments->flatten()->pluck('teacher_id')->filter()->unique())
+            ->where('is_approved', true)
+            ->selectRaw('teacher_id, AVG(rating) as average_rating')
+            ->groupBy('teacher_id')
+            ->pluck('average_rating', 'teacher_id');
+
         $subjects = $grade->subjects()
             ->where('is_active', true)
             ->orderBy('name')
@@ -90,7 +101,12 @@ class MyGradeController extends Controller
                     ]),
 
                     'teachers' => ($assignments->get($subject->id) ?? collect())
-                        ->map(fn (TeachingAssignment $assignment) => $this->presentTeacher($assignment, $subscribed, $grade))
+                        ->map(fn (TeachingAssignment $assignment) => $this->presentTeacher(
+                            $assignment,
+                            $subscribed,
+                            $grade,
+                            (float) ($approvedRatings[$assignment->teacher_id] ?? 0),
+                        ))
                         // The teacher they already study with sits first.
                         ->sortByDesc('is_subscribed')
                         ->values(),
@@ -114,8 +130,12 @@ class MyGradeController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function presentTeacher(TeachingAssignment $assignment, ?array $subscribed, GradeLevel $grade): array
-    {
+    private function presentTeacher(
+        TeachingAssignment $assignment,
+        ?array $subscribed,
+        GradeLevel $grade,
+        float $approvedRating,
+    ): array {
         $teacher = $assignment->teacher;
         $groups = $assignment->groups->filter(
             fn ($group) => $group->active_bookings_count < $group->capacity
@@ -132,7 +152,7 @@ class MyGradeController extends Controller
             'intro_video_url' => $teacher->intro_video_url,
             'intro_video_thumbnail' => $teacher->intro_video_thumbnail,
             'years_experience' => $teacher->years_experience,
-            'rating' => $teacher->averageRating(),
+            'rating' => round($approvedRating, 1),
 
             // Green when this is the teacher they study with, red otherwise.
             'is_subscribed' => ($subscribed['teacher_id'] ?? null) === $teacher->id,

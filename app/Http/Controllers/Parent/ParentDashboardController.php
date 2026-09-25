@@ -52,7 +52,10 @@ class ParentDashboardController extends Controller
 
         // Only expose a student this parent is actually linked to.
         if ($selectedStudentId && $links->contains('student_user_id', $selectedStudentId)) {
-            $student = User::findOrFail($selectedStudentId);
+            // The linked student is already eager-loaded above; avoid a
+            // duplicate users query on every parent dashboard visit.
+            $student = $links->firstWhere('student_user_id', $selectedStudentId)?->student;
+            abort_unless($student, 404);
             $subscriptions = Subscription::where('student_id', $selectedStudentId)
                 ->with([
                     'assignment.subject:id,name,icon',
@@ -336,7 +339,7 @@ class ParentDashboardController extends Controller
     public function linkStudent(Request $request, ParentStudentLinkService $parentStudentLinks): RedirectResponse
     {
         $validated = $request->validate([
-            'student_phone' => ['required', 'string', 'min:7', 'max:20', new PhoneNumber()],
+            'student_phone' => ['required', 'string', 'min:7', 'max:20', new PhoneNumber],
             'relationship' => ['required', 'string', 'in:father,mother,guardian'],
         ]);
 

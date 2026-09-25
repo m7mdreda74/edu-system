@@ -45,29 +45,30 @@ class LearnController extends Controller
     public function show(Request $request, int $groupId): Response
     {
         /** @var User $user */
-        $user  = Auth::user();
+        $user = Auth::user();
         $group = TeachingGroup::with(['assignment.teacher:id,name', 'assignment.subject:id,name,icon'])
             ->findOrFail($groupId);
 
         $this->authorizeAccess($user, $group);
 
-        $terms        = $this->terms($group);
+        $terms = $this->terms($group);
         $activeTermId = $this->activeTermId($request, $group, $terms);
+        $progress = $this->certificates->progressSummary($user, $group);
 
         return Inertia::render('Student/Learn', [
             'group' => [
-                'id'                     => $group->id,
-                'name'                   => $group->name,
+                'id' => $group->id,
+                'name' => $group->name,
                 'teaching_assignment_id' => (int) $group->teaching_assignment_id,
-                'subject'                => $group->assignment?->subject?->only(['id', 'name', 'icon']),
-                'teacher'                => $group->assignment?->teacher?->only(['id', 'name']),
+                'subject' => $group->assignment?->subject?->only(['id', 'name', 'icon']),
+                'teacher' => $group->assignment?->teacher?->only(['id', 'name']),
             ],
-            'terms'        => $terms->all(),
+            'terms' => $terms->all(),
             'activeTermId' => $activeTermId,
-            'units'        => $this->presentUnits($user, $group, $activeTermId),
-            'progress'     => [
-                'percent'           => $this->certificates->progressPercent($user, $group),
-                'certificate_ready' => $this->certificates->isEligible($user, $group),
+            'units' => $this->presentUnits($user, $group, $activeTermId),
+            'progress' => [
+                'percent' => $progress['percent'],
+                'certificate_ready' => $progress['certificate_ready'],
             ],
         ]);
     }
@@ -84,7 +85,7 @@ class LearnController extends Controller
         ]);
 
         /** @var User $user */
-        $user  = Auth::user();
+        $user = Auth::user();
         $group = TeachingGroup::findOrFail($groupId);
 
         if (! $this->hasAccess($user, $group)) {
@@ -105,13 +106,15 @@ class LearnController extends Controller
             [
                 // Never walk progress backwards if a stale ping arrives late.
                 'watched_seconds' => max($validated['watched_seconds'], $existing->watched_seconds ?? 0),
-                'is_completed'    => $isCompleted || (bool) ($existing->is_completed ?? false),
+                'is_completed' => $isCompleted || (bool) ($existing->is_completed ?? false),
             ],
         );
 
+        $progress = $this->certificates->progressSummary($user, $group);
+
         return response()->json([
-            'progress_percent'  => $this->certificates->progressPercent($user, $group),
-            'certificate_ready' => $this->certificates->isEligible($user, $group),
+            'progress_percent' => $progress['percent'],
+            'certificate_ready' => $progress['certificate_ready'],
             // Finishing a lesson can unlock the next one and the whole next
             // unit, so the tree of the term being watched comes back rebuilt.
             'units' => $this->presentUnits($user, $group, $material->unit?->academic_term_id),
@@ -126,7 +129,7 @@ class LearnController extends Controller
         ]);
 
         /** @var User $user */
-        $user  = Auth::user();
+        $user = Auth::user();
         $group = TeachingGroup::findOrFail($groupId);
 
         $this->authorizeAccess($user, $group);
@@ -140,12 +143,12 @@ class LearnController extends Controller
         WorksheetSubmission::updateOrCreate(
             ['worksheet_id' => $worksheet->id, 'student_id' => $user->id],
             [
-                'submitted_file_path' => 'private://' . $path,
-                'submitted_at'        => now(),
+                'submitted_file_path' => 'private://'.$path,
+                'submitted_at' => now(),
                 // Resubmitting clears the previous grade.
-                'score'               => null,
-                'teacher_feedback'    => null,
-                'graded_at'           => null,
+                'score' => null,
+                'teacher_feedback' => null,
+                'graded_at' => null,
             ],
         );
 
@@ -195,12 +198,12 @@ class LearnController extends Controller
             ->orderBy('starts_on')
             ->get()
             ->map(fn (AcademicTerm $term) => [
-                'id'          => $term->id,
-                'name'        => $term->name,
-                'year_label'  => $term->year_label,
+                'id' => $term->id,
+                'name' => $term->name,
+                'year_label' => $term->year_label,
                 'term_number' => $term->term_number,
-                'full_name'   => $term->fullName(),
-                'is_current'  => (bool) $term->isCurrent(),
+                'full_name' => $term->fullName(),
+                'is_current' => (bool) $term->isCurrent(),
                 'units_count' => (int) $counts[$term->id],
             ]);
     }
@@ -253,31 +256,31 @@ class LearnController extends Controller
             ->orderBy('order')
             ->get();
 
-        $lessons     = $units->flatMap(fn (CurriculumUnit $unit) => $unit->lessons);
-        $progress    = $this->progressMap($user, $lessons);
+        $lessons = $units->flatMap(fn (CurriculumUnit $unit) => $unit->lessons);
+        $progress = $this->progressMap($user, $lessons);
         $submissions = $this->submissionMap($user, $units, $lessons);
-        $attempts    = $this->attemptMap($user, $units);
+        $attempts = $this->attemptMap($user, $units);
 
         $previousCleared = true; // the first unit is never gated
-        $tree            = [];
+        $tree = [];
 
         foreach ($units as $unit) {
-            $isLocked   = ! $previousCleared;
+            $isLocked = ! $previousCleared;
             $unitLessons = $this->presentLessons($unit, $progress, $submissions, $isLocked);
-            $done        = count(array_filter($unitLessons, fn (array $lesson) => $lesson['is_completed']));
+            $done = count(array_filter($unitLessons, fn (array $lesson) => $lesson['is_completed']));
 
             $tree[] = [
-                'id'                      => $unit->id,
-                'order'                   => $unit->order,
-                'title'                   => $unit->title,
-                'description'             => $unit->description,
-                'is_locked'               => $isLocked,
-                'is_completed'            => $unitLessons !== [] && $done === count($unitLessons),
-                'lessons_count'           => count($unitLessons),
+                'id' => $unit->id,
+                'order' => $unit->order,
+                'title' => $unit->title,
+                'description' => $unit->description,
+                'is_locked' => $isLocked,
+                'is_completed' => $unitLessons !== [] && $done === count($unitLessons),
+                'lessons_count' => count($unitLessons),
                 'completed_lessons_count' => $done,
-                'lessons'                 => $unitLessons,
-                'electronic_exam'         => $this->presentExam($unit->electronicExam, $attempts),
-                'paper_exam'              => $this->presentSheet($unit->paperExam, $submissions),
+                'lessons' => $unitLessons,
+                'electronic_exam' => $this->presentExam($unit->electronicExam, $attempts),
+                'paper_exam' => $this->presentSheet($unit->paperExam, $submissions),
             ];
 
             // A unit with no lessons in it yet clears itself, so an empty
@@ -293,7 +296,7 @@ class LearnController extends Controller
      * unfinished, and every lesson of a locked unit is locked with it. A free
      * preview is always open — it is the sample the platform sells with.
      *
-     * @param  Collection<int, LessonProgress>       $progress
+     * @param  Collection<int, LessonProgress>  $progress
      * @param  Collection<int, WorksheetSubmission>  $submissions
      * @return array<int, array<string, mixed>>
      */
@@ -304,29 +307,29 @@ class LearnController extends Controller
         bool $unitLocked,
     ): array {
         $previousDone = true;
-        $lessons      = [];
+        $lessons = [];
 
         foreach ($unit->lessons as $lesson) {
-            $seen        = $progress->get($lesson->id);
+            $seen = $progress->get($lesson->id);
             $isCompleted = (bool) ($seen->is_completed ?? false);
 
             $lessons[] = [
-                'id'               => $lesson->id,
-                'order'            => $lesson->order,
-                'title'            => $lesson->title,
-                'description'      => $lesson->description,
+                'id' => $lesson->id,
+                'order' => $lesson->order,
+                'title' => $lesson->title,
+                'description' => $lesson->description,
                 'duration_seconds' => $lesson->duration_seconds,
-                'is_free_preview'  => $lesson->is_free_preview,
+                'is_free_preview' => $lesson->is_free_preview,
                 // The URL itself is never shipped — the player asks for a
                 // signed one — so the page only needs to know there is a video.
-                'has_video'        => filled($lesson->video_url) || filled($lesson->video_path),
-                'booklet_path'     => filled($lesson->attachment_path)
+                'has_video' => filled($lesson->video_url) || filled($lesson->video_path),
+                'booklet_path' => filled($lesson->attachment_path)
                     ? route('learning.material.download', $lesson->id)
                     : null,
-                'is_completed'     => $isCompleted,
-                'watched_seconds'  => (int) ($seen->watched_seconds ?? 0),
-                'is_locked'        => ! $lesson->is_free_preview && ($unitLocked || ! $previousDone),
-                'homework'         => $this->presentSheet($lesson->homework, $submissions),
+                'is_completed' => $isCompleted,
+                'watched_seconds' => (int) ($seen->watched_seconds ?? 0),
+                'is_locked' => ! $lesson->is_free_preview && ($unitLocked || ! $previousDone),
+                'homework' => $this->presentSheet($lesson->homework, $submissions),
             ];
 
             $previousDone = $isCompleted;
@@ -350,24 +353,24 @@ class LearnController extends Controller
         $submission = $submissions->get($sheet->id);
 
         return [
-            'id'                  => $sheet->id,
-            'title'               => $sheet->title,
-            'file_path'           => filled($sheet->file_path)
+            'id' => $sheet->id,
+            'title' => $sheet->title,
+            'file_path' => filled($sheet->file_path)
                 ? route('learning.worksheet.download', $sheet->id)
                 : null,
-            'due_date'            => $sheet->due_date?->format('Y-m-d'),
-            'max_score'           => $sheet->max_score,
+            'due_date' => $sheet->due_date?->format('Y-m-d'),
+            'max_score' => $sheet->max_score,
             'requires_submission' => $sheet->requires_submission,
-            'submission'          => $submission === null ? null : [
-                'id'               => $submission->id,
-                'file_path'        => filled($submission->submitted_file_path)
+            'submission' => $submission === null ? null : [
+                'id' => $submission->id,
+                'file_path' => filled($submission->submitted_file_path)
                     ? route('learning.submission.download', $submission->id)
                     : null,
-                'submitted_at'     => $submission->submitted_at?->toIso8601String(),
-                'score'            => $submission->score,
+                'submitted_at' => $submission->submitted_at?->toIso8601String(),
+                'score' => $submission->score,
                 'teacher_feedback' => $submission->teacher_feedback,
-                'graded_at'        => $submission->graded_at?->toIso8601String(),
-                'is_graded'        => $submission->isGraded(),
+                'graded_at' => $submission->graded_at?->toIso8601String(),
+                'is_graded' => $submission->isGraded(),
             ],
         ];
     }
@@ -385,27 +388,27 @@ class LearnController extends Controller
             return null;
         }
 
-        $mine      = $attempts->get($quiz->id) ?? new Collection();
-        $best      = $mine->whereNotNull('submitted_at')->sortByDesc('score')->first();
-        $used      = $mine->count();
+        $mine = $attempts->get($quiz->id) ?? new Collection;
+        $best = $mine->whereNotNull('submitted_at')->sortByDesc('score')->first();
+        $used = $mine->count();
         $questions = (int) ($quiz->questions_count ?? 0);
 
         return [
-            'id'                 => $quiz->id,
-            'title'              => $quiz->title,
-            'questions_count'    => $questions,
+            'id' => $quiz->id,
+            'title' => $quiz->title,
+            'questions_count' => $questions,
             'time_limit_minutes' => $quiz->time_limit_minutes,
-            'passing_score'      => $quiz->passing_score,
-            'is_open'            => $quiz->isOpen(),
-            'opens_at'           => $quiz->available_from?->toIso8601String(),
-            'closes_at'          => $quiz->available_until?->toIso8601String(),
-            'window_label'       => $quiz->windowLabel(),
-            'attempts_count'     => $used,
-            'attempts_left'      => max(0, Quiz::MAX_QUIZ_ATTEMPTS - $used),
-            'best_attempt'       => $best === null ? null : [
-                'id'           => $best->id,
-                'score'        => $best->score,
-                'passed'       => $best->passed,
+            'passing_score' => $quiz->passing_score,
+            'is_open' => $quiz->isOpen(),
+            'opens_at' => $quiz->available_from?->toIso8601String(),
+            'closes_at' => $quiz->available_until?->toIso8601String(),
+            'window_label' => $quiz->windowLabel(),
+            'attempts_count' => $used,
+            'attempts_left' => max(0, Quiz::MAX_QUIZ_ATTEMPTS - $used),
+            'best_attempt' => $best === null ? null : [
+                'id' => $best->id,
+                'score' => $best->score,
+                'passed' => $best->passed,
                 'submitted_at' => $best->submitted_at?->toIso8601String(),
             ],
             // An exam with no questions in it cannot be sat, however open it is.
@@ -429,7 +432,7 @@ class LearnController extends Controller
 
     /**
      * @param  Collection<int, CurriculumUnit>  $units
-     * @param  Collection<int, GroupMaterial>   $lessons
+     * @param  Collection<int, GroupMaterial>  $lessons
      * @return Collection<int, WorksheetSubmission>
      */
     private function submissionMap(User $user, Collection $units, Collection $lessons): Collection

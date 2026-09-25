@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
-use App\Application\Certificate\Services\CertificateService;
 use App\Application\Scheduling\Services\SessionBookingService;
 use App\Application\Subscription\Services\SubscriptionService;
+use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\Learning\Models\LessonProgress;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -26,13 +27,14 @@ class SubscriptionController extends Controller
 {
     public function __construct(
         private readonly SubscriptionService $subscriptions,
-        private readonly CertificateService $certificates,
     ) {}
 
     /** "حصصي" — every class this student has access to. */
     public function index(): Response
     {
         $student = Auth::user();
+        $materialCounts = collect();
+        $completedCounts = collect();
 
         $subscriptions = Subscription::with([
             'assignment.subject:id,name,icon',
@@ -46,8 +48,36 @@ class SubscriptionController extends Controller
             ->orderByRaw("CASE status WHEN 'active' THEN 1 WHEN 'pending' THEN 2 WHEN 'expired' THEN 3 ELSE 4 END")
             ->orderByDesc('period_end')
             ->get()
-            ->map(function (Subscription $subscription) use ($student) {
+            ->tap(function ($subscriptions) use ($student, &$materialCounts, &$completedCounts): void {
+                $assignmentIds = $subscriptions->pluck('teaching_assignment_id')->filter()->unique()->values();
+
+                $materialCounts = $assignmentIds->isEmpty()
+                    ? collect()
+                    : GroupMaterial::query()
+                        ->join('curriculum_units', 'curriculum_units.id', '=', 'group_materials.curriculum_unit_id')
+                        ->whereIn('curriculum_units.teaching_assignment_id', $assignmentIds)
+                        ->groupBy('curriculum_units.teaching_assignment_id')
+                        ->selectRaw('curriculum_units.teaching_assignment_id as assignment_id, COUNT(*) as total')
+                        ->pluck('total', 'assignment_id');
+
+                $completedCounts = $assignmentIds->isEmpty()
+                    ? collect()
+                    : LessonProgress::query()
+                        ->join('group_materials', 'group_materials.id', '=', 'lesson_progress.lesson_id')
+                        ->join('curriculum_units', 'curriculum_units.id', '=', 'group_materials.curriculum_unit_id')
+                        ->where('lesson_progress.student_id', $student->id)
+                        ->where('lesson_progress.is_completed', true)
+                        ->whereNull('group_materials.deleted_at')
+                        ->whereIn('curriculum_units.teaching_assignment_id', $assignmentIds)
+                        ->groupBy('curriculum_units.teaching_assignment_id')
+                        ->selectRaw('curriculum_units.teaching_assignment_id as assignment_id, COUNT(DISTINCT lesson_progress.lesson_id) as total')
+                        ->pluck('total', 'assignment_id');
+            })
+            ->map(function (Subscription $subscription) use (&$materialCounts, &$completedCounts) {
                 $group = $subscription->group;
+                $assignmentId = (int) $subscription->teaching_assignment_id;
+                $totalMaterials = (int) ($materialCounts[$assignmentId] ?? 0);
+                $completedMaterials = (int) ($completedCounts[$assignmentId] ?? 0);
 
                 return [
                     'id' => $subscription->id,
@@ -71,8 +101,11 @@ class SubscriptionController extends Controller
                             'end' => substr((string) $s->end_time, 0, 5),
                         ])->values(),
                     ] : null,
-                    'progress' => $group ? $this->certificates->progressPercent($student, $group) : null,
-                    'certificate_ready' => $group ? $this->certificates->isEligible($student, $group) : false,
+                    'progress' => $group && $totalMaterials > 0
+                        ? (int) round(($completedMaterials / $totalMaterials) * 100)
+                        : ($group ? 0 : null),
+                    'certificate_ready' => $group && $totalMaterials > 0
+                        && $completedMaterials >= $totalMaterials,
                 ];
             })
             ->values();

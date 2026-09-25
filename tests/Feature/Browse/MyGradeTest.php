@@ -9,6 +9,7 @@ use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -76,6 +77,22 @@ it('lists both teachers of a subject', function () {
 
             expect($maths['teachers'])->toHaveCount(2);
         });
+});
+
+it('loads teacher ratings with one grouped query', function () {
+    $reviewQueries = 0;
+
+    DB::listen(function ($query) use (&$reviewQueries): void {
+        if (str_contains(strtolower($query->sql), 'reviews')) {
+            $reviewQueries++;
+        }
+    });
+
+    $this->actingAs($this->student)
+        ->get(route('student.my-grade'))
+        ->assertOk();
+
+    expect($reviewQueries)->toBe(1);
 });
 
 it('marks a subject as unsubscribed until the student joins one of its teachers', function () {

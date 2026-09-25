@@ -8,6 +8,7 @@ const unread = ref([]);
 const read = ref([]);
 const unreadCount = ref(0);
 let pollingInterval = null;
+let initialFetchTimer = null;
 
 async function fetchNotifications() {
     try {
@@ -95,13 +96,16 @@ function onVisibilityChange() {
 }
 
 onMounted(() => {
-    fetchUnreadCount();
+    // Do not compete with the first dashboard payload for the connection.
+    // The badge is still populated shortly after the page becomes usable.
+    initialFetchTimer = window.setTimeout(fetchUnreadCount, 750);
     pollingInterval = setInterval(fetchUnreadCount, 60000);
     window.addEventListener('click', clickOutside);
     document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onUnmounted(() => {
+    if (initialFetchTimer) clearTimeout(initialFetchTimer);
     if (pollingInterval) clearInterval(pollingInterval);
     window.removeEventListener('click', clickOutside);
     document.removeEventListener('visibilitychange', onVisibilityChange);

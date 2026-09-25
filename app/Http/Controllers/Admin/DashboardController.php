@@ -11,6 +11,7 @@ use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,11 +28,11 @@ class DashboardController extends Controller
     public function index(): Response
     {
         return Inertia::render('Admin/Dashboard', [
-            'stats'          => $this->liveStats(),
-            'revenueChart'   => $this->revenueChart(),
+            'stats' => $this->liveStats(),
+            'revenueChart' => $this->revenueChart(),
             'recentPayments' => $this->recentPayments(),
             'recentActivity' => $this->recentActivity(),
-            'term'           => $this->currentTerm(),
+            'term' => $this->currentTerm(),
         ]);
     }
 
@@ -39,7 +40,7 @@ class DashboardController extends Controller
     public function stats(): JsonResponse
     {
         return response()->json([
-            'stats'     => $this->liveStats(),
+            'stats' => $this->liveStats(),
             'fetchedAt' => now()->toIso8601String(),
         ]);
     }
@@ -49,9 +50,10 @@ class DashboardController extends Controller
     /** @return array<string, mixed> */
     private function liveStats(): array
     {
-        $today = today();
-        $row = DB::selectOne(
-            <<<'SQL'
+        return Cache::remember('admin.dashboard.live_stats.v1', now()->addSeconds(60), function (): array {
+            $today = today();
+            $row = DB::selectOne(
+                <<<'SQL'
                 SELECT
                     (SELECT COUNT(*) FROM users u
                         WHERE u.is_active = 1 AND EXISTS (
@@ -100,101 +102,106 @@ class DashboardController extends Controller
                             WHERE mhr.model_id = u.id AND mhr.model_type = ? AND r.name = 'teacher'
                         )) AS teachers_no_video
                 SQL,
-            [
-                User::class,
-                User::class,
-                User::class,
-                $today->copy()->startOfDay(),
-                $today->copy()->addDay()->startOfDay(),
-                $today->copy()->startOfMonth(),
-                $today->copy()->addMonth()->startOfMonth(),
-                $today->copy()->startOfDay(),
-                $today->copy()->addDay()->startOfDay(),
-                $today->toDateString(),
-                $today->toDateString(),
-                User::class,
-            ],
-        );
+                [
+                    User::class,
+                    User::class,
+                    User::class,
+                    $today->copy()->startOfDay(),
+                    $today->copy()->addDay()->startOfDay(),
+                    $today->copy()->startOfMonth(),
+                    $today->copy()->addMonth()->startOfMonth(),
+                    $today->copy()->startOfDay(),
+                    $today->copy()->addDay()->startOfDay(),
+                    $today->toDateString(),
+                    $today->toDateString(),
+                    User::class,
+                ],
+            );
 
-        return [
-            'students'       => (int) $row->students,
-            'teachers'       => (int) $row->teachers,
-            'parents'        => (int) $row->parents,
-            'groups'         => (int) $row->groups_count,
-            'live_now'       => (int) $row->live_now,
-            'sessions_today' => (int) $row->sessions_today,
-            'revenue_total'  => (int) $row->revenue_total,
-            'revenue_month'  => (int) $row->revenue_month,
-            'revenue_today'  => (int) $row->revenue_today,
-            'platform_cut'   => (int) $row->platform_cut,
-            'subs_active'    => (int) $row->subs_active,
-            'subs_pending'   => (int) $row->subs_pending,
-            'mrr'            => (int) $row->mrr,
-            'needs_action' => [
-                'payment_receipts'  => (int) $row->payment_receipts,
-                'pending_reviews'   => (int) $row->pending_reviews,
-                'pending_payouts'   => (int) $row->pending_payouts,
-                'purchase_requests' => (int) $row->purchase_requests,
-                'empty_groups'      => (int) $row->empty_groups,
-                'teachers_no_video' => (int) $row->teachers_no_video,
-            ],
-        ];
+            return [
+                'students' => (int) $row->students,
+                'teachers' => (int) $row->teachers,
+                'parents' => (int) $row->parents,
+                'groups' => (int) $row->groups_count,
+                'live_now' => (int) $row->live_now,
+                'sessions_today' => (int) $row->sessions_today,
+                'revenue_total' => (int) $row->revenue_total,
+                'revenue_month' => (int) $row->revenue_month,
+                'revenue_today' => (int) $row->revenue_today,
+                'platform_cut' => (int) $row->platform_cut,
+                'subs_active' => (int) $row->subs_active,
+                'subs_pending' => (int) $row->subs_pending,
+                'mrr' => (int) $row->mrr,
+                'needs_action' => [
+                    'payment_receipts' => (int) $row->payment_receipts,
+                    'pending_reviews' => (int) $row->pending_reviews,
+                    'pending_payouts' => (int) $row->pending_payouts,
+                    'purchase_requests' => (int) $row->purchase_requests,
+                    'empty_groups' => (int) $row->empty_groups,
+                    'teachers_no_video' => (int) $row->teachers_no_video,
+                ],
+            ];
+        });
     }
 
     /** @return array<int, array<string, mixed>> */
     private function revenueChart(): array
     {
-        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        return Cache::remember('admin.dashboard.revenue_chart.v1', now()->addMinutes(5), function (): array {
+            $isSqlite = DB::connection()->getDriverName() === 'sqlite';
 
-        $year  = $isSqlite ? "strftime('%Y', paid_at)" : 'YEAR(paid_at)';
-        $month = $isSqlite ? "strftime('%m', paid_at)" : 'MONTH(paid_at)';
-        $start = now()->startOfMonth()->subMonths(5);
+            $year = $isSqlite ? "strftime('%Y', paid_at)" : 'YEAR(paid_at)';
+            $month = $isSqlite ? "strftime('%m', paid_at)" : 'MONTH(paid_at)';
+            $start = now()->startOfMonth()->subMonths(5);
 
-        $rows = Payment::where('status', Payment::STATUS_PAID)
-            ->where('paid_at', '>=', $start)
-            ->selectRaw("{$year} as y, {$month} as m, SUM(amount) as total, COUNT(*) as payments")
-            ->groupBy('y', 'm')
-            ->orderBy('y')
-            ->orderBy('m')
-            ->get()
-            ->keyBy(fn ($row) => sprintf('%04d-%02d', (int) $row->y, (int) $row->m));
+            $rows = Payment::where('status', Payment::STATUS_PAID)
+                ->where('paid_at', '>=', $start)
+                ->selectRaw("{$year} as y, {$month} as m, SUM(amount) as total, COUNT(*) as payments")
+                ->groupBy('y', 'm')
+                ->orderBy('y')
+                ->orderBy('m')
+                ->get()
+                ->keyBy(fn ($row) => sprintf('%04d-%02d', (int) $row->y, (int) $row->m));
 
-        return collect(range(0, 5))
-            ->map(function (int $offset) use ($start, $rows): array {
-                $month = $start->copy()->addMonths($offset);
-                $row = $rows->get($month->format('Y-m'));
+            return collect(range(0, 5))
+                ->map(function (int $offset) use ($start, $rows): array {
+                    $month = $start->copy()->addMonths($offset);
+                    $row = $rows->get($month->format('Y-m'));
 
-                return [
-                    'label'    => $month->translatedFormat('M Y'),
-                    'amount'   => (int) ($row?->total ?? 0),
-                    'payments' => (int) ($row?->payments ?? 0),
-                ];
-            })
-            ->all();
+                    return [
+                        'label' => $month->translatedFormat('M Y'),
+                        'amount' => (int) ($row?->total ?? 0),
+                        'payments' => (int) ($row?->payments ?? 0),
+                    ];
+                })
+                ->all();
+        });
     }
 
     /** @return array<int, array<string, mixed>> */
     private function recentPayments(): array
     {
-        return Payment::with([
-            'user:id,name,avatar',
-            'subscription.assignment.subject:id,name',
-            'subscription.assignment.teacher:id,name',
-        ])
-            ->where('status', Payment::STATUS_PAID)
-            ->latest('paid_at')
-            ->limit(8)
-            ->get()
-            ->map(fn (Payment $payment) => [
-                'id'      => $payment->id,
-                'student' => $payment->user?->only(['id', 'name', 'avatar']),
-                'subject' => $payment->subscription?->assignment?->subject?->name,
-                'teacher' => $payment->subscription?->assignment?->teacher?->name,
-                'amount'  => $payment->amount,
-                'gateway' => $payment->gateway,
-                'paid_at' => $payment->paid_at?->toIso8601String(),
+        return Cache::remember('admin.dashboard.recent_payments.v1', now()->addSeconds(30), function (): array {
+            return Payment::with([
+                'user:id,name,avatar',
+                'subscription.assignment.subject:id,name',
+                'subscription.assignment.teacher:id,name',
             ])
-            ->all();
+                ->where('status', Payment::STATUS_PAID)
+                ->latest('paid_at')
+                ->limit(8)
+                ->get()
+                ->map(fn (Payment $payment) => [
+                    'id' => $payment->id,
+                    'student' => $payment->user?->only(['id', 'name', 'avatar']),
+                    'subject' => $payment->subscription?->assignment?->subject?->name,
+                    'teacher' => $payment->subscription?->assignment?->teacher?->name,
+                    'amount' => $payment->amount,
+                    'gateway' => $payment->gateway,
+                    'paid_at' => $payment->paid_at?->toIso8601String(),
+                ])
+                ->all();
+        });
     }
 
     /**
@@ -205,37 +212,39 @@ class DashboardController extends Controller
      */
     private function recentActivity(): array
     {
-        $subscriptions = Subscription::with(['student:id,name', 'assignment.subject:id,name'])
-            ->latest()
-            ->limit(6)
-            ->get()
-            ->map(fn (Subscription $s) => [
-                'type'  => 'subscription',
-                'icon'  => 'student',
-                'text'  => ($s->student?->name ?? 'طالب') . ' اشترك في ' . ($s->assignment?->subject?->name ?? 'مادة'),
-                'at'    => $s->created_at?->toIso8601String(),
-                'badge' => $s->status,
-            ]);
+        return Cache::remember('admin.dashboard.recent_activity.v1', now()->addSeconds(30), function (): array {
+            $subscriptions = Subscription::with(['student:id,name', 'assignment.subject:id,name'])
+                ->latest()
+                ->limit(6)
+                ->get()
+                ->map(fn (Subscription $s) => [
+                    'type' => 'subscription',
+                    'icon' => 'student',
+                    'text' => ($s->student?->name ?? 'طالب').' اشترك في '.($s->assignment?->subject?->name ?? 'مادة'),
+                    'at' => $s->created_at?->toIso8601String(),
+                    'badge' => $s->status,
+                ]);
 
-        $reviews = TeacherReview::with(['user:id,name', 'teacher:id,name'])
-            ->latest()
-            ->limit(4)
-            ->get()
-            ->map(fn (TeacherReview $r) => [
-                'type'  => 'review',
-                'icon'  => 'chat',
-                'text'  => ($r->user?->name ?? 'طالب') . ' قيّم ' . ($r->teacher?->name ?? 'معلماً') . " بـ {$r->rating} نجوم",
-                'at'    => $r->created_at?->toIso8601String(),
-                'badge' => $r->is_approved ? 'approved' : 'pending',
-            ]);
+            $reviews = TeacherReview::with(['user:id,name', 'teacher:id,name'])
+                ->latest()
+                ->limit(4)
+                ->get()
+                ->map(fn (TeacherReview $r) => [
+                    'type' => 'review',
+                    'icon' => 'chat',
+                    'text' => ($r->user?->name ?? 'طالب').' قيّم '.($r->teacher?->name ?? 'معلماً')." بـ {$r->rating} نجوم",
+                    'at' => $r->created_at?->toIso8601String(),
+                    'badge' => $r->is_approved ? 'approved' : 'pending',
+                ]);
 
-        return collect()
-            ->merge($subscriptions)
-            ->merge($reviews)
-            ->sortByDesc('at')
-            ->take(10)
-            ->values()
-            ->all();
+            return collect()
+                ->merge($subscriptions)
+                ->merge($reviews)
+                ->sortByDesc('at')
+                ->take(10)
+                ->values()
+                ->all();
+        });
     }
 
     /** @return array<string, mixed>|null */
@@ -248,11 +257,11 @@ class DashboardController extends Controller
         }
 
         return [
-            'name'            => $term->fullName(),
-            'starts_on'       => $term->starts_on?->toDateString(),
-            'ends_on'         => $term->ends_on?->toDateString(),
-            'is_current'      => $term->isCurrent(),
-            'is_provisional'  => $term->is_provisional,
+            'name' => $term->fullName(),
+            'starts_on' => $term->starts_on?->toDateString(),
+            'ends_on' => $term->ends_on?->toDateString(),
+            'is_current' => $term->isCurrent(),
+            'is_provisional' => $term->is_provisional,
             'weeks_remaining' => $term->weeksRemaining(),
         ];
     }
