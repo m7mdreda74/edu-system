@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -27,9 +28,13 @@ final class CurriculumBlobUpload
 
     public const KIND_VIDEO = 'video';
 
+    public const KIND_RECEIPT = 'receipt';
+
     public const MAX_BYTES = 25 * 1024 * 1024;
 
     public const MAX_VIDEO_BYTES = 512 * 1024 * 1024;
+
+    public const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
 
     public const AUTHORIZATION_TTL_SECONDS = 300;
 
@@ -200,6 +205,93 @@ final class CurriculumBlobUpload
     }
 
     /**
+     * Issue a direct-upload authorization for a private payment receipt.
+     * Receipts must bypass the serverless filesystem because it is not durable.
+     *
+     * @return array{authorization: string, pathname: string, max_bytes: int, expires_at_ms: int}
+     */
+    public function issueReceiptAuthorization(
+        int $studentId,
+        int $subscriptionId,
+        string $extension,
+        string $contentType,
+        int $fileSize,
+    ): array {
+        $this->assertEnabled();
+        $this->assertPositiveId($studentId, 'student');
+        $this->assertPositiveId($subscriptionId, 'subscription');
+
+        $extension = strtolower(trim($extension));
+        $receiptTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'pdf' => 'application/pdf',
+        ];
+
+        if (! isset($receiptTypes[$extension]) || $receiptTypes[$extension] !== $contentType) {
+            throw new InvalidArgumentException('The payment receipt type is not allowed.');
+        }
+
+        if ($fileSize < 1 || $fileSize > self::MAX_RECEIPT_BYTES) {
+            throw new InvalidArgumentException('The payment receipt is too large.');
+        }
+
+        $pathname = "payments/receipts/{$studentId}/{$subscriptionId}/".Str::uuid().".{$extension}";
+        $expiresAtMs = now()->getTimestampMs() + (self::AUTHORIZATION_TTL_SECONDS * 1000);
+        $payload = [
+            'pathname' => $pathname,
+            'kind' => self::KIND_RECEIPT,
+            'student_id' => $studentId,
+            'subscription_id' => $subscriptionId,
+            'max_bytes' => self::MAX_RECEIPT_BYTES,
+            'allowed_content_types' => [$contentType],
+            'expires_at_ms' => $expiresAtMs,
+        ];
+
+        $encodedPayload = $this->base64UrlEncode(json_encode(
+            $payload,
+            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+        ));
+        $signature = hash_hmac('sha256', $encodedPayload, $this->signingKey());
+
+        return [
+            'authorization' => "{$encodedPayload}.{$signature}",
+            'pathname' => $pathname,
+            'max_bytes' => self::MAX_RECEIPT_BYTES,
+            'expires_at_ms' => $expiresAtMs,
+        ];
+    }
+
+    /** Validate the private Blob URL returned after a receipt upload. */
+    public function validateCompletedReceipt(
+        string $url,
+        string $pathname,
+        int $studentId,
+        int $subscriptionId,
+    ): string {
+        $this->assertEnabled();
+        $this->assertPositiveId($studentId, 'student');
+        $this->assertPositiveId($subscriptionId, 'subscription');
+
+        $prefix = "payments/receipts/{$studentId}/{$subscriptionId}/";
+        if (! str_starts_with($pathname, $prefix)) {
+            throw new InvalidArgumentException('The payment receipt path is outside the expected subscription.');
+        }
+
+        $extension = strtolower((string) pathinfo($pathname, PATHINFO_EXTENSION));
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true)) {
+            throw new InvalidArgumentException('The payment receipt file type is not allowed.');
+        }
+
+        $this->assertSafePathname($pathname);
+        $this->assertBlobUrlMatchesPathname($url, $pathname);
+
+        return $url;
+    }
+
+    /**
      * Turn a stored private Blob URL into a short-lived application URL. The
      * Blob itself is never exposed to the browser, and the Node handler only
      * accepts a token signed with the server APP_KEY.
@@ -218,8 +310,9 @@ final class CurriculumBlobUpload
 
         $this->assertPublicBlobHost(strtolower($parts['host']));
         $pathname = rawurldecode(ltrim((string) $parts['path'], '/'));
-        if (! str_starts_with($pathname, 'curriculum/')) {
-            throw new InvalidArgumentException('The stored Blob path is outside curriculum storage.');
+        if (! str_starts_with($pathname, 'curriculum/')
+            && ! str_starts_with($pathname, 'payments/receipts/')) {
+            throw new InvalidArgumentException('The stored Blob path is outside private storage.');
         }
         $this->assertSafePathname($pathname);
 
@@ -236,7 +329,7 @@ final class CurriculumBlobUpload
         $token = "{$encodedPayload}.{$signature}";
         $handle = (string) config('services.vercel_blob.download_handle_url', '/api/blob-download');
 
-        return rtrim($handle, '?').'?' . http_build_query(['token' => $token], '', '&', PHP_QUERY_RFC3986);
+        return rtrim($handle, '?').'?'.http_build_query(['token' => $token], '', '&', PHP_QUERY_RFC3986);
     }
 
     private function assertEnabled(): void
@@ -291,8 +384,31 @@ final class CurriculumBlobUpload
 
         $extension = strtolower((string) pathinfo($pathname, PATHINFO_EXTENSION));
 
-        if (! in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
+        if (! in_array($extension, [...self::ALLOWED_EXTENSIONS, 'webp'], true)) {
             throw new InvalidArgumentException('The Blob file type is not allowed.');
+        }
+    }
+
+    private function assertBlobUrlMatchesPathname(string $url, string $pathname): void
+    {
+        $parts = parse_url($url);
+
+        if (
+            ! is_array($parts)
+            || strtolower((string) ($parts['scheme'] ?? '')) !== 'https'
+            || ! isset($parts['host'], $parts['path'])
+            || isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['port'])
+        ) {
+            throw new InvalidArgumentException('The completed Blob URL is invalid.');
+        }
+
+        $this->assertPublicBlobHost(strtolower($parts['host']));
+
+        $urlPathname = rawurldecode(ltrim((string) $parts['path'], '/'));
+        if ($urlPathname !== $pathname) {
+            throw new InvalidArgumentException('The completed Blob URL does not match its pathname.');
         }
     }
 
@@ -338,7 +454,7 @@ final class CurriculumBlobUpload
         $isValidHost = false;
 
         foreach (self::ALLOWED_BLOB_HOST_SUFFIXES as $suffix) {
-            if ($host === $normalizedStoreId . $suffix) {
+            if ($host === $normalizedStoreId.$suffix) {
                 $isValidHost = true;
                 break;
             }

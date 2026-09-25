@@ -270,3 +270,22 @@ it('accepts a public Blob download URL whose query does not change its pathname'
         99,
     ))->toBe($url);
 });
+
+it('issues and validates a private payment receipt upload', function () {
+    $issued = $this->uploads->issueReceiptAuthorization(
+        17,
+        29,
+        'jpg',
+        'image/jpeg',
+        1024,
+    );
+
+    $url = "https://1sxstfwepd7zn41q.private.blob.vercel-storage.com/{$issued['pathname']}";
+
+    expect($issued['authorization'])->toContain('.')
+        ->and($issued['pathname'])->toStartWith('payments/receipts/17/29/')
+        ->and($issued['max_bytes'])->toBe(CurriculumBlobUpload::MAX_RECEIPT_BYTES)
+        ->and($this->uploads->validateCompletedReceipt($url, $issued['pathname'], 17, 29))->toBe($url)
+        ->and(fn () => $this->uploads->validateCompletedReceipt($url, $issued['pathname'], 18, 29))
+        ->toThrow(InvalidArgumentException::class);
+});

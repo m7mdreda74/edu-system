@@ -40,7 +40,7 @@ function decodeToken(token) {
     const expiresAt = Number(payload?.expires_at_ms ?? 0);
 
     if (
-        !pathname.startsWith('curriculum/')
+        (!pathname.startsWith('curriculum/') && !pathname.startsWith('payments/receipts/'))
         || pathname.includes('//')
         || pathname.includes('..')
         || pathname.includes('\\')
@@ -67,6 +67,13 @@ export default async function handler(request, response) {
 
     try {
         const { pathname } = decodeToken(request.query?.token);
+        const isReceipt = pathname.startsWith('payments/receipts/');
+
+        if (isReceipt) {
+            response.setHeader('X-Frame-Options', 'SAMEORIGIN');
+            response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'self'");
+        }
+
         const token = process.env.BLOB_READ_WRITE_TOKEN;
         const storeId = process.env.BLOB_STORE_ID;
 
@@ -89,7 +96,7 @@ export default async function handler(request, response) {
         const isVideo = (result.blob.contentType || '').startsWith('video/');
         response.setHeader(
             'Content-Disposition',
-            isVideo ? 'inline' : (result.blob.contentDisposition || 'attachment'),
+            isVideo || isReceipt ? 'inline' : (result.blob.contentDisposition || 'attachment'),
         );
         response.setHeader('Cache-Control', 'private, no-store');
         response.setHeader('X-Content-Type-Options', 'nosniff');

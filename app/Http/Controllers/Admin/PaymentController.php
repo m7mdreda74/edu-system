@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Application\Payment\Services\PaymentService;
 use App\Domain\Payment\Models\Payment;
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
+use App\Services\CurriculumBlobUpload;
+use App\Services\SecureStoredFileResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Application\Payment\Services\PaymentService;
-use App\Services\AuditLogger;
-use Illuminate\Support\Facades\Auth;
-use App\Services\SecureStoredFileResponse;
 
 class PaymentController extends Controller
 {
@@ -40,7 +41,7 @@ class PaymentController extends Controller
 
         return Inertia::render('Admin/Payments', [
             'payments' => $payments,
-            'filters'  => $filters,
+            'filters' => $filters,
         ]);
     }
 
@@ -109,10 +110,18 @@ class PaymentController extends Controller
         return back()->with('success', 'تم رفض إيصال التحويل بنجاح.');
     }
 
-    public function receipt(Payment $payment, SecureStoredFileResponse $files)
-    {
+    public function receipt(
+        Payment $payment,
+        SecureStoredFileResponse $files,
+        CurriculumBlobUpload $blobUploads,
+    ) {
         abort_unless($payment->receipt_path, 404);
         AuditLogger::record('admin.payment.receipt_accessed', $payment);
+
+        if (str_starts_with($payment->receipt_path, 'https://')) {
+            return redirect($blobUploads->downloadUrlFor($payment->receipt_path, (int) Auth::id()));
+        }
+
         if (str_starts_with($payment->receipt_path, '/storage/')) {
             return $files->fromPublicStoragePath($payment->receipt_path);
         }
@@ -132,7 +141,6 @@ class PaymentController extends Controller
             return '****';
         }
 
-        return str_repeat('*', strlen($normalized) - 4) . substr($normalized, -4);
+        return str_repeat('*', strlen($normalized) - 4).substr($normalized, -4);
     }
 }
-

@@ -9,6 +9,7 @@ import axios from 'axios';
 const props = defineProps({
     subscription:       { type: Object, required: true },
     vodafoneCashNumber: { type: String, default: null },
+    receiptUpload:      { type: Object, default: () => ({ enabled: false, serverless: false }) },
 });
 
 const receiptFile    = ref(null);
@@ -75,6 +76,48 @@ function normalizeSenderPhone(value) {
         .replace(/[\s().-]+/g, '');
 }
 
+async function sha256Hex(file) {
+    if (!globalThis.crypto?.subtle) {
+        throw new Error('Receipt integrity verification is unavailable in this browser.');
+    }
+
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+
+    return Array.from(new Uint8Array(digest))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+async function uploadReceiptToBlob(file) {
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const digest = await sha256Hex(file);
+    const authorizationResponse = await axios.post(props.receiptUpload.authorize_url, {
+        extension,
+        content_type: file.type,
+        file_size: file.size,
+    });
+
+    const { data: presigned } = await axios.post(props.receiptUpload.handle_url, {
+        pathname: authorizationResponse.data.pathname,
+        authorization: authorizationResponse.data.authorization,
+    });
+    const uploadResponse = await fetch(presigned.upload_url, {
+        method: 'PUT',
+        body: file,
+    });
+
+    if (!uploadResponse.ok) {
+        throw new Error('Blob upload failed.');
+    }
+
+    const blob = await uploadResponse.json();
+    if (!blob?.url || !blob?.pathname) {
+        throw new Error('Blob upload returned an invalid response.');
+    }
+
+    return { url: blob.url, pathname: blob.pathname, sha256: digest };
+}
+
 async function submit() {
     errorMessage.value = '';
 
@@ -89,6 +132,10 @@ async function submit() {
     }
     if (!receiptFile.value) {
         errorMessage.value = 'ارفع إثبات التحويل.';
+        return;
+    }
+    if (props.receiptUpload.serverless && !props.receiptUpload.enabled) {
+        errorMessage.value = 'رفع الإيصالات غير مهيأ على الخادم حاليًا. تواصل مع إدارة المنصة.';
         return;
     }
 
@@ -107,9 +154,16 @@ async function submit() {
         formData.append('coupon_code', couponCode.value.trim());
     }
 
-    formData.append('receipt', receiptFile.value);
-
     try {
+        if (props.receiptUpload.enabled) {
+            const receipt = await uploadReceiptToBlob(receiptFile.value);
+            formData.append('receipt_blob_url', receipt.url);
+            formData.append('receipt_blob_pathname', receipt.pathname);
+            formData.append('receipt_blob_sha256', receipt.sha256);
+        } else {
+            formData.append('receipt', receiptFile.value);
+        }
+
         const res = await axios.post(
             route('checkout.process', { subscription: props.subscription.id }),
             formData,

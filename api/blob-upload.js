@@ -1,9 +1,10 @@
 import crypto from 'node:crypto';
 import { issueSignedToken, presignUrl } from '@vercel/blob';
 
-const ALLOWED_KINDS = new Set(['booklet', 'homework', 'exam', 'video']);
+const ALLOWED_KINDS = new Set(['booklet', 'homework', 'exam', 'video', 'receipt']);
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_UPLOAD_BYTES = 512 * 1024 * 1024;
+const MAX_RECEIPT_UPLOAD_BYTES = 8 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
     'application/msword',
     'application/pdf',
@@ -13,6 +14,7 @@ const ALLOWED_CONTENT_TYPES = new Set([
     'application/zip',
     'image/jpeg',
     'image/png',
+    'image/webp',
     'video/mp4',
     'video/quicktime',
     'video/webm',
@@ -58,11 +60,13 @@ function verifyAuthorization(token, pathname) {
         Buffer.from(encodedPayload, 'base64url').toString('utf8'),
     );
 
+    const isReceipt = payload.kind === 'receipt';
     if (
         payload.pathname !== pathname
         || !ALLOWED_KINDS.has(payload.kind)
-        || !Number.isInteger(payload.teacher_id)
-        || !Number.isInteger(payload.target_id)
+        || (isReceipt
+            ? (!Number.isInteger(payload.student_id) || !Number.isInteger(payload.subscription_id))
+            : (!Number.isInteger(payload.teacher_id) || !Number.isInteger(payload.target_id)))
         || !Number.isInteger(payload.max_bytes)
         || payload.max_bytes < 1
         || payload.max_bytes > MAX_VIDEO_UPLOAD_BYTES
@@ -74,17 +78,21 @@ function verifyAuthorization(token, pathname) {
         throw new Error('Expired or mismatched upload authorization.');
     }
 
-    const prefix = `curriculum/${payload.teacher_id}/${payload.kind}/${payload.target_id}/`;
+    const prefix = isReceipt
+        ? `payments/receipts/${payload.student_id}/${payload.subscription_id}/`
+        : `curriculum/${payload.teacher_id}/${payload.kind}/${payload.target_id}/`;
 
     const extension = pathname.split('.').pop()?.toLowerCase() ?? '';
     const isVideo = new Set(['m4v', 'mov', 'mp4', 'webm']).has(extension);
+    const isReceiptExtension = new Set(['jpg', 'jpeg', 'png', 'webp', 'pdf']).has(extension);
 
     if (
         !pathname.startsWith(prefix)
         || pathname.length > 950
         || pathname.includes('//')
-        || (payload.kind === 'video') !== isVideo
-        || (payload.kind !== 'video' && payload.max_bytes > MAX_UPLOAD_BYTES)
+        || (isReceipt
+            ? (!isReceiptExtension || payload.max_bytes > MAX_RECEIPT_UPLOAD_BYTES || isVideo)
+            : ((payload.kind === 'video') !== isVideo || payload.max_bytes > MAX_UPLOAD_BYTES && payload.kind !== 'video'))
     ) {
         throw new Error('Invalid upload pathname.');
     }

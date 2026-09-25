@@ -226,6 +226,11 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         ->name('checkout.coupon.check')
         ->middleware('throttle:15,1');
 
+    Route::post('/checkout/{subscription}/receipt/authorize', [CheckoutController::class, 'authorizeReceiptUpload'])
+        ->name('checkout.receipt.authorize')
+        ->whereNumber('subscription')
+        ->middleware('throttle:20,1');
+
     Route::get('/checkout/{subscription}', [CheckoutController::class, 'show'])->name('checkout.show')->whereNumber('subscription');
     Route::post('/checkout/{subscription}', [CheckoutController::class, 'process'])
         ->name('checkout.process')

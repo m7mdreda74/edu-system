@@ -16,8 +16,8 @@ use App\Infrastructure\Payment\Gateways\FatoraGateway;
 use App\Infrastructure\Payment\Gateways\TapGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
@@ -63,7 +63,7 @@ function vodafoneCashPayload(array $overrides = []): array
         'idempotency_key' => (string) Str::uuid(),
         'payment_method' => Payment::GATEWAY_VODAFONE_CASH,
         'sender_phone' => '01009876543',
-        'receipt' => UploadedFile::fake()->image('transfer-receipt.jpg'),
+        'receipt' => UploadedFile::fake()->create('transfer-receipt.jpg', 120, 'image/jpeg'),
     ], $overrides);
 }
 
@@ -87,7 +87,7 @@ it('only accepts Vodafone Cash and exposes the receiving number for the subscrip
         ->post(route('checkout.process', $this->subscription->id), [
             'payment_method' => 'gateway',
             'sender_phone' => '01009876543',
-            'receipt' => UploadedFile::fake()->image('transfer-receipt.jpg'),
+            'receipt' => UploadedFile::fake()->create('transfer-receipt.jpg', 120, 'image/jpeg'),
         ])
         ->assertSessionHasErrors('payment_method');
 
@@ -95,7 +95,7 @@ it('only accepts Vodafone Cash and exposes the receiving number for the subscrip
         ->post(route('checkout.process', $this->subscription->id), [
             'payment_method' => 'manual',
             'sender_phone' => '01009876543',
-            'receipt' => UploadedFile::fake()->image('transfer-receipt.jpg'),
+            'receipt' => UploadedFile::fake()->create('transfer-receipt.jpg', 120, 'image/jpeg'),
         ])
         ->assertSessionHasErrors('payment_method');
 
@@ -246,6 +246,46 @@ it('accepts a PDF transfer proof and rejects a checkout when the grade has no re
     $this->actingAs($this->student)
         ->post(route('checkout.process', $this->subscription->id), vodafoneCashPayload())
         ->assertSessionHas('error');
+});
+
+it('stores a Blob receipt and gives the admin a protected inline viewer URL', function (): void {
+    config()->set([
+        'services.vercel_blob.enabled' => true,
+        'services.vercel_blob.serverless' => true,
+        'services.vercel_blob.store_id' => '1sxstfwepd7zn41q',
+    ]);
+    Notification::fake();
+
+    $pathname = "payments/receipts/{$this->student->id}/{$this->subscription->id}/receipt.jpg";
+    $receiptUrl = "https://1sxstfwepd7zn41q.private.blob.vercel-storage.com/{$pathname}";
+    $receiptHash = str_repeat('b', 64);
+
+    $this->actingAs($this->student)
+        ->withHeaders([
+            'Accept' => 'application/json',
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+        ->post(route('checkout.process', $this->subscription->id), [
+            'idempotency_key' => (string) Str::uuid(),
+            'payment_method' => Payment::GATEWAY_VODAFONE_CASH,
+            'sender_phone' => '01009876543',
+            'receipt_blob_url' => $receiptUrl,
+            'receipt_blob_pathname' => $pathname,
+            'receipt_blob_sha256' => $receiptHash,
+        ])
+        ->assertOk()
+        ->assertJsonPath('success', true);
+
+    $payment = Payment::firstOrFail();
+
+    expect($payment->receipt_path)->toBe($receiptUrl)
+        ->and($payment->receipt_sha256)->toBe($receiptHash);
+
+    $viewer = $this->actingAs($this->admin)
+        ->get(route('admin.payments.receipt', $payment))
+        ->assertRedirect();
+
+    expect($viewer->headers->get('location'))->toContain('/api/blob-download?token=');
 });
 
 it('lets an admin set the Vodafone Cash receiving number per grade level', function (): void {

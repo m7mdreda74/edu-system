@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Communication\Notifications\ManualPaymentSubmittedNotification;
 use App\Domain\Payment\Models\Coupon;
 use App\Domain\Payment\Models\Payment;
+use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
+use App\Services\CurriculumBlobUpload;
 use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,9 +44,40 @@ class CheckoutController extends Controller
         }
 
         return Inertia::render('Checkout/Index', [
-            'subscription'       => $this->presentSubscription($subscription),
+            'subscription' => $this->presentSubscription($subscription),
             'vodafoneCashNumber' => $subscription->assignment?->gradeLevel?->vodafone_cash_number,
+            'receiptUpload' => [
+                'enabled' => app(CurriculumBlobUpload::class)->enabled(),
+                'serverless' => (bool) config('services.vercel_blob.serverless', false),
+                'authorize_url' => route('checkout.receipt.authorize', $subscription->id),
+                'handle_url' => (string) config('services.vercel_blob.handle_url', '/api/blob-upload'),
+            ],
         ]);
+    }
+
+    public function authorizeReceiptUpload(
+        Request $request,
+        int $subscriptionId,
+        CurriculumBlobUpload $blobUploads,
+    ): JsonResponse {
+        $subscription = $this->authorizeSubscription($subscriptionId);
+
+        abort_if($subscription->isActive(), 422, 'هذا الاشتراك مفعّل بالفعل.');
+        abort_unless($blobUploads->enabled(), 503, 'رفع الإيصالات غير متاح حاليًا.');
+
+        $data = $request->validate([
+            'extension' => ['required', 'string', 'in:jpg,jpeg,png,webp,pdf'],
+            'content_type' => ['required', 'string', 'in:image/jpeg,image/png,image/webp,application/pdf'],
+            'file_size' => ['required', 'integer', 'min:1', 'max:'.CurriculumBlobUpload::MAX_RECEIPT_BYTES],
+        ]);
+
+        return response()->json($blobUploads->issueReceiptAuthorization(
+            (int) $subscription->student_id,
+            (int) $subscription->id,
+            (string) $data['extension'],
+            (string) $data['content_type'],
+            (int) $data['file_size'],
+        ));
     }
 
     public function process(Request $request, int $subscriptionId): SymfonyResponse
@@ -61,29 +95,33 @@ class CheckoutController extends Controller
 
         $validated = $request->validate([
             'idempotency_key' => ['required', 'string', 'min:16', 'max:64', 'regex:/^[A-Za-z0-9._:-]+$/'],
-            'coupon_code'    => ['nullable', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'coupon_code' => ['nullable', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
             'payment_method' => ['required', 'string', 'in:vodafone_cash'],
-            'sender_phone'   => ['required', 'string', 'max:20', 'regex:/^(?:\+20|0020|0)1\d{9}$/'],
-            'receipt'        => [
-                'required',
+            'sender_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+20|0020|0)1\d{9}$/'],
+            'receipt' => [
+                'nullable',
                 'file',
                 'mimes:jpg,jpeg,png,webp,pdf',
                 'mimetypes:image/jpeg,image/png,image/webp,application/pdf',
                 'max:8192',
+                'required_without:receipt_blob_url',
             ],
+            'receipt_blob_url' => ['nullable', 'url:https', 'required_without:receipt'],
+            'receipt_blob_pathname' => ['nullable', 'string', 'max:950', 'required_with:receipt_blob_url'],
+            'receipt_blob_sha256' => ['nullable', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/i', 'required_with:receipt_blob_url'],
         ], [
             'sender_phone.regex' => 'أدخل رقم الهاتف الذي حوّلت منه بصيغة 01012345678.',
         ]);
 
         $subscription = $this->authorizeSubscription($subscriptionId);
 
-        return $this->processVodafoneCashPayment($request, $validated, $subscription);
+        return $this->processVodafoneCashPayment($request, $validated, $subscription, app(CurriculumBlobUpload::class));
     }
 
     public function checkCoupon(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'coupon_code'     => ['required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'coupon_code' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
             'subscription_id' => ['required', 'integer', 'min:1', 'exists:subscriptions,id'],
         ]);
 
@@ -138,19 +176,46 @@ class CheckoutController extends Controller
     }
 
     /** Vodafone Cash transfer: store the receipt and queue it for admin review. */
-    private function processVodafoneCashPayment(Request $request, array $validated, Subscription $subscription): SymfonyResponse
-    {
+    private function processVodafoneCashPayment(
+        Request $request,
+        array $validated,
+        Subscription $subscription,
+        CurriculumBlobUpload $blobUploads,
+    ): SymfonyResponse {
         $receiptFile = $request->file('receipt');
+        $receiptBlobUrl = $validated['receipt_blob_url'] ?? null;
+        $receiptBlobPathname = $validated['receipt_blob_pathname'] ?? null;
         $receiptMime = $receiptFile?->getMimeType();
         $receiptHash = $receiptFile?->getRealPath()
             ? hash_file('sha256', $receiptFile->getRealPath())
-            : false;
+            : ($validated['receipt_blob_sha256'] ?? false);
 
-        if (! is_string($receiptMime)
-            || ! in_array($receiptMime, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], true)
-            || ! is_string($receiptHash)
-        ) {
+        if ($receiptFile && (! is_string($receiptMime)
+            || ! in_array($receiptMime, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], true))) {
             return $this->fail($request, 'نوع ملف الإيصال غير مسموح أو تعذّر فحصه.');
+        }
+
+        if (! $receiptFile) {
+            try {
+                $receiptBlobUrl = $blobUploads->validateCompletedReceipt(
+                    (string) $receiptBlobUrl,
+                    (string) $receiptBlobPathname,
+                    (int) $subscription->student_id,
+                    (int) $subscription->id,
+                );
+            } catch (Throwable) {
+                return $this->fail($request, 'تعذّر التحقق من إيصال التحويل المرفوع.');
+            }
+        }
+
+        if ($receiptFile
+            && (bool) config('services.vercel_blob.serverless', false)
+            && ! $blobUploads->enabled()) {
+            return $this->fail($request, 'رفع الإيصالات غير مهيأ على الخادم حاليًا.');
+        }
+
+        if (! is_string($receiptHash)) {
+            return $this->fail($request, 'تعذّر فحص إيصال التحويل.');
         }
 
         $storedReceiptPath = null;
@@ -160,7 +225,7 @@ class CheckoutController extends Controller
                 throw new LogicException('هذا الاشتراك مفعّل بالفعل.');
             }
 
-            $payment = DB::transaction(function () use ($request, $validated, $subscription, $receiptHash, $receiptFile, &$storedReceiptPath): Payment {
+            $payment = DB::transaction(function () use ($validated, $subscription, $receiptHash, $receiptFile, $receiptBlobUrl, &$storedReceiptPath): Payment {
                 /** @var Subscription $lockedSubscription */
                 $lockedSubscription = Subscription::query()
                     ->lockForUpdate()
@@ -236,31 +301,33 @@ class CheckoutController extends Controller
                 }
 
                 $teacher = $lockedSubscription->assignment?->teacher;
-                $defaultCommission = (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20);
+                $defaultCommission = (int) (PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20);
                 $commissionPercent = max(0, min(100, (int) ($teacher?->commission_percent ?? $defaultCommission)));
-                $storedReceiptPath = $receiptFile->store('receipts', 'local');
+                $storedReceiptPath = $receiptFile
+                    ? $receiptFile->store('receipts', 'local')
+                    : $receiptBlobUrl;
 
                 try {
                     return Payment::create([
-                    'user_id'         => $lockedSubscription->student_id,
-                    'subscription_id' => $lockedSubscription->id,
-                    'teacher_id'      => $teacher?->id,
-                    'coupon_id'       => $coupon?->id,
-                    'amount'          => $finalAmount,
-                    'original_amount' => $originalAmount,
-                    'commission_percent' => $commissionPercent,
-                    'currency'        => $lockedSubscription->currency ?? 'QAR',
-                    'gateway'         => Payment::GATEWAY_VODAFONE_CASH,
-                    'gateway_ref'     => 'Vodafone Cash: ' . $recipientPhone,
-                    'sender_phone'    => $validated['sender_phone'],
-                    'status'          => Payment::STATUS_PENDING_VERIFICATION,
-                    'receipt_path'    => $storedReceiptPath,
-                    'receipt_sha256'  => $receiptHash,
-                    'idempotency_key' => $validated['idempotency_key'],
+                        'user_id' => $lockedSubscription->student_id,
+                        'subscription_id' => $lockedSubscription->id,
+                        'teacher_id' => $teacher?->id,
+                        'coupon_id' => $coupon?->id,
+                        'amount' => $finalAmount,
+                        'original_amount' => $originalAmount,
+                        'commission_percent' => $commissionPercent,
+                        'currency' => $lockedSubscription->currency ?? 'QAR',
+                        'gateway' => Payment::GATEWAY_VODAFONE_CASH,
+                        'gateway_ref' => 'Vodafone Cash: '.$recipientPhone,
+                        'sender_phone' => $validated['sender_phone'],
+                        'status' => Payment::STATUS_PENDING_VERIFICATION,
+                        'receipt_path' => $storedReceiptPath,
+                        'receipt_sha256' => $receiptHash,
+                        'idempotency_key' => $validated['idempotency_key'],
                     ]);
                 } catch (Throwable $e) {
                     if ($storedReceiptPath) {
-                        Storage::disk('local')->delete($storedReceiptPath);
+                        $this->deleteLocalReceipt($storedReceiptPath);
                         $storedReceiptPath = null;
                     }
 
@@ -272,7 +339,7 @@ class CheckoutController extends Controller
 
             if ($payment->wasRecentlyCreated) {
                 foreach (User::role('admin')->get() as $admin) {
-                    $admin->notify(new \App\Domain\Communication\Notifications\ManualPaymentSubmittedNotification($payment));
+                    $admin->notify(new ManualPaymentSubmittedNotification($payment));
                 }
             }
 
@@ -286,25 +353,32 @@ class CheckoutController extends Controller
                 $request->session()->flash('success', $message);
 
                 return response()->json([
-                    'success'      => true,
+                    'success' => true,
                     'redirect_url' => route('student.my-classes'),
-                    'message'      => $message,
+                    'message' => $message,
                 ]);
             }
 
             return redirect()->route('student.my-classes')->with('success', $message);
         } catch (LogicException $e) {
             if ($storedReceiptPath) {
-                Storage::disk('local')->delete($storedReceiptPath);
+                $this->deleteLocalReceipt($storedReceiptPath);
             }
 
             return $this->fail($request, $e->getMessage());
         } catch (Throwable $e) {
             if ($storedReceiptPath) {
-                Storage::disk('local')->delete($storedReceiptPath);
+                $this->deleteLocalReceipt($storedReceiptPath);
             }
 
             throw $e;
+        }
+    }
+
+    private function deleteLocalReceipt(string $path): void
+    {
+        if (! str_starts_with($path, 'https://')) {
+            Storage::disk('local')->delete($path);
         }
     }
 
@@ -323,25 +397,25 @@ class CheckoutController extends Controller
         $group = $subscription->group;
 
         return [
-            'id'            => $subscription->id,
-            'type'          => $subscription->type,
-            'status'        => $subscription->effectiveStatus(),
-            'label'         => $subscription->label(),
+            'id' => $subscription->id,
+            'type' => $subscription->type,
+            'status' => $subscription->effectiveStatus(),
+            'label' => $subscription->label(),
             'monthly_price' => $subscription->monthly_price,
-            'currency'      => $subscription->currency,
-            'period_start'  => $subscription->period_start?->toDateString(),
-            'period_end'    => $subscription->period_end?->toDateString(),
-            'student'       => $subscription->student?->only(['id', 'name']),
-            'subject'       => $subscription->assignment?->subject?->only(['id', 'name', 'icon']),
-            'grade'         => $subscription->assignment?->gradeLevel?->only(['key', 'name']),
-            'teacher'       => $subscription->assignment?->teacher?->only(['id', 'name', 'avatar']),
-            'group'         => $group ? [
-                'id'        => $group->id,
-                'name'      => $group->name,
+            'currency' => $subscription->currency,
+            'period_start' => $subscription->period_start?->toDateString(),
+            'period_end' => $subscription->period_end?->toDateString(),
+            'student' => $subscription->student?->only(['id', 'name']),
+            'subject' => $subscription->assignment?->subject?->only(['id', 'name', 'icon']),
+            'grade' => $subscription->assignment?->gradeLevel?->only(['key', 'name']),
+            'teacher' => $subscription->assignment?->teacher?->only(['id', 'name', 'avatar']),
+            'group' => $group ? [
+                'id' => $group->id,
+                'name' => $group->name,
                 'schedules' => $group->schedules->map(fn ($s) => [
-                    'day'   => (int) $s->day_of_week,
+                    'day' => (int) $s->day_of_week,
                     'start' => substr((string) $s->start_time, 0, 5),
-                    'end'   => substr((string) $s->end_time, 0, 5),
+                    'end' => substr((string) $s->end_time, 0, 5),
                 ])->values(),
             ] : null,
         ];
