@@ -77,6 +77,13 @@ it('opens a pending subscription priced from the group', function () {
         ->toBe(now()->startOfDay()->addMonth()->toDateString());
 });
 
+it('does not let a student subscribe to another grade group', function () {
+    $this->student->update(['grade_level' => 'grade_10']);
+
+    expect(fn () => $this->service->openForGroup($this->student, $this->group))
+        ->toThrow(LogicException::class);
+});
+
 it('reserves the seat only once the subscription is activated', function () {
     $subscription = $this->service->openForGroup($this->student, $this->group);
 

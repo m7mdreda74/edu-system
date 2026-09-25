@@ -41,6 +41,10 @@ class TeacherProfileController extends Controller
             ->where('is_active', true)
             ->findOrFail($id);
 
+        $student = $request->user();
+        $isStudent = $student?->hasRole('student') ?? false;
+        $studentGradeKey = $isStudent ? $student->grade_level : null;
+
         $assignments = TeachingAssignment::with([
             'subject:id,name,name_en,icon',
             'gradeLevel:id,key,name',
@@ -56,6 +60,13 @@ class TeacherProfileController extends Controller
         ])
             ->where('teacher_id', $teacher->id)
             ->where('is_active', true)
+            ->when(
+                filled($studentGradeKey),
+                fn ($query) => $query->whereHas(
+                    'gradeLevel',
+                    fn ($gradeQuery) => $gradeQuery->where('key', $studentGradeKey),
+                ),
+            )
             ->get();
 
         $freeRecordingsByAssignment = GroupMaterial::query()
@@ -82,8 +93,6 @@ class TeacherProfileController extends Controller
         $focusGradeKey = $focus['grade'] ?? null;
         $focusSubjectId = $focus['subject'] ?? null;
 
-        $student = $request->user();
-        $isStudent = $student?->hasRole('student') ?? false;
         $privateRequests = $student?->hasRole('student')
             ? PrivateLessonRequest::where('student_id', $student->id)
                 ->where('status', PrivateLessonRequest::STATUS_PENDING)

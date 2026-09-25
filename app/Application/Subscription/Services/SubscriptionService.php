@@ -41,6 +41,9 @@ class SubscriptionService
                 throw new LogicException('هذه المجموعة غير متاحة للاشتراك حاليًا.');
             }
 
+            $group->assignment->loadMissing('gradeLevel');
+            $this->assertStudentGradeMatchesAssignment($student, $group->assignment);
+
             if ($student->hasActiveSubscriptionTo($group)) {
                 throw new LogicException('أنت مشترك بالفعل في هذه المجموعة.');
             }
@@ -88,6 +91,9 @@ class SubscriptionService
             if (! $assignment->is_active || ! $assignment->offersPrivate()) {
                 throw new LogicException('الحصص الخاصة غير متاحة مع هذا المعلم حاليًا.');
             }
+
+            $assignment->loadMissing('gradeLevel');
+            $this->assertStudentGradeMatchesAssignment($student, $assignment);
 
             $alreadyActive = Subscription::active()
                 ->where('student_id', $student->id)
@@ -186,6 +192,15 @@ class SubscriptionService
         }
 
         return $activated;
+    }
+
+    private function assertStudentGradeMatchesAssignment(User $student, TeachingAssignment $assignment): void
+    {
+        if ($student->isStudent()
+            && filled($student->grade_level)
+            && $assignment->gradeLevel?->key !== $student->grade_level) {
+            throw new LogicException('لا يمكنك الاشتراك إلا في مجموعات صفك الدراسي.');
+        }
     }
 
     /**

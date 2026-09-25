@@ -17,9 +17,13 @@ use Tests\TestCase;
 abstract class BrowseTestCase extends TestCase
 {
     public GradeLevel $grade;
+
     public Subject $subject;
+
     public User $teacher;
+
     public TeachingAssignment $assignment;
+
     public TeachingGroup $group;
 }
 
@@ -66,7 +70,7 @@ it('shows every stage of the Qatari system on the home page', function () {
     $this->get(route('home'))
         ->assertOk()
         ->assertInertia(function ($page) {
-    /** @var BrowseTestCase $this */
+            /** @var BrowseTestCase $this */
             $page->component('Public/Home');
 
             $stages = collect($page->toArray()['props']['grades'])->pluck('stage')->unique();
@@ -123,7 +127,7 @@ it('splits grades eleven and twelve into the three Qatari tracks', function () {
     $this->get(route('home'))
         ->assertOk()
         ->assertInertia(function ($page) {
-    /** @var BrowseTestCase $this */
+            /** @var BrowseTestCase $this */
             $tracked = collect($page->toArray()['props']['grades'])
                 ->whereNotNull('track')
                 ->pluck('key');
@@ -144,7 +148,7 @@ it('lists the whole curriculum for a grade, teachers or not', function () {
     $this->get(route('grades.show', ['key' => 'grade_12_science']))
         ->assertOk()
         ->assertInertia(function ($page) {
-    /** @var BrowseTestCase $this */
+            /** @var BrowseTestCase $this */
             $subjects = collect($page->toArray()['props']['subjects']);
 
             // The science track carries physics whether or not it is staffed.
@@ -161,7 +165,7 @@ it('marks curriculum subjects with no teacher as unstaffed', function () {
     $this->get(route('grades.show', ['key' => 'grade_12_arts']))
         ->assertOk()
         ->assertInertia(function ($page) {
-    /** @var BrowseTestCase $this */
+            /** @var BrowseTestCase $this */
             $subjects = collect($page->toArray()['props']['subjects']);
 
             expect($subjects)->not->toBeEmpty()
@@ -274,6 +278,56 @@ it('keeps teacher profile tabs scoped to each grade assignment', function () {
                 ->and($other['private_monthly_price'])->toBe(120_000)
                 ->and($other['groups'][0]['monthly_price'])->toBe(70_000)
                 ->and(collect($other['free_intro_slots'])->pluck('id'))->toContain($otherFreeSlot->id);
+        });
+});
+
+it('shows a student only the teacher assignment for their own grade', function () {
+    /** @var BrowseTestCase $this */
+    $grade10 = GradeLevel::where('key', 'grade_10')->firstOrFail();
+    $grade11 = GradeLevel::where('key', 'grade_11_science')->firstOrFail();
+
+    $grade10Assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $this->subject->id,
+        'grade_level_id' => $grade10->id,
+        'is_active' => true,
+    ]);
+
+    TeachingGroup::factory()->create([
+        'teaching_assignment_id' => $grade10Assignment->id,
+        'monthly_price' => 50_000,
+    ]);
+
+    $grade11Assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $this->teacher->id,
+        'subject_id' => $this->subject->id,
+        'grade_level_id' => $grade11->id,
+        'is_active' => true,
+    ]);
+
+    TeachingGroup::factory()->create([
+        'teaching_assignment_id' => $grade11Assignment->id,
+        'monthly_price' => 60_000,
+    ]);
+
+    $student = User::factory()->create([
+        'grade_level' => 'grade_10',
+        'email_verified_at' => now(),
+    ]);
+    $student->assignRole('student');
+
+    $this->actingAs($student)
+        ->get(route('teachers.show', [
+            'id' => $this->teacher->id,
+            'grade' => 'grade_10',
+            'subject' => $this->subject->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(function ($page) use ($grade10): void {
+            $assignments = collect($page->toArray()['props']['assignments']);
+
+            expect($assignments)->toHaveCount(1)
+                ->and($assignments->first()['grade']['key'])->toBe($grade10->key);
         });
 });
 
