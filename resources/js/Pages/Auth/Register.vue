@@ -67,8 +67,20 @@ const onStageChange = () => {
 };
 
 const onTrackChange = () => {
-    const firstGrade = filteredGradeLevels.value[0];
-    form.grade_level = firstGrade ? firstGrade.key : '';
+    const currentGrade = stageGrades.value.find(g => g.key === form.grade_level);
+    const currentGradeNumber = currentGrade?.key.match(/^grade_(\d+)/)?.[1];
+
+    // Keep the selected grade when it is still available. When switching
+    // between tracks, select the same grade number in the new track instead
+    // of falling back to the common grade 10 row (the first filtered item).
+    const matchingGrade = filteredGradeLevels.value.find(g => g.key === form.grade_level)
+        || filteredGradeLevels.value.find(g =>
+            currentGradeNumber
+            && g.key === `grade_${currentGradeNumber}_${selectedTrack.value}`
+        )
+        || filteredGradeLevels.value[0];
+
+    form.grade_level = matchingGrade ? matchingGrade.key : '';
 };
 
 // Initialize
