@@ -29,14 +29,15 @@ const stageGrades = computed(() =>
     page.props.grade_levels?.filter(g => g.stage === selectedStage.value && g.key !== 'all') || []
 );
 
-/** Does the current stage have any track-ed grades (11/12)? */
-const hasTrackedGrades = computed(() =>
-    selectedStage.value === 'secondary' && stageGrades.value.some(g => g.track)
+/** Show tracks only after the student selects a tracked grade (11/12). */
+const showTrackSelector = computed(() =>
+    selectedStage.value === 'secondary'
+    && stageGrades.value.some(g => g.key === form.grade_level && g.track)
 );
 
 /** Available tracks for the current stage */
 const availableTracks = computed(() => {
-    if (!hasTrackedGrades.value) return [];
+    if (!stageGrades.value.some(g => g.track)) return [];
     const tracks = [...new Set(stageGrades.value.filter(g => g.track).map(g => g.track))];
     return tracks.map(t => ({
         key: t,
@@ -93,6 +94,14 @@ watch(() => form.role, (newRole) => {
     } else {
         onStageChange();
     }
+});
+
+watch(() => form.grade_level, (gradeKey) => {
+    const selectedGrade = stageGrades.value.find(g => g.key === gradeKey);
+
+    // Grade 10 is common, so it must never carry a selected track.
+    // For grades 11/12, reflect the track belonging to the selected grade.
+    selectedTrack.value = selectedGrade?.track || '';
 });
 
 const submit = () => {
@@ -300,7 +309,7 @@ const submit = () => {
                             </div>
                         </div>
 
-                        <!-- Track selector (secondary stage + has tracks) -->
+                        <!-- Track selector (only for selected grade 11/12) -->
                         <Transition
                             enter-active-class="transition-all duration-300 ease-out"
                             enter-from-class="opacity-0 -translate-y-2"
@@ -309,19 +318,11 @@ const submit = () => {
                             leave-from-class="opacity-100"
                             leave-to-class="opacity-0"
                         >
-                            <div v-if="hasTrackedGrades" class="space-y-1.5">
+                            <div v-if="showTrackSelector" class="space-y-1.5">
                                 <label class="block text-xs font-bold text-white/95 mr-3">
-                                    المسار الدراسي <span class="text-white/50 font-normal">(اختياري للصف العاشر المشترك)</span>
+                                    المسار الدراسي
                                 </label>
                                 <div class="flex flex-wrap gap-2">
-                                    <button
-                                        type="button"
-                                        @click="selectedTrack = ''; onTrackChange()"
-                                        class="px-4 py-2 rounded-full text-xs font-bold transition-all border"
-                                        :class="selectedTrack === ''
-                                            ? 'bg-white text-primary-800 border-white'
-                                            : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20'"
-                                    >كل المسارات</button>
                                     <button
                                         v-for="track in availableTracks"
                                         :key="track.key"
