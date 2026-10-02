@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useForm, Link, usePage } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -23,6 +23,22 @@ const platformEmail = (prefix) => `${String(prefix ?? '').trim().toLowerCase()}@
 
 const selectedStage = ref('secondary');
 const selectedTrack = ref(''); // only relevant for grade 11/12 secondary
+const openDropdown = ref(null);
+const activeOptionIndex = ref(0);
+
+const stageOptions = [
+    { key: 'primary', name: 'المرحلة الابتدائية' },
+    { key: 'preparatory', name: 'المرحلة الإعدادية' },
+    { key: 'secondary', name: 'المرحلة الثانوية' },
+];
+
+const selectedStageLabel = computed(() =>
+    stageOptions.find(option => option.key === selectedStage.value)?.name || 'اختر المرحلة...'
+);
+
+const selectedGradeLabel = computed(() =>
+    filteredGradeLevels.value.find(grade => grade.key === form.grade_level)?.name || 'اختر الصف...'
+);
 
 /** Grades that exist in the current stage */
 const stageGrades = computed(() =>
@@ -84,10 +100,84 @@ const onTrackChange = () => {
     form.grade_level = matchingGrade ? matchingGrade.key : '';
 };
 
+const dropdownOptions = (type) => type === 'stage' ? stageOptions : filteredGradeLevels.value;
+
+const toggleDropdown = (type) => {
+    if (form.processing || (type === 'grade' && !filteredGradeLevels.value.length)) return;
+
+    if (openDropdown.value === type) {
+        openDropdown.value = null;
+        return;
+    }
+
+    const options = dropdownOptions(type);
+    const selectedKey = type === 'stage' ? selectedStage.value : form.grade_level;
+    const selectedIndex = options.findIndex(option => option.key === selectedKey);
+
+    activeOptionIndex.value = selectedIndex >= 0 ? selectedIndex : 0;
+    openDropdown.value = type;
+};
+
+const selectDropdownOption = (type, option) => {
+    if (type === 'stage') {
+        selectedStage.value = option.key;
+        onStageChange();
+    } else {
+        form.grade_level = option.key;
+    }
+
+    openDropdown.value = null;
+};
+
+const handleDropdownKeydown = (event, type) => {
+    const options = dropdownOptions(type);
+    if (!options.length || form.processing) return;
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        openDropdown.value = null;
+        return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (openDropdown.value !== type) {
+            toggleDropdown(type);
+            return;
+        }
+
+        const direction = event.key === 'ArrowDown' ? 1 : -1;
+        activeOptionIndex.value = (activeOptionIndex.value + direction + options.length) % options.length;
+        return;
+    }
+
+    if (event.key === 'Home' || event.key === 'End') {
+        event.preventDefault();
+        activeOptionIndex.value = event.key === 'Home' ? 0 : options.length - 1;
+        return;
+    }
+
+    if ((event.key === 'Enter' || event.key === ' ') && openDropdown.value === type) {
+        event.preventDefault();
+        selectDropdownOption(type, options[activeOptionIndex.value]);
+    }
+};
+
+const closeDropdownOnOutsideClick = (event) => {
+    if (!event.target.closest('[data-registration-dropdown]')) {
+        openDropdown.value = null;
+    }
+};
+
 // Initialize
 onStageChange();
 
+onMounted(() => document.addEventListener('click', closeDropdownOnOutsideClick));
+onBeforeUnmount(() => document.removeEventListener('click', closeDropdownOnOutsideClick));
+
 watch(() => form.role, (newRole) => {
+    openDropdown.value = null;
+
     if (newRole !== 'student') {
         form.grade_level = null;
         form.parent_phone = '';
@@ -286,23 +376,79 @@ const submit = () => {
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-bold text-white/95 mr-3" for="reg-stage">المرحلة الدراسية</label>
-                                <div class="relative">
-                                    <select id="reg-stage" v-model="selectedStage" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" :disabled="form.processing" @change="onStageChange">
-                                        <option value="primary">المرحلة الابتدائية</option>
-                                        <option value="preparatory">المرحلة الإعدادية</option>
-                                        <option value="secondary">المرحلة الثانوية</option>
-                                    </select>
+                                <div class="relative" data-registration-dropdown>
+                                    <button
+                                        id="reg-stage"
+                                        type="button"
+                                        class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all flex items-center justify-between gap-3 text-right"
+                                        :disabled="form.processing"
+                                        role="combobox"
+                                        aria-haspopup="listbox"
+                                        :aria-expanded="openDropdown === 'stage'"
+                                        aria-controls="reg-stage-options"
+                                        @click="toggleDropdown('stage')"
+                                        @keydown="handleDropdownKeydown($event, 'stage')"
+                                    >
+                                        <span>{{ selectedStageLabel }}</span>
+                                        <span class="text-surface-500 text-base leading-none" aria-hidden="true">⌄</span>
+                                    </button>
+                                    <div
+                                        v-if="openDropdown === 'stage'"
+                                        id="reg-stage-options"
+                                        role="listbox"
+                                        aria-labelledby="reg-stage"
+                                        class="absolute z-50 bottom-full inset-x-0 mb-2 max-h-56 overflow-y-auto rounded-2xl bg-white p-1.5 text-surface-900 shadow-2xl ring-1 ring-black/10"
+                                    >
+                                        <button
+                                            v-for="(stage, index) in stageOptions"
+                                            :key="stage.key"
+                                            type="button"
+                                            role="option"
+                                            :aria-selected="selectedStage === stage.key"
+                                            class="w-full rounded-xl px-4 py-2.5 text-right text-xs font-semibold transition-colors"
+                                            :class="selectedStage === stage.key || activeOptionIndex === index ? 'bg-primary-100 text-primary-900' : 'hover:bg-surface-100'"
+                                            @click="selectDropdownOption('stage', stage)"
+                                        >{{ stage.name }}</button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-bold text-white/95 mr-3" for="reg-grade">الصف الدراسي</label>
-                                <div class="relative">
-                                    <select id="reg-grade" v-model="form.grade_level" class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem] bg-[position:left_1rem_center] bg-no-repeat" :class="{ 'ring-2 ring-red-500': form.errors.grade_level }" :disabled="!filteredGradeLevels.length || form.processing" required>
-                                        <option value="" disabled>اختر الصف...</option>
-                                        <option v-for="gl in filteredGradeLevels" :key="gl.key" :value="gl.key">
-                                            {{ gl.name }}
-                                        </option>
-                                    </select>
+                                <div class="relative" data-registration-dropdown>
+                                    <button
+                                        id="reg-grade"
+                                        type="button"
+                                        class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner text-xs font-semibold transition-all flex items-center justify-between gap-3 text-right"
+                                        :class="{ 'ring-2 ring-red-500': form.errors.grade_level }"
+                                        :disabled="!filteredGradeLevels.length || form.processing"
+                                        role="combobox"
+                                        aria-haspopup="listbox"
+                                        :aria-expanded="openDropdown === 'grade'"
+                                        aria-controls="reg-grade-options"
+                                        @click="toggleDropdown('grade')"
+                                        @keydown="handleDropdownKeydown($event, 'grade')"
+                                    >
+                                        <span>{{ selectedGradeLabel }}</span>
+                                        <span class="text-surface-500 text-base leading-none" aria-hidden="true">⌄</span>
+                                    </button>
+                                    <div
+                                        v-if="openDropdown === 'grade'"
+                                        id="reg-grade-options"
+                                        role="listbox"
+                                        aria-labelledby="reg-grade"
+                                        class="absolute z-50 bottom-full inset-x-0 mb-2 max-h-56 overflow-y-auto rounded-2xl bg-white p-1.5 text-surface-900 shadow-2xl ring-1 ring-black/10"
+                                    >
+                                        <button
+                                            v-for="(gl, index) in filteredGradeLevels"
+                                            :key="gl.key"
+                                            type="button"
+                                            role="option"
+                                            :aria-selected="form.grade_level === gl.key"
+                                            class="w-full rounded-xl px-4 py-2.5 text-right text-xs font-semibold transition-colors"
+                                            :class="form.grade_level === gl.key || activeOptionIndex === index ? 'bg-primary-100 text-primary-900' : 'hover:bg-surface-100'"
+                                            @click="selectDropdownOption('grade', gl)"
+                                        >{{ gl.name }}</button>
+                                    </div>
                                 </div>
                                 <p v-if="form.errors.grade_level" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.grade_level }}</p>
                                 <p v-else-if="!filteredGradeLevels.length" class="text-amber-300 text-xs mr-3 mt-1">لا توجد صفوف متاحة لهذه المرحلة حالياً.</p>
