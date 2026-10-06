@@ -43,12 +43,10 @@ class AlMajdFreshSeeder extends Seeder
         Schema::enableForeignKeyConstraints();
 
         // 2. Roles
-        $roles = [
-            'admin' => Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']),
-            'teacher' => Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'web']),
-            'student' => Role::firstOrCreate(['name' => 'student', 'guard_name' => 'web']),
-            'parent' => Role::firstOrCreate(['name' => 'parent', 'guard_name' => 'web']),
-        ];
+        Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'student', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'parent', 'guard_name' => 'web']);
 
         // 3. Pre-computed hash (instantaneous)
         $passwordHash = Hash::make(self::PASSWORD);
@@ -76,29 +74,10 @@ class AlMajdFreshSeeder extends Seeder
         ]);
         $supervisor->syncRoles(['admin']);
 
-        // 6. Teachers
-        foreach (TeachingStaff::teachers() as $def) {
-            $teacher = User::create([
-                'name'                  => $def['name'],
-                'email'                 => $def['email'],
-                'phone'                 => $def['phone'],
-                'password'              => $passwordHash,
-                'headline'              => $def['headline'],
-                'bio'                   => $def['bio'],
-                'years_experience'      => $def['experience'],
-                'is_featured'           => $def['featured'] ?? false,
-                'commission_percent'    => $def['commission'],
-                'email_verified_at'     => $now,
-                'is_approved'           => true,
-            ]);
-            $teacher->syncRoles(['teacher']);
-        }
-
-        // 7. Seed Settings & Teaching Assignments
+        // 6. Platform Settings
         $this->call(PlatformSettingsSeeder::class);
-        $this->call(TeachingSeeder::class);
 
-        // 8. Clear all caches
+        // 7. Clear all caches
         foreach (['platform_settings', 'home.grades', 'home.featured_teachers', 'admin_platform_stats'] as $key) {
             Cache::forget($key);
         }
