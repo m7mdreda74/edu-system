@@ -29,9 +29,7 @@ const submit = () => form.post(route('login'), { onFinish: () => form.reset('pas
             
             <!-- Branding Header -->
             <div class="relative z-10 flex flex-col items-start gap-4">
-                <div class="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-lg">
-                    <span class="text-primary-800 font-black text-xl">ت</span>
-                </div>
+                <img src="/images/logo-icon.png" alt="بوابة المجد التعليمية" class="w-14 h-14 object-contain filter drop-shadow-md" />
                 <div>
                     <h2 class="text-xl font-bold text-white leading-tight">بوابة المجد التعليمية</h2>
                     <p class="text-white/60 text-xs mt-1">شريكك الأكاديمي للدرجات الكاملة</p>
@@ -61,9 +59,7 @@ const submit = () => form.post(route('login'), { onFinish: () => form.reset('pas
                 <!-- Logo & Brand Header (Mobile/Tablet only) -->
                 <div class="flex lg:hidden flex-col items-center text-center">
                     <Link :href="route('home')" class="inline-flex flex-col items-center gap-3 group mb-4">
-                        <div class="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform duration-300">
-                            <span class="text-primary-800 font-black text-3xl">ت</span>
-                        </div>
+                        <img src="/images/logo-icon.png" alt="بوابة المجد التعليمية" class="w-20 h-20 object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300" />
                         <span class="text-3xl font-black text-white tracking-wide">بوابة المجد التعليمية</span>
                     </Link>
                     <p class="text-white/70 text-sm">سجّل دخولك للمتابعة في رحلة التعلم</p>

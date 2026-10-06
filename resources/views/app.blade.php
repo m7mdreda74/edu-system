@@ -9,7 +9,11 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- Favicon & Brand Icons -->
+        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logo-icon.png') }}">
         <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo.svg') }}">
+        <link rel="apple-touch-icon" href="{{ asset('images/logo-icon-192.png') }}">
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 

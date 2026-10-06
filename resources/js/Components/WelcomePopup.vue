@@ -201,9 +201,7 @@ function handleKeydown(event) {
                 </button>
 
                 <!-- Platform Logo -->
-                <div class="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-6 shadow-glow-primary border border-white/20">
-                    <span class="text-white font-black text-3xl">ت</span>
-                </div>
+                <img src="/images/logo-icon.png" alt="بوابة المجد التعليمية" class="w-20 h-20 object-contain mb-6 drop-shadow-xl" />
 
                 <!-- Title -->
                 <h2 id="welcome-popup-title" class="text-2xl md:text-3xl font-black text-center mb-8 leading-tight">

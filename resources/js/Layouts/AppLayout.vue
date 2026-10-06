@@ -176,14 +176,6 @@ const isActive = (link) => {
                     <!-- Logo -->
                     <Link :href="route('home')" prefetch cache-for="30s" class="flex items-center gap-2 group">
                         <BrandLogo compact />
-                        <div class="hidden">
-                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700
-                                    flex items-center justify-center shadow-glow-primary
-                                    group-hover:scale-110 transition-transform duration-200">
-                            <span class="text-white font-bold text-sm">{{ ($page.props.settings?.platform_name ?? 'تفوّق').charAt(0) }}</span>
-                        </div>
-                        <span class="text-xl font-bold text-gradient-primary hidden sm:block">{{ $page.props.settings?.platform_name ?? 'بوابة المجد التعليمية' }}</span>
-                        </div>
                     </Link>
 
                     <!-- Desktop Search Bar -->

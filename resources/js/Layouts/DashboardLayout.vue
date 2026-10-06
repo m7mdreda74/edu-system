@@ -184,10 +184,7 @@ const isActive = (name) => {
                 <div class="h-16 flex items-center border-b border-surface-200 dark:border-surface-800 transition-all duration-300"
                      :class="isSidebarCollapsed ? 'px-0 justify-center' : 'px-6 justify-between'">
                     <Link :href="route('home')" prefetch cache-for="30s" class="flex items-center group" :class="isSidebarCollapsed ? 'gap-0' : 'gap-3'">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700
-                                    flex items-center justify-center shadow-glow-primary shrink-0">
-                                <span class="text-white font-bold text-xs">ت</span>
-                        </div>
+                        <img src="/images/logo-icon.png" alt="بوابة المجد التعليمية" class="w-9 h-9 object-contain shrink-0 drop-shadow-sm transition-transform duration-300 group-hover:scale-105" />
                         <span v-show="!isSidebarCollapsed" class="text-lg font-bold text-surface-900 dark:text-white tracking-wide group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">بوابة المجد التعليمية</span>
                     </Link>
                     <button v-show="!isSidebarCollapsed" type="button" @click="closeSidebar" class="lg:hidden text-surface-500 hover:text-surface-800 dark:text-surface-400 dark:hover:text-white" aria-label="إغلاق القائمة الجانبية">

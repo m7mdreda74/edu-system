@@ -40,15 +40,12 @@ function printCertificate() {
                 <div class="p-12 md:p-16 text-center relative">
                     <!-- Background watermark -->
                     <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
-                        <div class="text-[200px] font-black text-primary-600">ت</div>
+                        <img src="/images/logo-icon.png" alt="" class="w-80 h-80 object-contain" />
                     </div>
 
                     <!-- Logo & Platform -->
-                    <div class="flex items-center justify-center gap-3 mb-8">
-                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700
-                                    flex items-center justify-center shadow-glow-primary">
-                            <span class="text-white font-black text-2xl">ت</span>
-                        </div>
+                    <div class="flex items-center justify-center gap-4 mb-8">
+                        <img src="/images/logo-icon.png" :alt="certificate.platform_name" class="w-16 h-16 object-contain drop-shadow-sm" />
                         <div class="text-start">
                             <div class="text-2xl font-black text-primary-800">{{ certificate.platform_name }}</div>
                             <div class="text-xs text-surface-400">التميز في التعليم</div>
