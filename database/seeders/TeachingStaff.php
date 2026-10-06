@@ -39,7 +39,7 @@ final class TeachingStaff
             // ─── الرياضيات ─────────────────────────────────────────────────
             'الرياضيات' => [
                 [
-                    'email' => 'ahmed@altafawwuq.com', 'name' => 'أ. أحمد الكواري',
+                    'email' => 'ahmed@almagd.com', 'name' => 'أ. أحمد الكواري',
                     'experience' => 14, 'featured' => true, 'commission' => 18,
                     'headline' => 'معلم رياضيات للثانوية — 14 سنة خبرة',
                     'bio' => 'أدرّس الرياضيات من الأساس: كل قاعدة تبدأ بسؤال من امتحان وزاري حقيقي، ثم نبنيها خطوة خطوة حتى يصبح الحل بديهياً. أركّز على التفاضل والتكامل والهندسة التحليلية.',
@@ -50,7 +50,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'mona@altafawwuq.com', 'name' => 'أ. منى العبيدلي',
+                    'email' => 'mona@almagd.com', 'name' => 'أ. منى العبيدلي',
                     'experience' => 11, 'commission' => 20,
                     'headline' => 'معلمة رياضيات — الإعدادي والمسار الأدبي',
                     'bio' => 'كثير من الطلاب يكرهون الرياضيات لأنهم فاتتهم خطوة في الإعدادي. أبدأ من حيث توقف الطالب فعلاً، لا من حيث يفترض المنهج.',
@@ -61,7 +61,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'fatima@altafawwuq.com', 'name' => 'أ. فاطمة النعيمي',
+                    'email' => 'fatima@almagd.com', 'name' => 'أ. فاطمة النعيمي',
                     'experience' => 12, 'commission' => 22,
                     'headline' => 'معلمة رياضيات — المرحلة الابتدائية',
                     'bio' => 'أبني الأساس الصحيح للطفل في الحساب عبر الأنشطة والألعاب التعليمية، لأن ضعف الابتدائي يلاحق الطالب لسنوات.',
@@ -76,7 +76,7 @@ final class TeachingStaff
             // ─── الفيزياء ──────────────────────────────────────────────────
             'الفيزياء' => [
                 [
-                    'email' => 'sara@altafawwuq.com', 'name' => 'أ. سارة المهندي',
+                    'email' => 'sara@almagd.com', 'name' => 'أ. سارة المهندي',
                     'experience' => 9, 'featured' => true, 'commission' => 20,
                     'headline' => 'معلمة فيزياء — الشرح بالتجربة',
                     'bio' => 'كل درس يبدأ بتجربة أو موقف من الحياة اليومية قبل أي قانون. الطالب يفهم لماذا قبل أن يحفظ كيف.',
@@ -87,7 +87,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'tariq@altafawwuq.com', 'name' => 'أ. طارق الأنصاري',
+                    'email' => 'tariq@almagd.com', 'name' => 'أ. طارق الأنصاري',
                     'experience' => 15, 'commission' => 18,
                     'headline' => 'معلم فيزياء — حل المسائل الوزارية',
                     'bio' => 'تركيزي كله على المسألة: كيف تقرأها، وكيف تختار القانون، وكيف تتفادى الأخطاء التي تتكرر كل عام في التصحيح.',
@@ -98,7 +98,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'walid@altafawwuq.com', 'name' => 'أ. وليد السليطي',
+                    'email' => 'walid@almagd.com', 'name' => 'أ. وليد السليطي',
                     'experience' => 7, 'commission' => 22,
                     'headline' => 'معلم فيزياء — التقنية والميكانيكا',
                     'bio' => 'أركّز على مسائل الميكانيكا والديناميكا التي يجد فيها طلاب الثانوية صعوبة، مع شرح التحليل الرياضي المطلوب.',
@@ -112,7 +112,7 @@ final class TeachingStaff
             // ─── الكيمياء ──────────────────────────────────────────────────
             'الكيمياء' => [
                 [
-                    'email' => 'hessa@altafawwuq.com', 'name' => 'أ. حصة الكواري',
+                    'email' => 'hessa@almagd.com', 'name' => 'أ. حصة الكواري',
                     'experience' => 10, 'commission' => 20,
                     'headline' => 'معلمة كيمياء — من العاشر إلى الثاني عشر',
                     'bio' => 'أربط كل تفاعل بمثال من الحياة أو الصناعة، فيصبح الحفظ نتيجة للفهم لا بديلاً عنه.',
@@ -123,7 +123,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'badr@altafawwuq.com', 'name' => 'أ. بدر الهاجري',
+                    'email' => 'badr@almagd.com', 'name' => 'أ. بدر الهاجري',
                     'experience' => 6, 'commission' => 22,
                     'headline' => 'معلم كيمياء — الكيمياء العضوية خطوة بخطوة',
                     'bio' => 'العضوية ليست حفظاً لسلاسل، بل منطق يتكرر. أعطي الطالب المنطق مرة واحدة فيحل ما لم يره من قبل.',
@@ -134,7 +134,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'mariam_k@altafawwuq.com', 'name' => 'أ. مريم الكعبي',
+                    'email' => 'mariam_k@almagd.com', 'name' => 'أ. مريم الكعبي',
                     'experience' => 8, 'commission' => 20,
                     'headline' => 'معلمة كيمياء — الكيمياء الحسابية والتحليلية',
                     'bio' => 'أركّز على الحسابات الكيميائية والمسائل الكمية التي يضعف فيها الطلاب عادةً، مع ربطها بالأسئلة الوزارية.',
@@ -148,7 +148,7 @@ final class TeachingStaff
             // ─── الأحياء ───────────────────────────────────────────────────
             'الأحياء' => [
                 [
-                    'email' => 'khaled@altafawwuq.com', 'name' => 'أ. خالد آل ثاني',
+                    'email' => 'khaled@almagd.com', 'name' => 'أ. خالد آل ثاني',
                     'experience' => 7, 'commission' => 20,
                     'headline' => 'معلم أحياء — خرائط ذهنية وملخصات',
                     'bio' => 'أسلوبي يعتمد على الخرائط الذهنية التي تختصر الوحدة كاملة في صفحة واحدة، مع مراجعات مركّزة قبل الامتحانات مباشرة.',
@@ -159,7 +159,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'aisha@altafawwuq.com', 'name' => 'أ. عائشة المسند',
+                    'email' => 'aisha@almagd.com', 'name' => 'أ. عائشة المسند',
                     'experience' => 13, 'featured' => true, 'commission' => 18,
                     'headline' => 'معلمة أحياء — للراغبين في كليات الطب',
                     'bio' => 'أدرّس الأحياء بعمق يتجاوز المنهج قليلاً لمن ينوي الطب، مع تدريب على أسئلة التفكير لا الاسترجاع.',
@@ -170,7 +170,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'sultan@altafawwuq.com', 'name' => 'أ. سلطان الغانم',
+                    'email' => 'sultan@almagd.com', 'name' => 'أ. سلطان الغانم',
                     'experience' => 5, 'commission' => 22,
                     'headline' => 'معلم أحياء — علم الوراثة والتطور',
                     'bio' => 'أبسّط وحدتي الوراثة والتطور اللتين يجد فيهما الطلاب صعوبة، من خلال رسومات توضيحية وجداول مقارنة.',
@@ -184,7 +184,7 @@ final class TeachingStaff
             // ─── العلوم ───────────────────────────────────────────────────
             'العلوم' => [
                 [
-                    'email' => 'salem@altafawwuq.com', 'name' => 'أ. سالم المري',
+                    'email' => 'salem@almagd.com', 'name' => 'أ. سالم المري',
                     'experience' => 13, 'featured' => true, 'commission' => 20,
                     'headline' => 'معلم علوم — الإعدادي',
                     'bio' => 'العلوم في هذه المرحلة تُبنى بالتجربة والسؤال لا بالتلقين. حصصي قائمة على تجارب بسيطة يعيدها الطالب في البيت.',
@@ -195,7 +195,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'reem@altafawwuq.com', 'name' => 'أ. ريم الدرويش',
+                    'email' => 'reem@almagd.com', 'name' => 'أ. ريم الدرويش',
                     'experience' => 8, 'commission' => 22,
                     'headline' => 'معلمة علوم — المرحلة الابتدائية',
                     'bio' => 'أحوّل كل درس إلى سؤال يثير فضول الطفل، فيتذكر الإجابة لأنه أرادها لا لأنه طُلب منه حفظها.',
@@ -206,7 +206,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'hind@altafawwuq.com', 'name' => 'أ. هند العامري',
+                    'email' => 'hind@almagd.com', 'name' => 'أ. هند العامري',
                     'experience' => 6, 'commission' => 22,
                     'headline' => 'معلمة علوم — الصفوف الأولى',
                     'bio' => 'أعلّم العلوم للأطفال الصغار بأسلوب الاستكشاف والتجريب المنزلي البسيط، لبناء الفضول العلمي من المرحلة الأولى.',
@@ -220,7 +220,7 @@ final class TeachingStaff
             // ─── اللغة العربية ────────────────────────────────────────────
             'اللغة العربية' => [
                 [
-                    'email' => 'noura@altafawwuq.com', 'name' => 'أ. نورة العطية',
+                    'email' => 'noura@almagd.com', 'name' => 'أ. نورة العطية',
                     'experience' => 16, 'featured' => true, 'commission' => 18,
                     'headline' => 'معلمة لغة عربية — المرحلة الثانوية',
                     'bio' => 'النحو ليس قواعد تُحفظ بل منطق يُفهم. أدرّس العربية بأسلوب يربط القاعدة بالنص الأدبي، ويعالج ضعف الإملاء والتعبير من جذوره.',
@@ -231,7 +231,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'ibrahim@altafawwuq.com', 'name' => 'أ. إبراهيم الخليفي',
+                    'email' => 'ibrahim@almagd.com', 'name' => 'أ. إبراهيم الخليفي',
                     'experience' => 9, 'commission' => 20,
                     'headline' => 'معلم لغة عربية — الابتدائي والإعدادي',
                     'bio' => 'أعالج ضعف القراءة والإملاء من جذوره قبل أي شيء، لأن الطالب الذي لا يقرأ جيداً يتعثر في كل مادة أخرى.',
@@ -242,7 +242,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'lulwa@altafawwuq.com', 'name' => 'أ. لولوة البوعينين',
+                    'email' => 'lulwa@almagd.com', 'name' => 'أ. لولوة البوعينين',
                     'experience' => 7, 'commission' => 22,
                     'headline' => 'معلمة لغة عربية — الصفوف الأولى',
                     'bio' => 'أعلّم القراءة والكتابة للأطفال بأساليب مبتكرة تجعل تعلّم اللغة العربية تجربة ممتعة وسلسة.',
@@ -256,7 +256,7 @@ final class TeachingStaff
             // ─── اللغة الإنجليزية ─────────────────────────────────────────
             'اللغة الإنجليزية' => [
                 [
-                    'email' => 'yousef@altafawwuq.com', 'name' => 'أ. يوسف الحداد',
+                    'email' => 'yousef@almagd.com', 'name' => 'أ. يوسف الحداد',
                     'experience' => 11, 'commission' => 20,
                     'headline' => 'معلم لغة إنجليزية — قواعد ومحادثة',
                     'bio' => 'أجمع بين إتقان القواعد المطلوبة في المنهج وبين بناء ثقة الطالب في التحدث، مع تدريب مكثف على الكتابة ومهارات الامتحان.',
@@ -267,7 +267,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'dana@altafawwuq.com', 'name' => 'أ. دانة الكبيسي',
+                    'email' => 'dana@almagd.com', 'name' => 'أ. دانة الكبيسي',
                     'experience' => 7, 'commission' => 22,
                     'headline' => 'معلمة لغة إنجليزية — الابتدائي والإعدادي',
                     'bio' => 'الطفل يتعلم اللغة كما تعلّم لغته الأولى: سماعاً وتكراراً قبل القاعدة. حصصي كلها بالإنجليزية مع دعم بالعربية عند الحاجة.',
@@ -278,7 +278,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'khalifa@altafawwuq.com', 'name' => 'أ. خليفة العبيدلي',
+                    'email' => 'khalifa@almagd.com', 'name' => 'أ. خليفة العبيدلي',
                     'experience' => 9, 'commission' => 20,
                     'headline' => 'معلم لغة إنجليزية — الصفوف الأولى والثانية',
                     'bio' => 'أبني أساس اللغة الإنجليزية عند الأطفال الصغار من خلال الأغاني والقصص التفاعلية، مما يجعل التعلم تجربة ممتعة.',
@@ -292,7 +292,7 @@ final class TeachingStaff
             // ─── التربية الإسلامية ────────────────────────────────────────
             'التربية الإسلامية' => [
                 [
-                    'email' => 'abdullah@altafawwuq.com', 'name' => 'أ. عبدالله الشمري',
+                    'email' => 'abdullah@almagd.com', 'name' => 'أ. عبدالله الشمري',
                     'experience' => 8, 'commission' => 22,
                     'headline' => 'معلم تربية إسلامية — الابتدائي والإعدادي',
                     'bio' => 'أدرّس التربية الإسلامية بأسلوب قصصي مبسّط يناسب الأعمار الصغيرة، مع تركيز على التجويد وحفظ جزء عمّ.',
@@ -303,7 +303,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'hamad@altafawwuq.com', 'name' => 'أ. حمد الرميحي',
+                    'email' => 'hamad@almagd.com', 'name' => 'أ. حمد الرميحي',
                     'experience' => 12, 'commission' => 20,
                     'headline' => 'معلم تربية إسلامية — المرحلة الثانوية',
                     'bio' => 'منهج الثانوية يحتاج فهماً للمقاصد لا حفظاً للنصوص. أربط كل موضوع بواقع الطالب حتى يصبح الدرس مقنعاً.',
@@ -314,7 +314,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'moza@altafawwuq.com', 'name' => 'أ. موزة السليطي',
+                    'email' => 'moza@almagd.com', 'name' => 'أ. موزة السليطي',
                     'experience' => 6, 'commission' => 22,
                     'headline' => 'معلمة تربية إسلامية — الصفوف الأولى',
                     'bio' => 'أعلّم الطفل أساسيات دينه بالقصة والنشيد والنشاط، فيحبّ دينه قبل أن يحفظ أحكامه.',
@@ -328,7 +328,7 @@ final class TeachingStaff
             // ─── التاريخ ──────────────────────────────────────────────────
             'التاريخ' => [
                 [
-                    'email' => 'maryam@altafawwuq.com', 'name' => 'أ. مريم الدوسري',
+                    'email' => 'maryam@almagd.com', 'name' => 'أ. مريم الدوسري',
                     'experience' => 10, 'featured' => true, 'commission' => 20,
                     'headline' => 'معلمة تاريخ — مسار الآداب والإنسانيات',
                     'bio' => 'أحوّل التاريخ من تواريخ تُحفظ إلى قصة مترابطة تُفهم أسبابها ونتائجها، فيصبح الاسترجاع تحصيل حاصل.',
@@ -339,7 +339,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'saeed@altafawwuq.com', 'name' => 'أ. سعيد المالكي',
+                    'email' => 'saeed@almagd.com', 'name' => 'أ. سعيد المالكي',
                     'experience' => 14, 'commission' => 18,
                     'headline' => 'معلم تاريخ — الإعدادي والثانوي',
                     'bio' => 'أدرّس التاريخ بالخرائط والخطوط الزمنية، فيرى الطالب الحدث في مكانه وزمانه بدل أن يحفظه معزولاً.',
@@ -350,7 +350,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'talal@altafawwuq.com', 'name' => 'أ. طلال المهندي',
+                    'email' => 'talal@almagd.com', 'name' => 'أ. طلال المهندي',
                     'experience' => 5, 'commission' => 22,
                     'headline' => 'معلم تاريخ — الحضارات الإسلامية',
                     'bio' => 'أتخصص في الحضارة الإسلامية وتاريخ الجزيرة العربية، وأربطها بالهوية الوطنية لتثبت في ذهن الطالب.',
@@ -364,7 +364,7 @@ final class TeachingStaff
             // ─── الجغرافيا ────────────────────────────────────────────────
             'الجغرافيا' => [
                 [
-                    'email' => 'latifa@altafawwuq.com', 'name' => 'أ. لطيفة السويدي',
+                    'email' => 'latifa@almagd.com', 'name' => 'أ. لطيفة السويدي',
                     'experience' => 8, 'commission' => 20,
                     'headline' => 'معلمة جغرافيا — مسار الآداب والإنسانيات',
                     'bio' => 'الجغرافيا خرائط تُقرأ لا أسماء تُحفظ. أدرّب الطالب على تحليل الخريطة والرسم البياني قبل أي شيء.',
@@ -375,7 +375,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'ghalia@altafawwuq.com', 'name' => 'أ. غالية النعمة',
+                    'email' => 'ghalia@almagd.com', 'name' => 'أ. غالية النعمة',
                     'experience' => 6, 'commission' => 22,
                     'headline' => 'معلمة جغرافيا — الإعدادي',
                     'bio' => 'أبدأ من جغرافيا قطر والخليج التي يعرفها الطالب، ثم أوسّع الدائرة، فتصبح المعلومة مرتبطة بشيء يراه.',
@@ -386,7 +386,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'rana@altafawwuq.com', 'name' => 'أ. رنا الهاجري',
+                    'email' => 'rana@almagd.com', 'name' => 'أ. رنا الهاجري',
                     'experience' => 9, 'commission' => 20,
                     'headline' => 'معلمة جغرافيا — الجغرافيا البشرية والاقتصادية',
                     'bio' => 'أركّز على الجغرافيا البشرية والاقتصادية بتحليل البيانات والإحصائيات الجغرافية، مما يميّز الطالب في الامتحانات.',
@@ -400,7 +400,7 @@ final class TeachingStaff
             // ─── الدراسات الاجتماعية ──────────────────────────────────────
             'الدراسات الاجتماعية' => [
                 [
-                    'email' => 'jaber@altafawwuq.com', 'name' => 'أ. جابر الفضالة',
+                    'email' => 'jaber@almagd.com', 'name' => 'أ. جابر الفضالة',
                     'experience' => 9, 'commission' => 20,
                     'headline' => 'معلم دراسات اجتماعية — الإعدادي والعاشر',
                     'bio' => 'المادة تجمع التاريخ والجغرافيا والمواطنة، وأدرّسها كوحدة واحدة مترابطة بدل ثلاثة مواضيع منفصلة.',
@@ -411,7 +411,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'shaikha@altafawwuq.com', 'name' => 'أ. شيخة النصر',
+                    'email' => 'shaikha@almagd.com', 'name' => 'أ. شيخة النصر',
                     'experience' => 11, 'commission' => 20,
                     'headline' => 'معلمة دراسات اجتماعية — الابتدائي',
                     'bio' => 'أعرّف الطفل بوطنه ومجتمعه بأنشطة ومشاريع صغيرة يقدّمها بنفسه، فيرسخ المفهوم بالممارسة.',
@@ -422,7 +422,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'jasem_s@altafawwuq.com', 'name' => 'أ. جاسم السويدي',
+                    'email' => 'jasem_s@almagd.com', 'name' => 'أ. جاسم السويدي',
                     'experience' => 7, 'commission' => 22,
                     'headline' => 'معلم دراسات اجتماعية — الصفوف الأولى',
                     'bio' => 'أعلّم التربية الوطنية للأطفال من خلال قصص عن قطر وأبطالها، مما يزرع الانتماء والحب للوطن في نفوس الأجيال الصغيرة.',
@@ -436,7 +436,7 @@ final class TeachingStaff
             // ─── علوم الحاسب ─────────────────────────────────────────────
             'علوم الحاسب' => [
                 [
-                    'email' => 'jassim@altafawwuq.com', 'name' => 'أ. جاسم البوعينين',
+                    'email' => 'jassim@almagd.com', 'name' => 'أ. جاسم البوعينين',
                     'experience' => 9, 'featured' => true, 'commission' => 20,
                     'headline' => 'معلم علوم حاسب — المسار التكنولوجي',
                     'bio' => 'أدرّس البرمجة وقواعد البيانات وتصميم الشبكات بمشاريع عملية يبنيها الطالب بنفسه بدل الحفظ.',
@@ -447,7 +447,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'nasser@altafawwuq.com', 'name' => 'أ. ناصر الخاطر',
+                    'email' => 'nasser@almagd.com', 'name' => 'أ. ناصر الخاطر',
                     'experience' => 5, 'commission' => 22,
                     'headline' => 'معلم علوم حاسب — أساسيات البرمجة',
                     'bio' => 'أبدأ من الصفر بلغة بايثون، ومن أول حصة يكتب الطالب برنامجاً يعمل. لا نظريات قبل أن يرى نتيجة.',
@@ -458,7 +458,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'sarah_cs@altafawwuq.com', 'name' => 'أ. سارة الخليفي',
+                    'email' => 'sarah_cs@almagd.com', 'name' => 'أ. سارة الخليفي',
                     'experience' => 8, 'commission' => 20,
                     'headline' => 'معلمة علوم حاسب — قواعد البيانات والشبكات',
                     'bio' => 'أتخصص في تدريس قواعد البيانات SQL وتصميم الشبكات لطلاب المسار التكنولوجي، مع التدريب على المشاريع العملية.',
@@ -472,7 +472,7 @@ final class TeachingStaff
             // ─── تكنولوجيا المعلومات ──────────────────────────────────────
             'تكنولوجيا المعلومات' => [
                 [
-                    'email' => 'rashid@altafawwuq.com', 'name' => 'أ. راشد الخاطر',
+                    'email' => 'rashid@almagd.com', 'name' => 'أ. راشد الخاطر',
                     'experience' => 7, 'commission' => 20,
                     'headline' => 'معلم تكنولوجيا المعلومات',
                     'bio' => 'من أساسيات الحاسب حتى بناء موقع كامل — كل حصة ينتج فيها الطالب شيئاً يشغّله بنفسه.',
@@ -483,7 +483,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'amal@altafawwuq.com', 'name' => 'أ. أمل الأنصاري',
+                    'email' => 'amal@almagd.com', 'name' => 'أ. أمل الأنصاري',
                     'experience' => 6, 'commission' => 22,
                     'headline' => 'معلمة تكنولوجيا المعلومات — الابتدائي',
                     'bio' => 'أعلّم الطفل استخدام الحاسب بأمان ومهارة، من الطباعة حتى البرمجة المرئية بسكراتش.',
@@ -494,7 +494,7 @@ final class TeachingStaff
                     ],
                 ],
                 [
-                    'email' => 'faisal@altafawwuq.com', 'name' => 'أ. فيصل المناعي',
+                    'email' => 'faisal@almagd.com', 'name' => 'أ. فيصل المناعي',
                     'experience' => 10, 'commission' => 20,
                     'headline' => 'معلم تكنولوجيا المعلومات — الصفوف الأولى',
                     'bio' => 'أُعرّف الأطفال الصغار بالعالم الرقمي بطريقة آمنة وممتعة، من استخدام الجهاز اللوحي حتى أساسيات برنامج Word.',

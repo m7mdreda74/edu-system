@@ -23,7 +23,7 @@ class UserCreationTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('admin.users.store'), [
             'name' => 'Admin Created Student',
-            'email' => 'admin-created-student@altafawwuq.com',
+            'email' => 'admin-created-student@almagd.com',
             'phone' => '51000001',
             'parent_phone' => $parent->phone,
             'grade_level' => 'grade_10',
@@ -33,7 +33,7 @@ class UserCreationTest extends TestCase
 
         $response->assertRedirect()->assertSessionHasNoErrors();
 
-        $student = User::where('email', 'admin-created-student@altafawwuq.com')->firstOrFail();
+        $student = User::where('email', 'admin-created-student@almagd.com')->firstOrFail();
 
         $this->assertDatabaseHas('parent_student_links', [
             'parent_user_id' => $parent->id,
@@ -53,7 +53,7 @@ class UserCreationTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('admin.users.store'), [
             'name' => 'Unlinked Student',
-            'email' => 'admin-unlinked@altafawwuq.com',
+            'email' => 'admin-unlinked@almagd.com',
             'phone' => '51000002',
             'parent_phone' => '51999999',
             'grade_level' => 'grade_10',
@@ -62,7 +62,7 @@ class UserCreationTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('parent_phone');
-        $this->assertDatabaseMissing('users', ['email' => 'admin-unlinked@altafawwuq.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'admin-unlinked@almagd.com']);
     }
 
     public function test_admin_cannot_create_a_user_with_an_external_email_domain(): void

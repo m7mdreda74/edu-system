@@ -19,7 +19,7 @@ const form = useForm({
 
 const emailPrefix = ref('');
 
-const platformEmail = (prefix) => `${String(prefix ?? '').trim().toLowerCase()}@altafawwuq.com`;
+const platformEmail = (prefix) => `${String(prefix ?? '').trim().toLowerCase()}@almagd.com`;
 
 const selectedStage = ref('secondary');
 const selectedTrack = ref(''); // only relevant for grade 11/12 secondary
@@ -323,7 +323,7 @@ const submit = () => {
                                 required
                                 maxlength="240"
                             />
-                            <span class="shrink-0 pe-5 text-xs font-bold text-primary-700">@altafawwuq.com</span>
+                            <span class="shrink-0 pe-5 text-xs font-bold text-primary-700">@almagd.com</span>
                         </div>
                         <p class="text-white/60 text-[11px] mr-3">نطاق البريد ثابت لحسابات المنصة.</p>
                         <p v-if="form.errors.email" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.email }}</p>

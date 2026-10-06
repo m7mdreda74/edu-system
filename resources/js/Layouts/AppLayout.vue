@@ -126,7 +126,7 @@ const footerLinks = computed(() => {
     ];
 });
 
-const contactEmail = computed(() => page.props.settings?.contact_email || 'support@altafawwuq.com');
+const contactEmail = computed(() => page.props.settings?.contact_email || 'support@almagd.com');
 const contactPhone = computed(() => page.props.settings?.contact_phone || '+974 4444 8888');
 const whatsappUrl = computed(() => page.props.settings?.whatsapp_url || 'https://wa.me/97455556666');
 const whatsappNumber = computed(() => {

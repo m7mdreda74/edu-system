@@ -88,13 +88,13 @@ class AccountsSeeder extends Seeder
     {
         $this->makeUser('admin', [
             'name'  => 'مدير المنصة',
-            'email' => 'admin@altafawwuq.com',
+            'email' => 'admin@almagd.com',
             'phone' => '+97455000001',
         ]);
 
         $this->makeUser('admin', [
             'name'  => 'مشرف المحتوى',
-            'email' => 'supervisor@altafawwuq.com',
+            'email' => 'supervisor@almagd.com',
             'phone' => '+97455000002',
         ]);
     }
@@ -138,7 +138,7 @@ class AccountsSeeder extends Seeder
             for ($slot = 0; $slot < 20; $slot++) {
                 $nameIndex  = ($gradeIndex * 20 + $slot) % count($allNames);
                 $name       = $allNames[$nameIndex];
-                $email      = 'student' . $counter . '@altafawwuq.com';
+                $email      = 'student' . $counter . '@almagd.com';
                 $phone      = '+9745512' . str_pad((string) $counter, 4, '0', STR_PAD_LEFT);
 
                 $students[] = $this->makeUser('student', [
@@ -155,7 +155,7 @@ class AccountsSeeder extends Seeder
         // Memorable demo account in grade_12_science
         $students[] = $this->makeUser('student', [
             'name'        => 'طالب تجريبي',
-            'email'       => 'student@altafawwuq.com',
+            'email'       => 'student@almagd.com',
             'phone'       => '+97455000201',
             'grade_level' => 'grade_12_science',
         ]);
@@ -181,8 +181,8 @@ class AccountsSeeder extends Seeder
         foreach ($chunks as $chunkIndex => $pair) {
             $def    = $parentDefs[$parentIndex % count($parentDefs)];
             $email  = $parentIndex === 0
-                ? 'parent@altafawwuq.com'
-                : 'parent' . ($parentIndex + 1) . '@altafawwuq.com';
+                ? 'parent@almagd.com'
+                : 'parent' . ($parentIndex + 1) . '@almagd.com';
 
             $parent = $this->makeUser('parent', [
                 'name'  => $def['name'],

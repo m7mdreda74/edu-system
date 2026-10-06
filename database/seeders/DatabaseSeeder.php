@@ -145,11 +145,11 @@ class DatabaseSeeder extends Seeder
         $this->command?->info('🔑 بيانات الدخول (كلمة المرور للجميع: ' . AccountsSeeder::PASSWORD . ')');
 
         $this->command?->table(['الدور', 'البريد'], [
-            ['أدمن',    'admin@altafawwuq.com'],
-            ['معلم',    'ahmed@altafawwuq.com'],
-            ['معلمة',   'sara@altafawwuq.com'],
-            ['طالب',    'student@altafawwuq.com'],
-            ['ولي أمر', 'parent@altafawwuq.com'],
+            ['أدمن',    'admin@almagd.com'],
+            ['معلم',    'ahmed@almagd.com'],
+            ['معلمة',   'sara@almagd.com'],
+            ['طالب',    'student@almagd.com'],
+            ['ولي أمر', 'parent@almagd.com'],
         ]);
     }
 }

@@ -16,13 +16,13 @@ const { confirm } = useConfirm();
 const defaultSettings = [
     { key: 'platform_name', value: 'بوابة المجد التعليمية', type: 'string' },
     { key: 'site_theme', value: 'royal', type: 'string' },
-    { key: 'contact_email', value: 'support@altafawwuq.com', type: 'string' },
+    { key: 'contact_email', value: 'support@almagd.com', type: 'string' },
     { key: 'whatsapp_url', value: 'https://wa.me/97455555555', type: 'string' },
     { key: 'contact_phone', value: '+974 4444 8888', type: 'string' },
     { key: 'contact_badge', value: 'الدعم الفني والاتصال', type: 'string' },
     { key: 'contact_title', value: 'يسعدنا تواصلك معنا في أي وقت', type: 'string' },
     { key: 'commission_percent', value: '20', type: 'integer' },
-    { key: 'platform_email', value: 'support@altafawwuq.com', type: 'string' },
+    { key: 'platform_email', value: 'support@almagd.com', type: 'string' },
 
     // Welcome Popup
     { key: 'welcome_popup_active', value: 'false', type: 'boolean' },

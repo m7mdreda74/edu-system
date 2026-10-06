@@ -35,7 +35,7 @@ class PlatformSettingsSeeder extends Seeder
         // Defaults: only filled in when the admin has not set them.
         $defaults = [
             'platform_name' => 'بوابة المجد التعليمية',
-            'contact_email' => 'support@altafawwuq.com',
+            'contact_email' => 'support@almagd.com',
             'whatsapp_url' => 'https://wa.me/97455556666',
             'footer_desc' => 'منصة تعليمية قطرية تربط الطالب بأفضل المعلمين — اختر صفك، شاهد طريقة الشرح، واحجز مع من يناسبك.',
             'home_hero_badge' => 'منصة التعليم الأولى في قطر',

@@ -266,7 +266,7 @@ class OperationalSeeder extends Seeder
     private function seedJitsiDemoRooms(): void
     {
         $student = User::role('student')
-            ->where('email', 'student@altafawwuq.com')
+            ->where('email', 'student@almagd.com')
             ->first();
 
         $subscription = $student
@@ -294,7 +294,7 @@ class OperationalSeeder extends Seeder
                 ],
                 [
                     'teacher_id' => $teacher->id,
-                    'description' => 'غرفة مباشرة تجريبية جاهزة للحساب student@altafawwuq.com.',
+                    'description' => 'غرفة مباشرة تجريبية جاهزة للحساب student@almagd.com.',
                     'scheduled_at' => now()->subMinutes(20),
                     'started_at' => now()->subMinutes(20),
                     'status' => LiveSession::STATUS_LIVE,

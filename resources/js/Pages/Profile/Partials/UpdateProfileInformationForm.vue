@@ -35,7 +35,7 @@ const form = useForm({
 });
 
 function submit() {
-    form.email = `${String(emailPrefix.value ?? '').trim().toLowerCase()}@altafawwuq.com`;
+    form.email = `${String(emailPrefix.value ?? '').trim().toLowerCase()}@almagd.com`;
     form.post(route('profile.update'), { forceFormData: true });
 }
 </script>
@@ -115,7 +115,7 @@ function submit() {
                         required
                         autocomplete="username"
                     />
-                    <span class="shrink-0 px-3 text-sm font-semibold text-primary-700 dark:text-primary-300">@altafawwuq.com</span>
+                    <span class="shrink-0 px-3 text-sm font-semibold text-primary-700 dark:text-primary-300">@almagd.com</span>
                 </div>
                 <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">نطاق البريد ثابت لحسابات المنصة.</p>
 

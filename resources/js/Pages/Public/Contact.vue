@@ -26,7 +26,7 @@ const whatsappLabel = computed(() => {
 });
 
 const contactPhone = computed(() => settings.value.contact_phone || '+974 4444 8888');
-const contactEmail = computed(() => settings.value.contact_email || 'support@altafawwuq.com');
+const contactEmail = computed(() => settings.value.contact_email || 'support@almagd.com');
 const formSubmitted = ref(false);
 const captchaContainer = ref(null);
 const captchaError = ref('');

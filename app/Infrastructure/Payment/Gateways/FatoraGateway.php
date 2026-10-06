@@ -63,7 +63,7 @@ class FatoraGateway implements PaymentGatewayInterface
             'client'       => [
                 'name'  => 'Student',
                 'phone' => '00000000',
-                'email' => 'student@altafawwuq.com',
+                'email' => 'student@almagd.com',
             ],
             'language'     => 'ar',
             'success_url'  => route('checkout.success', ['payment_id' => $paymentId]),

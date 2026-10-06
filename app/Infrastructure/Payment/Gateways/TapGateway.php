@@ -52,7 +52,7 @@ class TapGateway implements PaymentGatewayInterface
         // Fetch User info from DB using metadata
         $userId = $metadata['user_id'] ?? null;
         $user = $userId ? \App\Domain\User\Models\User::find($userId) : null;
-        $userEmail = $user?->email ?? 'student@altafawwuq.com';
+        $userEmail = $user?->email ?? 'student@almagd.com';
         $userName = $user?->name ?? 'طالب';
 
         $http = Http::withHeaders([

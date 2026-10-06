@@ -59,7 +59,7 @@ const createForm = useForm({
 
 const emailPrefix = ref('');
 
-const platformEmail = (prefix) => `${String(prefix ?? '').trim().toLowerCase()}@altafawwuq.com`;
+const platformEmail = (prefix) => `${String(prefix ?? '').trim().toLowerCase()}@almagd.com`;
 
 const selectedStage = ref('secondary');
 
@@ -532,7 +532,7 @@ async function removeMedia() {
                             <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-email">البريد الإلكتروني</label>
                             <div dir="ltr" class="flex items-center overflow-hidden rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-950">
                                 <input id="create-email" v-model="emailPrefix" type="text" maxlength="240" class="min-w-0 flex-1 input border-0 rounded-none text-sm" placeholder="username" autocomplete="username" required />
-                                <span class="shrink-0 px-3 text-xs font-bold text-primary-700 dark:text-primary-300">@altafawwuq.com</span>
+                                <span class="shrink-0 px-3 text-xs font-bold text-primary-700 dark:text-primary-300">@almagd.com</span>
                             </div>
                             <p class="text-surface-400 text-[11px] mt-1">نطاق البريد ثابت لحسابات المنصة.</p>
                             <p v-if="createForm.errors.email" class="text-red-500 text-xs mt-1">{{ createForm.errors.email }}</p>

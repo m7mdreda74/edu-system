@@ -24,7 +24,7 @@ class RegistrationTest extends TestCase
 
         $response = $this->post('/register', [
             'name' => 'Test User',
-            'email' => 'test@altafawwuq.com',
+            'email' => 'test@almagd.com',
             'phone' => '50000001',
             'parent_phone' => $parent->phone,
             'role' => 'student',
@@ -36,7 +36,7 @@ class RegistrationTest extends TestCase
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
 
-        $student = User::where('email', 'test@altafawwuq.com')->firstOrFail();
+        $student = User::where('email', 'test@almagd.com')->firstOrFail();
         $this->assertTrue($student->hasRole('student'));
         $this->assertDatabaseHas('parent_student_links', [
             'parent_user_id' => $parent->id,
@@ -48,7 +48,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->post('/register', [
             'name' => 'Student Without Parent',
-            'email' => 'student-without-parent@altafawwuq.com',
+            'email' => 'student-without-parent@almagd.com',
             'phone' => '50000008',
             'parent_phone' => '59999999',
             'role' => 'student',
@@ -59,14 +59,14 @@ class RegistrationTest extends TestCase
 
         $response->assertSessionHasErrors('parent_phone');
         $this->assertGuest();
-        $this->assertDatabaseMissing('users', ['email' => 'student-without-parent@altafawwuq.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'student-without-parent@almagd.com']);
     }
 
     public function test_student_registration_requires_an_active_grade(): void
     {
         $response = $this->post('/register', [
             'name' => 'Student Without Grade',
-            'email' => 'student-without-grade@altafawwuq.com',
+            'email' => 'student-without-grade@almagd.com',
             'phone' => '50000007',
             'role' => 'student',
             'password' => 'password',
@@ -81,7 +81,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->post('/register', [
             'name' => 'Test Parent',
-            'email' => 'parent@altafawwuq.com',
+            'email' => 'parent@almagd.com',
             'phone' => '50000002',
             'role' => 'parent',
             'password' => 'password',
@@ -90,14 +90,14 @@ class RegistrationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('parent.dashboard', absolute: false));
-        $this->assertTrue(User::where('email', 'parent@altafawwuq.com')->firstOrFail()->hasRole('parent'));
+        $this->assertTrue(User::where('email', 'parent@almagd.com')->firstOrFail()->hasRole('parent'));
     }
 
     public function test_public_registration_cannot_create_a_teacher_account(): void
     {
         $response = $this->post('/register', [
             'name' => 'Unapproved Teacher',
-            'email' => 'unapproved-teacher@altafawwuq.com',
+            'email' => 'unapproved-teacher@almagd.com',
             'phone' => '50000005',
             'role' => 'teacher',
             'password' => 'password',
@@ -106,7 +106,7 @@ class RegistrationTest extends TestCase
 
         $response->assertSessionHasErrors('role');
         $this->assertGuest();
-        $this->assertDatabaseMissing('users', ['email' => 'unapproved-teacher@altafawwuq.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'unapproved-teacher@almagd.com']);
     }
 
     public function test_registration_rejects_an_email_outside_the_platform_domain(): void

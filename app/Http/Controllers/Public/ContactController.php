@@ -52,10 +52,10 @@ class ContactController extends Controller
             return $configuredEmail;
         }
 
-        $fallbackEmail = (string) config('mail.from.address', 'noreply@altafawwuq.com');
+        $fallbackEmail = (string) config('mail.from.address', 'noreply@almagd.com');
 
         return filter_var($fallbackEmail, FILTER_VALIDATE_EMAIL)
             ? $fallbackEmail
-            : 'noreply@altafawwuq.com';
+            : 'noreply@almagd.com';
     }
 }
