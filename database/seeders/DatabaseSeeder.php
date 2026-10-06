@@ -24,6 +24,8 @@ use RuntimeException;
  */
 class DatabaseSeeder extends Seeder
 {
+    public static bool $forceAllow = false;
+
     /**
      * Rebuilt on every run. `grade_levels`, `subjects` and
      * `grade_level_subject` are deliberately absent.
@@ -40,11 +42,12 @@ class DatabaseSeeder extends Seeder
         'live_sessions', 'live_session_attendees', 'live_session_apologies', 'live_session_reminders',
         'parent_student_links', 'purchase_requests', 'private_lesson_requests', 'notifications',
         'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'roles', 'permissions',
+        'lesson_videos', 'lesson_video_webhook_events', 'audit_events',
     ];
 
     public function run(): void
     {
-        if (app()->environment('production')) {
+        if (app()->environment('production') && ! self::$forceAllow && ! env('ALLOW_PRODUCTION_SEEDING', false)) {
             throw new RuntimeException(
                 'Demo database seeding is disabled in production. Provision production data through an approved runbook.',
             );

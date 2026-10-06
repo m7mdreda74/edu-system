@@ -66,9 +66,11 @@ class AccountsSeeder extends Seeder
         ['name' => 'العنود الرميحي', 'gender' => 'mother'],
     ];
 
+    public static bool $forceAllow = false;
+
     public function run(): void
     {
-        if (app()->environment('production')) {
+        if (app()->environment('production') && ! self::$forceAllow && ! DatabaseSeeder::$forceAllow && ! env('ALLOW_PRODUCTION_SEEDING', false)) {
             throw new RuntimeException(
                 'Demo account seeding is disabled in production. Provision real accounts with unique credentials.',
             );
