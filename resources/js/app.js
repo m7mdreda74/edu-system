@@ -14,13 +14,42 @@ const applySiteTheme = (theme) => {
     document.documentElement.dataset.siteTheme = siteThemes.includes(theme) ? theme : 'royal';
 };
 
+const pages = import.meta.glob('./Pages/**/*.vue');
+
+// Preload the page component chunk immediately when Inertia prefetches a page
+router.on('prefetched', (event) => {
+    const component = event.detail?.response?.component;
+    if (component && pages[`./Pages/${component}.vue`]) {
+        pages[`./Pages/${component}.vue`]();
+    }
+});
+
+// Preload and prefetch internal links on hover so page transitions feel instantaneous
+if (typeof window !== 'undefined') {
+    document.addEventListener('mouseover', (e) => {
+        const link = e.target.closest('a');
+        if (!link || !link.href || link.target === '_blank') return;
+        if (link.origin === window.location.origin) {
+            const path = link.pathname;
+            if (
+                !path.startsWith('/api') &&
+                !path.startsWith('/storage') &&
+                !path.includes('/logout') &&
+                !link.hasAttribute('download')
+            ) {
+                router.prefetch(link.href, { method: 'get' }, { cacheFor: '30s' });
+            }
+        }
+    }, { passive: true });
+}
+
 createInertiaApp({
     title: (title) => `${title} — ${appName}`,
 
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.vue`,
-            import.meta.glob('./Pages/**/*.vue'),
+            pages,
         ),
 
     setup({ el, App, props, plugin }) {

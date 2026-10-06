@@ -59,7 +59,10 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => [],
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => true,
+                PDO::ATTR_TIMEOUT => 5,
+            ]) : [],
         ],
 
         'mariadb' => [

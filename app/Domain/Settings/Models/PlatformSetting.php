@@ -24,6 +24,9 @@ class PlatformSetting extends Model
         'type',
     ];
 
+    /** @var array<string, mixed>|null */
+    private static ?array $runtimeCache = null;
+
     /**
      * Get all settings as a key-value pair and cache them forever until updated.
      *
@@ -31,7 +34,11 @@ class PlatformSetting extends Model
      */
     public static function getAllCached(): array
     {
-        return Cache::remember('platform_settings', now()->addHours(6), function () {
+        if (self::$runtimeCache !== null) {
+            return self::$runtimeCache;
+        }
+
+        return self::$runtimeCache = Cache::remember('platform_settings', now()->addHours(6), function () {
             return self::query()
                 ->whereNotIn('key', self::HIDDEN_FROM_CLIENT_KEYS)
                 ->whereIn('key', PlatformSettingRegistry::keys())
@@ -43,10 +50,12 @@ class PlatformSetting extends Model
     protected static function booted(): void
     {
         static::saved(function () {
+            self::$runtimeCache = null;
             Cache::forget('platform_settings');
         });
 
         static::deleted(function () {
+            self::$runtimeCache = null;
             Cache::forget('platform_settings');
         });
     }

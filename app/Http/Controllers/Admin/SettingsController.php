@@ -144,6 +144,7 @@ class SettingsController extends Controller
         });
 
         Cache::forget('platform_settings');
+        Cache::forget('admin.site_pages_settings');
         AuditLogger::record('settings.updated', null, ['changes' => $changes]);
 
         if ($request->expectsJson()) {
@@ -156,14 +157,16 @@ class SettingsController extends Controller
     public function sitePages(): Response
     {
         return Inertia::render('Admin/SitePages', [
-            'dbSettings' => PlatformSetting::query()
-                ->whereNotIn('key', self::DISABLED_PAYMENT_KEYS)
-                ->whereIn('key', array_values(array_filter(
-                    PlatformSettingRegistry::keys(),
-                    fn (string $key): bool => PlatformSettingRegistry::isSitePageKey($key),
-                )))
-                ->pluck('value', 'key')
-                ->toArray(),
+            'dbSettings' => Cache::remember('admin.site_pages_settings', now()->addHours(6), function (): array {
+                return PlatformSetting::query()
+                    ->whereNotIn('key', self::DISABLED_PAYMENT_KEYS)
+                    ->whereIn('key', array_values(array_filter(
+                        PlatformSettingRegistry::keys(),
+                        fn (string $key): bool => PlatformSettingRegistry::isSitePageKey($key),
+                    )))
+                    ->pluck('value', 'key')
+                    ->toArray();
+            }),
         ]);
     }
 
@@ -223,6 +226,7 @@ class SettingsController extends Controller
         );
 
         Cache::forget('platform_settings');
+        Cache::forget('admin.site_pages_settings');
         AuditLogger::record('site_pages.updated', null, [
             'changes' => $incoming->map(fn (mixed $value, string $key): array => [
                 'key' => $key,
