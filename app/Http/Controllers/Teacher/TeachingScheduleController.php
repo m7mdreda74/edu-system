@@ -85,57 +85,147 @@ class TeachingScheduleController extends Controller
         ]);
 
         $position = ((int) $group->lessons()->max('position')) + 1;
-        $group->lessons()->create([...$data, 'position' => $position, 'status' => 'pending']);
+        $lesson = $group->lessons()->create([...$data, 'position' => $position, 'status' => 'pending']);
+
+        // Auto-schedule immediately if group has schedules!
+        $group->loadMissing('schedules');
+        if ($group->schedules->isNotEmpty()) {
+            $nextDate = $this->nextGroupOccurrence($group);
+            if ($nextDate) {
+                $session = LiveSession::create([
+                    'teacher_id' => Auth::id(),
+                    'teaching_group_id' => $group->id,
+                    'title' => $lesson->title,
+                    'description' => $lesson->description,
+                    'scheduled_at' => $nextDate,
+                    'status' => LiveSession::STATUS_SCHEDULED,
+                ]);
+
+                $lesson->update(['live_session_id' => $session->id, 'status' => 'scheduled']);
+
+                return back()->with('success', 'تمت إضافة الحصة وجدولتها تلقائياً في موعد المجموعة التالي.');
+            }
+        }
 
         return back()->with('success', 'تمت إضافة الحصة إلى خطة المجموعة.');
     }
 
     public function storeGroupSchedule(Request $request, int $id): RedirectResponse
     {
-        $group = TeachingGroup::with('assignment')->findOrFail($id);
+        $group = TeachingGroup::with(['assignment', 'schedules'])->findOrFail($id);
         abort_if($group->assignment->teacher_id !== Auth::id(), 403);
 
         $data = $request->validate([
-            'day_of_week' => ['required', 'integer', 'between:0,6'],
+            'days' => ['nullable', 'array'],
+            'days.*' => ['integer', 'between:0,6'],
+            'day_of_week' => ['nullable', 'integer', 'between:0,6'],
             'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'end_time' => ['nullable', 'date_format:H:i', 'after:start_time'],
+            'duration_minutes' => ['nullable', 'integer', 'between:15,480'],
+            'auto_schedule' => ['nullable', 'boolean'],
         ]);
 
-        $duration = (int) Carbon::createFromFormat('H:i', $data['start_time'])
-            ->diffInMinutes(Carbon::createFromFormat('H:i', $data['end_time']));
+        $days = !empty($data['days'])
+            ? array_unique(array_map('intval', $data['days']))
+            : (isset($data['day_of_week']) ? [(int) $data['day_of_week']] : []);
+
+        if (empty($days)) {
+            return back()->withErrors(['day_of_week' => 'يرجى اختيار يوم واحد على الأقل للمجموعة.']);
+        }
+
+        $startTime = Carbon::createFromFormat('H:i', $data['start_time']);
+
+        if (!empty($data['end_time'])) {
+            $endTime = Carbon::createFromFormat('H:i', $data['end_time']);
+            $duration = (int) $startTime->diffInMinutes($endTime);
+        } elseif (!empty($data['duration_minutes'])) {
+            $duration = (int) $data['duration_minutes'];
+            $endTime = $startTime->copy()->addMinutes($duration);
+        } else {
+            $duration = 60;
+            $endTime = $startTime->copy()->addMinutes(60);
+        }
 
         if ($duration < 15 || $duration > 480) {
             return back()->withErrors(['end_time' => 'مدة الموعد يجب أن تكون بين 15 دقيقة و8 ساعات.']);
         }
 
-        $conflict = TeachingGroupSchedule::whereHas(
-            'group.assignment',
-            fn ($query) => $query->where('teacher_id', Auth::id()),
-        )
-            ->where('day_of_week', $data['day_of_week'])
-            ->where('start_time', '<', $data['end_time'])
-            ->where('end_time', '>', $data['start_time'])
-            ->exists();
+        $startTimeStr = $startTime->format('H:i');
+        $endTimeStr = $endTime->format('H:i');
+        $dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        $createdCount = 0;
 
-        if ($conflict) {
-            return back()->withErrors(['start_time' => 'الموعد يتعارض مع مجموعة أخرى في جدولك.']);
+        foreach ($days as $day) {
+            $conflict = TeachingGroupSchedule::whereHas(
+                'group.assignment',
+                fn ($query) => $query->where('teacher_id', Auth::id()),
+            )
+                ->where('teaching_group_id', '!=', $group->id)
+                ->where('day_of_week', $day)
+                ->where('start_time', '<', $endTimeStr)
+                ->where('end_time', '>', $startTimeStr)
+                ->exists();
+
+            if ($conflict) {
+                $dayLabel = $dayNames[$day] ?? "يوم {$day}";
+                return back()->withErrors(['start_time' => "الموعد في ({$dayLabel}) يتعارض مع مجموعة أخرى في جدولك."]);
+            }
+
+            $existing = $group->schedules->firstWhere('day_of_week', $day);
+            if ($existing) {
+                $existing->update([
+                    'start_time' => $startTimeStr,
+                    'end_time' => $endTimeStr,
+                    'duration_minutes' => $duration,
+                ]);
+            } else {
+                $group->schedules()->create([
+                    'day_of_week' => $day,
+                    'start_time' => $startTimeStr,
+                    'end_time' => $endTimeStr,
+                    'duration_minutes' => $duration,
+                ]);
+            }
+            $createdCount++;
         }
 
-        $schedule = $group->schedules()->create([
-            ...$data,
-            'duration_minutes' => $duration,
-        ]);
-
-        if ($group->schedules()->count() === 1) {
+        $firstSchedule = $group->schedules()->orderBy('day_of_week')->first();
+        if ($firstSchedule) {
             $group->update([
-                'day_of_week' => $schedule->day_of_week,
-                'start_time' => $schedule->start_time,
-                'end_time' => $schedule->end_time,
-                'duration_minutes' => $schedule->duration_minutes,
+                'day_of_week' => $firstSchedule->day_of_week,
+                'start_time' => $firstSchedule->start_time,
+                'end_time' => $firstSchedule->end_time,
+                'duration_minutes' => $firstSchedule->duration_minutes,
             ]);
         }
 
-        return back()->with('success', 'تمت إضافة موعد المجموعة.');
+        // Auto schedule pending lessons if any exist!
+        $autoScheduledCount = $this->autoSchedulePendingLessons($group);
+
+        $msg = "تم حفظ مواعيد المجموعة بنجاح ({$createdCount} أيام).";
+        if ($autoScheduledCount > 0) {
+            $msg .= " وتمت جدولة {$autoScheduledCount} حصة تلقائياً في المواعيد الجديدة!";
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    public function autoScheduleGroupLessons(int $id): RedirectResponse
+    {
+        $group = TeachingGroup::with(['assignment', 'schedules'])->findOrFail($id);
+        abort_if($group->assignment->teacher_id !== Auth::id(), 403);
+
+        if ($group->schedules->isEmpty()) {
+            return back()->withErrors(['schedules' => 'يرجى تحديد مواعيد للمجموعة أولاً قبل جدولة الحصص.']);
+        }
+
+        $count = $this->autoSchedulePendingLessons($group);
+
+        if ($count === 0) {
+            return back()->with('info', 'لا توجد حصص جديدة قيد الانتظار بحاجة إلى جدولة.');
+        }
+
+        return back()->with('success', "تمت جدولة {$count} حصة تلقائياً بنجاح وفق مواعيد المجموعة!");
     }
 
     public function destroyGroupSchedule(int $id): RedirectResponse
@@ -201,15 +291,64 @@ class TeachingScheduleController extends Controller
             ->with('error', 'الجدولة عملية تأكيد. اضغط «جدولة حصة مباشرة» من خطة المجموعة.');
     }
 
-    private function nextGroupOccurrence(TeachingGroup $group): Carbon
+    public function autoSchedulePendingLessons(TeachingGroup $group): int
     {
-        $latest = LiveSession::where('teaching_group_id', $group->id)->max('scheduled_at');
+        $group->load(['schedules', 'assignment']);
+        if ($group->schedules->isEmpty()) {
+            return 0;
+        }
+
+        $pendingLessons = $group->lessons()
+            ->where('status', 'pending')
+            ->orderBy('position')
+            ->get();
+
+        $count = 0;
+
+        foreach ($pendingLessons as $lesson) {
+            $nextDate = $this->nextGroupOccurrence($group);
+            if (! $nextDate) {
+                break;
+            }
+
+            $session = LiveSession::create([
+                'teacher_id' => $group->assignment->teacher_id,
+                'teaching_group_id' => $group->id,
+                'title' => $lesson->title,
+                'description' => $lesson->description,
+                'scheduled_at' => $nextDate,
+                'status' => LiveSession::STATUS_SCHEDULED,
+            ]);
+
+            $lesson->update([
+                'live_session_id' => $session->id,
+                'status' => 'scheduled',
+            ]);
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    private function nextGroupOccurrence(TeachingGroup $group): ?Carbon
+    {
+        $group->load(['schedules', 'assignment']);
+        if ($group->schedules->isEmpty()) {
+            return null;
+        }
+
+        $tz = 'Asia/Qatar';
+        $latest = LiveSession::where('teaching_group_id', $group->id)
+            ->whereIn('status', [LiveSession::STATUS_SCHEDULED, LiveSession::STATUS_LIVE, LiveSession::STATUS_ENDED])
+            ->max('scheduled_at');
+
         $cursor = $latest
-            ? Carbon::parse($latest, $group->timezone)->addMinute()
-            : Carbon::now($group->timezone);
+            ? Carbon::parse($latest, $tz)->addMinute()
+            : Carbon::now($tz);
         $candidate = null;
 
-        for ($offset = 0; $offset <= 14; $offset++) {
+        for ($offset = 0; $offset <= 90; $offset++) {
             $date = $cursor->copy()->startOfDay()->addDays($offset);
 
             foreach ($group->schedules as $schedule) {
@@ -239,8 +378,6 @@ class TeachingScheduleController extends Controller
             }
         }
 
-        abort_if(! $candidate, 422, 'تعذر تحديد الموعد التالي للمجموعة.');
-
-        return $candidate->utc();
+        return $candidate?->utc();
     }
 }

@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import ScheduleModal from '@/Components/Teacher/ScheduleModal.vue';
 import { formatTime12 } from '@/lib/money';
 
 const props = defineProps({
@@ -16,6 +17,19 @@ const freeSlotDrafts = ref({});
 const privateSlotDrafts = ref({});
 const selectedGroupForStudents = ref(null);
 const studentSearchQuery = ref('');
+const showScheduleModal = ref(false);
+const activeGroupForSchedule = ref(null);
+
+function openScheduleModal(group) {
+    activeGroupForSchedule.value = group;
+    showScheduleModal.value = true;
+}
+
+function autoScheduleAll(groupId) {
+    router.post(route('teacher.teaching-schedule.groups.auto-schedule', groupId), {}, {
+        preserveScroll: true,
+    });
+}
 
 function openStudentsModal(group) {
     selectedGroupForStudents.value = group;
@@ -248,6 +262,14 @@ function formatDate(value) {
                         <div class="flex flex-wrap gap-2">
                             <button
                                 type="button"
+                                class="btn-primary btn-sm flex items-center gap-1.5"
+                                @click="openScheduleModal(group)"
+                            >
+                                <Icon name="calendar" class="w-4 h-4" />
+                                <span>المواعيد والجدولة الذكية</span>
+                            </button>
+                            <button
+                                type="button"
                                 class="btn-outline btn-sm flex items-center gap-1.5"
                                 @click="openStudentsModal(group)"
                             >
@@ -332,7 +354,18 @@ function formatDate(value) {
                     </div>
 
                     <div class="rounded-xl bg-surface-50 dark:bg-surface-900/50 p-4">
-                        <h4 class="font-bold mb-3">خطة حصص المجموعة</h4>
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                            <h4 class="font-bold">خطة حصص المجموعة</h4>
+                            <button
+                                v-if="group.lessons?.some((l) => l.status === 'pending')"
+                                type="button"
+                                class="btn-primary btn-sm text-xs flex items-center gap-1.5"
+                                @click="autoScheduleAll(group.id)"
+                            >
+                                <Icon name="calendar" class="w-3.5 h-3.5" />
+                                <span>⚡ جدولة كافة الحصص المعلقة تلقائياً</span>
+                            </button>
+                        </div>
 
                         <div v-if="group.lessons.length" class="space-y-2 mb-4">
                             <div
@@ -451,5 +484,12 @@ function formatDate(value) {
                 </div>
             </div>
         </div>
+
+        <!-- Schedule Modal -->
+        <ScheduleModal
+            v-model="showScheduleModal"
+            :group="activeGroupForSchedule"
+            @saved="activeGroupForSchedule = null"
+        />
     </DashboardLayout>
 </template>

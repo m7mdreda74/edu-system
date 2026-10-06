@@ -256,6 +256,7 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     // Curriculum builder — the syllabus hangs off the assignment, not the group,
     // so the teacher writes it once for every group and private student on it.
     Route::get('/assignments/{assignment}/curriculum', [CurriculumController::class, 'index'])->name('curriculum');
+    Route::post('/assignments/{assignment}/quick-lesson', [CurriculumController::class, 'storeQuickLesson'])->name('curriculum.quick-lesson');
     Route::post('/assignments/{assignment}/curriculum/skeleton', [CurriculumController::class, 'skeleton'])->name('curriculum.skeleton');
     Route::post('/assignments/{assignment}/units', [CurriculumController::class, 'storeUnit'])->name('units.store');
     Route::put('/units/{unit}', [CurriculumController::class, 'updateUnit'])->name('units.update');
@@ -316,6 +317,7 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     // Academic lesson planning for groups configured by the administration.
     Route::get('/teaching-schedule', [TeachingScheduleController::class, 'index'])->name('teaching-schedule');
     Route::post('/teaching-schedule/groups/{id}/schedules', [TeachingScheduleController::class, 'storeGroupSchedule'])->name('teaching-schedule.groups.schedules.store');
+    Route::post('/teaching-schedule/groups/{id}/auto-schedule', [TeachingScheduleController::class, 'autoScheduleGroupLessons'])->name('teaching-schedule.groups.auto-schedule');
     Route::delete('/teaching-schedule/group-schedules/{id}', [TeachingScheduleController::class, 'destroyGroupSchedule'])->name('teaching-schedule.group-schedules.destroy');
     Route::post('/free-intro-sessions', [TeacherFreeIntroSessionController::class, 'store'])->name('free-intro-sessions.store');
     Route::delete('/free-intro-sessions/{id}', [TeacherFreeIntroSessionController::class, 'destroy'])->name('free-intro-sessions.destroy');

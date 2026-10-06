@@ -344,6 +344,101 @@ class CurriculumController extends Controller
 
     // ─── Lessons ──────────────────────────────────────────────────
 
+    public function storeQuickLesson(Request $request, int $assignmentId): RedirectResponse
+    {
+        $assignment = $this->ownedAssignment($assignmentId);
+
+        $data = $request->validate([
+            'unit_id' => ['nullable', 'integer'],
+            'new_unit_title' => ['nullable', 'string', 'max:255'],
+            'title' => ['required', 'string', 'min:2', 'max:255'],
+            'video_url' => ['nullable', 'url', 'max:1000'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'is_free_preview' => ['nullable', 'boolean'],
+            'booklet' => ['nullable', 'file', 'mimes:pdf', 'max:25600'],
+            'homework' => ['nullable', 'file', 'mimes:pdf,doc,docx,png,jpg,jpeg', 'max:25600'],
+            'academic_term_id' => ['nullable', 'integer'],
+        ]);
+
+        $termId = !empty($data['academic_term_id'])
+            ? (int) $data['academic_term_id']
+            : (AcademicTerm::currentOrNext()?->id ?? AcademicTerm::first()?->id);
+
+        DB::transaction(function () use ($assignment, $termId, $data, $request): void {
+            if (!empty($data['unit_id'])) {
+                $unit = CurriculumUnit::where('teaching_assignment_id', $assignment->id)->findOrFail($data['unit_id']);
+            } elseif (!empty($data['new_unit_title'])) {
+                $order = $this->lastUnitOrder($assignment->id, $termId) + 1;
+                $unit = CurriculumUnit::create([
+                    'teaching_assignment_id' => $assignment->id,
+                    'academic_term_id' => $termId,
+                    'order' => $order,
+                    'title' => trim($data['new_unit_title']),
+                    'is_published' => true,
+                ]);
+            } else {
+                $unit = CurriculumUnit::where('teaching_assignment_id', $assignment->id)
+                    ->where('academic_term_id', $termId)
+                    ->orderBy('order')
+                    ->first();
+
+                if (!$unit) {
+                    $unit = CurriculumUnit::create([
+                        'teaching_assignment_id' => $assignment->id,
+                        'academic_term_id' => $termId,
+                        'order' => 1,
+                        'title' => 'الوحدة الأولى',
+                        'is_published' => true,
+                    ]);
+                }
+            }
+
+            $lesson = GroupMaterial::create([
+                'curriculum_unit_id' => $unit->id,
+                'academic_term_id' => $unit->academic_term_id ?? $termId,
+                'order' => $this->lastLessonOrder($unit->id) + 1,
+                'title' => trim($data['title']),
+                'video_url' => $data['video_url'] ?? null,
+                'description' => $data['description'] ?? null,
+                'is_free_preview' => (bool) ($data['is_free_preview'] ?? false),
+            ]);
+
+            if ($request->hasFile('booklet')) {
+                $path = $this->storeUploadFromRequest(
+                    $request,
+                    'booklet',
+                    'booklets',
+                    CurriculumBlobUpload::KIND_BOOKLET,
+                    $lesson->id,
+                );
+                if ($path) {
+                    $lesson->update(['attachment_path' => $path]);
+                }
+            }
+
+            if ($request->hasFile('homework')) {
+                $path = $this->storeUploadFromRequest(
+                    $request,
+                    'homework',
+                    'homework',
+                    CurriculumBlobUpload::KIND_HOMEWORK,
+                    $lesson->id,
+                );
+                if ($path) {
+                    Worksheet::create([
+                        'curriculum_unit_id' => $unit->id,
+                        'lesson_id' => $lesson->id,
+                        'type' => Worksheet::TYPE_HOMEWORK,
+                        'title' => "واجب {$lesson->title}",
+                        'file_path' => $path,
+                    ]);
+                }
+            }
+        });
+
+        return back()->with('success', 'تمت إضافة ونشر الدرس بنجاح وبكل بساطة!');
+    }
+
     public function storeLesson(StoreCurriculumLessonRequest $request, int $unitId): RedirectResponse
     {
         $unit = $this->ownedUnit($unitId);
