@@ -10,6 +10,7 @@ use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
+use App\Domain\Scheduling\Models\TeachingGroupSchedule;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
@@ -77,7 +78,12 @@ class TeachingGroupController extends Controller
             'is_active' => $group->is_active,
             'is_full' => $group->active_bookings_count >= $group->capacity,
             'schedule' => $group->schedules
-                ->map(fn ($schedule) => (self::DAY_NAMES[(int) $schedule->day_of_week] ?? '').' '.substr((string) $schedule->start_time, 0, 5))
+                ->map(function ($schedule) {
+                    $day = self::DAY_NAMES[(int) $schedule->day_of_week] ?? '';
+                    $start = TeachingGroupSchedule::formatTime12($schedule->start_time);
+                    $end = TeachingGroupSchedule::formatTime12($schedule->end_time);
+                    return $end ? "{$day} ({$start} إلى {$end})" : "{$day} {$start}";
+                })
                 ->implode('، '),
         ]);
 
@@ -328,8 +334,8 @@ class TeachingGroupController extends Controller
                 'is_active' => $group->is_active,
                 'schedule' => $group->schedules->map(fn ($schedule) => [
                     'day' => self::DAY_NAMES[(int) $schedule->day_of_week] ?? '',
-                    'start' => substr((string) $schedule->start_time, 0, 5),
-                    'end' => substr((string) $schedule->end_time, 0, 5),
+                    'start' => TeachingGroupSchedule::formatTime12($schedule->start_time),
+                    'end' => TeachingGroupSchedule::formatTime12($schedule->end_time),
                 ])->values(),
                 'materials' => $group->materials()->with('liveSession:id,lesson_id')->get()->map(fn (GroupMaterial $material) => [
                     'id' => $material->id,

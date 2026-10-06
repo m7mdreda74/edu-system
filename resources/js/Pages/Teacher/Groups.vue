@@ -4,6 +4,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import StatCard from '@/Components/StatCard.vue';
+import { formatTime12 } from '@/lib/money';
 
 const props = defineProps({
     groups: { type: Array, default: () => [] },
@@ -137,7 +138,7 @@ function closeStudentsModal() {
                                     class="inline-flex items-center gap-1 rounded-lg bg-surface-100 dark:bg-surface-800 px-2.5 py-1 text-xs font-medium text-surface-700 dark:text-surface-300"
                                 >
                                     <Icon name="clock" class="w-3 h-3 text-primary-500" />
-                                    <span>{{ days[s.day_of_week] }} · {{ s.start_time?.slice(0, 5) }}</span>
+                                    <span>{{ days[s.day_of_week] }} · {{ formatTime12(s.start_time) }}<template v-if="s.end_time"> إلى {{ formatTime12(s.end_time) }}</template></span>
                                 </span>
                             </div>
                             <p v-else class="text-xs text-surface-400">لم يتم تحديد مواعيد لهذه المجموعة بعد.</p>

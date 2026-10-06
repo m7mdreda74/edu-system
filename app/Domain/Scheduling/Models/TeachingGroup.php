@@ -148,4 +148,20 @@ class TeachingGroup extends Model
     {
         return $this->monthly_price / 100;
     }
+
+    public function formattedSchedule(): string
+    {
+        if ($this->schedules->isEmpty()) {
+            return '';
+        }
+
+        $dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+        return $this->schedules->map(function (TeachingGroupSchedule $s) use ($dayNames) {
+            $day = $dayNames[(int) $s->day_of_week] ?? '';
+            $start = TeachingGroupSchedule::formatTime12($s->start_time);
+            $end = TeachingGroupSchedule::formatTime12($s->end_time);
+            return $end ? "{$day} ({$start} إلى {$end})" : "{$day} {$start}";
+        })->implode('، ');
+    }
 }

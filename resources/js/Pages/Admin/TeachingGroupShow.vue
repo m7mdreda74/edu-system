@@ -2,7 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
-import { formatQAR } from '@/lib/money';
+import { formatQAR, formatTime12 } from '@/lib/money';
 
 defineProps({
     group:         { type: Object, required: true },
@@ -94,7 +94,7 @@ function deleteRecording(material) {
                         <div class="space-y-1">
                             <div v-for="(slot, i) in group.schedule" :key="i" class="text-[11px] text-surface-500 flex items-center gap-1.5">
                                 <Icon name="calendar" class="w-3 h-3" />
-                                {{ slot.day }} {{ slot.start }}–{{ slot.end }}
+                                {{ slot.day }} · {{ formatTime12(slot.start) }} إلى {{ formatTime12(slot.end) }}
                             </div>
                         </div>
                     </div>

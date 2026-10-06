@@ -5,6 +5,7 @@ import Icon from '@/Components/Icon.vue';
 import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { ref, computed } from 'vue';
 import { useClientPagination } from '@/composables/useClientPagination';
+import { formatTime12 } from '@/lib/money';
 
 const props = defineProps({
     sessions: { type: Array, required: true },
@@ -607,7 +608,7 @@ function formatDate(value) {
                                 <select v-if="form.source_type === 'group'" v-model="form.teaching_group_id" class="input" required>
                                     <option value="" disabled>-- المجموعة --</option>
                                     <option v-for="group in groupOptions" :key="group.id" :value="group.id">
-                                        {{ group.name }} — {{ days[group.day_of_week] }} — {{ group.start_time }} إلى {{ group.end_time }}
+                                        {{ group.name }} — {{ days[group.day_of_week] }} — {{ formatTime12(group.start_time) }} إلى {{ formatTime12(group.end_time) }}
                                     </option>
                                 </select>
                                 <select v-else v-model="form.private_session_slot_id" class="input" required>

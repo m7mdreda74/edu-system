@@ -6,7 +6,7 @@ import Icon from '@/Components/Icon.vue';
 import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { useClientPagination } from '@/composables/useClientPagination';
-import { formatQAR as formatMoney } from '@/lib/money';
+import { formatQAR as formatMoney, formatSchedule } from '@/lib/money';
 
 const props = defineProps({
     links:           { type: Array, required: true },
@@ -331,7 +331,7 @@ function payForRequest(requestId) {
                                     <p class="font-bold">{{ group.subject?.name }} — {{ group.name }}</p>
                                     <p class="text-xs text-surface-500 mt-1">المدرس: {{ group.teacher?.name }} · المقاعد المتاحة: {{ group.seats_left }}</p>
                                     <p v-if="group.schedules.length" class="text-xs text-surface-500 mt-1">
-                                        {{ group.schedules.map(schedule => `${days[schedule.day]} ${schedule.start}-${schedule.end}`).join('، ') }}
+                                        {{ formatSchedule(group.schedules) }}
                                     </p>
                                     <div class="flex items-center justify-between mt-3">
                                         <b>{{ formatQAR(group.monthly_price) }}</b>

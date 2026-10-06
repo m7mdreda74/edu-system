@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
-import { formatMonthly, DAY_NAMES } from '@/lib/money';
+import { formatMonthly, formatSchedule } from '@/lib/money';
 import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
@@ -31,8 +31,7 @@ const statusClasses = {
 const { confirm } = useConfirm();
 
 function scheduleText(group) {
-    if (!group?.schedules?.length) return 'الموعد غير محدد';
-    return group.schedules.map((s) => `${DAY_NAMES[s.day] ?? ''} ${s.start}–${s.end}`).join('، ');
+    return formatSchedule(group?.schedules) || 'الموعد غير محدد';
 }
 
 function renew(id) {

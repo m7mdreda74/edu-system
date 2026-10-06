@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { formatTime12 } from '@/lib/money';
 
 const props = defineProps({
     assignments: { type: Array, default: () => [] },
@@ -307,7 +308,7 @@ function formatDate(value) {
                             :key="schedule.id"
                             class="inline-flex items-center gap-2 rounded-full bg-primary-500/10 px-3 py-1 text-sm text-primary-700 dark:text-primary-300"
                         >
-                            {{ days[schedule.day_of_week] }} · {{ schedule.start_time.slice(0, 5) }} إلى {{ schedule.end_time.slice(0, 5) }}
+                            {{ days[schedule.day_of_week] }} · {{ formatTime12(schedule.start_time) }} إلى {{ formatTime12(schedule.end_time) }}
                             <button
                                 type="button"
                                 class="font-black text-red-500"

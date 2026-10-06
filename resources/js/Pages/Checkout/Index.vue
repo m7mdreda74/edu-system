@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
-import { formatQAR, DAY_NAMES } from '@/lib/money';
+import { formatQAR, formatSchedule } from '@/lib/money';
 import axios from 'axios';
 
 const props = defineProps({
@@ -27,9 +27,7 @@ const finalPrice = computed(() => couponState.value.discountedPrice ?? basePrice
 const discount   = computed(() => Math.max(0, basePrice.value - finalPrice.value));
 
 const scheduleText = computed(() => {
-    const schedules = props.subscription.group?.schedules;
-    if (!schedules?.length) return null;
-    return schedules.map((s) => `${DAY_NAMES[s.day] ?? ''} ${s.start}–${s.end}`).join('، ');
+    return formatSchedule(props.subscription.group?.schedules) || null;
 });
 
 async function applyCoupon() {
