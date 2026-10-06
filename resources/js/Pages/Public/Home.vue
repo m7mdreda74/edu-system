@@ -83,13 +83,18 @@ onBeforeUnmount(() => {
 
 const settings = computed(() => page.props.settings || {});
 
+const cleanText = (text) => {
+    if (!text) return '';
+    return stripEmojis(text).replace(/التعليمية\s+التعليمية/gu, 'التعليمية');
+};
+
 const heroContent = computed(() => ({
-    badge: stripEmojis(settings.value.home_hero_badge) || 'منصة التعليم الأولى في قطر',
-    title: stripEmojis(settings.value.home_hero_title) || 'تميّز في دراستك الثانوية',
-    subtitle: stripEmojis(settings.value.home_hero_subtitle) || 'بوابة المجد التعليمية الأولى في قطر',
-    description: stripEmojis(settings.value.home_hero_desc) || 'نصنع مستقبل التعليم في قطر من خلال أفضل الشروحات والمناهج التعليمية المتكاملة.',
-    primaryButton: stripEmojis(settings.value.home_hero_btn1) || 'ابدأ التعلم الآن',
-    secondaryButton: stripEmojis(settings.value.home_hero_btn2) || 'إنشاء حساب جديد',
+    badge: cleanText(settings.value.home_hero_badge) || 'منصة التعليم الأولى في قطر',
+    title: cleanText(settings.value.home_hero_title) || 'تميّز في دراستك الثانوية',
+    subtitle: cleanText(settings.value.home_hero_subtitle) || 'بوابة المجد التعليمية الأولى في قطر',
+    description: cleanText(settings.value.home_hero_desc) || 'نصنع مستقبل التعليم في قطر من خلال أفضل الشروحات والمناهج التعليمية المتكاملة.',
+    primaryButton: cleanText(settings.value.home_hero_btn1) || 'ابدأ التعلم الآن',
+    secondaryButton: cleanText(settings.value.home_hero_btn2) || 'إنشاء حساب جديد',
 }));
 
 const features = computed(() => {

@@ -35,7 +35,7 @@ const form = useForm({
     // Home Page Settings
     home_hero_badge: props.dbSettings.home_hero_badge || '',
     home_hero_title: props.dbSettings.home_hero_title || '',
-    home_hero_subtitle: props.dbSettings.home_hero_subtitle || '',
+    home_hero_subtitle: (props.dbSettings.home_hero_subtitle || '').replace(/التعليمية\s+التعليمية/gu, 'التعليمية'),
     home_hero_desc: props.dbSettings.home_hero_desc || '',
     home_hero_btn1: props.dbSettings.home_hero_btn1 || '',
     home_hero_btn2: props.dbSettings.home_hero_btn2 || '',
