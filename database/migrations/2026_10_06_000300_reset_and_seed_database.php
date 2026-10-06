@@ -2,8 +2,7 @@
 
 declare(strict_types=1);
 
-use Database\Seeders\AccountsSeeder;
-use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\AlMajdFreshSeeder;
 use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
@@ -14,10 +13,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DatabaseSeeder::$forceAllow = true;
-        AccountsSeeder::$forceAllow = true;
-
-        $seeder = app(DatabaseSeeder::class);
+        $seeder = app(AlMajdFreshSeeder::class);
         $seeder->run();
     }
 
