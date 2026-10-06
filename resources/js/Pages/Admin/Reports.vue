@@ -97,7 +97,7 @@ const printFilterSummary = computed(() => {
 
         <div class="dashboard-data-page" dir="rtl">
             <div v-if="printMode" class="print-only report-print-header">
-                <h1>تقرير منصة التفوق</h1>
+                <h1>تقرير بوابة المجد التعليمية</h1>
                 <p>تقارير المدرسين والمجموعات والحصص والحضور والحجوزات</p>
                 <p>الفلاتر المطبقة: {{ printFilterSummary }}</p>
                 <p>تاريخ الطباعة: {{ formatDate(new Date().toISOString()) }}</p>

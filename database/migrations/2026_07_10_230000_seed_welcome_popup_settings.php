@@ -9,7 +9,7 @@ return new class extends Migration
     {
         DB::table('platform_settings')->insertOrIgnore([
             ['key' => 'welcome_popup_active',       'value' => 'false',                               'type' => 'boolean', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'welcome_popup_title',        'value' => 'أهلاً بك في منصة التفوق التعليمية',   'type' => 'string',  'created_at' => now(), 'updated_at' => now()],
+            ['key' => 'welcome_popup_title',        'value' => 'أهلاً بك في بوابة المجد التعليمية',   'type' => 'string',  'created_at' => now(), 'updated_at' => now()],
             ['key' => 'welcome_popup_item1_label',  'value' => 'طريقة إنشاء حساب جديد',               'type' => 'string',  'created_at' => now(), 'updated_at' => now()],
             ['key' => 'welcome_popup_item1_url',    'value' => '',   'type' => 'string',  'created_at' => now(), 'updated_at' => now()],
             ['key' => 'welcome_popup_item2_label',  'value' => 'خطوات الدفع الإلكتروني',               'type' => 'string',  'created_at' => now(), 'updated_at' => now()],

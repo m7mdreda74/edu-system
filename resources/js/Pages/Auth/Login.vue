@@ -33,22 +33,22 @@ const submit = () => form.post(route('login'), { onFinish: () => form.reset('pas
                     <span class="text-primary-800 font-black text-xl">ت</span>
                 </div>
                 <div>
-                    <h2 class="text-xl font-bold text-white leading-tight">منصة التفوق</h2>
+                    <h2 class="text-xl font-bold text-white leading-tight">بوابة المجد التعليمية</h2>
                     <p class="text-white/60 text-xs mt-1">شريكك الأكاديمي للدرجات الكاملة</p>
                 </div>
             </div>
 
             <!-- Central Illustration -->
             <div class="relative z-10 my-auto flex flex-col items-center text-center">
-                <img src="/images/auth-sidebar.png" alt="منصة التفوق" class="w-full max-w-[260px] rounded-2xl shadow-2xl border border-white/10 mb-6 hover:scale-105 transition-transform duration-500" />
+                <img src="/images/auth-sidebar.png" alt="بوابة المجد التعليمية" class="w-full max-w-[260px] rounded-2xl shadow-2xl border border-white/10 mb-6 hover:scale-105 transition-transform duration-500" />
                 <blockquote class="text-white/90 text-sm font-medium leading-relaxed max-w-xs">
-                    "طريقك نحو القمة يبدأ بخطوة.. منصة التفوق شريكك للوصول للدرجات الكاملة."
+                    "طريقك نحو القمة يبدأ بخطوة.. بوابة المجد التعليمية شريكك للوصول للدرجات الكاملة."
                 </blockquote>
             </div>
 
             <!-- Footer Meta -->
             <div class="relative z-10 flex items-center justify-between text-white/40 text-[10px]">
-                <span>© 2026 منصة التفوق</span>
+                <span>© 2026 بوابة المجد التعليمية</span>
                 <span>جميع الحقوق محفوظة</span>
             </div>
         </div>
@@ -64,7 +64,7 @@ const submit = () => form.post(route('login'), { onFinish: () => form.reset('pas
                         <div class="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform duration-300">
                             <span class="text-primary-800 font-black text-3xl">ت</span>
                         </div>
-                        <span class="text-3xl font-black text-white tracking-wide">منصة التفوق</span>
+                        <span class="text-3xl font-black text-white tracking-wide">بوابة المجد التعليمية</span>
                     </Link>
                     <p class="text-white/70 text-sm">سجّل دخولك للمتابعة في رحلة التعلم</p>
                 </div>

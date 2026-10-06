@@ -11,6 +11,8 @@ use App\Application\Scheduling\Services\SessionBookingService;
 use App\Application\Subscription\Services\SubscriptionService;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Services\AuditLogger;
+use App\Infrastructure\Video\CloudflareStreamVideoProvider;
+use App\Infrastructure\Video\VideoProviderInterface;
 use App\Policies\MaterialPolicy;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
@@ -30,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SubscriptionService::class);
 
         $this->app->singleton(PaymentService::class);
+
+        $this->app->singleton(VideoProviderInterface::class, CloudflareStreamVideoProvider::class);
     }
 
     public function boot(): void

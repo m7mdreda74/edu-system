@@ -349,7 +349,7 @@ class OperationalSeeder extends Seeder
         ]));
 
         $student?->notify(new GenericDatabaseNotification([
-            'title'   => 'مرحبًا بك في منصة التفوق',
+            'title'   => 'مرحبًا بك في بوابة المجد التعليمية',
             'message' => 'ابدأ بمشاهدة الدرس المجاني وتابع جدول حصصك القادمة.',
             'link'    => '/dashboard',
         ]));

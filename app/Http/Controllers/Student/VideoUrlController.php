@@ -7,6 +7,9 @@ namespace App\Http\Controllers\Student;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Domain\Learning\Models\LessonVideo;
+use App\Services\CurriculumBlobUpload;
+use App\Services\LessonVideoService;
 use App\Support\YouTubeUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +30,11 @@ class VideoUrlController extends Controller
 {
     private const URL_EXPIRY_MINUTES = 30;
 
+    public function __construct(
+        private readonly CurriculumBlobUpload $blobUploads,
+        private readonly LessonVideoService $lessonVideos,
+    ) {}
+
     public function getSignedUrl(Request $request, int $materialId): JsonResponse
     {
         $material = GroupMaterial::with('unit.assignment')->findOrFail($materialId);
@@ -35,6 +43,26 @@ class VideoUrlController extends Controller
         $user = $request->user();
 
         Gate::authorize('watch', $material);
+
+        if ($material->activeLessonVideo?->isReady()) {
+            try {
+                $playback = $this->lessonVideos->playbackAuthorization($material->activeLessonVideo);
+
+                return response()->json([
+                    'provider' => $material->activeLessonVideo->provider,
+                    'playback_type' => 'hls',
+                    'signed_url' => $playback['url'],
+                    'expires_at' => $playback['expires_at'],
+                    'expires_in' => max(0, now()->diffInSeconds($playback['expires_at'])),
+                ]);
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return response()->json([
+                    'message' => 'الفيديو غير متاح حاليًا. حاول مرة أخرى بعد قليل.',
+                ], 503);
+            }
+        }
 
         if (! filled($material->video_path) && YouTubeUrl::videoId($material->video_url)) {
             // Build a signed proxy URL so the browser streams through our
@@ -73,7 +101,10 @@ class VideoUrlController extends Controller
         $material = GroupMaterial::with('unit.assignment')->findOrFail($materialId);
         $user = $request->user();
 
-        abort_unless((int) $request->route('userId') === (int) $user->id, 403);
+        // userId is intentionally a query parameter because the named route
+        // only contains {materialId}. The signed middleware still validates
+        // that Laravel signed the complete URL.
+        abort_unless((int) $request->query('userId') === (int) $user->id, 403);
         Gate::authorize('watch', $material);
 
         abort_if(! filled($material->video_path) && ! filled($material->video_url), 404, 'لا يوجد فيديو لهذه المادة.');

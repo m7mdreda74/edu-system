@@ -390,7 +390,7 @@ function addAboutPillar() {
                                         <input v-model="res.grade" type="text" maxlength="100" class="input text-xs w-full" placeholder="الصف الثاني عشر">
                                     </div>
                                     <div class="md:col-span-3">
-                                        <label class="label mb-1 block text-[10px]">نص الإشادة والتفوق</label>
+                                        <label class="label mb-1 block text-[10px]">نص الإشادة والتميز</label>
                                         <textarea v-model="res.desc" rows="2" maxlength="1000" class="input text-xs w-full"></textarea>
                                     </div>
                                 </div>
@@ -401,7 +401,7 @@ function addAboutPillar() {
                     <!-- Why choose us manager -->
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
-                            <h3 class="font-bold text-sm text-surface-800 dark:text-white">لماذا التفوق خيارك الأول (الميزات الستة)</h3>
+                            <h3 class="font-bold text-sm text-surface-800 dark:text-white">لماذا بوابة المجد خيارك الأول (الميزات الستة)</h3>
                             <button type="button" @click="addWhyUs" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة عنصر</button>
                         </div>
                         <div class="space-y-4">
@@ -441,7 +441,7 @@ function addAboutPillar() {
                     <!-- YouTube Videos -->
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
-                            <h3 class="font-bold text-sm text-surface-800 dark:text-white">شروحات ومراجعات يوتيوب التفوق</h3>
+                            <h3 class="font-bold text-sm text-surface-800 dark:text-white">شروحات ومراجعات يوتيوب بوابة المجد</h3>
                             <button type="button" @click="addYoutube" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة فيديو</button>
                         </div>
                         <label class="flex items-start gap-3 rounded-xl border border-primary-100 dark:border-primary-900/50 bg-primary-50/50 dark:bg-primary-950/20 p-3 mb-4 cursor-pointer">
@@ -586,7 +586,7 @@ function addAboutPillar() {
                     <!-- Pillars list -->
                     <div class="card p-6">
                         <div class="flex justify-between items-center border-b border-surface-200 dark:border-surface-800 pb-3 mb-4">
-                            <h3 class="font-bold text-sm text-surface-800 dark:text-white">ركائز المنصة ومحاور التفوق الدراسي</h3>
+                            <h3 class="font-bold text-sm text-surface-800 dark:text-white">ركائز المنصة ومحاور التميز الدراسي</h3>
                             <button type="button" @click="addAboutPillar" class="btn-outline text-[10px] py-1 px-3.5">+ إضافة ركيزة</button>
                         </div>
                         <div class="space-y-4">

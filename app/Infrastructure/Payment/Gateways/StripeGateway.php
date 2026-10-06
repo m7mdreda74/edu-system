@@ -68,7 +68,7 @@ class StripeGateway implements PaymentGatewayInterface
                         'currency'     => strtolower($currency),
                         'unit_amount'  => $amountInSmallestUnit,
                         'product_data' => [
-                            'name' => 'منصة التفوق — اشتراك شهري',
+                            'name' => 'بوابة المجد التعليمية — اشتراك شهري',
                         ],
                     ],
                     'quantity' => 1,

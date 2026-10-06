@@ -78,7 +78,7 @@ class CertificateService
             'teacher_name' => $group->assignment?->teacher?->name ?? '—',
             'completed_at' => $this->completedAt($student, $group)?->format('Y-m-d'),
             'cert_number' => $this->generateCertificateNumber($student, $group),
-            'platform_name' => 'منصة التفوق',
+            'platform_name' => 'بوابة المجد التعليمية',
         ];
     }
 

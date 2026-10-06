@@ -1,4 +1,4 @@
-# 🏆 منصة التفوق التعليمية | Al-Tafawwuq Educational Platform
+# 🏆 بوابة المجد التعليمية | Al-Majd Educational Portal
 
 <p align="center">
   <img src="https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel" alt="Laravel 11" />
@@ -11,11 +11,11 @@
 
 ## 📖 نبذة عن المشروع / Project Overview
 
-**منصة التفوق** هي منصة تعليمية قطرية تربط الطالب بالمعلم المناسب له. الطالب يختار صفه، فتفتح له مواد المنهج، فيشاهد المعلمين الذين يدرّسون المادة وفيديو تعريفي لكل واحد منهم — ويحجز مع من تناسبه طريقة شرحه، باشتراك شهري في مجموعة أسبوعية أو حصص خاصة.
+**بوابة المجد التعليمية** هي منصة تعليمية قطرية تربط الطالب بالمعلم المناسب له. الطالب يختار صفه، فتفتح له مواد المنهج، فيشاهد المعلمين الذين يدرّسون المادة وفيديو تعريفي لكل واحد منهم — ويحجز مع من تناسبه طريقة شرحه، باشتراك شهري في مجموعة أسبوعية أو حصص خاصة.
 
 المنصة مبنية على منهج وزارة التربية والتعليم القطرية: الصفوف من الأول الابتدائي إلى الثاني عشر، مع انقسام المرحلة الثانوية إلى المسارين العلمي والأدبي.
 
-**Al-Tafawwuq** connects students in Qatar with the right teacher. A student picks their grade, which opens the curriculum, which opens the teachers who teach each subject — each with an intro video, so the student can judge the teaching style before committing. Booking is a monthly subscription, either to a weekly group or to private tuition.
+**Al-Majd Educational Portal** connects students in Qatar with the right teacher. A student picks their grade, which opens the curriculum, which opens the teachers who teach each subject — each with an intro video, so the student can judge the teaching style before committing. Booking is a monthly subscription, either to a weekly group or to private tuition.
 
 Built around the Qatari MOEHE curriculum, grades 1–12, with the secondary stage split into its science and literary tracks.
 

@@ -14,6 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/cloudflare-stream',
+        ]);
         // Authenticated parents, teachers, and admins must not be sent to the
         // student-only /dashboard when they revisit a guest page such as
         // /register. That otherwise becomes a misleading 403 page.

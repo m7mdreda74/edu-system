@@ -40,15 +40,15 @@ return new class extends Migration
         ];
 
         DB::table('platform_settings')->insertOrIgnore([
-            ['key' => 'about_title',    'value' => 'منصة التفوق التعليمية', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
+            ['key' => 'about_title',    'value' => 'بوابة المجد التعليمية', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'about_badge',    'value' => 'منصتكم التعليمية الأولى', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'about_desc',     'value' => 'نصنع مستقبل التعليم في قطر من خلال تقديم أفضل الشروحات وأقوى المناهج التعليمية المتكاملة لطلاب المرحلة الثانوية على أيدي نخبة من أكفأ المعلمين.', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'about_values',   'value' => json_encode($aboutValues, JSON_UNESCAPED_UNICODE), 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'about_pillars',  'value' => json_encode($aboutPillars, JSON_UNESCAPED_UNICODE), 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             
             ['key' => 'app_title',      'value' => 'حمّل تطبيقات المنصة', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'app_badge',      'value' => 'تطبيقات التفوق للأجهزة الذكية', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'app_desc',       'value' => 'لضمان تجربة تعليمية سلسة وخالية من الانقطاع وبث فيديوهات فائق السرعة، حمّل تطبيقات منصة التفوق المخصصة لأجهزة الكمبيوتر والهواتف الذكية.', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
+            ['key' => 'app_badge',      'value' => 'تطبيقات بوابة المجد للأجهزة الذكية', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
+            ['key' => 'app_desc',       'value' => 'لضمان تجربة تعليمية سلسة وخالية من الانقطاع وبث فيديوهات فائق السرعة، حمّل تطبيقات بوابة المجد التعليمية المخصصة لأجهزة الكمبيوتر والهواتف الذكية.', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'app_win_url',    'value' => '', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'app_mac_url',    'value' => '', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'app_ios_url',    'value' => '', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],

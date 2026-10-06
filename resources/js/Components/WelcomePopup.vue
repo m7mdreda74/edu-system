@@ -14,7 +14,7 @@ let previousBodyOverflow = '';
 const settings = computed(() => page.props.settings || {});
 
 const isActive = computed(() => settings.value.welcome_popup_active === 'true' || settings.value.welcome_popup_active === true);
-const title = computed(() => settings.value.welcome_popup_title || 'أهلاً بك في منصة التفوق التعليمية');
+const title = computed(() => settings.value.welcome_popup_title || 'أهلاً بك في بوابة المجد التعليمية');
 
 const items = computed(() => {
     return [

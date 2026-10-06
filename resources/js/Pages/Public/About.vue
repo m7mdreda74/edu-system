@@ -7,7 +7,7 @@ import Icon from '@/Components/Icon.vue';
 const page = usePage();
 const settings = computed(() => page.props.settings || {});
 
-const title = computed(() => settings.value.about_title || 'منصة التفوق التعليمية');
+const title = computed(() => settings.value.about_title || 'بوابة المجد التعليمية');
 const badge = computed(() => settings.value.about_badge || 'منصتكم التعليمية الأولى');
 const desc = computed(() => settings.value.about_desc || 'نصنع مستقبل التعليم في قطر من خلال تقديم أفضل الشروحات وأقوى المناهج التعليمية المتكاملة لطلاب المرحلة الثانوية على أيدي نخبة من أكفأ المعلمين.');
 
@@ -72,7 +72,7 @@ const pillars = computed(() => {
 
                 <!-- Core Pillars / Why Us details -->
                 <div class="card p-8 md:p-10 border border-surface-200 dark:border-surface-800">
-                    <h2 class="text-2xl font-black text-surface-900 dark:text-white mb-6 text-center">ركائز منصة التفوق</h2>
+                    <h2 class="text-2xl font-black text-surface-900 dark:text-white mb-6 text-center">ركائز بوابة المجد التعليمية</h2>
                     
                     <div class="space-y-6">
                         <div v-for="pillar in pillars" :key="pillar.title" class="flex gap-4 items-start border-b border-surface-100 dark:border-surface-800 pb-4 last:border-0 last:pb-0">

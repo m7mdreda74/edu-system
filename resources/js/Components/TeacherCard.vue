@@ -48,7 +48,7 @@ const subjectArtwork = computed(() => {
 
     return {
         icon,
-        name: props.teacher.subject?.name || 'منصة التفوق',
+        name: props.teacher.subject?.name || 'بوابة المجد التعليمية',
         theme: themes[icon] || 'teacher-subject-art--general',
     };
 });
@@ -96,7 +96,7 @@ const embedUrl = computed(() => {
                     <Icon :name="subjectArtwork.icon" class="w-10 h-10" />
                 </div>
                 <span class="text-sm font-black">{{ subjectArtwork.name }}</span>
-                <span class="text-[10px] text-white/70">كادر منصة التفوق</span>
+                <span class="text-[10px] text-white/70">كادر بوابة المجد التعليمية</span>
            </div>
 
             <button

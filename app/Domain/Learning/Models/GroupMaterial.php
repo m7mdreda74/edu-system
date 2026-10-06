@@ -36,6 +36,7 @@ class GroupMaterial extends Model
         'title',
         'video_url',
         'video_path',
+        'active_lesson_video_id',
         'duration_seconds',
         'order',
         'is_free_preview',
@@ -85,6 +86,21 @@ class GroupMaterial extends Model
     public function liveSession(): HasOne
     {
         return $this->hasOne(LiveSession::class, 'lesson_id');
+    }
+
+    public function lessonVideos(): HasMany
+    {
+        return $this->hasMany(LessonVideo::class, 'group_material_id');
+    }
+
+    public function activeLessonVideo(): BelongsTo
+    {
+        return $this->belongsTo(LessonVideo::class, 'active_lesson_video_id');
+    }
+
+    public function latestLessonVideo(): HasOne
+    {
+        return $this->hasOne(LessonVideo::class, 'group_material_id')->latestOfMany('generation');
     }
 
     public function getIsLiveRecordingAttribute(): bool

@@ -14,7 +14,7 @@ const { confirm } = useConfirm();
 
 // A comprehensive list of default settings (ensures all keys are initialized even if they don't exist in the database)
 const defaultSettings = [
-    { key: 'platform_name', value: 'التفوق', type: 'string' },
+    { key: 'platform_name', value: 'بوابة المجد التعليمية', type: 'string' },
     { key: 'site_theme', value: 'royal', type: 'string' },
     { key: 'contact_email', value: 'support@altafawwuq.com', type: 'string' },
     { key: 'whatsapp_url', value: 'https://wa.me/97455555555', type: 'string' },
@@ -26,7 +26,7 @@ const defaultSettings = [
 
     // Welcome Popup
     { key: 'welcome_popup_active', value: 'false', type: 'boolean' },
-    { key: 'welcome_popup_title', value: 'أهلاً بك في منصة التفوق التعليمية', type: 'string' },
+    { key: 'welcome_popup_title', value: 'أهلاً بك في بوابة المجد التعليمية', type: 'string' },
     { key: 'welcome_popup_bottom_label', value: 'للمزيد الإطلاع على دليل المستخدم', type: 'string' },
     { key: 'welcome_popup_bottom_url', value: '', type: 'string' },
     { key: 'welcome_popup_item1_label', value: 'طريقة إنشاء حساب جديد', type: 'string' },
@@ -45,7 +45,7 @@ const defaultSettings = [
     // Hero / Home Page text fields
     { key: 'home_hero_badge', value: 'منصة التعليم الأولى في قطر', type: 'string' },
     { key: 'home_hero_title', value: 'تفوّق في دراستك الثانوية', type: 'string' },
-    { key: 'home_hero_subtitle', value: 'منصة التفوق التعليمية الأولى في قطر', type: 'string' },
+    { key: 'home_hero_subtitle', value: 'بوابة المجد التعليمية الأولى في قطر', type: 'string' },
     { key: 'home_hero_desc', value: 'نصنع مستقبل التعليم في قطر من خلال تقديم أفضل الشروحات وأقوى المناهج التعليمية المتكاملة لطلاب المرحلة الثانوية.', type: 'string' },
     { key: 'home_hero_btn1', value: 'ابدأ التعلم الآن', type: 'string' },
     { key: 'home_hero_btn2', value: 'إنشاء حساب جديد', type: 'string' },
@@ -54,7 +54,7 @@ const defaultSettings = [
     { key: 'home_cta_btn', value: 'سجل مجاناً', type: 'string' },
 
     // About
-    { key: 'about_title', value: 'منصة التفوق التعليمية', type: 'string' },
+    { key: 'about_title', value: 'بوابة المجد التعليمية', type: 'string' },
     { key: 'about_badge', value: 'منصتكم التعليمية الأولى', type: 'string' },
     { key: 'about_desc', value: 'نصنع مستقبل التعليم في قطر من خلال تقديم أفضل الشروحات وأقوى المناهج التعليمية المتكاملة لطلاب المرحلة الثانوية على أيدي نخبة من أكفأ المعلمين.', type: 'string' },
     { key: 'about_values', value: '[]', type: 'string' },
@@ -63,8 +63,8 @@ const defaultSettings = [
     // Footer & Apps
     { key: 'footer_desc', value: 'منصة تعليمية متخصصة في مواد المرحلة الثانوية، نحو مستقبل أفضل لكل طالب.', type: 'string' },
     { key: 'app_title', value: 'حمّل تطبيقات المنصة', type: 'string' },
-    { key: 'app_badge', value: 'تطبيقات التفوق للأجهزة الذكية', type: 'string' },
-    { key: 'app_desc', value: 'لضمان تجربة تعليمية سلسة وخالية من الانقطاع وبث فيديوهات فائق السرعة، حمّل تطبيقات منصة التفوق المخصصة لأجهزة الكمبيوتر والهواتف الذكية.', type: 'string' },
+    { key: 'app_badge', value: 'تطبيقات بوابة المجد للأجهزة الذكية', type: 'string' },
+    { key: 'app_desc', value: 'لضمان تجربة تعليمية سلسة وخالية من الانقطاع وبث فيديوهات فائق السرعة، حمّل تطبيقات بوابة المجد التعليمية المخصصة لأجهزة الكمبيوتر والهواتف الذكية.', type: 'string' },
     { key: 'app_win_url', value: '#', type: 'string' },
     { key: 'app_mac_url', value: '#', type: 'string' },
     { key: 'app_ios_url', value: '#', type: 'string' },

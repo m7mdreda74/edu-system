@@ -85,8 +85,8 @@ const settings = computed(() => page.props.settings || {});
 
 const heroContent = computed(() => ({
     badge: stripEmojis(settings.value.home_hero_badge) || 'منصة التعليم الأولى في قطر',
-    title: stripEmojis(settings.value.home_hero_title) || 'تفوّق في دراستك الثانوية',
-    subtitle: stripEmojis(settings.value.home_hero_subtitle) || 'منصة التفوق التعليمية الأولى في قطر',
+    title: stripEmojis(settings.value.home_hero_title) || 'تميّز في دراستك الثانوية',
+    subtitle: stripEmojis(settings.value.home_hero_subtitle) || 'بوابة المجد التعليمية الأولى في قطر',
     description: stripEmojis(settings.value.home_hero_desc) || 'نصنع مستقبل التعليم في قطر من خلال أفضل الشروحات والمناهج التعليمية المتكاملة.',
     primaryButton: stripEmojis(settings.value.home_hero_btn1) || 'ابدأ التعلم الآن',
     secondaryButton: stripEmojis(settings.value.home_hero_btn2) || 'إنشاء حساب جديد',
@@ -185,14 +185,14 @@ const parsedFaqs = computed(() => {
         console.warn('Failed to parse home_faqs settings JSON:', e);
     }
     return [
-        { q: 'ما هي المراحل الدراسية التي تستهدفها منصة التفوق؟', a: 'تغطي المنصة منهج دولة قطر كاملاً من الصف الأول الابتدائي حتى الثاني عشر، وتشمل مسارات المرحلة الثانوية الثلاثة: العلمي، والآداب والإنسانيات، والتكنولوجي.' },
+        { q: 'ما هي المراحل الدراسية التي تستهدفها بوابة المجد التعليمية؟', a: 'تغطي المنصة منهج دولة قطر كاملاً من الصف الأول الابتدائي حتى الثاني عشر، وتشمل مسارات المرحلة الثانوية الثلاثة: العلمي، والآداب والإنسانيات، والتكنولوجي.' },
         { q: 'هل المناهج المشروحة مطابقة لخطط وزارة التربية والتعليم القطرية؟', a: 'نعم، جميع الشروحات والملازم والشيتات يتم إعدادها وتحديثها بانتظام لتطابق خطط ومعايير وزارة التربية والتعليم والتعليم العالي في قطر بنسبة 100%.' },
         { q: 'كيف يمكنني مشاهدة الدروس من خلال الجوال أو الآيباد؟', a: 'يمكنك الدراسة عبر الموقع مباشرة من أي متصفح، أو تنزيل تطبيق المنصة المخصص للأجهزة الذكية (آيفون، آيباد، أندرويد، وهواوي) لضمان أفضل سرعة تشغيل للفيديوهات.' },
         { q: 'ما هي خطوات الاشتراك مع معلم؟', a: 'قم بتسجيل حساب مجاني كطالب، ثم اختر صفك فالمادة، شاهد الفيديو التعريفي للمعلمين، واضغط اشتراك مع من يناسبك، حيث يمكنك الدفع بأمان وسهولة عبر بطاقتك الائتمانية أو بطاقة الخصم (Stripe).' },
         { q: 'هل توفر المنصة اختبارات أو كويزات تقييمية؟', a: 'نعم، تحتوي كل مجموعة على اختبارات قصيرة وواجبات تقييمية (شيتات) يقوم المعلم بتصحيحها ورصد درجاتها لمتابعة مستوى استيعابك بانتظام.' },
         { q: 'كيف يمكنني التواصل مع الدعم الفني في حال واجهتني مشكلة؟', a: 'فريق الدعم متواجد لخدمتك طوال أيام الأسبوع عبر الواتساب على الرقم +974 5555 6666 أو البريد الإلكتروني support@altafawwuq.com.' },
         { q: 'ماذا أفعل إذا نسيت كلمة المرور الخاصة بحسابي؟', a: 'اضغط على زر "نسيت كلمة المرور" في صفحة تسجيل الدخول، وأدخل بريدك الإلكتروني لتصلك رسالة تحتوي على رابط آمن لإعادة تعيين كلمة مرورك الجديدة فوراً.' },
-        { q: 'من هم المعلمون في منصة التفوق؟', a: 'تضم المنصة نخبة من أكفأ المعلمين المتخصصين ذوي الخبرة الواسعة في تدريس المناهج القطرية والذين حقق طلابهم أعلى الدرجات في السنوات السابقة.' },
+        { q: 'من هم المعلمون في بوابة المجد التعليمية؟', a: 'تضم المنصة نخبة من أكفأ المعلمين المتخصصين ذوي الخبرة الواسعة في تدريس المناهج القطرية والذين حقق طلابهم أعلى الدرجات في السنوات السابقة.' },
     ];
 });
 
@@ -523,7 +523,7 @@ refreshAllStagePreview();
         <section v-if="youtubeSectionVisible" class="section bg-transparent">
             <div class="container-app">
                 <div class="text-center mb-12">
-                    <span class="badge bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400 mb-3 inline-block font-bold">التفوق على يوتيوب</span>
+                    <span class="badge bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400 mb-3 inline-block font-bold">بوابة المجد على يوتيوب</span>
                     <h2 class="text-3xl font-black text-surface-900 dark:text-white mb-3">
                         شروحات ومراجعات مجانية
                     </h2>
@@ -562,7 +562,7 @@ refreshAllStagePreview();
             <div class="container-app">
                 <div class="text-center mb-12">
                     <h2 class="text-3xl font-black text-surface-900 dark:text-white mb-3">
-                        لماذا التفوق خيارك الأول؟
+                        لماذا بوابة المجد خيارك الأول؟
                     </h2>
                     <p class="text-surface-500 dark:text-surface-400 text-sm">نصنع تجربة تعليمية فريدة تضمن لك الريادة</p>
                 </div>
@@ -628,9 +628,9 @@ refreshAllStagePreview();
         <!-- ── CTA Section ────────────────────────────────────────── -->
         <section class="hero-gradient py-16">
             <div class="container-app px-4 text-center">
-                <h2 class="text-3xl font-black text-white mb-4">{{ stripEmojis($page.props.settings?.home_cta_title) || 'ابدأ رحلتك نحو التفوق اليوم' }}</h2>
+                <h2 class="text-3xl font-black text-white mb-4">{{ stripEmojis($page.props.settings?.home_cta_title) || 'ابدأ رحلتك نحو التميز اليوم' }}</h2>
                 <p class="text-white/80 mb-8 max-w-md mx-auto">
-                    {{ stripEmojis($page.props.settings?.home_cta_desc) || 'انضم لآلاف الطلاب الذين حققوا نتائج متميزة مع منصة التفوق' }}
+                    {{ stripEmojis($page.props.settings?.home_cta_desc) || 'انضم لآلاف الطلاب الذين حققوا نتائج متميزة مع بوابة المجد التعليمية' }}
                 </p>
                 <Link :href="route('register')" class="btn btn-lg bg-white text-primary-800 border border-white/80 shadow-xl transform transition-all duration-300 hover:scale-105 hover:bg-surface-50 hover:shadow-glow-accent">
                     {{ stripEmojis($page.props.settings?.home_cta_btn) || 'إنشاء حساب مجاني — الآن' }}

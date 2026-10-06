@@ -99,7 +99,7 @@ it('saves settings as json without reloading the inertia page', function () {
         ->postJson(route('admin.settings.update'), [
             'settings' => [[
                 'key' => 'platform_name',
-                'value' => 'التفوق السريع',
+                'value' => 'المجد السريع',
                 'type' => 'string',
             ]],
         ])
@@ -107,7 +107,7 @@ it('saves settings as json without reloading the inertia page', function () {
         ->assertJson(['message' => 'تم حفظ الإعدادات بنجاح.']);
 
     expect(PlatformSetting::where('key', 'platform_name')->value('value'))
-        ->toBe('التفوق السريع');
+        ->toBe('المجد السريع');
 });
 
 it('does not allow homepage live counters to be edited as platform settings', function () {

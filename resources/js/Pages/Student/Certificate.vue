@@ -101,7 +101,7 @@ function printCertificate() {
                                 bg-white shadow-glow-primary opacity-60">
                         <div class="text-center">
                             <div class="text-primary-600 font-black text-xs">مُعتمد</div>
-                            <div class="text-primary-400 text-xs">التفوق</div>
+                            <div class="text-primary-400 text-xs">المجد</div>
                         </div>
                     </div>
                 </div>

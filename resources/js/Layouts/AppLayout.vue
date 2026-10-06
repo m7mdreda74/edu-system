@@ -182,7 +182,7 @@ const isActive = (link) => {
                                     group-hover:scale-110 transition-transform duration-200">
                             <span class="text-white font-bold text-sm">{{ ($page.props.settings?.platform_name ?? 'تفوّق').charAt(0) }}</span>
                         </div>
-                        <span class="text-xl font-bold text-gradient-primary hidden sm:block">{{ $page.props.settings?.platform_name ?? 'التفوق' }}</span>
+                        <span class="text-xl font-bold text-gradient-primary hidden sm:block">{{ $page.props.settings?.platform_name ?? 'بوابة المجد التعليمية' }}</span>
                         </div>
                     </Link>
 
@@ -395,7 +395,7 @@ const isActive = (link) => {
                     </div>
                 </div>
                 <div class="divider border-surface-700 pt-6 text-center text-xs text-surface-500">
-                    © {{ new Date().getFullYear() }} {{ $page.props.settings?.platform_name ?? 'منصة التفوق' }} — جميع الحقوق محفوظة
+                    © {{ new Date().getFullYear() }} {{ $page.props.settings?.platform_name ?? 'بوابة المجد التعليمية' }} — جميع الحقوق محفوظة
                 </div>
             </div>
         </footer>

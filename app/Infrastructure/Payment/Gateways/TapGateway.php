@@ -70,8 +70,8 @@ class TapGateway implements PaymentGatewayInterface
             'currency' => strtoupper($currency),
             'threeDSecure' => true,
             'save_card' => false,
-            'description' => 'اشتراك شهري في منصة التفوق',
-            'statement_descriptor' => 'ALTAFAWWUQ',
+            'description' => 'اشتراك شهري في بوابة المجد التعليمية',
+            'statement_descriptor' => 'ALMAJD',
             'metadata' => [
                 'payment_id' => $paymentId,
             ],

@@ -49,6 +49,8 @@ use App\Http\Controllers\Student\ScheduleController;
 use App\Http\Controllers\Student\StudentPurchaseRequestController;
 use App\Http\Controllers\Student\SubscriptionController;
 use App\Http\Controllers\Student\VideoUrlController;
+use App\Http\Controllers\VideoReconciliationController;
+use App\Http\Controllers\VideoWebhookController;
 use App\Http\Controllers\SubscriptionRenewalController;
 use App\Http\Controllers\Teacher\CurriculumController;
 use App\Http\Controllers\Teacher\FreeIntroSessionController as TeacherFreeIntroSessionController;
@@ -72,6 +74,13 @@ Route::get('/api/cron/live-session-reminders', LiveSessionReminderController::cl
 Route::get('/api/cron/missed-live-sessions', MissedLiveSessionCronController::class)
     ->name('cron.missed-live-sessions')
     ->middleware(['throttle:10,1', 'cron.secret']);
+Route::get('/api/cron/video-reconciliation', VideoReconciliationController::class)
+    ->name('cron.video-reconciliation')
+    ->middleware(['throttle:10,1', 'cron.secret']);
+
+Route::post('/webhooks/cloudflare-stream', [VideoWebhookController::class, 'cloudflare'])
+    ->name('webhooks.cloudflare-stream')
+    ->middleware('throttle:120,1');
 
 // ─── Public Browse Flow: grade → subject → teachers → profile ─────────────────
 Route::get('/', [HomeController::class,             'index'])->name('home');
@@ -258,6 +267,15 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::post('/curriculum-uploads/authorize', [CurriculumController::class, 'authorizeBlobUpload'])
         ->name('curriculum-uploads.authorize')
         ->middleware('throttle:30,1');
+    Route::post('/lesson-videos/authorize', [CurriculumController::class, 'authorizeVideoUpload'])
+        ->name('lesson-videos.authorize')
+        ->middleware('throttle:10,1');
+    Route::get('/lessons/{lesson}/videos/{video}/status', [CurriculumController::class, 'videoStatus'])
+        ->name('lesson-videos.status')
+        ->middleware('throttle:60,1');
+    Route::delete('/lessons/{lesson}/videos/{video}', [CurriculumController::class, 'cancelVideo'])
+        ->name('lesson-videos.cancel')
+        ->middleware('throttle:20,1');
     // The {lesson} and {unit} placeholders are read by UploadHomeworkRequest and
     // UploadPaperExamRequest to decide whether the file is required — do not rename.
     Route::post('/lessons/{lesson}/booklet', [CurriculumController::class, 'storeBooklet'])->name('lessons.booklet');

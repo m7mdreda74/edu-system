@@ -67,6 +67,23 @@ return [
         'serverless' => filter_var(env('VERCEL', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
+    'video_streaming' => [
+        'provider' => env('VIDEO_STREAMING_PROVIDER', 'cloudflare_stream'),
+        'playback_ttl' => (int) env('VIDEO_PLAYBACK_TTL', 900),
+    ],
+
+    'cloudflare_stream' => [
+        'account_id' => env('CLOUDFLARE_STREAM_ACCOUNT_ID'),
+        'api_token' => env('CLOUDFLARE_STREAM_API_TOKEN'),
+        'api_base_url' => env('CLOUDFLARE_STREAM_API_BASE_URL', 'https://api.cloudflare.com/client/v4/accounts/'.env('CLOUDFLARE_STREAM_ACCOUNT_ID')),
+        'playback_host' => env('CLOUDFLARE_STREAM_PLAYBACK_HOST'),
+        'webhook_secret' => env('CLOUDFLARE_STREAM_WEBHOOK_SECRET'),
+        'webhook_tolerance' => (int) env('CLOUDFLARE_STREAM_WEBHOOK_TOLERANCE', 300),
+        'upload_ttl' => (int) env('CLOUDFLARE_STREAM_UPLOAD_TTL', 3600),
+        'max_duration_seconds' => (int) env('VIDEO_MAX_DURATION_SECONDS', 14400),
+        'timeout' => (int) env('CLOUDFLARE_STREAM_TIMEOUT', 20),
+    ],
+
     'vercel' => [
         'cron_secret' => env('CRON_SECRET'),
     ],

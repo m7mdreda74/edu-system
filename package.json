@@ -27,8 +27,10 @@
     "dependencies": {
         "@vercel/blob": "^2.4.0",
         "@vueuse/core": "^14.3.0",
+        "hls.js": "^1.7.3",
         "pinia": "^3.0.4",
         "plyr": "^3.8.4",
+        "tus-js-client": "^4.3.1",
         "ziggy-js": "^2.4.0"
     }
 }

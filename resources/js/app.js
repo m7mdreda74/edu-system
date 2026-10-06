@@ -7,7 +7,7 @@ import { createApp, h } from 'vue';
 import { createPinia } from 'pinia';
 import { ZiggyVue } from 'ziggy-js';
 
-const appName = 'منصة التفوق';
+const appName = 'بوابة المجد التعليمية';
 const siteThemes = ['royal', 'ocean', 'emerald', 'violet'];
 
 const applySiteTheme = (theme) => {

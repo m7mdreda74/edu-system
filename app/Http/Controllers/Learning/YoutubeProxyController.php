@@ -33,6 +33,8 @@ class YoutubeProxyController extends Controller
         /** @var \App\Domain\User\Models\User $user */
         $user = $request->user();
 
+        abort_unless((int) $request->query('userId') === (int) $user->id, 403);
+
         $material = GroupMaterial::with('unit.assignment')->findOrFail($materialId);
 
         Gate::authorize('watch', $material);

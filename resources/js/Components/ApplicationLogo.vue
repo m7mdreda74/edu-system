@@ -1,5 +1,5 @@
 <template>
-    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="التفوق" v-bind="$attrs">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="بوابة المجد التعليمية" v-bind="$attrs">
         <defs>
             <linearGradient id="brand-bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
                 <stop stop-color="rgb(var(--primary-500, 124 58 237))" />

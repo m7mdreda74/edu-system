@@ -188,7 +188,7 @@ const isActive = (name) => {
                                     flex items-center justify-center shadow-glow-primary shrink-0">
                                 <span class="text-white font-bold text-xs">ت</span>
                         </div>
-                        <span v-show="!isSidebarCollapsed" class="text-lg font-bold text-surface-900 dark:text-white tracking-wide group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">التفوق</span>
+                        <span v-show="!isSidebarCollapsed" class="text-lg font-bold text-surface-900 dark:text-white tracking-wide group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">بوابة المجد التعليمية</span>
                     </Link>
                     <button v-show="!isSidebarCollapsed" type="button" @click="closeSidebar" class="lg:hidden text-surface-500 hover:text-surface-800 dark:text-surface-400 dark:hover:text-white" aria-label="إغلاق القائمة الجانبية">
                         ✕

@@ -2,6 +2,7 @@
 import { ref, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
+import { Upload } from 'tus-js-client';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import StatCard from '@/Components/StatCard.vue';
 import Icon from '@/Components/Icon.vue';
@@ -22,6 +23,16 @@ const props = defineProps({
             handle_url: '/api/blob-upload',
             max_bytes: 25 * 1024 * 1024,
             video_max_bytes: 512 * 1024 * 1024,
+        }),
+    },
+    videoStreaming: {
+        type: Object,
+        default: () => ({
+            enabled: false,
+            provider: null,
+            max_bytes: 512 * 1024 * 1024,
+            max_duration_seconds: 14400,
+            authorize_url: null,
         }),
     },
 });
@@ -61,6 +72,9 @@ const expanded     = ref({});    // unitId   -> open
 const editingVideo = ref({});    // lessonId -> the url editor is showing
 const unitDrafts   = ref({});
 const lessonDrafts = ref({});
+const videoUploads = ref({});
+const managedVideoFiles = ref({});
+const uploadRequests = ref({});
 const showSkeleton = ref(false);
 const showAddUnit  = ref(false);
 
@@ -257,6 +271,13 @@ async function uploadVideo(lesson, event) {
     const file = takeFile(event, `lesson:${lesson.id}:video`, props.directUploads.video_max_bytes, true);
     if (!file) return;
 
+    managedVideoFiles.value[lesson.id] = file;
+
+    if (props.videoStreaming.enabled) {
+        await uploadManagedVideo(lesson, file);
+        return;
+    }
+
     if (props.directUploads.enabled) {
         await uploadDirect(
             'video',
@@ -276,6 +297,172 @@ async function uploadVideo(lesson, event) {
         forceFormData: true,
         onSuccess: () => { editingVideo.value[lesson.id] = false; },
     });
+}
+
+function newIdempotencyKey() {
+    return globalThis.crypto?.randomUUID?.()
+        ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function updateVideoUpload(lessonId, payload) {
+    videoUploads.value[lessonId] = {
+        ...(videoUploads.value[lessonId] ?? {}),
+        ...payload,
+    };
+}
+
+async function uploadManagedVideo(lesson, file, retry = false) {
+    const key = `lesson:${lesson.id}:video`;
+    rowErrors.value[key] = {};
+    busy.value = key;
+    updateVideoUpload(lesson.id, { status: 'pending_upload', progress: 0, cancelled: false });
+
+    let authorization;
+
+    try {
+        const response = await axios.post(props.videoStreaming.authorize_url, {
+            lesson_id: lesson.id,
+            file_size: file.size,
+            file_name: file.name,
+            mime_type: file.type || 'video/mp4',
+            idempotency_key: retry ? newIdempotencyKey() : newIdempotencyKey(),
+        });
+        authorization = response.data;
+
+        if (authorization.reused || !authorization.upload_url) {
+            updateVideoUpload(lesson.id, { videoId: authorization.video_id, status: authorization.status });
+            await pollManagedVideo(lesson, authorization.video_id);
+            return;
+        }
+
+        updateVideoUpload(lesson.id, {
+            videoId: authorization.video_id,
+            status: 'uploading',
+            progress: 0,
+        });
+
+        if (authorization.protocol === 'tus') {
+            await uploadTusVideo(lesson, file, authorization.upload_url);
+        } else {
+            await uploadBasicVideo(lesson, file, authorization.upload_url);
+        }
+
+        updateVideoUpload(lesson.id, { status: 'processing', progress: 100 });
+        await pollManagedVideo(lesson, authorization.video_id);
+    } catch (error) {
+        if (videoUploads.value[lesson.id]?.cancelled) return;
+
+        rowErrors.value[key] = {
+            upload: error.response?.data?.message ?? error.message ?? 'تعذر رفع الفيديو. حاول مرة أخرى.',
+        };
+        updateVideoUpload(lesson.id, { status: 'failed' });
+        busy.value = null;
+    }
+}
+
+function uploadBasicVideo(lesson, file, uploadUrl) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        uploadRequests.value[lesson.id] = xhr;
+        xhr.open('POST', uploadUrl);
+        xhr.upload.onprogress = (event) => {
+            if (!event.lengthComputable) return;
+            updateVideoUpload(lesson.id, { progress: Math.round((event.loaded / event.total) * 100) });
+        };
+        xhr.onload = () => {
+            delete uploadRequests.value[lesson.id];
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error('فشل رفع الفيديو إلى خدمة الفيديو.'));
+        };
+        xhr.onerror = () => reject(new Error('انقطع الاتصال أثناء رفع الفيديو.'));
+        xhr.onabort = () => reject(new Error('تم إلغاء رفع الفيديو.'));
+
+        const body = new FormData();
+        body.append('file', file, file.name);
+        xhr.send(body);
+    });
+}
+
+function uploadTusVideo(lesson, file, uploadUrl) {
+    return new Promise((resolve, reject) => {
+        const upload = new Upload(file, {
+            uploadUrl,
+            chunkSize: 50 * 1024 * 1024,
+            retryDelays: [0, 1000, 3000, 5000, 10000],
+            metadata: {
+                filename: file.name,
+                filetype: file.type || 'video/mp4',
+            },
+            onError: reject,
+            onProgress: (uploaded, total) => {
+                updateVideoUpload(lesson.id, { progress: Math.round((uploaded / total) * 100) });
+            },
+            onSuccess: resolve,
+        });
+
+        uploadRequests.value[lesson.id] = upload;
+        upload.start();
+    });
+}
+
+async function pollManagedVideo(lesson, videoId) {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < 15 * 60 * 1000) {
+        const response = await axios.get(route('teacher.lesson-videos.status', {
+            lesson: lesson.id,
+            video: videoId,
+        }));
+        const status = response.data;
+        updateVideoUpload(lesson.id, {
+            videoId,
+            status: status.status,
+            progress: status.status === 'ready' ? 100 : videoUploads.value[lesson.id]?.progress ?? 0,
+        });
+
+        if (status.status === 'ready') {
+            router.reload({ ...VISIT, only: ['units', 'stats'] });
+            busy.value = null;
+            return;
+        }
+
+        if (status.status === 'failed' || status.status === 'cancelled') {
+            rowErrors.value[`lesson:${lesson.id}:video`] = {
+                upload: status.failure_message ?? 'فشل تجهيز الفيديو. اختر الفيديو وحاول مرة أخرى.',
+            };
+            busy.value = null;
+            return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+
+    rowErrors.value[`lesson:${lesson.id}:video`] = {
+        upload: 'استغرق تجهيز الفيديو وقتًا أطول من المتوقع. ستستمر المنصة في متابعة حالته.',
+    };
+    busy.value = null;
+}
+
+function cancelManagedVideo(lesson) {
+    const upload = uploadRequests.value[lesson.id];
+    videoUploads.value[lesson.id] = { ...(videoUploads.value[lesson.id] ?? {}), cancelled: true, status: 'cancelled' };
+    upload?.abort?.();
+
+    const videoId = videoUploads.value[lesson.id]?.videoId;
+    if (videoId) {
+        router.delete(route('teacher.lesson-videos.cancel', { lesson: lesson.id, video: videoId }), {
+            preserveScroll: true,
+            preserveState: true,
+        });
+    }
+
+    busy.value = null;
+}
+
+function retryManagedVideo(lesson) {
+    const file = managedVideoFiles.value[lesson.id];
+    if (file) uploadManagedVideo(lesson, file, true);
+    else openVideo(lesson);
 }
 
 async function clearVideo(lesson) {

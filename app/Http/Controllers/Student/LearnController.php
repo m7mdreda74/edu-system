@@ -248,6 +248,7 @@ class LearnController extends Controller
             ->where('is_published', true)
             ->with([
                 'lessons.homework',
+                'lessons.activeLessonVideo',
                 // A draft exam — no questions, switched off — does not exist
                 // for the student until the teacher activates it.
                 'electronicExam' => fn ($query) => $query->where('is_active', true)->withCount('questions'),
@@ -322,7 +323,9 @@ class LearnController extends Controller
                 'is_free_preview' => $lesson->is_free_preview,
                 // The URL itself is never shipped — the player asks for a
                 // signed one — so the page only needs to know there is a video.
-                'has_video' => filled($lesson->video_url) || filled($lesson->video_path),
+                'has_video' => $lesson->activeLessonVideo?->isReady() || filled($lesson->video_url) || filled($lesson->video_path),
+                'video_status' => $lesson->activeLessonVideo?->status
+                    ?? $lesson->latestLessonVideo?->status,
                 'booklet_path' => filled($lesson->attachment_path)
                     ? route('learning.material.download', $lesson->id)
                     : null,

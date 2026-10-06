@@ -50,7 +50,7 @@ return new class extends Migration
 
             \Illuminate\Support\Facades\DB::table('platform_settings')->insert([
                 ['key' => 'commission_percent',  'value' => '20',   'type' => 'integer', 'created_at' => now(), 'updated_at' => now()],
-                ['key' => 'platform_name',       'value' => 'التفوق', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
+                ['key' => 'platform_name',       'value' => 'بوابة المجد التعليمية', 'type' => 'string', 'created_at' => now(), 'updated_at' => now()],
                 ['key' => 'registration_open',   'value' => 'true', 'type' => 'boolean', 'created_at' => now(), 'updated_at' => now()],
             ]);
         }

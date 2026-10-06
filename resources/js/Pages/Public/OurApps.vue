@@ -7,9 +7,9 @@ import Icon from '@/Components/Icon.vue';
 const page = usePage();
 const settings = computed(() => page.props.settings || {});
 
-const badge = computed(() => settings.value.app_badge || 'تطبيقات التفوق للأجهزة الذكية');
+const badge = computed(() => settings.value.app_badge || 'تطبيقات بوابة المجد للأجهزة الذكية');
 const title = computed(() => settings.value.app_title || 'حمّل تطبيقات المنصة');
-const desc = computed(() => settings.value.app_desc || 'لضمان تجربة تعليمية سلسة وخالية من الانقطاع وبث فيديوهات فائق السرعة، حمّل تطبيقات منصة التفوق المخصصة لأجهزة الكمبيوتر والهواتف الذكية.');
+const desc = computed(() => settings.value.app_desc || 'لضمان تجربة تعليمية سلسة وخالية من الانقطاع وبث فيديوهات فائق السرعة، حمّل تطبيقات بوابة المجد التعليمية المخصصة لأجهزة الكمبيوتر والهواتف الذكية.');
 
 const winUrl = computed(() => settings.value.app_win_url || null);
 const macUrl = computed(() => settings.value.app_mac_url || null);
@@ -96,7 +96,7 @@ const huaweiUrl = computed(() => settings.value.app_huawei_url || null);
                     <div class="space-y-4 text-xs text-surface-550 leading-relaxed">
                         <div class="flex gap-3 items-start">
                             <div class="w-5 h-5 bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-full font-bold flex items-center justify-center flex-shrink-0 text-[10px]">١</div>
-                            <p>قم بتسجيل الدخول إلى حسابك على موقع منصة التفوق من خلال المتصفح بشكل اعتيادي.</p>
+                            <p>قم بتسجيل الدخول إلى حسابك على موقع بوابة المجد التعليمية من خلال المتصفح بشكل اعتيادي.</p>
                         </div>
                         <div class="flex gap-3 items-start">
                             <div class="w-5 h-5 bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 rounded-full font-bold flex items-center justify-center flex-shrink-0 text-[10px]">٢</div>

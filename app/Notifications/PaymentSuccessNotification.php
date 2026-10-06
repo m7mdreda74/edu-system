@@ -33,13 +33,13 @@ class PaymentSuccessNotification extends Notification implements ShouldQueue
         $label     = $this->subscriptionLabel();
 
         return (new MailMessage)
-            ->subject('✅ تأكيد الدفع — منصة التفوق')
+            ->subject('✅ تأكيد الدفع — بوابة المجد التعليمية')
             ->greeting("شكرًا {$notifiable->name}!")
             ->line("تمت عملية الدفع بنجاح بمبلغ **{$amountQAR} ريال قطري**.")
             ->line("الاشتراك: **{$label}**")
             ->line("رقم المرجع: `{$this->payment->gateway_ref}`")
             ->action('حصصي', route('student.my-classes'))
-            ->salutation('فريق منصة التفوق');
+            ->salutation('فريق بوابة المجد التعليمية');
     }
 
     public function toDatabase(object $notifiable): array

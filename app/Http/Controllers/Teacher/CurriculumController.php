@@ -22,6 +22,7 @@ use App\Http\Requests\Teacher\UploadHomeworkRequest;
 use App\Http\Requests\Teacher\UploadLessonVideoRequest;
 use App\Http\Requests\Teacher\UploadPaperExamRequest;
 use App\Services\CurriculumBlobUpload;
+use App\Services\LessonVideoService;
 use App\Support\ArabicOrdinal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -53,6 +54,7 @@ class CurriculumController extends Controller
 
     public function __construct(
         private readonly CurriculumBlobUpload $blobUploads,
+        private readonly LessonVideoService $lessonVideos,
     ) {}
 
     public function index(Request $request, int $assignmentId): Response
@@ -103,7 +105,55 @@ class CurriculumController extends Controller
                 'max_bytes' => CurriculumBlobUpload::MAX_BYTES,
                 'video_max_bytes' => CurriculumBlobUpload::MAX_VIDEO_BYTES,
             ],
+            'videoStreaming' => [
+                'enabled' => $this->lessonVideos->enabled(),
+                'provider' => $this->lessonVideos->providerName(),
+                'max_bytes' => (int) config('services.video_streaming.max_bytes', CurriculumBlobUpload::MAX_VIDEO_BYTES),
+                'max_duration_seconds' => (int) config('services.cloudflare_stream.max_duration_seconds', 14400),
+                'authorize_url' => route('teacher.lesson-videos.authorize'),
+            ],
         ]);
+    }
+
+    public function authorizeVideoUpload(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'lesson_id' => ['required', 'integer', 'min:1'],
+            'file_size' => ['required', 'integer', 'min:1', 'max:'.(int) config('services.video_streaming.max_bytes', CurriculumBlobUpload::MAX_VIDEO_BYTES)],
+            'file_name' => ['required', 'string', 'max:255'],
+            'mime_type' => ['required', 'string', 'in:video/mp4,video/webm,video/quicktime,video/x-m4v'],
+            'idempotency_key' => ['required', 'string', 'max:100'],
+        ]);
+
+        $lesson = $this->ownedLesson((int) $data['lesson_id']);
+        abort_if($lesson->liveSession, 403, 'تسجيلات الحصص محمية ولا يمكن استبدالها من هنا.');
+
+        return response()->json($this->lessonVideos->beginUpload(
+            $lesson,
+            (int) Auth::id(),
+            $data,
+        ));
+    }
+
+    public function videoStatus(int $lessonId, int $videoId): JsonResponse
+    {
+        $lesson = $this->ownedLesson($lessonId);
+        $video = $lesson->lessonVideos()->findOrFail($videoId);
+
+        $video = $this->lessonVideos->reconcile($video);
+
+        return response()->json($this->lessonVideos->statusPayload($video));
+    }
+
+    public function cancelVideo(int $lessonId, int $videoId): RedirectResponse
+    {
+        $lesson = $this->ownedLesson($lessonId);
+        $video = $lesson->lessonVideos()->findOrFail($videoId);
+
+        abort_if($lesson->liveSession, 403, 'تسجيلات الحصص محمية ولا يمكن إلغاؤها من هنا.');
+        $this->lessonVideos->cancel($video);
+
+        return back()->with('success', 'تم إلغاء رفع الفيديو.');
     }
 
     /**
@@ -488,6 +538,8 @@ class CurriculumController extends Controller
             ->with([
                 'lessons.homework' => fn ($query) => $query->withCount('submissions'),
                 'lessons.liveSession:id,lesson_id',
+                'lessons.activeLessonVideo',
+                'lessons.latestLessonVideo',
                 'electronicExam' => fn ($query) => $query->withCount('questions'),
                 'paperExam' => fn ($query) => $query->withCount('submissions'),
             ])
@@ -539,7 +591,12 @@ class CurriculumController extends Controller
             'booklet_path' => filled($lesson->attachment_path)
                 ? route('learning.material.download', $lesson->id)
                 : null,
-            'has_video' => filled($lesson->video_url) || filled($lesson->video_path),
+            'has_video' => $lesson->activeLessonVideo?->isReady() || filled($lesson->video_url) || filled($lesson->video_path),
+            'video_status' => $lesson->latestLessonVideo?->status,
+            'video_provider' => $lesson->activeLessonVideo?->provider,
+            'video_replacing' => $lesson->latestLessonVideo !== null
+                && (int) $lesson->latestLessonVideo->id !== (int) $lesson->activeLessonVideo?->id
+                && ! in_array($lesson->latestLessonVideo->status, ['failed', 'cancelled'], true),
             'has_booklet' => filled($lesson->attachment_path),
             'is_live_recording' => $lesson->liveSession !== null,
             'homework' => $this->presentWorksheet($lesson->homework),

@@ -51,6 +51,10 @@
         {
             "path": "/api/cron/missed-live-sessions",
             "schedule": "0 0 * * *"
+        },
+        {
+            "path": "/api/cron/video-reconciliation",
+            "schedule": "0 3 * * *"
         }
     ],
     "env": {
@@ -63,6 +67,7 @@
         "CACHE_LOCK_PATH": "/tmp/framework/cache/data",
         "SESSION_DRIVER": "cookie",
         "SESSION_SECURE_COOKIE": "true",
-        "VIEW_COMPILED_PATH": "/tmp/views"
+        "VIEW_COMPILED_PATH": "/tmp/views",
+        "VIDEO_STREAMING_PROVIDER": "cloudflare_stream"
     }
 }
