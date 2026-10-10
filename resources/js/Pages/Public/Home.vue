@@ -276,47 +276,153 @@ refreshAllStagePreview();
         <WelcomePopup />
 
         <!-- ── Hero Section ─────────────────────────────────────── -->
-        <section class="hero-image relative overflow-hidden">
-            <div class="container-app px-4 py-20 md:py-28 relative">
-                <div class="max-w-2xl">
-                    <div v-if="heroContent.badge" class="badge bg-white/20 text-white mb-6 text-sm py-1.5 px-4 flex items-center gap-1.5 w-fit">
-                        <Icon name="success" class="w-4 h-4 text-accent-300 animate-float" />
-                        <span>{{ heroContent.badge }}</span>
+        <section class="hero-section-luxury relative overflow-hidden py-12 md:py-20 lg:py-24 border-b border-primary-900/40">
+            <!-- Background Decorative Lighting Effects -->
+            <div class="absolute inset-0 pointer-events-none overflow-hidden">
+                <div class="absolute -top-32 start-1/4 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl"></div>
+                <div class="absolute top-1/2 -start-20 w-80 h-80 bg-primary-600/15 rounded-full blur-3xl"></div>
+                <div class="absolute bottom-0 end-10 w-96 h-96 bg-accent-400/5 rounded-full blur-3xl"></div>
+                <!-- Subtle grid mesh overlay -->
+                <div class="absolute inset-0 opacity-[0.03] [background-image:linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] [background-size:4rem_4rem]"></div>
+            </div>
+
+            <div class="container-app px-4 sm:px-6 relative z-10">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+                    
+                    <!-- Content Column (Desktop: 7 cols) -->
+                    <div class="lg:col-span-7 text-center lg:text-start">
+                        <!-- Top Floating Pill Badge -->
+                        <div v-if="heroContent.badge" class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-surface-900/80 border border-accent-400/30 shadow-lg shadow-accent-500/5 backdrop-blur-md mb-6">
+                            <span class="relative flex h-2 w-2">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-accent-500"></span>
+                            </span>
+                            <span class="text-xs md:text-sm font-bold text-accent-300">{{ heroContent.badge }}</span>
+                        </div>
+
+                        <!-- Main Headline -->
+                        <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.25] md:leading-[1.3] mb-6 tracking-tight">
+                            {{ heroContent.title }}
+                            <span class="block mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black bg-gradient-to-r from-amber-200 via-accent-300 to-amber-500 bg-clip-text text-transparent">
+                                {{ heroContent.subtitle }}
+                            </span>
+                        </h1>
+
+                        <!-- Description -->
+                        <p class="text-base sm:text-lg text-white/80 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                            {{ heroContent.description }}
+                        </p>
+
+                        <!-- Highlights Pills -->
+                        <div class="flex flex-wrap justify-center lg:justify-start gap-2.5 sm:gap-3 mb-8">
+                            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs sm:text-sm text-surface-200">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                <span>مناهج وزارية ودولية</span>
+                            </div>
+                            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs sm:text-sm text-surface-200">
+                                <span class="w-2 h-2 rounded-full bg-accent-400"></span>
+                                <span>نخبة من كبار المعلمين</span>
+                            </div>
+                            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs sm:text-sm text-surface-200">
+                                <span class="w-2 h-2 rounded-full bg-primary-400"></span>
+                                <span>حصص تفاعلية وبنوك أسئلة</span>
+                            </div>
+                        </div>
+
+                        <!-- CTA Action Buttons -->
+                        <div class="flex flex-wrap justify-center lg:justify-start gap-4 items-center mb-8">
+                            <a href="#grades" class="btn-accent btn-lg flex items-center gap-2.5 px-7 py-3.5 shadow-xl shadow-accent-500/20 transform transition-all duration-300 hover:scale-105 hover:shadow-glow-accent group">
+                                <Icon name="courses" class="w-5 h-5 text-surface-950 transition-transform group-hover:rotate-6" />
+                                <span class="font-black text-surface-950">{{ heroContent.primaryButton }}</span>
+                                <Icon name="arrowLeft" class="w-4 h-4 text-surface-950 transition-transform group-hover:-translate-x-1" />
+                            </a>
+                            <Link :href="route('register')" class="btn btn-lg bg-surface-900/60 text-white border border-white/20 hover:bg-white/15 hover:border-accent-400/40 flex items-center gap-2 px-6 py-3.5 backdrop-blur-md transition-all duration-300 hover:scale-105">
+                                <span>{{ heroContent.secondaryButton }}</span>
+                            </Link>
+                        </div>
+
+                        <!-- Social Proof Bar -->
+                        <div class="pt-6 border-t border-white/10 flex flex-wrap items-center justify-center lg:justify-start gap-4">
+                            <div class="flex -space-x-2.5 space-x-reverse">
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-accent-600 to-amber-300 border-2 border-surface-950 flex items-center justify-center text-[10px] font-bold text-surface-950">م</div>
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-600 to-blue-400 border-2 border-surface-950 flex items-center justify-center text-[10px] font-bold text-white">س</div>
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-300 border-2 border-surface-950 flex items-center justify-center text-[10px] font-bold text-white">خ</div>
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-pink-400 border-2 border-surface-950 flex items-center justify-center text-[10px] font-bold text-white">ن</div>
+                            </div>
+                            <div class="text-xs text-surface-300 text-start">
+                                <div class="flex items-center gap-1 text-accent-400 font-bold">
+                                    <span>★★★★★</span>
+                                    <span class="text-white font-black text-sm mr-1">4.9</span>
+                                </div>
+                                <span class="text-white/60">من أكثر من 15,000 طالب وولي أمر</span>
+                            </div>
+                        </div>
+
                     </div>
 
-                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.3] md:leading-[1.4] lg:leading-[1.5] mb-6 tracking-tight">
-                        {{ heroContent.title }}
-                        <span class="block text-accent-400 mt-3 text-2xl font-bold md:text-3xl lg:text-4xl">{{ heroContent.subtitle }}</span>
-                    </h1>
+                    <!-- Visual Column (Desktop: 5 cols) -->
+                    <div class="lg:col-span-5 flex justify-center order-first lg:order-last">
+                        <div class="relative w-full max-w-sm sm:max-w-md lg:max-w-none">
+                            
+                            <!-- Ambient Glow Ring -->
+                            <div class="absolute -inset-1 bg-gradient-to-r from-accent-500/25 via-primary-500/20 to-accent-400/25 rounded-3xl blur-xl opacity-75"></div>
 
-                    <p class="text-lg text-white/80 mb-8 leading-relaxed max-w-lg">
-                        {{ heroContent.description }}
-                    </p>
+                            <!-- Showcase Glass Card -->
+                            <div class="relative rounded-3xl bg-surface-900/80 border border-accent-400/25 p-3 sm:p-5 shadow-2xl backdrop-blur-xl overflow-hidden group">
+                                <img
+                                    src="/images/hero-showcase.png"
+                                    alt="بوابة المجد التعليمية"
+                                    class="w-full h-auto max-h-[320px] sm:max-h-[380px] lg:max-h-[420px] object-contain rounded-2xl transform transition-transform duration-700 group-hover:scale-[1.02]"
+                                    loading="eager"
+                                />
 
-                    <div class="flex flex-wrap gap-4 items-center">
-                        <a href="#grades" class="btn-accent btn-lg flex items-center gap-2 transform transition-all duration-300 hover:scale-105 hover:shadow-glow-accent">
-                            <Icon name="courses" class="w-5 h-5 text-white" />
-                            <span>{{ heroContent.primaryButton }}</span>
-                        </a>
-                        <Link :href="route('register')" class="btn btn-lg bg-white/10 text-white border border-white/20 hover:bg-white/20 flex items-center gap-2 transition-all duration-300 hover:scale-105">
-                            <span>{{ heroContent.secondaryButton }}</span>
-                        </Link>
+                                <!-- Floating Badge: Success Rate -->
+                                <div class="absolute top-5 start-5 flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl bg-surface-950/90 border border-accent-400/30 shadow-lg backdrop-blur-md">
+                                    <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-accent-500/20 flex items-center justify-center text-accent-400">
+                                        <Icon name="success" class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    </div>
+                                    <div class="text-start">
+                                        <div class="text-[9px] sm:text-[10px] text-white/60 leading-none">معدل التفوق</div>
+                                        <div class="text-[11px] sm:text-xs font-black text-accent-300 mt-0.5">98.4% نجاح</div>
+                                    </div>
+                                </div>
+
+                                <!-- Floating Badge: Live Interactive -->
+                                <div class="absolute bottom-5 end-5 flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl bg-surface-950/90 border border-primary-500/30 shadow-lg backdrop-blur-md">
+                                    <span class="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-2 sm:h-2.5 w-2 sm:w-2.5 bg-red-500"></span>
+                                    </span>
+                                    <div class="text-start">
+                                        <div class="text-[9px] sm:text-[10px] text-white/60 leading-none">حصص تفاعلية</div>
+                                        <div class="text-[11px] sm:text-xs font-bold text-white mt-0.5">بث مباشر وجهاً لوجه</div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
                     </div>
 
                 </div>
             </div>
         </section>
 
-        <!-- ── Features Bar ─────────────────────────────────────── -->
-        <section class="bg-primary-950 text-white py-12 border-t border-primary-900/50">
-            <div class="container-app px-4">
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-6 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-primary-900/60 text-center md:text-start">
-                    <div v-for="feat in features" :key="feat.title" class="pt-6 md:pt-0 md:px-4 flex flex-col gap-2 items-center md:items-start">
-                        <div class="p-2.5 bg-primary-900 rounded-xl text-accent-400 w-fit">
-                            <Icon :name="feat.icon" class="w-5 h-5" />
+        <!-- ── Features Bar (بعد الهيرو سكشن) ─────────────────────── -->
+        <section class="bg-surface-950 text-white py-12 lg:py-14 border-t border-b border-primary-900/40 relative">
+            <div class="container-app px-4 sm:px-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-5">
+                    <div
+                        v-for="feat in features"
+                        :key="feat.title"
+                        class="p-5 rounded-2xl bg-surface-900/40 border border-primary-800/40 hover:border-accent-400/40 hover:bg-surface-900/70 transition-all duration-300 transform hover:-translate-y-1 group flex flex-col justify-between"
+                    >
+                        <div>
+                            <div class="p-3 bg-primary-900/60 rounded-xl text-accent-400 w-fit mb-3 group-hover:scale-110 group-hover:bg-accent-500/20 transition-all duration-300">
+                                <Icon :name="feat.icon" class="w-5 h-5 text-accent-400" />
+                            </div>
+                            <h3 class="font-bold text-base text-white group-hover:text-accent-300 transition-colors">{{ feat.title }}</h3>
+                            <p class="text-xs text-white/70 leading-relaxed mt-2">{{ feat.desc }}</p>
                         </div>
-                        <h3 class="font-bold text-sm text-white mt-1">{{ feat.title }}</h3>
-                        <p class="text-xs text-white/70 leading-relaxed">{{ feat.desc }}</p>
                     </div>
                 </div>
             </div>

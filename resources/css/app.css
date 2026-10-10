@@ -672,6 +672,15 @@
                     linear-gradient(135deg, rgb(var(--surface-950)) 0%, rgb(var(--primary-800)) 50%, rgb(var(--accent-950)) 100%);
     }
 
+    /* ── Luxury Hero Section ── */
+    .hero-section-luxury {
+        background-color: rgb(var(--surface-950));
+        background-image:
+            radial-gradient(circle at 15% 45%, rgb(var(--accent-500) / 0.14) 0%, transparent 55%),
+            radial-gradient(circle at 85% 25%, rgb(var(--primary-600) / 0.2) 0%, transparent 60%),
+            linear-gradient(180deg, rgb(var(--surface-950)) 0%, rgb(var(--primary-950) / 0.85) 100%);
+    }
+
     /* ── Image Hero ── */
     .hero-image {
         background-color: rgb(var(--surface-950));
