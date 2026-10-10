@@ -419,7 +419,7 @@ const submit = () => {
                                         @keydown="handleDropdownKeydown($event, 'stage')"
                                     >
                                         <span>{{ selectedStageLabel }}</span>
-                                        <span class="text-surface-500 text-base leading-none" aria-hidden="true">⌄</span>
+                                        <Icon name="chevronDown" class="w-4 h-4 text-surface-500 transition-transform duration-200" :class="{ 'rotate-180': openDropdown === 'stage' }" />
                                     </button>
                                     <div
                                         v-if="openDropdown === 'stage'"
@@ -458,7 +458,7 @@ const submit = () => {
                                         @keydown="handleDropdownKeydown($event, 'grade')"
                                     >
                                         <span>{{ selectedGradeLabel }}</span>
-                                        <span class="text-surface-500 text-base leading-none" aria-hidden="true">⌄</span>
+                                        <Icon name="chevronDown" class="w-4 h-4 text-surface-500 transition-transform duration-200" :class="{ 'rotate-180': openDropdown === 'grade' }" />
                                     </button>
                                     <div
                                         v-if="openDropdown === 'grade'"
