@@ -12,6 +12,7 @@ defineProps({
 
 // Mode: 'otp' (default for parents/students in Qatar) or 'password'
 const authMode = ref('otp');
+const showPassword = ref(false);
 
 // Password Form
 const form = useForm({
@@ -388,14 +389,23 @@ function resetToPhoneStep() {
                             <input
                                 id="password"
                                 v-model="form.password"
-                                type="password"
+                                :type="showPassword ? 'text' : 'password'"
                                 maxlength="255"
-                                class="w-full px-6 py-3.5 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-sm font-semibold transition-all"
+                                class="w-full px-6 py-3.5 pe-12 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-sm font-semibold transition-all"
                                 :class="{ 'ring-2 ring-red-500': form.errors.password }"
                                 placeholder="••••••••"
                                 autocomplete="current-password"
                                 required
                             />
+                            <button
+                                type="button"
+                                @click="showPassword = !showPassword"
+                                class="absolute end-4 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-800 transition-colors p-1"
+                                :title="showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'"
+                                :aria-label="showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'"
+                            >
+                                <Icon :name="showPassword ? 'eyeOff' : 'eye'" class="w-5 h-5" />
+                            </button>
                         </div>
                         <p v-if="form.errors.password" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.password }}</p>
                     </div>

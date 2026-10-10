@@ -18,6 +18,8 @@ const form = useForm({
 });
 
 const emailPrefix = ref('');
+const showPassword = ref(false);
+const showPasswordConfirm = ref(false);
 
 const platformEmail = (prefix) => `${String(prefix ?? '').trim().toLowerCase()}@almagd.com`;
 
@@ -518,18 +520,29 @@ const submit = () => {
                             <label class="block text-xs font-bold text-white/95 mr-3" for="reg-password">
                                 كلمة المرور <span class="text-red-400">*</span>
                             </label>
-                            <input
-                                id="reg-password"
-                                v-model="form.password"
-                                type="password"
-                                class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
-                                :class="{ 'ring-2 ring-red-500': form.errors.password }"
-                                placeholder="8 أحرف على الأقل"
-                                autocomplete="new-password"
-                                required
-                                minlength="8"
-                                maxlength="255"
-                            />
+                            <div class="relative">
+                                <input
+                                    id="reg-password"
+                                    v-model="form.password"
+                                    :type="showPassword ? 'text' : 'password'"
+                                    class="w-full px-6 py-3 pe-12 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
+                                    :class="{ 'ring-2 ring-red-500': form.errors.password }"
+                                    placeholder="8 أحرف على الأقل"
+                                    autocomplete="new-password"
+                                    required
+                                    minlength="8"
+                                    maxlength="255"
+                                />
+                                <button
+                                    type="button"
+                                    @click="showPassword = !showPassword"
+                                    class="absolute end-4 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-800 transition-colors p-1"
+                                    :title="showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'"
+                                    :aria-label="showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'"
+                                >
+                                    <Icon :name="showPassword ? 'eyeOff' : 'eye'" class="w-4 h-4" />
+                                </button>
+                            </div>
                             <p v-if="form.errors.password" class="text-red-400 text-xs mr-3 mt-1">{{ form.errors.password }}</p>
                         </div>
 
@@ -538,17 +551,28 @@ const submit = () => {
                             <label class="block text-xs font-bold text-white/95 mr-3" for="reg-confirm">
                                 تأكيد كلمة المرور <span class="text-red-400">*</span>
                             </label>
-                            <input
-                                id="reg-confirm"
-                                v-model="form.password_confirmation"
-                                type="password"
-                                class="w-full px-6 py-3 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
-                                placeholder="••••••••"
-                                autocomplete="new-password"
-                                required
-                                minlength="8"
-                                maxlength="255"
-                            />
+                            <div class="relative">
+                                <input
+                                    id="reg-confirm"
+                                    v-model="form.password_confirmation"
+                                    :type="showPasswordConfirm ? 'text' : 'password'"
+                                    class="w-full px-6 py-3 pe-12 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-primary-500/40 shadow-inner placeholder-surface-400 text-xs font-semibold transition-all"
+                                    placeholder="••••••••"
+                                    autocomplete="new-password"
+                                    required
+                                    minlength="8"
+                                    maxlength="255"
+                                />
+                                <button
+                                    type="button"
+                                    @click="showPasswordConfirm = !showPasswordConfirm"
+                                    class="absolute end-4 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-800 transition-colors p-1"
+                                    :title="showPasswordConfirm ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'"
+                                    :aria-label="showPasswordConfirm ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'"
+                                >
+                                    <Icon :name="showPasswordConfirm ? 'eyeOff' : 'eye'" class="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     </div>
 
