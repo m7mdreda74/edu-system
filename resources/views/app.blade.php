@@ -5,7 +5,7 @@
     $cspNonce = request()->attributes->get('csp_nonce');
 @endphp
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" data-site-theme="{{ $siteTheme }}">
+<html lang="ar" dir="rtl" data-site-theme="{{ $siteTheme }}" class="dark">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,13 +17,10 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
-        <!-- Theme Detection script to prevent screen flash -->
+        <!-- Unified Dark Mode Enforcer -->
         <script nonce="{{ $cspNonce }}">
-            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
         </script>
 
         <!-- Fonts: keep the Arabic and Latin families consistent across all layouts. -->
@@ -36,7 +33,7 @@
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
         @inertiaHead
     </head>
-    <body class="font-sans antialiased">
+    <body class="font-sans antialiased bg-surface-950 text-white">
         @inertia
     </body>
 </html>

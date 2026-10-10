@@ -27,7 +27,8 @@ const isSidebarCollapsed = ref(localStorage.getItem('sidebar_collapsed') === 'tr
 let previousBodyOverflow = '';
 
 onMounted(() => {
-    isDark.value = document.documentElement.classList.contains('dark');
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('theme', 'dark');
 });
 
 function closeSidebar() {
@@ -56,11 +57,7 @@ onUnmounted(() => {
     }
 });
 
-function toggleDark() {
-    isDark.value = !isDark.value;
-    document.documentElement.classList.toggle('dark', isDark.value);
-    localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
-}
+
 
 function toggleSidebarCollapse() {
     isSidebarCollapsed.value = !isSidebarCollapsed.value;
@@ -277,11 +274,7 @@ const isActive = (name) => {
                     <!-- Notification Bell -->
                     <NotificationBell />
 
-                    <!-- Dark mode toggle -->
-                    <button type="button" @click="toggleDark" class="btn-ghost p-2 rounded-lg text-lg bg-surface-100 dark:bg-surface-800 transition-all duration-300 transform active:scale-95" :aria-label="isDark ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الداكن'">
-                        <Icon v-if="isDark" name="sun" class="w-5 h-5 text-amber-500" />
-                        <Icon v-else name="moon" class="w-5 h-5 text-indigo-500" />
-                    </button>
+
                 </div>
             </header>
 

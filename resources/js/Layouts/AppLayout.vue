@@ -20,7 +20,8 @@ watch(() => page.url, () => {
 });
 
 onMounted(() => {
-    isDark.value = document.documentElement.classList.contains('dark');
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('theme', 'dark');
 });
 
 const searchQuery = ref('');
@@ -72,11 +73,7 @@ onBeforeUnmount(() => {
     searchController?.abort();
 });
 
-function toggleDark() {
-    isDark.value = !isDark.value;
-    document.documentElement.classList.toggle('dark', isDark.value);
-    localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
-}
+
 
 function normalizeNavigationLink(link) {
     if (link?.label?.includes('معلم')) {
@@ -218,15 +215,7 @@ const isActive = (link) => {
                     <!-- Actions -->
                     <div class="flex items-center gap-2">
 
-                        <!-- Dark mode toggle -->
-                        <button type="button" @click="toggleDark"
-                            class="btn-ghost p-2 rounded-lg text-lg transition-all duration-300 transform active:scale-95"
-                            :title="isDark ? 'وضع النهار' : 'الوضع الداكن'"
-                            :aria-label="isDark ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الداكن'"
-                        >
-                            <Icon v-if="isDark" name="sun" class="w-5 h-5 text-amber-500" />
-                            <Icon v-else name="moon" class="w-5 h-5 text-indigo-500" />
-                        </button>
+
 
                         <!-- Notification Bell -->
                         <NotificationBell v-if="!authStore.isGuest" />
