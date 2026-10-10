@@ -221,8 +221,8 @@ const submit = () => {
 
             <!-- Central Illustration -->
             <div class="relative z-10 my-auto flex flex-col items-center text-center">
-                <img src="/images/auth-sidebar.png" alt="بوابة المجد التعليمية" class="w-full max-w-[260px] rounded-2xl shadow-2xl border border-white/10 mb-6 hover:scale-105 transition-transform duration-500" />
-                <blockquote class="text-white/90 text-sm font-medium leading-relaxed max-w-xs">
+                <img src="/images/auth-sidebar.png" alt="بوابة المجد التعليمية" class="w-full max-w-[280px] rounded-2xl shadow-2xl border border-accent-400/25 shadow-[0_0_30px_rgba(212,175,35,0.18)] mb-6 hover:scale-105 transition-all duration-500" />
+                <blockquote class="text-white/95 text-sm font-medium leading-relaxed max-w-xs">
                     "طريقك نحو القمة يبدأ بخطوة.. بوابة المجد التعليمية شريكك للوصول للدرجات الكاملة."
                 </blockquote>
             </div>
