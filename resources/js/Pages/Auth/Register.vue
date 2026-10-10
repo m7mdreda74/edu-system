@@ -204,33 +204,64 @@ const submit = () => {
     <AppLayout>
         <div class="min-h-screen flex bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950 text-white" dir="rtl" lang="ar">
         
-        <!-- ── Left: Premium Decorative Panel ── -->
-        <div class="hidden lg:flex flex-col justify-between w-[32%] bg-gradient-to-b from-primary-950 via-primary-900 to-surface-950 border-e border-white/10 p-12 shrink-0 overflow-hidden select-none relative">
+        <!-- ── Left: Premium Decorative Panel (Sticky in viewport) ── -->
+        <div class="hidden lg:flex flex-col justify-between w-[32%] xl:w-[30%] h-screen sticky top-0 bg-gradient-to-b from-primary-950 via-primary-900 to-surface-950 border-e border-white/10 p-8 xl:p-10 shrink-0 overflow-hidden select-none relative z-10">
             <!-- Decorative Glowing Orbs -->
             <div class="absolute -top-12 -left-12 w-64 h-64 rounded-full bg-accent-500/10 blur-3xl pointer-events-none"></div>
             <div class="absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-primary-500/20 blur-3xl pointer-events-none"></div>
             
             <!-- Branding Header -->
-            <div class="relative z-10 flex flex-col items-start gap-4">
-                <img src="/images/logo-icon.png" alt="بوابة المجد التعليمية" class="w-14 h-14 object-contain filter drop-shadow-md" />
-                <div>
-                    <h2 class="text-xl font-bold text-white leading-tight">بوابة المجد التعليمية</h2>
-                    <p class="text-white/60 text-xs mt-1">شريكك الأكاديمي للدرجات الكاملة</p>
-                </div>
+            <div class="relative z-10 flex flex-col items-start gap-3">
+                <Link :href="route('home')" class="flex items-center gap-3 group">
+                    <img src="/images/logo-icon.png" alt="بوابة المجد التعليمية" class="w-12 h-12 object-contain filter drop-shadow-md group-hover:scale-105 transition-transform" />
+                    <div>
+                        <h2 class="text-lg xl:text-xl font-black text-white leading-tight">بوابة المجد التعليمية</h2>
+                        <p class="text-accent-400 text-xs font-semibold">شريكك الأكاديمي للدرجات الكاملة</p>
+                    </div>
+                </Link>
             </div>
 
-            <!-- Central Illustration -->
-            <div class="relative z-10 my-auto flex flex-col items-center text-center">
-                <img src="/images/auth-sidebar.png" alt="بوابة المجد التعليمية" class="w-full max-w-[280px] rounded-2xl shadow-2xl border border-accent-400/25 shadow-[0_0_30px_rgba(212,175,35,0.18)] mb-6 hover:scale-105 transition-all duration-500" />
-                <blockquote class="text-white/95 text-sm font-medium leading-relaxed max-w-xs">
-                    "طريقك نحو القمة يبدأ بخطوة.. بوابة المجد التعليمية شريكك للوصول للدرجات الكاملة."
+            <!-- Central Content & Artwork -->
+            <div class="relative z-10 flex flex-col items-center text-center my-auto py-2">
+                <!-- Value Proposition Cards -->
+                <div class="w-full space-y-2 mb-4">
+                    <div class="flex items-center gap-2.5 bg-white/5 backdrop-blur-md rounded-xl p-2.5 border border-white/10 text-start">
+                        <div class="w-7 h-7 rounded-lg bg-accent-500/20 text-accent-400 flex items-center justify-center shrink-0">
+                            <Icon name="courses" class="w-4 h-4" />
+                        </div>
+                        <div class="leading-tight">
+                            <p class="text-xs font-bold text-white">المناهج القطرية والدولية</p>
+                            <p class="text-[10px] text-white/60">وزاري قطري • بريطاني • أمريكي</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 bg-white/5 backdrop-blur-md rounded-xl p-2.5 border border-white/10 text-start">
+                        <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                            <Icon name="users" class="w-4 h-4" />
+                        </div>
+                        <div class="leading-tight">
+                            <p class="text-xs font-bold text-white">متابعة خاصة لولي الأمر</p>
+                            <p class="text-[10px] text-white/60">حضور لحظي، درجات، وفواتير معتمدة</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Complete 3D Artwork Illustration -->
+                <img
+                    src="/images/auth-sidebar.png"
+                    alt="بوابة المجد التعليمية"
+                    class="w-auto max-h-[30vh] xl:max-h-[34vh] rounded-2xl shadow-2xl border border-accent-400/25 shadow-[0_0_25px_rgba(212,175,35,0.2)] mb-3 hover:scale-105 transition-all duration-500 object-contain"
+                />
+                
+                <blockquote class="text-white/90 text-xs leading-relaxed max-w-xs">
+                    "طريقك نحو القمة يبدأ بخطوة.. بوابة المجد شريكك للوصول للدرجات الكاملة."
                 </blockquote>
             </div>
 
             <!-- Footer Meta -->
-            <div class="relative z-10 flex items-center justify-between text-white/40 text-[10px]">
+            <div class="relative z-10 flex items-center justify-between text-white/40 text-[10px] pt-2 border-t border-white/10">
                 <span>© 2026 بوابة المجد التعليمية</span>
-                <span>جميع الحقوق محفوظة</span>
+                <span>دولة قطر</span>
             </div>
         </div>
 
