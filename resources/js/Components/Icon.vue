@@ -183,6 +183,24 @@ const paths = {
     download: `
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
     `,
+    phone: `
+        <rect x="6" y="2" width="12" height="20" rx="3" stroke-width="1.5" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.95 18h.1" />
+    `,
+    key: `
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+    `,
+    parent: `
+        <circle cx="9" cy="7" r="3" stroke-width="1.5" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 21v-2a5 5 0 0110 0v2" />
+        <circle cx="17" cy="11" r="2" stroke-width="1.5" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 21v-1.5a3.5 3.5 0 017 0v1.5" />
+    `,
+    student: `
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.5l9 4.5-9 4.5-9-4.5 9-4.5z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 11.5v5c0 2 2.5 3.5 6 3.5s6-1.5 6-3.5v-5" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 9v6" />
+    `,
 };
 
 // Keep a visible fallback for custom/misspelled icon names coming from admin

@@ -186,7 +186,7 @@ function resetToPhoneStep() {
                             ? 'bg-gradient-to-r from-accent-500 to-accent-600 text-surface-950 font-black shadow-md'
                             : 'text-white/70 hover:text-white'"
                     >
-                        <span>📱</span>
+                        <Icon name="phone" class="w-4 h-4" />
                         <span>رقم الجوال (OTP سريع)</span>
                     </button>
                     <button
@@ -197,7 +197,7 @@ function resetToPhoneStep() {
                             ? 'bg-gradient-to-r from-accent-500 to-accent-600 text-surface-950 font-black shadow-md'
                             : 'text-white/70 hover:text-white'"
                     >
-                        <span>🔑</span>
+                        <Icon name="key" class="w-4 h-4" />
                         <span>كلمة المرور</span>
                     </button>
                 </div>
@@ -231,7 +231,8 @@ function resetToPhoneStep() {
                                         : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'"
                                 >
                                     <input type="radio" v-model="otpRole" value="parent" class="sr-only" />
-                                    <span>👨‍👦 ولي أمر</span>
+                                    <Icon name="parent" class="w-4 h-4" />
+                                    <span>ولي أمر</span>
                                 </label>
                                 <label
                                     class="flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer text-xs font-bold transition-all"
@@ -240,7 +241,8 @@ function resetToPhoneStep() {
                                         : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10'"
                                 >
                                     <input type="radio" v-model="otpRole" value="student" class="sr-only" />
-                                    <span>🎓 طالب</span>
+                                    <Icon name="student" class="w-4 h-4" />
+                                    <span>طالب</span>
                                 </label>
                             </div>
                         </div>
