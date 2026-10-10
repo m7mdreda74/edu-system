@@ -39,6 +39,13 @@ return [
         'api_key' => env('FATORA_API_KEY'),
     ],
 
+    'skipcash' => [
+        'client_id'  => env('SKIPCASH_CLIENT_ID'),
+        'key_id'     => env('SKIPCASH_KEY_ID'),
+        'secret_key' => env('SKIPCASH_SECRET_KEY'),
+        'live'       => env('SKIPCASH_LIVE', false),
+    ],
+
     'stripe' => [
         'key' => env('STRIPE_KEY'),
         'secret' => env('STRIPE_SECRET'),
@@ -51,7 +58,7 @@ return [
     ],
 
     'payment' => [
-        'gateway' => env('PAYMENT_GATEWAY', 'fatora'), // fatora | stripe | tap
+        'gateway' => env('PAYMENT_GATEWAY', 'skipcash'), // skipcash | fatora | stripe | tap
     ],
 
     'vercel_blob' => [

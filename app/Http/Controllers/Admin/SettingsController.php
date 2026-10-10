@@ -143,7 +143,7 @@ class SettingsController extends Controller
             }
         });
 
-        Cache::forget('platform_settings');
+        PlatformSetting::clearRuntimeCache();
         Cache::forget('admin.site_pages_settings');
         AuditLogger::record('settings.updated', null, ['changes' => $changes]);
 

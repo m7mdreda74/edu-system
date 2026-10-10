@@ -37,6 +37,14 @@ Route::middleware('guest')->group(function () {
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->middleware('throttle:5,10')
         ->name('password.store');
+
+    Route::post('auth/otp/send', [\App\Http\Controllers\Auth\OtpAuthController::class, 'sendOtp'])
+        ->middleware('throttle:10,1')
+        ->name('otp.send');
+
+    Route::post('auth/otp/verify', [\App\Http\Controllers\Auth\OtpAuthController::class, 'verifyOtp'])
+        ->middleware('throttle:15,1')
+        ->name('otp.verify');
 });
 
 Route::middleware(['auth', 'active'])->group(function () {

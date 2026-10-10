@@ -148,6 +148,11 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::post('/subscriptions/{subscription}/renewal', [SubscriptionRenewalController::class, 'store'])
         ->name('subscriptions.renewal.store')
         ->middleware('throttle:10,1');
+
+    // Electronic Payment Receipt / Tax Invoice (accessible by student and linked parents)
+    Route::get('/payments/{payment}/invoice', [\App\Http\Controllers\Payment\PaymentReceiptController::class, 'show'])
+        ->name('payments.invoice')
+        ->whereNumber('payment');
 });
 
 // Protected learning/chat files. The database path is never sent to the

@@ -8,19 +8,20 @@
     :root,
     html[data-site-theme="royal"] {
         direction: rtl;
-        --primary-50: 250 244 245; --primary-100: 245 226 230; --primary-200: 232 178 191;
-        --primary-300: 213 125 147; --primary-400: 172 58 85; --primary-500: 122 28 55;
-        --primary-600: 104 20 44; --primary-700: 86 13 34; --primary-800: 70 9 27;
-        --primary-900: 58 8 23; --primary-950: 34 3 12;
-        --accent-50: 251 250 243; --accent-100: 250 243 223; --accent-200: 244 229 185;
-        --accent-300: 234 204 128; --accent-400: 223 175 73; --accent-500: 197 160 57;
-        --accent-600: 167 132 44; --accent-700: 130 100 32; --accent-800: 93 70 23;
-        --accent-900: 62 46 15; --accent-950: 38 28 10;
-        --surface-50: 250 248 246; --surface-100: 244 239 234; --surface-200: 232 223 215;
-        --surface-300: 210 196 183; --surface-400: 159 140 127; --surface-500: 119 101 88;
-        --surface-600: 95 78 67; --surface-700: 51 39 44; --surface-800: 28 20 22;
-        --surface-900: 19 11 13; --surface-950: 10 4 5;
-        --surface-450: 139 120 107; --surface-550: 107 89 77; --surface-850: 23 15 17;
+        /* Al-Majd Signature: Deep Royal Navy & Luxury Qatar Gold */
+        --primary-50: 240 245 255; --primary-100: 224 235 255; --primary-200: 194 216 255;
+        --primary-300: 147 187 253; --primary-400: 89 146 246; --primary-500: 26 86 219;
+        --primary-600: 18 66 186; --primary-700: 15 50 148; --primary-800: 16 42 118;
+        --primary-900: 10 25 68; --primary-950: 6 15 42;
+        --accent-50: 254 252 240; --accent-100: 253 246 212; --accent-200: 249 235 165;
+        --accent-300: 244 219 110; --accent-400: 235 198 52; --accent-500: 212 175 35;
+        --accent-600: 184 146 25; --accent-700: 146 112 21; --accent-800: 118 89 22;
+        --accent-900: 94 72 23; --accent-950: 52 38 9;
+        --surface-50: 248 250 252; --surface-100: 241 245 249; --surface-200: 226 232 240;
+        --surface-300: 203 213 225; --surface-400: 148 163 184; --surface-500: 100 116 139;
+        --surface-600: 71 85 105; --surface-700: 30 41 59; --surface-800: 15 23 42;
+        --surface-900: 10 18 36; --surface-950: 5 10 24;
+        --surface-450: 124 139 161; --surface-550: 85 100 122; --surface-850: 12 20 40;
     }
 
     html[data-site-theme="ocean"] {

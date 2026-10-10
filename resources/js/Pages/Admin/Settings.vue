@@ -101,9 +101,9 @@ const activeTab = ref('general');
 const siteThemes = [
     {
         id: 'royal',
-        name: 'العنابي الملكي',
-        description: 'هوية فاخرة بالعنابي والذهبي، مناسبة للطابع الرسمي للمنصة.',
-        colors: ['#7A1C37', '#C5A039', '#faf8f6'],
+        name: 'الكحلي والذهبي (شغل المجد)',
+        description: 'الهوية الرسمية الفاخرة بالأزرق الكحلي والذهبي المميز لبوابة المجد التعليمية.',
+        colors: ['#0A1944', '#D4AF37', '#f8fafc'],
     },
     {
         id: 'ocean',

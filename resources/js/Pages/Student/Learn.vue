@@ -525,13 +525,14 @@ function uploadAnswer(sheetId) {
                             </div>
                         </div>
 
-                        <!-- Dynamic Watermark overlay -->
+                        <!-- Dynamic Watermark overlay (Student Phone & ID protection) -->
                         <div v-if="signedVideoUrl"
-                             class="absolute pointer-events-none select-none z-10 transition-all duration-1000 text-[10px] sm:text-xs font-semibold text-white/10 dark:text-white/10 drop-shadow-sm flex flex-col items-center gap-0.5 bg-black/5 px-2 py-0.5 rounded"
+                             class="absolute pointer-events-none select-none z-10 transition-all duration-1000 text-[11px] sm:text-xs font-bold text-white/30 dark:text-white/25 drop-shadow-md flex flex-col items-center gap-0.5 bg-black/25 backdrop-blur-[1px] px-3 py-1 rounded-xl border border-white/10"
                              :style="watermarkStyle"
                         >
                             <span>{{ $page.props.auth.user?.name }}</span>
-                            <span>{{ $page.props.auth.user?.email }}</span>
+                            <span dir="ltr" class="font-mono text-[10px]">📱 {{ $page.props.auth.user?.phone || ('+974 ' + $page.props.auth.user?.id) }}</span>
+                            <span class="text-[9px] opacity-75 font-mono">ID: #{{ $page.props.auth.user?.id }}</span>
                         </div>
 
                         <!-- Video Player: HTML5 + Plyr for all types (file & youtube_proxy) -->

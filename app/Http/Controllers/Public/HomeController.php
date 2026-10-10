@@ -110,9 +110,15 @@ class HomeController extends Controller
                 ->groupBy('grade_level_id')
                 ->map(fn ($assignments) => $assignments->pluck('teacher_id')->unique()->count());
 
+            $hasCurriculumCol = \Illuminate\Support\Facades\Schema::hasColumn('grade_levels', 'curriculum');
+            $columns = ['id', 'key', 'name', 'name_en', 'stage', 'track'];
+            if ($hasCurriculumCol) {
+                $columns[] = 'curriculum';
+            }
+
             return GradeLevel::where('is_active', true)
                 ->orderBy('id')
-                ->get(['id', 'key', 'name', 'name_en', 'stage', 'track'])
+                ->get($columns)
                 ->map(fn (GradeLevel $grade) => [
                     'id' => $grade->id,
                     'key' => $grade->key,
@@ -122,6 +128,8 @@ class HomeController extends Controller
                     'stage_label' => $grade->stageLabel(),
                     'track' => $grade->track,
                     'track_label' => $grade->trackLabel(),
+                    'curriculum' => $grade->curriculum ?? 'qatari',
+                    'curriculum_label' => $grade->curriculumLabel(),
                     'subjects_count' => (int) ($subjectCounts[$grade->id] ?? 0),
                     'teachers_count' => (int) ($teacherCounts->get($grade->id, 0)),
                 ])

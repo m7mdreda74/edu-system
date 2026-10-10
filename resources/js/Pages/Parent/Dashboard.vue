@@ -468,21 +468,35 @@ function payForRequest(requestId) {
                                         <tr>
                                             <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">الاشتراك</th>
                                             <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">المبلغ</th>
-                                            <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">طريقة التحويل</th>
+                                            <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">طريقة الدفع</th>
                                             <th class="text-start px-6 py-4 font-bold text-surface-700 dark:text-surface-300">التاريخ</th>
+                                            <th class="text-end px-6 py-4 font-bold text-surface-700 dark:text-surface-300">الإيصال</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
                                         <tr v-for="pay in paginatedPayments" :key="pay.id">
-                                            <td class="px-6 py-4 font-bold text-surface-900 dark:text-white">{{ pay.subscription?.assignment?.subject?.name ?? "اشتراك" }}</td>
-                                            <td class="px-6 py-4 font-semibold text-green-600 dark:text-green-400">{{ formatQAR(pay.amount) }}</td>
+                                            <td class="px-6 py-4 font-bold text-surface-900 dark:text-white">{{ pay.subscription?.assignment?.subject?.name ?? "اشتراك أكاديمي" }}</td>
+                                            <td class="px-6 py-4 font-semibold text-green-600 dark:text-green-400 font-mono" dir="ltr">{{ formatQAR(pay.amount) }}</td>
                                             <td class="px-6 py-4 text-surface-500">
-                                                <span v-if="pay.gateway === 'vodafone_cash'">
-                                                    فودافون كاش<span v-if="pay.sender_phone" dir="ltr"> — {{ pay.sender_phone }}</span>
+                                                <span v-if="pay.gateway === 'skipcash'" class="inline-flex items-center gap-1 text-primary-600 dark:text-accent-400 font-medium">
+                                                    <span>SkipCash (Apple Pay / بطاقة)</span>
                                                 </span>
-                                                <span v-else>تحويل سابق</span>
+                                                <span v-else-if="pay.gateway === 'fatora'" class="font-medium">بوابة فاتورة قطر</span>
+                                                <span v-else-if="pay.gateway === 'tap'" class="font-medium">بوابة Tap</span>
+                                                <span v-else-if="pay.gateway === 'manual'" class="font-medium">تحويل بنكي</span>
+                                                <span v-else>{{ pay.gateway ?? 'دفع إلكتروني' }}</span>
                                             </td>
-                                            <td class="px-6 py-4 text-xs text-surface-400">{{ new Date(pay.created_at).toLocaleDateString('ar') }}</td>
+                                            <td class="px-6 py-4 text-xs text-surface-400">{{ new Date(pay.created_at).toLocaleDateString('en-GB') }}</td>
+                                            <td class="px-6 py-4 text-end">
+                                                <a
+                                                    :href="route('payments.invoice', pay.id)"
+                                                    target="_blank"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-300 hover:bg-primary-100 transition-colors"
+                                                >
+                                                    <Icon name="download" class="w-3.5 h-3.5" />
+                                                    <span>إيصال سداد</span>
+                                                </a>
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>

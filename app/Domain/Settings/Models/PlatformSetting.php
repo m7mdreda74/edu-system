@@ -47,16 +47,20 @@ class PlatformSetting extends Model
         });
     }
 
+    public static function clearRuntimeCache(): void
+    {
+        self::$runtimeCache = null;
+        Cache::forget('platform_settings');
+    }
+
     protected static function booted(): void
     {
         static::saved(function () {
-            self::$runtimeCache = null;
-            Cache::forget('platform_settings');
+            self::clearRuntimeCache();
         });
 
         static::deleted(function () {
-            self::$runtimeCache = null;
-            Cache::forget('platform_settings');
+            self::clearRuntimeCache();
         });
     }
 }

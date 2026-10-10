@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import GradeCard from '@/Components/GradeCard.vue';
@@ -8,12 +8,26 @@ const props = defineProps({
     grades: { type: Array, default: () => [] },
 });
 
+const selectedCurriculum = ref('all');
+
+const curriculums = [
+    { key: 'all',      label: 'جميع المناهج' },
+    { key: 'qatari',   label: 'المنهج الوزاري القطري 🇶🇦' },
+    { key: 'british',  label: 'المنهج البريطاني (IGCSE) 🇬🇧' },
+    { key: 'american', label: 'المنهج الأمريكي 🇺🇸' },
+];
+
 const STAGE_ORDER = ['primary', 'preparatory', 'secondary'];
+
+const filteredGrades = computed(() => {
+    if (selectedCurriculum.value === 'all') return props.grades;
+    return props.grades.filter(g => (g.curriculum || 'qatari') === selectedCurriculum.value);
+});
 
 const gradeGroups = computed(() => {
     const byStage = new Map();
 
-    for (const grade of props.grades) {
+    for (const grade of filteredGrades.value) {
         if (!byStage.has(grade.stage)) {
             byStage.set(grade.stage, {
                 stage: grade.stage,
@@ -32,7 +46,7 @@ const gradeGroups = computed(() => {
 </script>
 
 <template>
-    <Head title="كل الصفوف الدراسية" />
+    <Head title="كل الصفوف والمناهج الدراسية" />
 
     <AppLayout>
         <section class="hero-gradient text-white py-12">
@@ -43,13 +57,28 @@ const gradeGroups = computed(() => {
                     <span class="text-white/90">الصفوف الدراسية</span>
                 </nav>
 
-                <h1 class="text-3xl sm:text-4xl font-black mb-3">كل الصفوف الدراسية</h1>
-                <p class="text-white/70 text-sm">اختر صفك الدراسي للوصول إلى المواد والمعلمين المتاحين.</p>
+                <h1 class="text-3xl sm:text-4xl font-black mb-3">الصفوف والمناهج الدراسية</h1>
+                <p class="text-white/70 text-sm">اختر نوع المنهج وصفك الدراسي للوصول إلى نخبة المعلمين والمحتوى التفاعلي.</p>
             </div>
         </section>
 
         <section class="section">
             <div class="container-app">
+                <!-- Curriculum Filter Tabs -->
+                <div class="mb-10 flex flex-wrap items-center gap-2.5 bg-surface-100 dark:bg-surface-800/80 p-1.5 rounded-2xl max-w-2xl border border-surface-200 dark:border-surface-700">
+                    <button
+                        v-for="curr in curriculums"
+                        :key="curr.key"
+                        type="button"
+                        @click="selectedCurriculum = curr.key"
+                        class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                        :class="selectedCurriculum === curr.key
+                            ? 'bg-primary-600 text-white shadow-md'
+                            : 'text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white'"
+                    >
+                        <span>{{ curr.label }}</span>
+                    </button>
+                </div>
                 <div v-if="gradeGroups.length" class="space-y-10">
                     <div v-for="group in gradeGroups" :key="group.stage">
                         <div class="flex items-center justify-between gap-3 mb-4">

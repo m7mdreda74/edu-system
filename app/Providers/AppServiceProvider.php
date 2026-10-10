@@ -33,6 +33,17 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(PaymentService::class);
 
+        $this->app->singleton(\App\Infrastructure\Payment\PaymentGatewayInterface::class, function () {
+            $gateway = config('services.payment.gateway', 'skipcash');
+            return match ($gateway) {
+                'skipcash' => new \App\Infrastructure\Payment\Gateways\SkipCashGateway(),
+                'fatora'   => new \App\Infrastructure\Payment\Gateways\FatoraGateway(),
+                'stripe'   => new \App\Infrastructure\Payment\Gateways\StripeGateway(),
+                'tap'      => new \App\Infrastructure\Payment\Gateways\TapGateway(),
+                default    => new \App\Infrastructure\Payment\Gateways\SkipCashGateway(),
+            };
+        });
+
         $this->app->singleton(VideoProviderInterface::class, CloudflareStreamVideoProvider::class);
     }
 

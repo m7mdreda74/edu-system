@@ -24,6 +24,10 @@ class GradeLevel extends Model
 {
     use HasFactory;
 
+    public const CURRICULUM_QATARI   = 'qatari';
+    public const CURRICULUM_BRITISH  = 'british';
+    public const CURRICULUM_AMERICAN = 'american';
+
     public const TRACK_SCIENCE    = 'science';
     public const TRACK_ARTS       = 'arts';
     public const TRACK_TECHNOLOGY = 'technology';
@@ -44,6 +48,7 @@ class GradeLevel extends Model
         'name',
         'name_en',
         'stage',
+        'curriculum',
         'track',
         'is_active',
         'vodafone_cash_number',
@@ -104,6 +109,15 @@ class GradeLevel extends Model
             self::STAGE_PREPARATORY => 'المرحلة الإعدادية',
             self::STAGE_SECONDARY   => 'المرحلة الثانوية',
             default                 => 'عام',
+        };
+    }
+
+    public function curriculumLabel(): string
+    {
+        return match ($this->curriculum ?? self::CURRICULUM_QATARI) {
+            self::CURRICULUM_BRITISH  => 'المنهج البريطاني (IGCSE / AS / A-Level)',
+            self::CURRICULUM_AMERICAN => 'المنهج الأمريكي (American Diploma / AP)',
+            default                   => 'المنهج الوزاري القطري',
         };
     }
 }
