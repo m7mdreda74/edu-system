@@ -28,6 +28,10 @@ Branch: `feature/lms-dashboard-v2`
 
 `TeacherGradebookService` reads only assignments owned by the authenticated teacher, merges submitted homework/paper exams with the latest submitted attempt per student and quiz, and returns derived totals. It does not create or mutate grades; the existing worksheet grading and quiz scoring services remain the mutation authorities.
 
+### Parent monitoring
+
+`ParentDashboardController` first scopes the selected child to a non-null `verified_at` link. Its read-only homework panel then reuses `StudentAssignmentService` for active-subscription/published-homework statuses. Parent booking, payment, and communication mutations remain separate controller/service paths, and no parent route submits work as the child.
+
 ## Authorization surfaces
 
 - Student parent-link actions scope the link by `student_user_id` before mutation.

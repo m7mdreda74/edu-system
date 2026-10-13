@@ -18,8 +18,8 @@ use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
-use App\Domain\Subscription\Models\Subscription;
 use App\Domain\Subscription\Models\PurchaseRequest;
+use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use App\Notifications\GenericDatabaseNotification;
@@ -219,6 +219,38 @@ it('shows a linked parent attendance, assessment, quiz and payment-ready dashboa
             ->has('selectedStudent.eligibleGroups')
             ->has('selectedStudent.freeIntroSlots')
             ->has('selectedStudent.privateAssignments'));
+});
+
+it('shows linked parents active homework status without exposing a student submission action', function (): void {
+    $term = AcademicTerm::currentOrNext() ?? AcademicTerm::firstOrFail();
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $term->id,
+        'is_published' => true,
+    ]);
+    Worksheet::create([
+        'curriculum_unit_id' => $unit->id,
+        'title' => 'واجب متأخر للمتابعة',
+        'file_path' => '/storage/homework-late.pdf',
+        'type' => Worksheet::TYPE_HOMEWORK,
+        'requires_submission' => true,
+        'due_date' => today()->subDay(),
+        'max_score' => 20,
+    ]);
+    Subscription::factory()->active()->create([
+        'student_id' => $this->student->id,
+        'teaching_assignment_id' => $this->assignment->id,
+        'teaching_group_id' => $this->group->id,
+    ]);
+
+    $this->actingAs($this->parent)
+        ->get(route('parent.dashboard', ['student_id' => $this->student->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('selectedStudent.assignmentSummary.late', 1)
+            ->where('selectedStudent.assignments.0.status', 'late')
+            ->where('selectedStudent.assignments.0.submission', null)
+            ->has('selectedStudent.assignments', 1));
 });
 
 it('lets a linked parent reserve a group, pay through checkout, and book a free intro for the student', function (): void {

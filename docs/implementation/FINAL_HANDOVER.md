@@ -13,6 +13,7 @@ Base commit: `08bc29c`
 - Student Assignment Center with active-subscription/published-homework scoping, actual submission/grade metadata, protected file links, status filters, and empty state.
 - Teacher pending-grading dashboard metric scoped to the teacher's own assignments.
 - Teacher read-only Gradebook combining submitted homework/paper exams and the latest submitted quiz attempt per student, with teacher ownership filtering.
+- Parent read-only homework monitoring for verified children, including pending/late/in-progress/submitted/graded statuses derived from active subscriptions.
 - Direct Assignment Center navigation from the student dashboard.
 - Additive lifecycle migration and implementation documentation.
 
@@ -22,7 +23,7 @@ Existing subscription/access rules, protected file controller, Learn submission 
 
 ## Deferred
 
-Gradebook export/large-dataset pagination, question bank, assessment center, parent weekly reports, advanced analytics/alerts, browser E2E, and full shared-component extraction require separate checkpoints and additional business-rule verification. Existing worksheet grading remains the mutation workflow; the new Gradebook is read-only.
+Gradebook export/large-dataset pagination, question bank, assessment center, parent weekly reports, advanced analytics/alerts, browser E2E, and full shared-component extraction require separate checkpoints and additional business-rule verification. Existing worksheet grading remains the mutation workflow; the new Gradebook and parent homework panel are read-only.
 
 ## Changed areas
 

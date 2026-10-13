@@ -28,8 +28,15 @@
 3. Build a teacher-scoped read-only aggregate gradebook over submitted homework and the latest submitted quiz attempt, with explicit missing-submission semantics.
 4. Keep question-bank reuse, manual quiz feedback, export, and large-dataset pagination as follow-up work.
 
-## P4-P6 - Parent monitoring, advanced features, release
+## P4 - Parent monitoring (partial checkpoint)
 
-These phases remain gated on the P0/P1/P2 tests and isolated MySQL verification. Announcements, external push/SMS, gamification, AI, and new infrastructure are deferred unless the repository proves a safe existing integration point.
+1. Keep child selection strictly scoped to verified `parent_student_links`.
+2. Reuse the student's active-subscription assignment status calculation for parent read-only homework monitoring.
+3. Preserve parent booking/payment actions separately from academic monitoring; never add a parent-as-student submission path.
+4. Defer weekly reports, trend analytics, and configurable alerts until their data formulas and notification policy are specified.
+
+## P5-P6 - Advanced features and release
+
+These phases remain gated on the P0-P4 tests and isolated MySQL verification. Announcements, external push/SMS, gamification, AI, and new infrastructure are deferred unless the repository proves a safe existing integration point.
 
 Every phase ends with focused tests, regression tests, a frontend build, documentation, and a small reviewable checkpoint. Production remains explicitly out of scope.

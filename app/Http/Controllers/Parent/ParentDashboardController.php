@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Parent;
 
+use App\Application\Learning\Services\StudentAssignmentService;
 use App\Application\Scheduling\Services\SessionBookingService;
 use App\Application\Subscription\Services\SubscriptionService;
 use App\Application\User\Services\ParentStudentLinkService;
@@ -31,7 +32,7 @@ use Inertia\Response;
 
 class ParentDashboardController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, StudentAssignmentService $studentAssignments): Response
     {
         $parent = Auth::user();
 
@@ -283,6 +284,8 @@ class ParentDashboardController extends Controller
                     ];
                 })->values();
 
+            $assignmentCenter = $studentAssignments->forStudent($student);
+
             $studentData = [
                 'student' => $student->only(['id', 'name', 'email', 'grade_level']),
                 'subscriptions' => $subscriptions->map(fn (Subscription $s) => [
@@ -311,6 +314,8 @@ class ParentDashboardController extends Controller
                     ->limit(100)
                     ->get(),
                 'quizAttempts' => $quizAttempts,
+                'assignments' => $assignmentCenter['items'],
+                'assignmentSummary' => $assignmentCenter['summary'],
                 'attendance' => $attendance,
                 'attendanceSummary' => [
                     'total' => $attendance->count(),

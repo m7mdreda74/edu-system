@@ -12,6 +12,7 @@
 - Added a student Assignment Center backed by active subscriptions, published homework, lesson progress, and real submissions.
 - Added direct student-dashboard navigation to the Assignment Center.
 - Added a teacher-scoped read-only Gradebook that combines submitted homework with each student's latest submitted quiz attempt, without double-counting attempts or treating missing work as zero.
+- Added parent read-only homework monitoring for verified children, reusing active-subscription assignment statuses without exposing a student submission action.
 - Focused tests and the production frontend build pass for the new slices.
 
 ## Deferred until a separate P3/P4 checkpoint

@@ -70,6 +70,31 @@ function subscriptionStatusLabel(subscription) {
     return 'منتهي';
 }
 
+const assignmentStatusLabels = {
+    pending: 'مطلوب',
+    in_progress: 'قيد التنفيذ',
+    submitted: 'تم التسليم',
+    late: 'متأخر',
+    graded: 'تم التصحيح',
+};
+
+const assignmentStatusClasses = {
+    pending: 'badge-gray',
+    in_progress: 'badge-primary',
+    submitted: 'badge-accent',
+    late: 'badge-red',
+    graded: 'badge-green',
+};
+
+function assignmentDate(value) {
+    if (!value) return 'بدون موعد نهائي';
+    return new Date(`${value}T00:00:00`).toLocaleDateString('ar-QA', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    });
+}
+
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 function studentId() {
@@ -286,7 +311,7 @@ function payForRequest(requestId) {
                             </div>
                         </div>
 
-                        <div class="grid md:grid-cols-3 gap-4">
+                        <div class="grid md:grid-cols-4 gap-4">
                             <div class="card p-5">
                                 <p class="text-xs text-surface-500">نسبة الحضور</p>
                                 <p class="text-3xl font-black text-primary-600 mt-2">{{ selectedStudent.attendanceSummary.rate }}%</p>
@@ -301,6 +326,13 @@ function payForRequest(requestId) {
                                 <p class="text-xs text-surface-500">الاختبارات</p>
                                 <p class="text-3xl font-black text-accent-600 mt-2">{{ selectedStudent.quizAttempts.length }}</p>
                                 <p class="text-xs text-surface-400 mt-1">محاولة مسجلة</p>
+                            </div>
+                            <div class="card p-5">
+                                <p class="text-xs text-surface-500">الواجبات النشطة</p>
+                                <p class="text-3xl font-black text-amber-600 mt-2">
+                                    {{ (selectedStudent.assignmentSummary?.pending ?? 0) + (selectedStudent.assignmentSummary?.in_progress ?? 0) + (selectedStudent.assignmentSummary?.late ?? 0) }}
+                                </p>
+                                <p class="text-xs text-surface-400 mt-1">تحتاج متابعة</p>
                             </div>
                         </div>
 
@@ -406,6 +438,45 @@ function payForRequest(requestId) {
                             </div>
                             <p v-if="!selectedStudent.attendance.length" class="text-sm text-surface-500 text-center py-4">لا يوجد سجل حصص منتهية حتى الآن.</p>
                             <DataTablePagination :paginator="attendancePagination" item-label="حصة" @page-change="setAttendancePage" />
+                        </div>
+
+                        <!-- Homework monitoring: read-only for the parent -->
+                        <div class="card p-6">
+                            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                                <div>
+                                    <h3 class="text-lg font-bold text-surface-900 dark:text-white">متابعة الواجبات</h3>
+                                    <p class="text-xs text-surface-500 mt-1">حالة الواجبات المرتبطة بالاشتراكات الفعّالة للطالب.</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2 text-[11px] text-surface-500">
+                                    <span>مطلوب: {{ selectedStudent.assignmentSummary?.pending ?? 0 }}</span>
+                                    <span>متأخر: {{ selectedStudent.assignmentSummary?.late ?? 0 }}</span>
+                                    <span>مصحح: {{ selectedStudent.assignmentSummary?.graded ?? 0 }}</span>
+                                </div>
+                            </div>
+                            <div v-if="selectedStudent.assignments?.length" class="space-y-3">
+                                <div v-for="assignment in selectedStudent.assignments" :key="assignment.id" class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div class="min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <p class="font-bold text-surface-900 dark:text-white">{{ assignment.title }}</p>
+                                                <span :class="assignmentStatusClasses[assignment.status]" class="text-[10px]">{{ assignmentStatusLabels[assignment.status] }}</span>
+                                            </div>
+                                            <p class="text-xs text-surface-500 mt-1">{{ assignment.subject?.name }} · {{ assignment.teacher?.name }}</p>
+                                            <p class="text-xs mt-2" :class="assignment.is_late ? 'font-bold text-red-500' : 'text-surface-500'">
+                                                التسليم: {{ assignmentDate(assignment.due_date) }}
+                                            </p>
+                                        </div>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <span v-if="assignment.submission?.score !== null && assignment.submission?.score !== undefined" class="font-black text-green-600">
+                                                {{ assignment.submission.score }} / {{ assignment.max_score ?? '—' }}
+                                            </span>
+                                            <a v-if="assignment.worksheet_file" :href="assignment.worksheet_file" target="_blank" rel="noopener" class="btn-outline btn-sm">عرض الواجب</a>
+                                        </div>
+                                    </div>
+                                    <p v-if="assignment.submission?.teacher_feedback" class="text-sm text-surface-600 dark:text-surface-300 mt-3">ملاحظات المدرس: {{ assignment.submission.teacher_feedback }}</p>
+                                </div>
+                            </div>
+                            <p v-else class="text-sm text-surface-500 text-center py-4">لا توجد واجبات منشورة مرتبطة باشتراكات فعّالة.</p>
                         </div>
 
                         <!-- Quiz results -->
