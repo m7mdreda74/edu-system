@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Scheduling\Models;
 
 use App\Domain\Academic\Models\AcademicTerm;
+use App\Domain\Communication\Models\GroupAnnouncement;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\Worksheet;
@@ -94,6 +95,11 @@ class TeachingGroup extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    public function announcements(): HasMany
+    {
+        return $this->hasMany(GroupAnnouncement::class, 'teaching_group_id');
     }
 
     /**

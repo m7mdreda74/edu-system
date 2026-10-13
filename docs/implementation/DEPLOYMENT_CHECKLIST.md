@@ -4,9 +4,9 @@ Status: **NOT READY — BLOCKERS REMAIN**
 
 ## Before staging
 
-- Review the feature branch diff and the additive parent-link migration.
+- Review the feature branch diff and both additive migrations: parent-link lifecycle and group announcements.
 - Confirm backup/restore availability for `parent_student_links`.
-- Apply the migration only through the approved staging/deployment process; do not run production migrations from this workspace.
+- Apply both migrations only through the approved staging/deployment process; do not run production migrations from this workspace.
 - Clear/cache Laravel configuration and routes according to the host release process.
 - Build and publish the matching Vite manifest/assets.
 - Confirm Vercel Blob private-store/OIDC settings for existing curriculum uploads; verify private upload and retrieval after redeploy.
@@ -19,6 +19,9 @@ Status: **NOT READY — BLOCKERS REMAIN**
 - Student submits through the existing Learn flow; teacher grades through existing Worksheets; student and verified parent see released feedback.
 - Teacher sees pending grading count scoped to owned assignments.
 - Teacher opens the Gradebook, filters only their own assignment, sees submitted homework and latest quiz attempts, and does not see missing submissions as zeroes.
+- Teacher opens Group Announcements, can select only an owned active group, publishes a real message, and sees it in the history.
+- An active subscribed student receives the announcement in the dashboard and notification bell; an expired/non-subscribed student does not.
+- A verified linked parent receives the relevant notification; an unverified or revoked link does not.
 - Exercise existing login, booking, subscription, payment, live room, recorded lesson, protected file, and renewal flows.
 
 ## Release gates

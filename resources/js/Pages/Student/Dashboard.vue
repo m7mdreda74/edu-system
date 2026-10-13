@@ -11,6 +11,7 @@ const props = defineProps({
     pendingPayments:     { type: Array, default: () => [] },
     pendingParentLinks:  { type: Array, default: () => [] },
     continueLearning:    { type: Object, default: null },
+    announcements:       { type: Array, default: () => [] },
     stats:               { type: Object, default: () => ({}) },
 });
 
@@ -81,6 +82,28 @@ function formatDateTime(value) {
                     <Link :href="route('student.learn', { groupId: continueLearning.group_id })" class="btn-primary btn-sm shrink-0">
                         {{ continueLearning.watched_seconds > 0 ? 'استكمل الدرس' : 'ابدأ الدرس' }}
                     </Link>
+                </div>
+            </section>
+
+            <section v-if="announcements.length">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <h2 class="flex items-center gap-2 text-sm font-black text-surface-800 dark:text-surface-100">
+                        <Icon name="bell" class="h-4 w-4 text-primary-500" />
+                        إعلانات معلميك
+                    </h2>
+                    <span class="text-xs text-surface-400">آخر 20 إعلاناً</span>
+                </div>
+                <div class="card divide-y divide-surface-100 dark:divide-surface-800">
+                    <article v-for="announcement in announcements" :key="announcement.id" class="p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-black text-surface-900 dark:text-white">{{ announcement.title }}</h3>
+                                <p class="mt-1 text-[11px] text-surface-400">{{ announcement.group?.name }}</p>
+                            </div>
+                            <time class="shrink-0 text-[11px] text-surface-400">{{ new Date(announcement.published_at).toLocaleDateString('ar-QA') }}</time>
+                        </div>
+                        <p class="mt-3 whitespace-pre-line text-sm leading-7 text-surface-600 dark:text-surface-300">{{ announcement.body }}</p>
+                    </article>
                 </div>
             </section>
 

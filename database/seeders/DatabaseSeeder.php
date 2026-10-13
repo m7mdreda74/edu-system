@@ -40,7 +40,7 @@ class DatabaseSeeder extends Seeder
         'coupons', 'payments', 'invoices', 'teacher_payouts', 'payment_audit_logs',
         'reviews', 'conversations', 'conversation_participants', 'chat_messages',
         'live_sessions', 'live_session_attendees', 'live_session_apologies', 'live_session_reminders',
-        'parent_student_links', 'purchase_requests', 'private_lesson_requests', 'notifications',
+        'parent_student_links', 'purchase_requests', 'private_lesson_requests', 'group_announcements', 'notifications',
         'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'roles', 'permissions',
         'lesson_videos', 'lesson_video_webhook_events', 'audit_events',
     ];

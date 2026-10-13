@@ -91,6 +91,10 @@ function autoScheduleGroup(groupId) {
                         <Icon name="chart" class="w-4 h-4" />
                         <span>سجل الدرجات</span>
                     </Link>
+                    <Link :href="route('teacher.announcements')" class="btn-ghost btn-sm flex items-center gap-2">
+                        <Icon name="bell" class="w-4 h-4" />
+                        <span>إعلانات المجموعات</span>
+                    </Link>
                 </div>
             </header>
 

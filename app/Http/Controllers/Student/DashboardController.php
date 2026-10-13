@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
+use App\Application\Communication\Services\GroupAnnouncementService;
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
-use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\LessonProgress;
+use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\ParentStudentLink;
@@ -22,7 +23,7 @@ class DashboardController extends Controller
     /** Renewal reminders start this many days before a subscription lapses. */
     private const EXPIRY_WARNING_DAYS = 7;
 
-    public function index(): Response
+    public function index(GroupAnnouncementService $announcements): Response
     {
         $user = Auth::user();
 
@@ -108,6 +109,7 @@ class DashboardController extends Controller
             'pendingPayments' => $pendingPayments,
             'pendingParentLinks' => $pendingParentLinks,
             'continueLearning' => $continueLearning,
+            'announcements' => $announcements->forStudent($user),
 
             'stats' => [
                 'activeSubscriptions' => $active->count(),

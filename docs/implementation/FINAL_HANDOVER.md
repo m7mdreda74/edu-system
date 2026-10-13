@@ -23,7 +23,7 @@ Existing subscription/access rules, protected file controller, Learn submission 
 
 ## Deferred
 
-Gradebook export/large-dataset pagination, question bank, assessment center, parent weekly reports, advanced analytics/alerts, browser E2E, and full shared-component extraction require separate checkpoints and additional business-rule verification. Existing worksheet grading remains the mutation workflow; the new Gradebook and parent homework panel are read-only.
+Gradebook export/large-dataset pagination, question bank, assessment center, parent weekly reports, advanced analytics/alerts, external push/SMS, announcement editing/export, browser E2E, and full shared-component extraction require separate checkpoints and additional business-rule verification. Existing worksheet grading remains the mutation workflow; parent homework monitoring remains read-only.
 
 ## Changed areas
 
@@ -35,12 +35,13 @@ Gradebook export/large-dataset pagination, question bank, assessment center, par
 
 - New route: `GET /teacher/gradebook` (`teacher.gradebook`).
 - New application service/controller/page: `TeacherGradebookService`, `Teacher/GradebookController`, and `Teacher/Gradebook.vue`.
-- No new schema migration was required for the read-only Gradebook. The earlier parent-link migration `2026_10_13_000100_add_parent_student_link_lifecycle` remains Pending until controlled release.
+- New announcement service/controller/page: `GroupAnnouncementService`, `Teacher/AnnouncementController`, and `Teacher/Announcements.vue`; student dashboard history is read-only.
+- New additive migration: `2026_10_13_000200_create_group_announcements_table`. The earlier parent-link migration `2026_10_13_000100_add_parent_student_link_lifecycle` remains Pending until controlled release.
 
 ## Verification
 
 - Focused parent-link, student dashboard, and assignment tests pass.
-- Vite production build passes with 900 modules transformed.
+- Vite production build passes with 902 modules transformed.
 - PHP syntax and diff checks pass.
 - Full suite still contains baseline/environmental failures; see `TEST_RESULTS.md` and `REGRESSION_REPORT.md`.
 - Local MySQL reports the new migration Pending; no migration or deployment was run.
@@ -48,3 +49,4 @@ Gradebook export/large-dataset pagination, question bank, assessment center, par
 ## Production decision
 
 Do not deploy yet. Apply the migration only after review, rerun the full suite, verify isolated MySQL and browser journeys, resolve or accept baseline failures, and obtain explicit staging/production authorization.
+- Teacher-owned group announcements with persistent records, student dashboard history, active-student notifications, and verified-parent notifications.

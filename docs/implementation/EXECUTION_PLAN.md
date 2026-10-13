@@ -35,8 +35,16 @@
 3. Preserve parent booking/payment actions separately from academic monitoring; never add a parent-as-student submission path.
 4. Defer weekly reports, trend analytics, and configurable alerts until their data formulas and notification policy are specified.
 
-## P5-P6 - Advanced features and release
+## P5 - Scoped group announcements (completed locally)
 
-These phases remain gated on the P0-P4 tests and isolated MySQL verification. Announcements, external push/SMS, gamification, AI, and new infrastructure are deferred unless the repository proves a safe existing integration point.
+1. Add durable announcements owned by a teacher and attached to an active teaching group.
+2. Notify only students with an active subscription to that group.
+3. Notify only parents with a verified link to an eligible student; keep notification links behind the existing authorization boundaries.
+4. Add teacher publish/history UI and student dashboard history using real records.
+5. Cover ownership, recipient scoping, persistent records, and the existing dashboard regression path with focused tests.
+
+## P6 - Release hardening and deferred advanced features
+
+External push/SMS, gamification, AI, question-bank reuse, assessment-center work, announcement editing/export, weekly reports, and deeper analytics remain deferred until their business rules and infrastructure are approved.
 
 Every phase ends with focused tests, regression tests, a frontend build, documentation, and a small reviewable checkpoint. Production remains explicitly out of scope.
