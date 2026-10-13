@@ -37,6 +37,7 @@ use App\Http\Controllers\Public\TeacherDirectoryController;
 use App\Http\Controllers\Public\TeacherProfileController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Student\CertificateController;
+use App\Http\Controllers\Student\AssignmentController;
 use App\Http\Controllers\Student\DashboardController;
 use App\Http\Controllers\Student\FreeIntroSessionController as StudentFreeIntroSessionController;
 use App\Http\Controllers\Student\LearnController;
@@ -171,6 +172,14 @@ Route::middleware(['auth', 'active'])->group(function () {
 // ─── Student Routes ────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'active', 'verified', 'role:student'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/parent-links/{linkId}/approve', [\App\Http\Controllers\Student\ParentStudentLinkController::class, 'approve'])
+        ->name('student.parent-links.approve')
+        ->whereNumber('linkId')
+        ->middleware('throttle:10,1');
+    Route::post('/parent-links/{linkId}/reject', [\App\Http\Controllers\Student\ParentStudentLinkController::class, 'reject'])
+        ->name('student.parent-links.reject')
+        ->whereNumber('linkId')
+        ->middleware('throttle:10,1');
 
     // The student's own grade: every subject on their curriculum and its teachers
     Route::get('/my-grade', [MyGradeController::class, 'index'])->name('student.my-grade');
@@ -179,6 +188,7 @@ Route::middleware(['auth', 'active', 'verified', 'role:student'])->group(functio
 
     // Group/private subscriptions, plus the legacy agreement request for private tuition.
     Route::get('/my-classes', [SubscriptionController::class, 'index'])->name('student.my-classes');
+    Route::get('/my-assignments', [AssignmentController::class, 'index'])->name('student.assignments');
     Route::post('/subscribe/group/{groupId}', [SubscriptionController::class, 'subscribeToGroup'])->name('student.subscribe.group')->middleware('throttle:15,1');
     Route::post('/subscribe/private/{assignmentId}', [SubscriptionController::class, 'subscribeToPrivate'])->name('student.subscribe.private')->middleware('throttle:15,1');
     Route::post('/private-lesson-requests/{assignmentId}', [PrivateLessonRequestController::class, 'store'])

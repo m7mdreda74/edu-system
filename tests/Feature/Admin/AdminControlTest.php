@@ -379,6 +379,7 @@ it('keeps the teacher dashboard academic only', function () {
             ->component('Teacher/Dashboard')
             ->has('stats.assignments')
             ->has('stats.lessons')
+            ->has('stats.pending_grading')
             ->missing('stats.total_revenue')
             ->missing('recentSubscriptions'));
 });

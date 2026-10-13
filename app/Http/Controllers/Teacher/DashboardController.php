@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Teacher;
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\WorksheetSubmission;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Scheduling\Models\TeachingGroupSchedule;
@@ -51,6 +52,10 @@ class DashboardController extends Controller
 
         $assignmentIds = $assignments->pluck('id');
         $materialCounts = GroupMaterial::countsByAssignment($assignmentIds);
+        $pendingGradingCount = WorksheetSubmission::query()
+            ->whereNull('graded_at')
+            ->whereHas('worksheet.unit.assignment', fn ($query) => $query->where('teacher_id', $teacherId))
+            ->count();
 
         $formattedAssignments = $assignments->map(function (TeachingAssignment $assignment) use ($materialCounts) {
             $stageKey = (string) ($assignment->gradeLevel?->stage ?? '');
@@ -170,6 +175,7 @@ class DashboardController extends Controller
                 'active_students' => $teacher->activeStudentsCount(),
                 'lessons' => collect($materialCounts)->sum(),
                 'upcoming_sessions_count' => $upcomingSessions->count(),
+                'pending_grading' => $pendingGradingCount,
             ],
             'assignments' => $formattedAssignments,
             'groups' => $allGroups,

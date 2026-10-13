@@ -91,13 +91,14 @@ function autoScheduleGroup(groupId) {
             </header>
 
             <!-- ── Stat Cards ──────────────────────────────────────── -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <div
                     v-for="stat in [
                         { label: 'المواد والصفوف المسندة', value: stats.assignments,     icon: 'courses', color: 'primary' },
                         { label: 'مجموعات التدريس',        value: stats.total_groups,    icon: 'users',   color: 'accent' },
                         { label: 'الطلاب المشتركون',       value: stats.active_students, icon: 'student', color: 'primary' },
                         { label: 'الدروس والمواد المنشورة', value: stats.lessons,         icon: 'book',    color: 'accent' },
+                        { label: 'واجبات بانتظار التصحيح', value: stats.pending_grading, icon: 'edit',    color: 'accent' },
                     ]"
                     :key="stat.label"
                     class="card p-5 hover:shadow-lg transition-shadow duration-300"
@@ -317,6 +318,12 @@ function autoScheduleGroup(groupId) {
                                                 class="btn-ghost btn-sm text-[11px]"
                                             >
                                                 الخطة
+                                            </Link>
+                                            <Link
+                                                :href="route('teacher.worksheets.index', { groupId: group.id })"
+                                                class="btn-ghost btn-sm text-[11px]"
+                                            >
+                                                الواجبات والتصحيح
                                             </Link>
                                         </div>
                                     </div>

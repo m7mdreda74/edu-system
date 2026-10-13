@@ -1,16 +1,24 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import { formatQAR } from '@/lib/money';
 
-defineProps({
+const props = defineProps({
     activeSubscriptions: { type: Array, default: () => [] },
     expiringSoon:        { type: Array, default: () => [] },
     upcomingSessions:    { type: Array, default: () => [] },
     pendingPayments:     { type: Array, default: () => [] },
+    pendingParentLinks:  { type: Array, default: () => [] },
+    continueLearning:    { type: Object, default: null },
     stats:               { type: Object, default: () => ({}) },
 });
+
+function respondToParentLink(linkId, action) {
+    router.post(route(`student.parent-links.${action}`, { linkId }), {}, {
+        preserveScroll: true,
+    });
+}
 
 function formatDateTime(value) {
     if (!value) return '';
@@ -29,10 +37,52 @@ function formatDateTime(value) {
 
     <DashboardLayout>
         <div class="space-y-8">
-            <header>
-                <h1 class="text-2xl font-black text-surface-900 dark:text-white">لوحة الطالب</h1>
-                <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">نظرة سريعة على دراستك</p>
+            <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h1 class="text-2xl font-black text-surface-900 dark:text-white">لوحة الطالب</h1>
+                    <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">نظرة سريعة على دراستك</p>
+                </div>
+                <Link :href="route('student.assignments')" class="btn-outline btn-sm self-start sm:self-auto">
+                    مركز واجباتي
+                </Link>
             </header>
+
+            <section v-if="props.pendingParentLinks.length" class="card p-5 border-amber-300 dark:border-amber-900 bg-amber-500/5">
+                <div class="flex items-center gap-2 font-bold text-surface-900 dark:text-white">
+                    <Icon name="users" class="w-5 h-5 text-amber-500" />
+                    طلبات ربط حسابات أولياء الأمور
+                </div>
+                <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                    لا يحصل ولي الأمر على بياناتك أو صلاحيات الحجز والدفع قبل موافقتك.
+                </p>
+                <div class="mt-4 space-y-3">
+                    <div v-for="link in props.pendingParentLinks" :key="link.id" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-surface-200 dark:border-surface-700 p-3">
+                        <div>
+                            <p class="text-sm font-bold text-surface-900 dark:text-white">{{ link.parent?.name }}</p>
+                            <p class="text-xs text-surface-500">يريد ربط حسابه بحسابك كـ {{ link.relationship === 'father' ? 'أب' : (link.relationship === 'mother' ? 'أم' : 'ولي أمر') }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" class="btn-primary btn-sm" @click="respondToParentLink(link.id, 'approve')">موافقة</button>
+                            <button type="button" class="btn-outline btn-sm text-red-500 border-red-200" @click="respondToParentLink(link.id, 'reject')">رفض</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section v-if="continueLearning" class="card p-5 border-primary-200 dark:border-primary-900/60 bg-primary-500/5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-primary-600 dark:text-primary-400">متابعة التعلم</p>
+                        <h2 class="mt-1 text-lg font-black text-surface-900 dark:text-white truncate">{{ continueLearning.lesson_title }}</h2>
+                        <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                            {{ continueLearning.subject?.name }} — {{ continueLearning.teacher?.name }} · {{ continueLearning.group_name }}
+                        </p>
+                    </div>
+                    <Link :href="route('student.learn', { groupId: continueLearning.group_id })" class="btn-primary btn-sm shrink-0">
+                        {{ continueLearning.watched_seconds > 0 ? 'استكمل الدرس' : 'ابدأ الدرس' }}
+                    </Link>
+                </div>
+            </section>
 
             <!-- Stats -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">

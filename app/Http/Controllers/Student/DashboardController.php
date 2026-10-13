@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
+use App\Domain\Academic\Models\AcademicTerm;
+use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\LessonProgress;
 use App\Domain\Payment\Models\Payment;
 use App\Domain\Subscription\Models\Subscription;
+use App\Domain\User\Models\ParentStudentLink;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -51,6 +56,25 @@ class DashboardController extends Controller
             ->where('status', Payment::STATUS_PENDING_VERIFICATION)
             ->get();
 
+        $pendingParentLinks = ParentStudentLink::query()
+            ->where('student_user_id', $user->id)
+            ->whereNull('verified_at')
+            ->where('status', ParentStudentLink::STATUS_PENDING)
+            ->where(function ($query): void {
+                $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->with('parent:id,name')
+            ->latest()
+            ->get()
+            ->map(fn (ParentStudentLink $link): array => [
+                'id' => $link->id,
+                'relationship' => $link->relationship,
+                'parent' => $link->parent?->only(['id', 'name']),
+                'expires_at' => $link->expires_at?->toIso8601String(),
+            ])->values();
+
+        $continueLearning = $this->continueLearning($user, $active);
+
         return Inertia::render('Student/Dashboard', [
             'activeSubscriptions' => $active->map(fn (Subscription $s) => [
                 'id' => $s->id,
@@ -82,6 +106,8 @@ class DashboardController extends Controller
                 'group' => $session->teachingGroup?->only(['id', 'name']),
             ]),
             'pendingPayments' => $pendingPayments,
+            'pendingParentLinks' => $pendingParentLinks,
+            'continueLearning' => $continueLearning,
 
             'stats' => [
                 'activeSubscriptions' => $active->count(),
@@ -90,5 +116,73 @@ class DashboardController extends Controller
                 'upcomingSessions' => $upcomingSessions->count(),
             ],
         ]);
+    }
+
+    /**
+     * Return the first incomplete, published lesson in an active group.
+     * Playback position is included only when an actual progress row exists;
+     * the dashboard links to the lesson-level study room rather than claiming
+     * to support precise cross-device video resume.
+     *
+     * @param  Collection<int, Subscription>  $activeSubscriptions
+     * @return array<string, mixed>|null
+     */
+    private function continueLearning($student, Collection $activeSubscriptions): ?array
+    {
+        $groupSubscriptions = $activeSubscriptions
+            ->filter(fn (Subscription $subscription) => $subscription->group !== null)
+            ->unique('teaching_assignment_id')
+            ->values();
+
+        if ($groupSubscriptions->isEmpty()) {
+            return null;
+        }
+
+        $term = AcademicTerm::currentOrNext();
+
+        if ($term === null) {
+            return null;
+        }
+
+        $assignmentIds = $groupSubscriptions->pluck('teaching_assignment_id')->filter()->unique();
+        $units = CurriculumUnit::query()
+            ->whereIn('teaching_assignment_id', $assignmentIds)
+            ->where('academic_term_id', $term->id)
+            ->where('is_published', true)
+            ->with(['lessons' => fn ($query) => $query->orderBy('order')])
+            ->orderBy('order')
+            ->get()
+            ->groupBy('teaching_assignment_id');
+
+        $lessons = $units->flatten(1)->flatMap(fn (CurriculumUnit $unit) => $unit->lessons);
+        $progress = LessonProgress::query()
+            ->where('student_id', $student->id)
+            ->whereIn('lesson_id', $lessons->pluck('id'))
+            ->get()
+            ->keyBy('lesson_id');
+
+        foreach ($groupSubscriptions as $subscription) {
+            foreach ($units->get($subscription->teaching_assignment_id, collect()) as $unit) {
+                foreach ($unit->lessons as $lesson) {
+                    $seen = $progress->get($lesson->id);
+
+                    if ($seen?->is_completed) {
+                        continue;
+                    }
+
+                    return [
+                        'group_id' => $subscription->group->id,
+                        'group_name' => $subscription->group->name,
+                        'lesson_id' => $lesson->id,
+                        'lesson_title' => $lesson->title,
+                        'watched_seconds' => (int) ($seen?->watched_seconds ?? 0),
+                        'subject' => $subscription->assignment?->subject?->only(['id', 'name']),
+                        'teacher' => $subscription->assignment?->teacher?->only(['id', 'name']),
+                    ];
+                }
+            }
+        }
+
+        return null;
     }
 }
