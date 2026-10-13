@@ -80,6 +80,15 @@ class LiveSessionReminderService
                 return false;
             }
 
+            // AcademicAlertService may have delivered the same class alert to
+            // this student already. Keep the durable reminder marker, but do
+            // not create a second database notification.
+            if ($student->notifications()
+                ->where('data->alert_key', AcademicAlertService::upcomingClassAlertKey($session->id, $student->id))
+                ->exists()) {
+                return false;
+            }
+
             $student->notify(new LiveSessionReminderNotification($session));
 
             return true;

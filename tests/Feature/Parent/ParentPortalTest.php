@@ -8,6 +8,8 @@ use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Communication\Models\Conversation;
+use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\Learning\Models\LessonProgress;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Learning\Models\WorksheetSubmission;
@@ -253,12 +255,94 @@ it('shows linked parents active homework status without exposing a student submi
             ->has('selectedStudent.assignments', 1));
 });
 
-it('lets a linked parent reserve a group, pay through checkout, and book a free intro for the student', function (): void {
+it('shows a linked parent a seven-day report from the selected students real records', function (): void {
+    $term = AcademicTerm::currentOrNext() ?? AcademicTerm::firstOrFail();
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $term->id,
+        'is_published' => true,
+    ]);
+    $lesson = GroupMaterial::factory()->create(['curriculum_unit_id' => $unit->id]);
+    LessonProgress::create([
+        'student_id' => $this->student->id,
+        'lesson_id' => $lesson->id,
+        'watched_seconds' => 1_800,
+        'is_completed' => true,
+    ]);
+    $worksheet = Worksheet::create([
+        'curriculum_unit_id' => $unit->id,
+        'lesson_id' => $lesson->id,
+        'title' => 'واجب التقرير الأسبوعي',
+        'file_path' => '/storage/weekly-homework.pdf',
+        'type' => Worksheet::TYPE_HOMEWORK,
+        'max_score' => 20,
+    ]);
+    WorksheetSubmission::create([
+        'worksheet_id' => $worksheet->id,
+        'student_id' => $this->student->id,
+        'submitted_file_path' => '/storage/weekly-submission.pdf',
+        'score' => 18,
+        'submitted_at' => now()->subDay(),
+        'graded_at' => now(),
+    ]);
+    $quiz = Quiz::factory()->withQuestions(1)->create(['curriculum_unit_id' => $unit->id]);
+    QuizAttempt::factory()->submitted(85)->create([
+        'user_id' => $this->student->id,
+        'quiz_id' => $quiz->id,
+        'earned_points' => 17,
+        'total_points' => 20,
+        'submitted_at' => now()->subDay(),
+    ]);
+    Subscription::factory()->active()->create([
+        'student_id' => $this->student->id,
+        'teaching_assignment_id' => $this->assignment->id,
+        'teaching_group_id' => $this->group->id,
+    ]);
+    $session = LiveSession::create([
+        'teacher_id' => $this->teacher->id,
+        'teaching_group_id' => $this->group->id,
+        'title' => 'حصة التقرير الأسبوعي',
+        'scheduled_at' => now()->subDay(),
+        'started_at' => now()->subDay()->addMinutes(2),
+        'ended_at' => now()->subDay()->addHour(),
+        'status' => LiveSession::STATUS_ENDED,
+    ]);
+    $session->attendees()->create([
+        'user_id' => $this->student->id,
+        'joined_at' => now()->subDay()->addMinutes(5),
+        'left_at' => now()->subDay()->addMinutes(55),
+    ]);
+
     $this->actingAs($this->parent)
+        ->get(route('parent.dashboard', ['student_id' => $this->student->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('selectedStudent.weeklyReport.range.days', 7)
+            ->where('selectedStudent.weeklyReport.summary.lessons_completed', 1)
+            ->where('selectedStudent.weeklyReport.summary.study_minutes', 30)
+            ->where('selectedStudent.weeklyReport.summary.assignments_submitted', 1)
+            ->where('selectedStudent.weeklyReport.summary.assignments_graded', 1)
+            ->where('selectedStudent.weeklyReport.summary.quizzes_submitted', 1)
+            ->where('selectedStudent.weeklyReport.summary.average_quiz_score', 85)
+            ->where('selectedStudent.weeklyReport.summary.attendance_rate', 100)
+            ->where('selectedStudent.weeklyReport.daily', fn ($days): bool => count($days) === 7)
+            ->where('selectedStudent.weeklyReport.by_subject.0.name', $this->assignment->subject?->name)
+            ->has('selectedStudent.weeklyReport.recent', 4));
+});
+
+it('lets a linked parent reserve a group, pay through checkout, and book a free intro for the student', function (): void {
+    $response = $this->actingAs($this->parent)
         ->post(route('parent.groups.subscribe', $this->group->id), [
             'student_id' => $this->student->id,
-        ])
-        ->assertRedirect(route('checkout.show', Subscription::firstOrFail()->id));
+        ]);
+
+    $subscription = Subscription::query()
+        ->where('student_id', $this->student->id)
+        ->where('teaching_group_id', $this->group->id)
+        ->latest('id')
+        ->firstOrFail();
+
+    $response->assertRedirect(route('checkout.show', $subscription->id));
 
     expect(Subscription::where('student_id', $this->student->id)->exists())->toBeTrue();
 
@@ -302,10 +386,15 @@ it('lets a parent request private lessons and message both the teacher and admin
         ->post(route('chat.start'), [
             'kind' => 'support',
             'student_id' => $this->student->id,
+            'recipient_id' => $this->admin->id,
         ])
         ->assertRedirect();
 
-    $support = Conversation::where('kind', 'support')->firstOrFail();
+    $support = Conversation::query()
+        ->where('kind', 'support')
+        ->whereHas('participants', fn ($query) => $query->where('users.id', $this->parent->id))
+        ->latest('id')
+        ->firstOrFail();
 
     $this->actingAs($this->parent)
         ->get(route('chat.index', ['conversation' => $support->id]))

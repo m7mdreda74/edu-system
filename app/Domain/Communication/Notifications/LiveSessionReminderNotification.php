@@ -31,6 +31,7 @@ class LiveSessionReminderNotification extends Notification
 
         return [
             'type' => 'live_session_reminder',
+            'alert_key' => 'upcoming_class:'.$this->session->id.':'.$notifiable->getKey(),
             'title' => 'تذكير بحصتك القادمة',
             'message' => 'متبقي أقل من 24 ساعة على حصة '.$this->session->title.$subjectLabel.'، وموعدها '.$lessonAt.'.',
             'link' => route('student.schedule'),

@@ -95,6 +95,10 @@ function autoScheduleGroup(groupId) {
                         <Icon name="bell" class="w-4 h-4" />
                         <span>إعلانات المجموعات</span>
                     </Link>
+                    <Link :href="route('teacher.question-bank')" class="btn-ghost btn-sm flex items-center gap-2">
+                        <Icon name="calculator" class="w-4 h-4" />
+                        <span>بنك الأسئلة</span>
+                    </Link>
                 </div>
             </header>
 

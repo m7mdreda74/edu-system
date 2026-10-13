@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
         'private_session_slots', 'session_bookings', 'subscriptions',
         'curriculum_units', 'group_materials', 'lesson_progress', 'lesson_questions',
         'quizzes', 'quiz_questions', 'quiz_options', 'quiz_attempts',
+        'question_bank_questions', 'question_bank_options',
         'worksheets', 'worksheet_submissions',
         'coupons', 'payments', 'invoices', 'teacher_payouts', 'payment_audit_logs',
         'reviews', 'conversations', 'conversation_participants', 'chat_messages',

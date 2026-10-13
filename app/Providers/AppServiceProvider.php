@@ -10,10 +10,12 @@ use App\Application\Quiz\Services\QuizService;
 use App\Application\Scheduling\Services\SessionBookingService;
 use App\Application\Subscription\Services\SubscriptionService;
 use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\Learning\Models\LearningResource;
 use App\Services\AuditLogger;
 use App\Infrastructure\Video\CloudflareStreamVideoProvider;
 use App\Infrastructure\Video\VideoProviderInterface;
 use App\Policies\MaterialPolicy;
+use App\Policies\LearningResourcePolicy;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -51,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
         Gate::policy(GroupMaterial::class, MaterialPolicy::class);
+        Gate::policy(LearningResource::class, LearningResourcePolicy::class);
 
         Event::listen(Login::class, function (Login $event): void {
             AuditLogger::record('auth.login', $event->user, [], $event->user);

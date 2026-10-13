@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Parent;
 
+use App\Application\Learning\Services\ParentProgressReportService;
 use App\Application\Learning\Services\StudentAssignmentService;
 use App\Application\Scheduling\Services\SessionBookingService;
 use App\Application\Subscription\Services\SubscriptionService;
@@ -32,8 +33,11 @@ use Inertia\Response;
 
 class ParentDashboardController extends Controller
 {
-    public function index(Request $request, StudentAssignmentService $studentAssignments): Response
-    {
+    public function index(
+        Request $request,
+        StudentAssignmentService $studentAssignments,
+        ParentProgressReportService $progressReports,
+    ): Response {
         $parent = Auth::user();
 
         $links = ParentStudentLink::where('parent_user_id', $parent->id)
@@ -285,6 +289,7 @@ class ParentDashboardController extends Controller
                 })->values();
 
             $assignmentCenter = $studentAssignments->forStudent($student);
+            $weeklyReport = $progressReports->forStudent($student);
 
             $studentData = [
                 'student' => $student->only(['id', 'name', 'email', 'grade_level']),
@@ -316,6 +321,7 @@ class ParentDashboardController extends Controller
                 'quizAttempts' => $quizAttempts,
                 'assignments' => $assignmentCenter['items'],
                 'assignmentSummary' => $assignmentCenter['summary'],
+                'weeklyReport' => $weeklyReport,
                 'attendance' => $attendance,
                 'attendanceSummary' => [
                     'total' => $attendance->count(),

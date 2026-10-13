@@ -85,6 +85,7 @@ const menuGroups = computed(() => {
                     { label: 'الفصول الدراسية',icon: 'calendar',  href: route('admin.academic-terms'), name: 'admin.academic-terms' },
                     { label: 'مجموعات التدريس',icon: 'clock',     href: route('admin.teaching-groups'), name: 'admin.teaching-groups' },
                     { label: 'اعتذارات الحصص', icon: 'calendar',  href: route('admin.session-apologies'), name: 'admin.session-apologies' },
+                    { label: 'مكتبة الموارد', icon: 'book', href: route('admin.resource-library'), name: 'admin.resource-library' },
                     { label: 'الاشتراكات',    icon: 'student',   href: route('admin.subscriptions'), name: 'admin.subscriptions' },
                     { label: 'التقييمات',      icon: 'chat',      href: route('admin.reviews'),   name: 'admin.reviews' },
                     { label: 'رسائل أولياء الأمور', icon: 'chat', href: route('chat.index'), name: 'chat.index' },
@@ -108,7 +109,10 @@ const menuGroups = computed(() => {
                     { label: 'الرئيسية',     icon: 'dashboard', href: route('teacher.dashboard'), name: 'teacher.dashboard' },
                     { label: 'مجموعاتي',     icon: 'courses',   href: route('teacher.groups.index'), name: 'teacher.groups.index' },
                     { label: 'طلابي',        icon: 'student',   href: route('teacher.students.index'), name: 'teacher.students.index' },
+                    { label: 'تحليل الأداء', icon: 'chart', href: route('teacher.analytics'), name: 'teacher.analytics' },
+                    { label: 'مكتبة الموارد', icon: 'book', href: route('teacher.resource-library'), name: 'teacher.resource-library' },
                     { label: 'الخطة الأكاديمية', icon: 'book', href: route('teacher.teaching-schedule'), name: 'teacher.teaching-schedule' },
+                    { label: 'بنك الأسئلة', icon: 'calculator', href: route('teacher.question-bank'), name: 'teacher.question-bank' },
                     { label: 'الحصص المباشرة',icon: 'live',      href: route('teacher.live-sessions'), name: 'teacher.live-sessions' },
                     { label: 'الرسائل',      icon: 'chat',      href: route('chat.index'),       name: 'chat.index' },
                 ]
@@ -132,6 +136,8 @@ const menuGroups = computed(() => {
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
                     { label: 'مواد صفي', icon: 'book',      href: route('student.my-grade'),   name: 'student.my-grade' },
                     { label: 'حصصي',     icon: 'courses',   href: route('student.my-classes'), name: 'student.my-classes' },
+                    { label: 'مركز الاختبارات', icon: 'chart', href: route('student.assessments'), name: 'student.assessments' },
+                    { label: 'الموارد التعليمية', icon: 'book', href: route('student.resources'), name: 'student.resources' },
                     { label: 'جدول حصصي', icon: 'calendar', href: route('student.schedule'),   name: 'student.schedule' },
                     { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),         name: 'chat.index' },
                 ]

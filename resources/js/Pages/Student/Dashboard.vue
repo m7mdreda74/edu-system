@@ -46,6 +46,9 @@ function formatDateTime(value) {
                 <Link :href="route('student.assignments')" class="btn-outline btn-sm self-start sm:self-auto">
                     مركز واجباتي
                 </Link>
+                <Link :href="route('student.assessments')" class="btn-primary btn-sm self-start sm:self-auto">
+                    مركز الاختبارات
+                </Link>
             </header>
 
             <section v-if="props.pendingParentLinks.length" class="card p-5 border-amber-300 dark:border-amber-900 bg-amber-500/5">

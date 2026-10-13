@@ -15,6 +15,7 @@ class QuizQuestion extends Model
 
     protected $fillable = [
         'quiz_id',
+        'question_bank_question_id',
         'question_text',
         'type',
         'points',
@@ -32,6 +33,11 @@ class QuizQuestion extends Model
     public function quiz(): BelongsTo
     {
         return $this->belongsTo(Quiz::class);
+    }
+
+    public function sourceQuestion(): BelongsTo
+    {
+        return $this->belongsTo(QuestionBankQuestion::class, 'question_bank_question_id');
     }
 
     public function options(): HasMany

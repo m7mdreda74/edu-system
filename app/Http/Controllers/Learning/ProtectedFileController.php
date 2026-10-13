@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Learning;
 
 use App\Domain\Communication\Models\ChatMessage;
 use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\Learning\Models\LearningResource;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Learning\Models\WorksheetSubmission;
 use App\Domain\Subscription\Models\Subscription;
@@ -31,6 +32,13 @@ class ProtectedFileController extends Controller
         Gate::authorize('watch', $material);
 
         return $this->serve($material->attachment_path);
+    }
+
+    public function resource(LearningResource $resource): Response
+    {
+        Gate::authorize('view', $resource);
+
+        return $this->serve($resource->file_path);
     }
 
     public function worksheet(Worksheet $worksheet): Response

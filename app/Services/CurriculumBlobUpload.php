@@ -28,6 +28,8 @@ final class CurriculumBlobUpload
 
     public const KIND_VIDEO = 'video';
 
+    public const KIND_RESOURCE = 'resource';
+
     public const KIND_RECEIPT = 'receipt';
 
     public const MAX_BYTES = 25 * 1024 * 1024;
@@ -85,6 +87,7 @@ final class CurriculumBlobUpload
         self::KIND_HOMEWORK,
         self::KIND_EXAM,
         self::KIND_VIDEO,
+        self::KIND_RESOURCE,
     ];
 
     public function enabled(): bool

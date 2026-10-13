@@ -2,6 +2,7 @@
 
 use App\Application\Learning\Services\LiveSessionReminderService;
 use App\Application\Learning\Services\MissedLiveSessionService;
+use App\Application\Learning\Services\AcademicAlertService;
 use App\Application\Subscription\Services\SubscriptionRenewalReminderService;
 use App\Domain\Payment\Models\Payment;
 use Illuminate\Foundation\Inspiring;
@@ -29,6 +30,18 @@ Artisan::command(
         $this->info("Sent {$count} live session reminder(s).");
     },
 )->purpose('Notify students up to 24 hours before every scheduled class');
+
+Artisan::command(
+    'academic-alerts:send',
+    function (AcademicAlertService $alerts): void {
+        $stats = $alerts->send();
+
+        $this->table(
+            ['Metric', 'Count'],
+            collect($stats)->map(fn (int $value, string $metric): array => [$metric, $value])->values()->all(),
+        );
+    },
+)->purpose('Send deduplicated in-app academic alerts to students and verified parents');
 
 Artisan::command(
     'sessions:cancel-overdue',

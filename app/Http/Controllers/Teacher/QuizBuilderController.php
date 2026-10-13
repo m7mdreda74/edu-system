@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Application\Quiz\Services\QuestionBankService;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\Quiz\Models\QuizOption;
@@ -29,7 +30,7 @@ use Inertia\Response;
  */
 class QuizBuilderController extends Controller
 {
-    public function edit(int $quizId): Response
+    public function edit(int $quizId, QuestionBankService $questionBank): Response
     {
         $quiz = $this->ownedQuizOrFail($quizId, [
             'questions.options',
@@ -39,49 +40,51 @@ class QuizBuilderController extends Controller
             'unit.assignment.gradeLevel:id,key,name',
         ]);
 
-        $unit       = $quiz->unit;
+        $unit = $quiz->unit;
         $assignment = $unit->assignment;
 
         return Inertia::render('Teacher/QuizBuilder', [
             'quiz' => [
-                'id'                 => $quiz->id,
-                'title'              => $quiz->title,
+                'id' => $quiz->id,
+                'title' => $quiz->title,
                 'time_limit_minutes' => $quiz->time_limit_minutes,
-                'passing_score'      => $quiz->passing_score,
-                'is_active'          => $quiz->is_active,
+                'passing_score' => $quiz->passing_score,
+                'is_active' => $quiz->is_active,
                 // Shaped for <input type="datetime-local">, which refuses anything else.
-                'available_from'     => $quiz->available_from?->format('Y-m-d\TH:i'),
-                'available_until'    => $quiz->available_until?->format('Y-m-d\TH:i'),
-                'window_label'       => $quiz->windowLabel(),
-                'is_open'            => $quiz->isOpen(),
-                'is_unit_exam'       => $quiz->lesson_id === null,
-                'lesson'             => $quiz->material?->only(['id', 'title']),
-                'attempts_count'     => $quiz->attempts()->count(),
+                'available_from' => $quiz->available_from?->format('Y-m-d\TH:i'),
+                'available_until' => $quiz->available_until?->format('Y-m-d\TH:i'),
+                'window_label' => $quiz->windowLabel(),
+                'is_open' => $quiz->isOpen(),
+                'is_unit_exam' => $quiz->lesson_id === null,
+                'lesson' => $quiz->material?->only(['id', 'title']),
+                'attempts_count' => $quiz->attempts()->count(),
             ],
             'unit' => [
-                'id'      => $unit->id,
-                'order'   => $unit->order,
-                'title'   => $unit->title,
+                'id' => $unit->id,
+                'order' => $unit->order,
+                'title' => $unit->title,
                 'term_id' => $unit->academic_term_id,
-                'term'    => $unit->term?->only(['id', 'name']),
+                'term' => $unit->term?->only(['id', 'name']),
             ],
             'assignment' => [
-                'id'      => $assignment->id,
+                'id' => $assignment->id,
                 'subject' => $assignment->subject?->only(['id', 'name']),
-                'grade'   => $assignment->gradeLevel?->only(['key', 'name']),
+                'grade' => $assignment->gradeLevel?->only(['key', 'name']),
             ],
             'questions' => $quiz->questions->map(fn (QuizQuestion $question): array => [
-                'id'            => $question->id,
+                'id' => $question->id,
+                'question_bank_question_id' => $question->question_bank_question_id,
                 'question_text' => $question->question_text,
-                'type'          => $question->type,
-                'points'        => $question->points,
-                'order'         => $question->order,
-                'options'       => $question->options->map(fn (QuizOption $option): array => [
-                    'id'          => $option->id,
+                'type' => $question->type,
+                'points' => $question->points,
+                'order' => $question->order,
+                'options' => $question->options->map(fn (QuizOption $option): array => [
+                    'id' => $option->id,
                     'option_text' => $option->option_text,
-                    'is_correct'  => $option->is_correct,
+                    'is_correct' => $option->is_correct,
                 ])->values(),
             ])->values(),
+            'bank_questions' => $questionBank->forQuiz(Auth::user(), $quiz),
         ]);
     }
 
@@ -106,7 +109,7 @@ class QuizBuilderController extends Controller
         $quiz = Quiz::create([
             ...$request->settings(),
             'curriculum_unit_id' => $unit->id,
-            'lesson_id'          => $lessonId,
+            'lesson_id' => $lessonId,
         ]);
 
         return redirect()
@@ -144,9 +147,9 @@ class QuizBuilderController extends Controller
         DB::transaction(function () use ($quiz, $request): void {
             $question = $quiz->questions()->create([
                 'question_text' => $request->validated('question_text'),
-                'type'          => $request->validated('type'),
-                'points'        => $request->integer('points', 1),
-                'order'         => $request->integer('order') ?: (int) $quiz->questions()->max('order') + 1,
+                'type' => $request->validated('type'),
+                'points' => $request->integer('points', 1),
+                'order' => $request->integer('order') ?: (int) $quiz->questions()->max('order') + 1,
             ]);
 
             $this->replaceOptions($question, $request->validated('options'));
@@ -162,9 +165,9 @@ class QuizBuilderController extends Controller
         DB::transaction(function () use ($question, $request): void {
             $question->update([
                 'question_text' => $request->validated('question_text'),
-                'type'          => $request->validated('type'),
-                'points'        => $request->integer('points', 1),
-                'order'         => $request->integer('order') ?: $question->order,
+                'type' => $request->validated('type'),
+                'points' => $request->integer('points', 1),
+                'order' => $request->integer('order') ?: $question->order,
             ]);
 
             $this->replaceOptions($question, $request->validated('options'));
@@ -185,7 +188,7 @@ class QuizBuilderController extends Controller
     // ─── Internals ────────────────────────────────────────────────
 
     /**
-     * @param array<int, array{option_text: string, is_correct: bool|int|string}> $options
+     * @param  array<int, array{option_text: string, is_correct: bool|int|string}>  $options
      */
     private function replaceOptions(QuizQuestion $question, array $options): void
     {
@@ -194,7 +197,7 @@ class QuizBuilderController extends Controller
         $question->options()->createMany(array_map(
             static fn (array $option): array => [
                 'option_text' => $option['option_text'],
-                'is_correct'  => (bool) $option['is_correct'],
+                'is_correct' => (bool) $option['is_correct'],
             ],
             array_values($options),
         ));

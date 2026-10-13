@@ -1,14 +1,18 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     assignments: { type: Array, default: () => [] },
-    rows: { type: Array, default: () => [] },
+    rows: { type: Object, default: () => ({ data: [], links: [] }) },
     summary: { type: Object, default: () => ({}) },
     selectedAssignment: { type: [Number, String], default: null },
 });
+
+const rowItems = computed(() => props.rows?.data ?? []);
+const paginationLinks = computed(() => props.rows?.links ?? []);
 
 function selectAssignment(event) {
     const assignment = event.target.value;
@@ -57,6 +61,14 @@ const statusClasses = {
                     </p>
                 </div>
                 <div class="flex items-center gap-2">
+                    <a
+                        :href="route('teacher.gradebook.export', selectedAssignment ? { assignment: selectedAssignment } : {})"
+                        class="btn-outline btn-sm flex items-center gap-1.5 whitespace-nowrap"
+                        download
+                    >
+                        <Icon name="download" class="h-4 w-4" />
+                        تصدير CSV
+                    </a>
                     <label for="gradebook-assignment" class="sr-only">تصفية المادة</label>
                     <select
                         id="gradebook-assignment"
@@ -97,7 +109,7 @@ const statusClasses = {
                 </div>
             </div>
 
-            <section v-if="rows.length" class="card overflow-hidden">
+            <section v-if="rowItems.length" class="card overflow-hidden">
                 <div class="flex items-center gap-2 border-b border-surface-100 p-5 dark:border-surface-800">
                     <Icon name="chart" class="h-5 w-5 text-primary-500" />
                     <h2 class="font-black text-surface-900 dark:text-white">تفاصيل التقييمات</h2>
@@ -117,7 +129,7 @@ const statusClasses = {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
-                            <tr v-for="row in rows" :key="row.id" class="align-top">
+                            <tr v-for="row in rowItems" :key="row.id" class="align-top">
                                 <td class="px-5 py-4">
                                     <div class="font-bold text-surface-900 dark:text-white">{{ row.student?.name || 'طالب غير معروف' }}</div>
                                     <div class="mt-0.5 text-xs text-surface-400">{{ row.student?.email }}</div>
@@ -149,6 +161,28 @@ const statusClasses = {
                         </tbody>
                     </table>
                 </div>
+
+                <nav
+                    v-if="paginationLinks.length > 3"
+                    class="flex flex-wrap items-center justify-center gap-1 border-t border-surface-100 p-4 dark:border-surface-800"
+                    aria-label="تنقل سجل الدرجات"
+                >
+                    <template v-for="link in paginationLinks" :key="link.label">
+                        <Link
+                            v-if="link.url"
+                            :href="link.url"
+                            :class="['btn-ghost btn-sm', link.active ? 'bg-primary-500/10 text-primary-600' : '']"
+                            preserve-state
+                            preserve-scroll
+                            v-html="link.label"
+                        />
+                        <span
+                            v-else
+                            class="btn-sm cursor-not-allowed text-surface-300 dark:text-surface-600"
+                            v-html="link.label"
+                        />
+                    </template>
+                </nav>
             </section>
 
             <div v-else class="card p-10 text-center">

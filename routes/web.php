@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PayoutController;
 use App\Http\Controllers\Admin\RecordedClassController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\ResourceLibraryController as AdminResourceLibraryController;
 use App\Http\Controllers\Admin\SessionApologyController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SubjectController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Communication\NotificationController;
 use App\Http\Controllers\Cron\LiveSessionReminderController;
 use App\Http\Controllers\Cron\MissedLiveSessionCronController;
 use App\Http\Controllers\Cron\SubscriptionRenewalReminderController;
+use App\Http\Controllers\Cron\AcademicAlertController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Learning\ProtectedFileController;
 use App\Http\Controllers\Learning\YoutubeProxyController;
@@ -38,6 +40,7 @@ use App\Http\Controllers\Public\TeacherProfileController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Student\CertificateController;
 use App\Http\Controllers\Student\AssignmentController;
+use App\Http\Controllers\Student\AssessmentController;
 use App\Http\Controllers\Student\DashboardController;
 use App\Http\Controllers\Student\FreeIntroSessionController as StudentFreeIntroSessionController;
 use App\Http\Controllers\Student\LearnController;
@@ -46,6 +49,7 @@ use App\Http\Controllers\Student\MyGradeController;
 use App\Http\Controllers\Student\PrivateLessonRequestController;
 use App\Http\Controllers\Student\QuizController;
 use App\Http\Controllers\Student\ReviewController;
+use App\Http\Controllers\Student\ResourceLibraryController as StudentResourceLibraryController;
 use App\Http\Controllers\Student\ScheduleController;
 use App\Http\Controllers\Student\StudentPurchaseRequestController;
 use App\Http\Controllers\Student\SubscriptionController;
@@ -59,6 +63,9 @@ use App\Http\Controllers\Teacher\FreeIntroSessionController as TeacherFreeIntroS
 use App\Http\Controllers\Teacher\GradebookController;
 use App\Http\Controllers\Teacher\LiveSessionController;
 use App\Http\Controllers\Teacher\MaterialManagerController;
+use App\Http\Controllers\Teacher\PerformanceAnalyticsController;
+use App\Http\Controllers\Teacher\QuestionBankController;
+use App\Http\Controllers\Teacher\ResourceLibraryController as TeacherResourceLibraryController;
 use App\Http\Controllers\Teacher\QuizBuilderController;
 use App\Http\Controllers\Teacher\TeachingScheduleController;
 use App\Http\Controllers\Teacher\WorksheetController;
@@ -73,6 +80,9 @@ Route::get('/api/cron/subscription-renewal-reminders', SubscriptionRenewalRemind
     ->middleware(['throttle:10,1', 'cron.secret']);
 Route::get('/api/cron/live-session-reminders', LiveSessionReminderController::class)
     ->name('cron.live-session-reminders')
+    ->middleware(['throttle:10,1', 'cron.secret']);
+Route::get('/api/cron/academic-alerts', AcademicAlertController::class)
+    ->name('cron.academic-alerts')
     ->middleware(['throttle:10,1', 'cron.secret']);
 Route::get('/api/cron/missed-live-sessions', MissedLiveSessionCronController::class)
     ->name('cron.missed-live-sessions')
@@ -163,6 +173,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/learning/materials/{material}/file', [ProtectedFileController::class, 'material'])
         ->name('learning.material.download');
+    Route::get('/learning/resources/{resource}/file', [ProtectedFileController::class, 'resource'])
+        ->name('learning.resource.download');
     Route::get('/learning/worksheets/{worksheet}/file', [ProtectedFileController::class, 'worksheet'])
         ->name('learning.worksheet.download');
     Route::get('/learning/submissions/{submission}/file', [ProtectedFileController::class, 'submission'])
@@ -191,6 +203,8 @@ Route::middleware(['auth', 'active', 'verified', 'role:student'])->group(functio
     // Group/private subscriptions, plus the legacy agreement request for private tuition.
     Route::get('/my-classes', [SubscriptionController::class, 'index'])->name('student.my-classes');
     Route::get('/my-assignments', [AssignmentController::class, 'index'])->name('student.assignments');
+    Route::get('/my-assessments', [AssessmentController::class, 'index'])->name('student.assessments');
+    Route::get('/my-resources', [StudentResourceLibraryController::class, 'index'])->name('student.resources');
     Route::post('/subscribe/group/{groupId}', [SubscriptionController::class, 'subscribeToGroup'])->name('student.subscribe.group')->middleware('throttle:15,1');
     Route::post('/subscribe/private/{assignmentId}', [SubscriptionController::class, 'subscribeToPrivate'])->name('student.subscribe.private')->middleware('throttle:15,1');
     Route::post('/private-lesson-requests/{assignmentId}', [PrivateLessonRequestController::class, 'store'])
@@ -269,7 +283,30 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::get('/dashboard', [App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/my-groups', [App\Http\Controllers\Teacher\TeacherGroupController::class, 'index'])->name('groups.index');
     Route::get('/my-students', [App\Http\Controllers\Teacher\TeacherStudentController::class, 'index'])->name('students.index');
+    Route::get('/gradebook/export', [GradebookController::class, 'export'])->name('gradebook.export');
     Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook');
+    Route::get('/analytics', [PerformanceAnalyticsController::class, 'index'])->name('analytics');
+    Route::get('/resource-library', [TeacherResourceLibraryController::class, 'index'])->name('resource-library');
+    Route::post('/resource-library', [TeacherResourceLibraryController::class, 'store'])
+        ->name('resource-library.store')
+        ->middleware('throttle:20,1');
+    Route::post('/resource-library/authorize-upload', [TeacherResourceLibraryController::class, 'authorizeUpload'])
+        ->name('resource-library.authorize-upload')
+        ->middleware('throttle:20,1');
+    Route::post('/resource-library/{resource}/complete-upload', [TeacherResourceLibraryController::class, 'completeUpload'])
+        ->name('resource-library.complete-upload');
+    Route::post('/resource-library/{resource}/request-share', [TeacherResourceLibraryController::class, 'requestShare'])
+        ->name('resource-library.request-share');
+    Route::post('/resource-library/{resource}/attach', [TeacherResourceLibraryController::class, 'attach'])
+        ->name('resource-library.attach');
+    Route::delete('/resource-library/{resource}/assignments/{assignmentId}', [TeacherResourceLibraryController::class, 'detach'])
+        ->name('resource-library.detach');
+    Route::delete('/resource-library/{resource}', [TeacherResourceLibraryController::class, 'destroy'])
+        ->name('resource-library.destroy');
+    Route::get('/question-bank', [QuestionBankController::class, 'index'])->name('question-bank');
+    Route::post('/question-bank', [QuestionBankController::class, 'store'])->name('question-bank.store');
+    Route::put('/question-bank/{question}', [QuestionBankController::class, 'update'])->name('question-bank.update');
+    Route::delete('/question-bank/{question}', [QuestionBankController::class, 'destroy'])->name('question-bank.destroy');
     Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements');
     Route::post('/announcements', [AnnouncementController::class, 'store'])
         ->name('announcements.store')
@@ -312,6 +349,8 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::put('/quizzes/{quiz}', [QuizBuilderController::class, 'update'])->name('quizzes.update');
     Route::delete('/quizzes/{quiz}', [QuizBuilderController::class, 'destroy'])->name('quizzes.destroy');
     Route::post('/quizzes/{quiz}/questions', [QuizBuilderController::class, 'storeQuestion'])->name('quizzes.questions.store');
+    Route::post('/quizzes/{quiz}/questions/from-bank/{bankQuestion}', [QuestionBankController::class, 'attachToQuiz'])
+        ->name('quizzes.questions.from-bank');
     Route::put('/questions/{question}', [QuizBuilderController::class, 'updateQuestion'])->name('questions.update');
     Route::delete('/questions/{question}', [QuizBuilderController::class, 'destroyQuestion'])->name('questions.destroy');
 
@@ -417,6 +456,10 @@ Route::middleware(['auth', 'active', 'role:admin', 'admin.sensitive'])->prefix('
 
     Route::get('/site-pages', [SettingsController::class, 'sitePages'])->name('site-pages');
     Route::post('/site-pages', [SettingsController::class, 'updateSitePages'])->name('site-pages.update');
+
+    Route::get('/resource-library', [AdminResourceLibraryController::class, 'index'])->name('resource-library');
+    Route::patch('/resource-library/{resource}/approve', [AdminResourceLibraryController::class, 'approve'])->name('resource-library.approve');
+    Route::patch('/resource-library/{resource}/reject', [AdminResourceLibraryController::class, 'reject'])->name('resource-library.reject');
 
     // Subjects
     Route::get('/subjects', [SubjectController::class, 'index'])->name('subjects');

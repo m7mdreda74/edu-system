@@ -15,6 +15,7 @@ it('requires recent password confirmation for production admin mutations', funct
     $admin = User::factory()->create();
     $admin->assignRole('admin');
     config(['app.env' => 'production']);
+    $originalValue = PlatformSetting::where('key', 'platform_name')->value('value');
 
     $this->actingAs($admin)
         ->post(route('admin.settings.update'), [
@@ -26,7 +27,8 @@ it('requires recent password confirmation for production admin mutations', funct
         ])
         ->assertRedirect(route('password.confirm'));
 
-    expect(PlatformSetting::where('key', 'platform_name')->exists())->toBeFalse();
+    expect(PlatformSetting::where('key', 'platform_name')->value('value'))
+        ->toBe($originalValue);
 
     $this->actingAs($admin)
         ->postJson(route('admin.settings.update'), [

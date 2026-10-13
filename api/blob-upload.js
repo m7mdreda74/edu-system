@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { issueSignedToken, presignUrl } from '@vercel/blob';
 
-const ALLOWED_KINDS = new Set(['booklet', 'homework', 'exam', 'video', 'receipt']);
+const ALLOWED_KINDS = new Set(['booklet', 'homework', 'exam', 'video', 'resource', 'receipt']);
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_UPLOAD_BYTES = 512 * 1024 * 1024;
 const MAX_RECEIPT_UPLOAD_BYTES = 8 * 1024 * 1024;

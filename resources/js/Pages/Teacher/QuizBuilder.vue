@@ -10,6 +10,7 @@ const props = defineProps({
     unit:       { type: Object, required: true },
     assignment: { type: Object, required: true },
     questions:  { type: Array, default: () => [] },
+    bank_questions: { type: Array, default: () => [] },
 });
 
 const MIN_OPTIONS = 2;
@@ -82,6 +83,7 @@ function makeDraft(question = null) {
 }
 
 const drafts = ref([]);
+const attachingBankId = ref(null);
 
 /**
  * Rebuild from the server payload without throwing away work in progress:
@@ -152,6 +154,20 @@ function correctCount(draft) {
 
 function addQuestion() {
     drafts.value.push(makeDraft());
+}
+
+function attachBankQuestion(question) {
+    if (question.attached || attachingBankId.value !== null) return;
+
+    attachingBankId.value = question.id;
+    router.post(route('teacher.quizzes.questions.from-bank', {
+        quiz: props.quiz.id,
+        bankQuestion: question.id,
+    }), {}, {
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => { attachingBankId.value = null; },
+    });
 }
 
 function addOption(draft) {
@@ -520,6 +536,38 @@ function optionError(draft, index) {
                     </button>
                 </div>
             </div>
+
+            <section class="card space-y-4 border-primary-100 p-4 dark:border-primary-950">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-black text-surface-900 dark:text-white">إضافة من بنك الأسئلة</h3>
+                        <p class="mt-1 text-xs text-surface-400">يتم نسخ السؤال وإجاباته داخل هذا الاختبار، وتبقى نسخته مستقلة عن البنك.</p>
+                    </div>
+                    <Link :href="route('teacher.question-bank')" class="btn-ghost btn-sm">إدارة بنك الأسئلة</Link>
+                </div>
+
+                <div v-if="bank_questions.length" class="grid gap-3 md:grid-cols-2">
+                    <div v-for="bankQuestion in bank_questions" :key="bankQuestion.id" class="rounded-xl border border-surface-100 p-3 dark:border-surface-800">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="line-clamp-2 text-sm font-bold text-surface-800 dark:text-surface-100">{{ bankQuestion.question_text }}</p>
+                                <p class="mt-1 text-[11px] text-surface-400">
+                                    {{ bankQuestion.topic || 'بدون موضوع' }} · {{ bankQuestion.points }} نقطة · {{ bankQuestion.teacher?.name }}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                class="btn-primary btn-sm shrink-0"
+                                :disabled="bankQuestion.attached || attachingBankId !== null"
+                                @click="attachBankQuestion(bankQuestion)"
+                            >
+                                {{ bankQuestion.attached ? 'مضاف' : (attachingBankId === bankQuestion.id ? 'جارٍ النسخ...' : 'إضافة') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p v-else class="text-sm text-surface-400">لا توجد أسئلة محفوظة مناسبة لمادة هذا الاختبار. يمكنك إنشاء سؤال من بنك الأسئلة.</p>
+            </section>
 
             <div v-if="drafts.length" class="space-y-4">
                 <div v-for="draft in drafts" :key="draft.key" class="card p-4 sm:p-5 space-y-4">

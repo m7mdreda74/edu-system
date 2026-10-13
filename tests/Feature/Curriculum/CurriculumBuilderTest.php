@@ -55,15 +55,18 @@ it('generates a complete term shell with units lessons and draft unit exams', fu
         ->assertRedirect()
         ->assertSessionHas('success');
 
-    expect(CurriculumUnit::where('teaching_assignment_id', $this->assignment->id)->count())->toBe(3)
-        ->and(GroupMaterial::count())->toBe(12)
-        ->and(Quiz::count())->toBe(3)
-        ->and(Quiz::where('is_active', false)->count())->toBe(3)
-        ->and(CurriculumUnit::orderBy('order')->pluck('title')->all())->toBe([
-            'الوحدة الأولى',
-            'الوحدة الثانية',
-            'الوحدة الثالثة',
-        ]);
+    $unitIds = CurriculumUnit::where('teaching_assignment_id', $this->assignment->id)->pluck('id');
+
+    expect($unitIds)->toHaveCount(3)
+        ->and(GroupMaterial::whereIn('curriculum_unit_id', $unitIds)->count())->toBe(12)
+        ->and(Quiz::whereIn('curriculum_unit_id', $unitIds)->count())->toBe(3)
+        ->and(Quiz::whereIn('curriculum_unit_id', $unitIds)->where('is_active', false)->count())->toBe(3)
+        ->and(CurriculumUnit::where('teaching_assignment_id', $this->assignment->id)
+            ->orderBy('order')->pluck('title')->all())->toBe([
+                'الوحدة الأولى',
+                'الوحدة الثانية',
+                'الوحدة الثالثة',
+            ]);
 });
 
 it('keeps another teacher out of the curriculum', function () {

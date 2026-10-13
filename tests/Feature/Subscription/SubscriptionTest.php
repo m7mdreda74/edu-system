@@ -280,7 +280,10 @@ it('lets a student reserve one free intro session per teacher without creating a
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
-    $firstSlot = PrivateSessionSlot::firstOrFail();
+    $firstSlot = PrivateSessionSlot::query()
+        ->where('teaching_assignment_id', $this->assignment->id)
+        ->latest('id')
+        ->firstOrFail();
 
     $profileRoute = route('teachers.show', [
         'id' => $teacher->id,

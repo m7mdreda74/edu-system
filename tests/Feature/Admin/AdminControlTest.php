@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
+use App\Domain\Learning\Models\LiveSession;
+use App\Domain\Learning\Models\LiveSessionAttendee;
 use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -22,9 +24,13 @@ use Tests\TestCase;
 abstract class AdminControlTestCase extends TestCase
 {
     public User $admin;
+
     public User $teacher;
+
     public User $student;
+
     public TeachingAssignment $assignment;
+
     public TeachingGroup $group;
 }
 
@@ -76,21 +82,28 @@ it('reaches every admin screen', function () {
 
 it('prints the complete admin report datasets without pagination', function () {
     /** @var AdminControlTestCase $this */
+    $sessionCount = LiveSession::count();
+    $attendanceCount = LiveSessionAttendee::count();
+    $teacherCount = User::role('teacher')->count();
+    $groupCount = TeachingGroup::count();
+
     $this->actingAs($this->admin)
         ->get(route('admin.reports', ['print' => 1]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->where('printMode', true)
             ->where('sessions.meta.current_page', 1)
-            ->where('sessions.meta.total', 0)
+            ->where('sessions.meta.total', $sessionCount)
             ->where('attendance.meta.current_page', 1)
-            ->where('attendance.meta.total', 0)
-            ->has('teachers', 1)
-            ->has('groups', 1));
+            ->where('attendance.meta.total', $attendanceCount)
+            ->has('teachers', $teacherCount)
+            ->has('groups', $groupCount));
 });
 
 it('treats stale active subscriptions as expired in admin screens', function () {
     /** @var AdminControlTestCase $this */
+    $activeBefore = Subscription::active()->count();
+
     $stale = Subscription::factory()->active()->create([
         'student_id' => $this->student->id,
         'teaching_assignment_id' => $this->assignment->id,
@@ -105,7 +118,7 @@ it('treats stale active subscriptions as expired in admin screens', function () 
             ->where('subscriptions.total', 1)
             ->where('subscriptions.data.0.id', $stale->id)
             ->where('subscriptions.data.0.status', Subscription::STATUS_EXPIRED)
-            ->where('stats.active', 0)
+            ->where('stats.active', $activeBefore)
             ->where('stats.expired', 1));
 });
 

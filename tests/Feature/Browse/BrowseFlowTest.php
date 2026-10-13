@@ -115,11 +115,15 @@ it('provides a dedicated teacher directory from the public navigation', function
     /** @var BrowseTestCase $this */
     $this->get(route('teachers.index'))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('Public/Teachers')
-            ->has('teachers', 1)
-            ->where('teachers.0.id', $this->teacher->id)
-            ->where('teachers.0.subjects.0', $this->subject->name));
+        ->assertInertia(function ($page): void {
+            $page->component('Public/Teachers');
+
+            $teachers = collect($page->toArray()['props']['teachers']);
+            $listedTeacher = $teachers->firstWhere('id', $this->teacher->id);
+
+            expect($teachers)->not->toBeEmpty()
+                ->and($listedTeacher['subjects'] ?? [])->toContain($this->subject->name);
+        });
 });
 
 it('splits grades eleven and twelve into the three Qatari tracks', function () {

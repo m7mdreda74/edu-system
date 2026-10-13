@@ -37,6 +37,7 @@ it('builds a scoped prefix for every supported curriculum upload kind', function
     CurriculumBlobUpload::KIND_HOMEWORK,
     CurriculumBlobUpload::KIND_EXAM,
     CurriculumBlobUpload::KIND_VIDEO,
+    CurriculumBlobUpload::KIND_RESOURCE,
 ]);
 
 it('rejects unsupported upload kinds and invalid identifiers', function () {

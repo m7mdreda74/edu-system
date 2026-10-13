@@ -336,13 +336,16 @@ it('returns every report row when the admin requests the printable report', func
         ]);
     }
 
+    $expectedSessionCount = LiveSession::count();
+    $expectedAttendanceCount = LiveSessionAttendee::count();
+
     $this->actingAs($this->admin)
         ->get(route('admin.reports', ['print' => 1]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->where('printMode', true)
-            ->has('sessions.data', 22)
-            ->has('attendance.data', 21)
-            ->where('sessions.meta.total', 22)
-            ->where('attendance.meta.total', 21));
+            ->has('sessions.data', $expectedSessionCount)
+            ->has('attendance.data', $expectedAttendanceCount)
+            ->where('sessions.meta.total', $expectedSessionCount)
+            ->where('attendance.meta.total', $expectedAttendanceCount));
 });

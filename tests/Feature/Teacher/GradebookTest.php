@@ -88,12 +88,12 @@ it('combines submitted homework and the latest submitted quiz attempt without ze
             ->where('summary.needs_grading', 0)
             ->where('summary.earned_points', 24)
             ->where('summary.maximum_points', 30)
-            ->where('rows', fn ($rows): bool => collect($rows)->contains(
+            ->where('rows.data', fn ($rows): bool => collect($rows)->contains(
                 fn (array $row): bool => $row['title'] === 'اختبار الوحدة الأولى'
                     && $row['earned'] === 8
                     && $row['percentage'] === 80,
             ))
-            ->has('rows', 2));
+            ->has('rows.data', 2));
 });
 
 it('shows submitted but ungraded work and rejects another teachers assignment filter', function (): void {
@@ -134,9 +134,114 @@ it('shows submitted but ungraded work and rejects another teachers assignment fi
         ->get(route('teacher.gradebook'))
         ->assertInertia(fn ($page) => $page
             ->where('summary.needs_grading', 1)
-            ->where('rows.0.status', 'needs_grading'));
+            ->where('rows.data.0.status', 'needs_grading'));
 
     $this->actingAs($teacher)
         ->get(route('teacher.gradebook', ['assignment' => $otherAssignment->id]))
         ->assertNotFound();
+
+    $this->actingAs($teacher)
+        ->get(route('teacher.gradebook.export', ['assignment' => $otherAssignment->id]))
+        ->assertNotFound();
+});
+
+it('paginates the gradebook rows and keeps summary totals across pages', function (): void {
+    Role::findOrCreate('teacher', 'web');
+    $teacher = User::factory()->create(['email_verified_at' => now()]);
+    $teacher->assignRole('teacher');
+    $student = User::factory()->create();
+    $assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $assignment->id,
+        'academic_term_id' => AcademicTerm::currentOrNext()?->id,
+    ]);
+
+    foreach ([3, 2, 1] as $daysAgo) {
+        $worksheet = Worksheet::create([
+            'curriculum_unit_id' => $unit->id,
+            'file_path' => "private://worksheets/page-{$daysAgo}.pdf",
+            'title' => "Submission {$daysAgo}",
+            'type' => Worksheet::TYPE_HOMEWORK,
+            'requires_submission' => true,
+            'max_score' => 10,
+        ]);
+        WorksheetSubmission::create([
+            'worksheet_id' => $worksheet->id,
+            'student_id' => $student->id,
+            'submitted_file_path' => "private://submissions/page-{$daysAgo}.pdf",
+            'score' => 8,
+            'submitted_at' => now()->subDays($daysAgo),
+            'graded_at' => now(),
+        ]);
+    }
+
+    $this->actingAs($teacher)
+        ->get(route('teacher.gradebook', ['per_page' => 2]))
+        ->assertInertia(fn ($page) => $page
+            ->where('summary.assessments', 3)
+            ->where('rows.total', 3)
+            ->where('rows.per_page', 2)
+            ->where('rows.current_page', 1)
+            ->has('rows.data', 2));
+
+    $this->actingAs($teacher)
+        ->get(route('teacher.gradebook', ['per_page' => 2, 'page' => 2]))
+        ->assertInertia(fn ($page) => $page
+            ->where('summary.assessments', 3)
+            ->where('rows.current_page', 2)
+            ->where('rows.data.0.title', 'Submission 3')
+            ->has('rows.data', 1));
+});
+
+it('exports only the teacher scoped gradebook and neutralizes spreadsheet formulas', function (): void {
+    Role::findOrCreate('teacher', 'web');
+    $teacher = User::factory()->create(['email_verified_at' => now()]);
+    $teacher->assignRole('teacher');
+    $student = User::factory()->create([
+        'name' => '=SUM(A1:A2)',
+        'email' => 'formula@example.test',
+    ]);
+    $assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $assignment->id,
+        'academic_term_id' => AcademicTerm::currentOrNext()?->id,
+    ]);
+    $worksheet = Worksheet::create([
+        'curriculum_unit_id' => $unit->id,
+        'file_path' => 'private://worksheets/export.pdf',
+        'title' => 'Export homework',
+        'type' => Worksheet::TYPE_HOMEWORK,
+        'requires_submission' => true,
+        'max_score' => 10,
+    ]);
+    WorksheetSubmission::create([
+        'worksheet_id' => $worksheet->id,
+        'student_id' => $student->id,
+        'submitted_file_path' => 'private://submissions/export.pdf',
+        'score' => 8,
+        'submitted_at' => now(),
+        'graded_at' => now(),
+    ]);
+
+    $response = $this->actingAs($teacher)
+        ->get(route('teacher.gradebook.export', ['assignment' => $assignment->id]));
+
+    $response->assertOk()
+        ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+        ->assertHeader('cache-control', 'no-store, private');
+
+    $csv = $response->streamedContent();
+
+    expect($csv)
+        ->toContain("\xEF\xBB\xBFStudent,Email,Assessment,Type,Subject,Earned,Maximum,Percentage,Status,Feedback,\"Assessed At\"")
+        ->toContain("'=SUM(A1:A2)")
+        ->toContain('formula@example.test')
+        ->toContain('Export homework')
+        ->toContain(',8,10,80,graded,');
 });

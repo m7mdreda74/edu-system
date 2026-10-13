@@ -95,6 +95,41 @@ function assignmentDate(value) {
     });
 }
 
+function reportDate(value) {
+    if (!value) return '—';
+
+    return new Date(`${value}T00:00:00`).toLocaleDateString('ar-QA', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+    });
+}
+
+function reportDateTime(value) {
+    if (!value) return '—';
+
+    return new Date(value).toLocaleDateString('ar-QA', {
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
+const reportEventLabels = {
+    lesson: 'تقدم درس',
+    assignment: 'واجب',
+    quiz: 'اختبار',
+    attendance: 'حضور',
+};
+
+function reportScore(event) {
+    if (event.score === null || event.score === undefined) return null;
+    if (event.max_score) return `${event.score}/${event.max_score}`;
+
+    return `${event.score}%`;
+}
+
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 function studentId() {
@@ -333,6 +368,83 @@ function payForRequest(requestId) {
                                     {{ (selectedStudent.assignmentSummary?.pending ?? 0) + (selectedStudent.assignmentSummary?.in_progress ?? 0) + (selectedStudent.assignmentSummary?.late ?? 0) }}
                                 </p>
                                 <p class="text-xs text-surface-400 mt-1">تحتاج متابعة</p>
+                            </div>
+                        </div>
+
+                        <!-- Weekly progress report: read-only, real student records -->
+                        <div v-if="selectedStudent.weeklyReport" class="card p-6 border-primary-100 dark:border-primary-950">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <h3 class="text-lg font-bold text-surface-900 dark:text-white">تقرير التقدم الأسبوعي</h3>
+                                    <p class="mt-1 text-xs text-surface-500">آخر 7 أيام من السجلات الفعلية للطالب، للعرض والمتابعة فقط.</p>
+                                </div>
+                                <span class="text-xs text-surface-400">
+                                    {{ reportDate(selectedStudent.weeklyReport.range.start) }} — {{ reportDate(selectedStudent.weeklyReport.range.end) }}
+                                </span>
+                            </div>
+
+                            <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                                <div class="rounded-xl bg-primary-50 p-3 dark:bg-primary-950/30">
+                                    <p class="text-[11px] text-surface-500">دقائق المذاكرة</p>
+                                    <p class="mt-1 text-2xl font-black text-primary-600">{{ selectedStudent.weeklyReport.summary.study_minutes }}</p>
+                                </div>
+                                <div class="rounded-xl bg-green-50 p-3 dark:bg-green-950/20">
+                                    <p class="text-[11px] text-surface-500">دروس مكتملة</p>
+                                    <p class="mt-1 text-2xl font-black text-green-600">{{ selectedStudent.weeklyReport.summary.lessons_completed }}</p>
+                                </div>
+                                <div class="rounded-xl bg-amber-50 p-3 dark:bg-amber-950/20">
+                                    <p class="text-[11px] text-surface-500">واجبات مسلّمة</p>
+                                    <p class="mt-1 text-2xl font-black text-amber-600">{{ selectedStudent.weeklyReport.summary.assignments_submitted }}</p>
+                                </div>
+                                <div class="rounded-xl bg-accent-50 p-3 dark:bg-accent-950/20">
+                                    <p class="text-[11px] text-surface-500">اختبارات</p>
+                                    <p class="mt-1 text-2xl font-black text-accent-600">{{ selectedStudent.weeklyReport.summary.quizzes_submitted }}</p>
+                                </div>
+                                <div class="rounded-xl bg-surface-100 p-3 dark:bg-surface-800">
+                                    <p class="text-[11px] text-surface-500">متوسط الاختبارات</p>
+                                    <p class="mt-1 text-2xl font-black text-surface-800 dark:text-white">{{ selectedStudent.weeklyReport.summary.average_quiz_score ?? '—' }}<span v-if="selectedStudent.weeklyReport.summary.average_quiz_score !== null" class="text-sm">%</span></p>
+                                </div>
+                                <div class="rounded-xl bg-sky-50 p-3 dark:bg-sky-950/20">
+                                    <p class="text-[11px] text-surface-500">حضور الأسبوع</p>
+                                    <p class="mt-1 text-2xl font-black text-sky-600">{{ selectedStudent.weeklyReport.summary.attendance_rate }}%</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 grid gap-6 lg:grid-cols-2">
+                                <div>
+                                    <h4 class="mb-3 text-sm font-bold text-surface-800 dark:text-surface-100">النشاط اليومي</h4>
+                                    <div class="space-y-2">
+                                        <div v-for="day in selectedStudent.weeklyReport.daily" :key="day.date" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-surface-100 px-3 py-2 text-xs dark:border-surface-800">
+                                            <span class="font-bold text-surface-700 dark:text-surface-200">{{ reportDate(day.date) }}</span>
+                                            <span class="text-surface-500">{{ day.study_minutes }} د · {{ day.lessons_completed }} درس · {{ day.assignments_submitted }} واجب · {{ day.quizzes_submitted }} اختبار</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 class="mb-3 text-sm font-bold text-surface-800 dark:text-surface-100">حسب المادة</h4>
+                                    <div v-if="selectedStudent.weeklyReport.by_subject?.length" class="space-y-2">
+                                        <div v-for="subject in selectedStudent.weeklyReport.by_subject" :key="subject.id ?? subject.name" class="flex items-center justify-between gap-3 rounded-lg border border-surface-100 px-3 py-2 text-xs dark:border-surface-800">
+                                            <span class="font-bold text-surface-700 dark:text-surface-200">{{ subject.name }}</span>
+                                            <span class="text-end text-surface-500">{{ subject.lessons_completed }} درس · {{ subject.assignments_submitted }} واجب · {{ subject.quizzes_submitted }} اختبار</span>
+                                        </div>
+                                    </div>
+                                    <p v-else class="text-xs text-surface-400">لا يوجد نشاط أكاديمي مسجل خلال الفترة.</p>
+                                </div>
+                            </div>
+
+                            <div v-if="selectedStudent.weeklyReport.recent?.length" class="mt-6 border-t border-surface-100 pt-5 dark:border-surface-800">
+                                <h4 class="mb-3 text-sm font-bold text-surface-800 dark:text-surface-100">آخر الأنشطة</h4>
+                                <div class="grid gap-2 sm:grid-cols-2">
+                                    <div v-for="event in selectedStudent.weeklyReport.recent" :key="`${event.type}-${event.occurred_at}-${event.title}`" class="rounded-lg bg-surface-50 px-3 py-2 dark:bg-surface-900/60">
+                                        <div class="flex items-center justify-between gap-2 text-[11px]">
+                                            <span class="font-bold text-primary-600">{{ reportEventLabels[event.type] }}</span>
+                                            <span class="text-surface-400">{{ reportDateTime(event.occurred_at) }}</span>
+                                        </div>
+                                        <p class="mt-1 text-xs font-bold text-surface-700 dark:text-surface-200">{{ event.title }}</p>
+                                        <p class="mt-1 text-[11px] text-surface-500">{{ event.subject || 'نشاط عام' }} · {{ event.detail }}<span v-if="reportScore(event)"> · {{ reportScore(event) }}</span></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
