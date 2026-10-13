@@ -12,6 +12,7 @@ const props = defineProps({
     links:           { type: Array, required: true },
     selectedStudent: { type: Object, default: null },
     pendingRequests: { type: Array, default: () => [] },
+    pendingLinks:    { type: Array, default: () => [] },
 });
 
 const {
@@ -187,6 +188,15 @@ function payForRequest(requestId) {
                                 {{ linkForm.processing ? 'جارٍ الربط...' : 'ربط الطالب' }}
                             </button>
                         </form>
+                    </div>
+
+                    <div v-if="pendingLinks.length" class="card p-4 border-amber-300 dark:border-amber-900 bg-amber-500/5">
+                        <h3 class="font-bold text-sm text-surface-900 dark:text-white">طلبات الربط المعلقة</h3>
+                        <div class="mt-3 space-y-2">
+                            <div v-for="link in pendingLinks" :key="link.id" class="text-xs text-surface-600 dark:text-surface-300">
+                                بانتظار موافقة {{ link.student?.name }}
+                            </div>
+                        </div>
                     </div>
                     <h3 class="font-bold text-xs uppercase tracking-wider text-surface-400 mb-2">الأبناء المرتبطون</h3>
                     

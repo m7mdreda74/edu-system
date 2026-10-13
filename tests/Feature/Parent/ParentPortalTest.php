@@ -95,13 +95,16 @@ it('lets a parent link an existing student by the student phone number', functio
     ]);
 });
 
-it('rejects a parent link request for a non-student phone', function (): void {
+it('does not reveal whether a phone belongs to a student account', function (): void {
     $this->actingAs($this->parent)
         ->post(route('parent.link-student'), [
             'student_phone' => $this->teacher->phone,
             'relationship' => 'guardian',
         ])
-        ->assertSessionHasErrors('student_phone');
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(ParentStudentLink::count())->toBe(1);
 });
 
 it('lets a parent reject a pending purchase request and removes it from the pending state', function (): void {

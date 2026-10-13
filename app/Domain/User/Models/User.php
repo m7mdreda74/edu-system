@@ -129,7 +129,9 @@ class User extends Authenticatable
             'parent_student_links',
             'parent_user_id',
             'student_user_id',
-        )->withPivot(['relationship', 'verified_at']);
+        )
+            ->withPivot(['relationship', 'verified_at', 'status'])
+            ->whereNotNull('parent_student_links.verified_at');
     }
 
     public function parentLinks(): HasMany
@@ -145,7 +147,9 @@ class User extends Authenticatable
             'parent_student_links',
             'student_user_id',
             'parent_user_id',
-        )->withPivot(['relationship', 'verified_at']);
+        )
+            ->withPivot(['relationship', 'verified_at', 'status'])
+            ->whereNotNull('parent_student_links.verified_at');
     }
 
     // ─── Role Helpers ──────────────────────────────────────────────

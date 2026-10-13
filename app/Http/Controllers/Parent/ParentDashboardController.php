@@ -40,6 +40,22 @@ class ParentDashboardController extends Controller
             ->with(['student:id,name,email,grade_level'])
             ->get();
 
+        $pendingLinks = ParentStudentLink::where('parent_user_id', $parent->id)
+            ->whereNull('verified_at')
+            ->where('status', ParentStudentLink::STATUS_PENDING)
+            ->where(function ($query): void {
+                $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->with(['student:id,name'])
+            ->latest()
+            ->get()
+            ->map(fn (ParentStudentLink $link): array => [
+                'id' => $link->id,
+                'relationship' => $link->relationship,
+                'student' => $link->student?->only(['id', 'name']),
+                'expires_at' => $link->expires_at?->toIso8601String(),
+            ])->values();
+
         $filters = $request->validate([
             'student_id' => ['nullable', 'integer', 'min:1'],
         ]);
@@ -326,12 +342,15 @@ class ParentDashboardController extends Controller
             'links' => $links,
             'selectedStudent' => $studentData,
             'pendingRequests' => $pendingRequests,
+            'pendingLinks' => $pendingLinks,
         ]);
     }
 
     public function unlinkStudent(int $linkId): RedirectResponse
     {
-        ParentStudentLink::where('parent_user_id', Auth::id())->findOrFail($linkId)->delete();
+        /** @var User $parent */
+        $parent = Auth::user();
+        app(ParentStudentLinkService::class)->revokeByParent($parent, $linkId);
 
         return back()->with('success', 'تم إلغاء ربط الحساب بنجاح.');
     }
@@ -345,13 +364,13 @@ class ParentDashboardController extends Controller
 
         /** @var User $parent */
         $parent = Auth::user();
-        $parentStudentLinks->linkExistingStudent(
+        $parentStudentLinks->requestLink(
             $parent,
             $validated['student_phone'],
             $validated['relationship'],
         );
 
-        return back()->with('success', 'تم ربط حساب الطالب بحسابك بنجاح.');
+        return back()->with('success', 'تم إرسال طلب الربط. سيظهر للطالب للموافقة، دون منح صلاحية قبل الموافقة.');
     }
 
     /**
