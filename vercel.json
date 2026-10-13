@@ -69,7 +69,7 @@
         },
         {
             "path": "/api/cron/academic-alerts",
-            "schedule": "30 * * * *"
+            "schedule": "30 6 * * *"
         },
         {
             "path": "/api/cron/subscription-renewal-reminders",
