@@ -21,11 +21,12 @@
 3. Improve teacher worksheet navigation without duplicating group models.
 4. Keep the existing Learn submission and Teacher Worksheets grading paths as the working workflow.
 
-## P3 - Assessments and gradebook (deferred)
+## P3 - Assessments and gradebook (read-only checkpoint)
 
 1. Preserve submitted-attempt history.
 2. Add only additive quiz configuration/snapshot fields where a focused gap is confirmed.
-3. Build a read-only aggregate gradebook first, with explicit missing-submission semantics.
+3. Build a teacher-scoped read-only aggregate gradebook over submitted homework and the latest submitted quiz attempt, with explicit missing-submission semantics.
+4. Keep question-bank reuse, manual quiz feedback, export, and large-dataset pagination as follow-up work.
 
 ## P4-P6 - Parent monitoring, advanced features, release
 

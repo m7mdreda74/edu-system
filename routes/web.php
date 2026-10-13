@@ -55,6 +55,7 @@ use App\Http\Controllers\VideoWebhookController;
 use App\Http\Controllers\SubscriptionRenewalController;
 use App\Http\Controllers\Teacher\CurriculumController;
 use App\Http\Controllers\Teacher\FreeIntroSessionController as TeacherFreeIntroSessionController;
+use App\Http\Controllers\Teacher\GradebookController;
 use App\Http\Controllers\Teacher\LiveSessionController;
 use App\Http\Controllers\Teacher\MaterialManagerController;
 use App\Http\Controllers\Teacher\QuizBuilderController;
@@ -267,6 +268,7 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::get('/dashboard', [App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/my-groups', [App\Http\Controllers\Teacher\TeacherGroupController::class, 'index'])->name('groups.index');
     Route::get('/my-students', [App\Http\Controllers\Teacher\TeacherStudentController::class, 'index'])->name('students.index');
+    Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook');
 
     // Curriculum builder — the syllabus hangs off the assignment, not the group,
     // so the teacher writes it once for every group and private student on it.

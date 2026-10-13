@@ -12,6 +12,7 @@ Base commit: `08bc29c`
 - Student Continue Learning from real active-subscription progress.
 - Student Assignment Center with active-subscription/published-homework scoping, actual submission/grade metadata, protected file links, status filters, and empty state.
 - Teacher pending-grading dashboard metric scoped to the teacher's own assignments.
+- Teacher read-only Gradebook combining submitted homework/paper exams and the latest submitted quiz attempt per student, with teacher ownership filtering.
 - Direct Assignment Center navigation from the student dashboard.
 - Additive lifecycle migration and implementation documentation.
 
@@ -21,13 +22,19 @@ Existing subscription/access rules, protected file controller, Learn submission 
 
 ## Deferred
 
-Unified quiz/homework Gradebook, question bank, assessment center, parent weekly reports, advanced analytics/alerts, browser E2E, and full shared-component extraction require separate checkpoints and additional business-rule verification. Existing worksheet grading is functional but is not represented as a unified gradebook yet.
+Gradebook export/large-dataset pagination, question bank, assessment center, parent weekly reports, advanced analytics/alerts, browser E2E, and full shared-component extraction require separate checkpoints and additional business-rule verification. Existing worksheet grading remains the mutation workflow; the new Gradebook is read-only.
 
 ## Changed areas
 
 - Backend: parent-link service/model/controllers, student dashboard and assignment service/controller, teacher dashboard, routes, lifecycle migration.
 - Frontend: student/parent/teacher dashboards and new `Student/Assignments.vue` page.
 - Tests: parent-link security, student dashboard, assignment center, and admin dashboard expectation.
+
+## Routes and schema
+
+- New route: `GET /teacher/gradebook` (`teacher.gradebook`).
+- New application service/controller/page: `TeacherGradebookService`, `Teacher/GradebookController`, and `Teacher/Gradebook.vue`.
+- No new schema migration was required for the read-only Gradebook. The earlier parent-link migration `2026_10_13_000100_add_parent_student_link_lifecycle` remains Pending until controlled release.
 
 ## Verification
 

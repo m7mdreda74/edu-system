@@ -16,7 +16,7 @@ Status values: existing, partial, missing, security gap, deferred.
 | Teacher operational dashboard | `Teacher/DashboardController`, `Teacher/Dashboard.vue` | partial, improved | Existing aggregates plus real pending-grading count and worksheet navigation. |
 | Student dashboard | `Student/DashboardController`, `Student/Dashboard.vue` | partial, improved | Pending link decisions, real Continue Learning, and Assignment Center navigation are implemented. |
 | Student assignment center | `StudentAssignmentService`, `Student/Assignments.vue`, `AssignmentsTest` | implemented checkpoint | Active subscriptions, published homework, progress/submission statuses, protected files, filters, and empty states use real records. |
-| Unified gradebook | No dedicated endpoint/page found | missing | Design around existing quiz attempts and worksheet submissions; no duplicate score records. |
+| Unified gradebook | `TeacherGradebookService`, `Teacher/Gradebook.vue`, `GradebookTest` | implemented checkpoint | Read-only aggregate of submitted homework and latest submitted quiz attempt, teacher-scoped, with explicit missing-submission semantics; pagination/export remain follow-up hardening. |
 | Question bank | Quiz questions are scoped to quizzes | missing/partial | Defer until question ownership/snapshot rules are specified and tested. |
 | Announcements/academic alerts | No dedicated domain workflow found | missing | Defer; avoid fake buttons or unqueued notifications. |
 | Gamification/AI integrations | No safe configured infrastructure found | deferred | Do not add appearance-only integrations. |

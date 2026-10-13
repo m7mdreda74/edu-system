@@ -87,6 +87,10 @@ function autoScheduleGroup(groupId) {
                         <Icon name="calendar" class="w-4 h-4" />
                         <span>جدول المواعيد الأسبوعي</span>
                     </Link>
+                    <Link :href="route('teacher.gradebook')" class="btn-ghost btn-sm flex items-center gap-2">
+                        <Icon name="chart" class="w-4 h-4" />
+                        <span>سجل الدرجات</span>
+                    </Link>
                 </div>
             </header>
 

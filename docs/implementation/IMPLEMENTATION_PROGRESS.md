@@ -11,12 +11,13 @@
 - Added teacher pending-grading count backed by owned worksheet submissions.
 - Added a student Assignment Center backed by active subscriptions, published homework, lesson progress, and real submissions.
 - Added direct student-dashboard navigation to the Assignment Center.
+- Added a teacher-scoped read-only Gradebook that combines submitted homework with each student's latest submitted quiz attempt, without double-counting attempts or treating missing work as zero.
 - Focused tests and the production frontend build pass for the new slices.
 
 ## Deferred until a separate P3/P4 checkpoint
 
 - Shared dashboard component extraction beyond the existing reusable cards/layouts.
-- Unified quiz + homework gradebook endpoint; existing teacher worksheet grading remains the source of truth.
+- Gradebook export/pagination hardening, question-bank reuse, and richer manual quiz feedback; existing teacher worksheet grading remains the source of truth for mutations.
 - Student assessment center, question-bank reuse, and advanced notification scheduling.
 - Parent weekly progress reports and deeper academic analytics.
 

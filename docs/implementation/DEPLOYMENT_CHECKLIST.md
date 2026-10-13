@@ -18,6 +18,7 @@ Status: **NOT READY — BLOCKERS REMAIN**
 - Student opens Continue Learning and Assignment Center with an active subscription.
 - Student submits through the existing Learn flow; teacher grades through existing Worksheets; student and verified parent see released feedback.
 - Teacher sees pending grading count scoped to owned assignments.
+- Teacher opens the Gradebook, filters only their own assignment, sees submitted homework and latest quiz attempts, and does not see missing submissions as zeroes.
 - Exercise existing login, booking, subscription, payment, live room, recorded lesson, protected file, and renewal flows.
 
 ## Release gates

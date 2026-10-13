@@ -26,6 +26,8 @@ Branch: `feature/lms-dashboard-v2`
 
 `Teacher/DashboardController` counts ungraded submissions only inside assignments owned by the authenticated teacher. Existing worksheet creation and grading routes remain unchanged.
 
+`TeacherGradebookService` reads only assignments owned by the authenticated teacher, merges submitted homework/paper exams with the latest submitted attempt per student and quiz, and returns derived totals. It does not create or mutate grades; the existing worksheet grading and quiz scoring services remain the mutation authorities.
+
 ## Authorization surfaces
 
 - Student parent-link actions scope the link by `student_user_id` before mutation.
@@ -37,5 +39,5 @@ Branch: `feature/lms-dashboard-v2`
 ## Known architectural limits
 
 - The migration is additive but not applied in this workspace.
-- A unified quiz/homework gradebook and question bank are not yet implemented; existing worksheet grading and quiz engine remain separate.
+- The gradebook is a first read-only aggregate; export, server-side pagination for very large datasets, question-bank reuse, and richer manual quiz feedback remain open.
 - Browser/mobile E2E and production-like MySQL transaction/concurrency verification are still release gates.
