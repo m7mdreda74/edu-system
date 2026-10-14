@@ -56,11 +56,11 @@ function subscribe(groupId) {
 
                 <div class="card p-12 text-center">
                     <Icon name="student" class="w-10 h-10 text-surface-300 mx-auto mb-3" />
-                    <h3 class="font-bold text-surface-700 dark:text-surface-200 mb-1">لم تحدّد صفك الدراسي بعد</h3>
+                    <h3 class="font-bold text-surface-700 dark:text-surface-200 mb-1">لم يتم تحديد صفك الدراسي بعد</h3>
                     <p class="text-sm text-surface-400 mb-5">
-                        حدّد صفك من صفحة الحساب لتظهر لك مواد منهجك ومعلموها.
+                        الصف الدراسي تُحدّده إدارة المنصة. تواصل مع الإدارة ليظهر لك منهجك ومعلموه.
                     </p>
-                    <Link :href="route('profile.edit')" class="btn-primary btn-sm">تحديث الحساب</Link>
+                    <Link :href="route('chat.index')" class="btn-primary btn-sm">تواصل مع الإدارة</Link>
                 </div>
             </template>
 

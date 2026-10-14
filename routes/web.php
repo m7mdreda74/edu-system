@@ -431,6 +431,7 @@ Route::middleware(['auth', 'active', 'role:admin', 'admin.sensitive'])->prefix('
     Route::patch('/users/{id}/password', [UserController::class, 'resetPassword'])->name('users.password');
     Route::patch('/users/{id}/toggle', [UserController::class, 'toggleActive'])->name('users.toggle');
     Route::patch('/users/{id}/role', [UserController::class, 'updateRole'])->name('users.role');
+    Route::patch('/users/{id}/grade', [UserController::class, 'updateGrade'])->name('users.grade');
     Route::patch('/users/{id}/commission', [UserController::class, 'updateCommission'])->name('users.commission');
     // Teacher photos are public-facing, so the platform owns them.
     Route::post('/users/{id}/avatar', [UserController::class, 'updateAvatar'])->name('users.avatar');

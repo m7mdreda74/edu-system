@@ -7,10 +7,10 @@
 | Command | Result |
 | --- | --- |
 | `php artisan test --compact --display-incomplete` | **PASS WITH ENVIRONMENT SKIPS** — 363 passed, 6 skipped, 2,698 assertions |
-| Focused assignment/group tests | **PASS** — 4 tests, 102 assertions |
-| `php artisan test tests/Feature/Console/ProductionReadinessCommandTest.php` | **PASS** — 1 test, 7 assertions |
+| Focused assignment/group/preflight tests | **PASS** — 5 tests, 110 assertions |
+| `php artisan test tests/Feature/Console/ProductionReadinessCommandTest.php` | **PASS** — 1 test, 8 assertions |
 | `npm.cmd run build -- --logLevel warn` | **PASS** — Vite production build |
-| Targeted `vendor/bin/pint --test` | **PASS** — changed PHP files |
+| Targeted `vendor/bin/pint --test` | **PASS** — focused admin/test files; existing style findings remain in the touched route/config files |
 | `composer validate --no-check-publish` | **PASS** |
 | `git diff --check` | **PASS** |
 | `php artisan migrate:status --database=mysql` | **PASS** — 91 ran, 0 pending locally |
@@ -25,3 +25,5 @@ Repository-wide Pint was also checked and reports a large pre-existing formattin
 Browser/device E2E, production smoke tests, queue delivery, shared-cache concurrency, private Blob persistence, and production migration verification were not run or are not available from this workspace.
 
 The current CLI does not load PHP GD. The six image-upload tests are therefore marked skipped when GD is absent, and production preflight fails explicitly until GD is enabled. This is not treated as a production pass.
+
+The GitHub Actions quality workflow now requests the `gd` extension so its image-upload coverage runs instead of being skipped on CI.

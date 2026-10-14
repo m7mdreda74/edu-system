@@ -15,7 +15,8 @@
 | Diff whitespace | `git diff --check` | Passed |
 | Local migration state | default and MySQL `migrate:status` | 91 ran, 0 pending |
 | Teacher group routes | `route:list --name=teacher.groups` | 4 routes present |
-| Live HTTP shell | read-only request to `https://altafawwuq-one.vercel.app/` | HTTP 200 |
+| Live HTTP shell | read-only GET requests to `/`, `/health`, `/login`, and `/register` on `https://altafawwuq-one.vercel.app/` | All HTTP 200; `/health` reported database/cache `ok`; homepage/auth pages still expose the legacy title |
+| Live autocomplete endpoint | read-only GET to `/api/search-autocomplete?q=رياضيات`; local named route and feature tests exist | **HTTP 404 on deployment**; indicates deployed-code parity gap, not a missing route in the current workspace |
 
 ## Confirmed gaps and release blockers
 
@@ -26,6 +27,7 @@
 5. **Private Blob/OIDC persistence is not verified.** Credentials and a staging/private-store smoke test were not available, so upload, persistence after redeploy, and protected retrieval remain open.
 6. **Browser E2E is not available.** No Playwright/Dusk/browser test harness exists in the repository; visual, mobile, console, and network acceptance is therefore not claimed.
 7. **The current CLI does not load GD.** Image upload tests are skipped locally and production preflight fails until GD is enabled.
+8. **The deployed autocomplete endpoint is stale or missing.** The current workspace defines and tests `search.autocomplete`, while the live deployment returned HTTP 404; deploy parity must be checked before release.
 
 ## Release decision
 

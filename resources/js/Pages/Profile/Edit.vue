@@ -7,6 +7,10 @@ import NotificationPreferencesForm from './Partials/NotificationPreferencesForm.
 import { Head } from '@inertiajs/vue3';
 
 defineProps({
+    isStudent: {
+        type: Boolean,
+        default: false,
+    },
     mustVerifyEmail: {
         type: Boolean,
     },
@@ -40,7 +44,25 @@ defineProps({
                 </div>
 
                 <div class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">
+                    <section v-if="isStudent" class="max-w-xl">
+                        <h2 class="text-lg font-bold text-surface-900 dark:text-white">معلومات الحساب</h2>
+                        <p class="mt-2 text-sm leading-6 text-surface-500">
+                            بيانات حسابك (الاسم والبريد والصورة والصف الدراسي) تُدار من قبل إدارة المنصة فقط.
+                            للتعديل، تواصل مع الإدارة.
+                        </p>
+                        <dl class="mt-4 space-y-3 text-sm">
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-surface-500">الاسم</dt>
+                                <dd class="font-semibold text-surface-900 dark:text-white">{{ $page.props.auth.user.name }}</dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-surface-500">البريد الإلكتروني</dt>
+                                <dd dir="ltr" class="font-semibold text-surface-900 dark:text-white">{{ $page.props.auth.user.email }}</dd>
+                            </div>
+                        </dl>
+                    </section>
                     <UpdateProfileInformationForm
+                        v-else
                         :must-verify-email="mustVerifyEmail"
                         :status="status"
                         class="max-w-xl"
@@ -61,7 +83,7 @@ defineProps({
                     <NotificationPreferencesForm :preferences="notificationPreferences" class="max-w-xl" />
                 </div>
 
-                <div class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">
+                <div v-if="!isStudent" class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">
                     <DeleteUserForm class="max-w-xl" />
                 </div>
             </div>

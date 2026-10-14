@@ -171,6 +171,35 @@ class UserController extends Controller
         return back()->with('success', "تم تحديث دور {$user->name} بنجاح.");
     }
 
+    public function updateGrade(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'grade_level' => [
+                'required',
+                'string',
+                Rule::exists('grade_levels', 'key')
+                    ->where(fn ($query) => $query
+                        ->where('is_active', true)
+                        ->where('key', '!=', 'all')),
+            ],
+        ], [
+            'grade_level.exists' => 'الصف الدراسي المختار غير متاح حالياً.',
+        ]);
+
+        $user = User::findOrFail($id);
+        abort_unless($user->hasRole('student'), 422, 'الصف الدراسي يخص حسابات الطلاب فقط.');
+
+        $oldGrade = $user->grade_level;
+        $user->update(['grade_level' => $validated['grade_level']]);
+
+        AuditLogger::record('admin.user.grade_changed', $user, [
+            'old_grade' => $oldGrade,
+            'new_grade' => $validated['grade_level'],
+        ]);
+
+        return back()->with('success', "تم تحديث الصف الدراسي للطالب {$user->name}.");
+    }
+
     public function updateCommission(Request $request, int $id): RedirectResponse
     {
         $validated = $request->validate([

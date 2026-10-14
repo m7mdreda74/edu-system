@@ -128,10 +128,27 @@ const roleModalOpen = ref(false);
 const editingUser   = ref(null);
 const selectedRole  = ref('student');
 
+const editingGrade = ref('');
+
 function openRoleModal(user) {
     editingUser.value  = user;
     selectedRole.value = user.roles?.[0]?.name ?? 'student';
+    editingGrade.value = user.grade_level ?? '';
     roleModalOpen.value = true;
+}
+
+const assignableGradeLevels = computed(() =>
+    (page.props.grade_levels ?? []).filter(g => g.key !== 'all'),
+);
+
+function updateGrade() {
+    if (!editingUser.value || !editingGrade.value) return;
+    router.patch(route('admin.users.grade', { id: editingUser.value.id }), {
+        grade_level: editingGrade.value,
+    }, {
+        onSuccess: () => { roleModalOpen.value = false; },
+        preserveScroll: true,
+    });
 }
 
 function updateRole() {
@@ -503,6 +520,17 @@ async function removeMedia() {
                                 <div class="text-xs text-surface-500">صلاحيات كاملة للتحكم في المنصة</div>
                             </div>
                         </label>
+                    </div>
+
+                    <div v-if="editingUser?.roles?.[0]?.name === 'student'" class="mt-5 pt-4 border-t border-surface-200 dark:border-surface-800">
+                        <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="edit-grade">الصف الدراسي للطالب</label>
+                        <div class="flex gap-2">
+                            <select id="edit-grade" v-model="editingGrade" class="input w-full text-sm">
+                                <option value="" disabled>اختر الصف</option>
+                                <option v-for="gl in assignableGradeLevels" :key="gl.key" :value="gl.key">{{ gl.name }}</option>
+                            </select>
+                            <button type="button" @click="updateGrade" :disabled="!editingGrade" class="btn-primary shrink-0">حفظ الصف</button>
+                        </div>
                     </div>
                 </div>
                 <div class="p-4 bg-surface-50 dark:bg-surface-950 flex justify-end gap-2 border-t border-surface-200 dark:border-surface-800">

@@ -483,23 +483,17 @@ it('refuses a teacher uploading their own photo', function () {
     expect($this->teacher->fresh()->avatar)->toBeNull();
 });
 
-it('still lets a student set their own photo', function () {
+it('refuses a student editing their own account, photo included', function () {
     /** @var AdminControlTestCase $this */
-    if (! extension_loaded('gd')) {
-        $this->markTestSkipped('PHP GD is required for image upload tests.');
-    }
-
-    Storage::fake('public');
-
     $this->actingAs($this->student)
         ->patch(route('profile.update'), [
-            'name' => $this->student->name,
+            'name' => 'Changed Name',
             'email' => $this->student->email,
-            'avatar' => UploadedFile::fake()->image('me.jpg', 200, 200),
         ])
-        ->assertSessionHasNoErrors();
+        ->assertForbidden();
 
-    expect($this->student->fresh()->avatar)->not->toBeNull();
+    expect($this->student->fresh()->name)->not->toBe('Changed Name')
+        ->and($this->student->fresh()->avatar)->toBeNull();
 });
 
 it('lets a teacher edit the rest of their profile', function () {

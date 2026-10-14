@@ -27,6 +27,7 @@ class ProfileController extends Controller
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
             'canChangePassword' => ! $request->user()->hasRole('teacher'),
+            'isStudent' => $request->user()->hasRole('student'),
             'notificationPreferences' => NotificationPreference::catalogFor($request->user()),
         ]);
     }
@@ -64,6 +65,10 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
+        // A student's account data (name, email, photo, grade) is managed by
+        // the platform admin only.
+        abort_if($request->user()->hasRole('student'), 403, 'بيانات حساب الطالب تُدار من قبل إدارة المنصة فقط.');
+
         $user = $request->user();
         $user->fill($request->safe()->except('avatar'));
 
@@ -90,6 +95,9 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // Students cannot delete their own account; only an admin can.
+        abort_if($request->user()->hasRole('student'), 403, 'حذف حساب الطالب يتم من قبل إدارة المنصة فقط.');
+
         $request->validate([
             'password' => ['required', 'string', 'max:255', 'current_password'],
         ]);

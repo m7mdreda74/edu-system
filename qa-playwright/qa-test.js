@@ -4,9 +4,29 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const BASE = 'https://altafawwuq-one.vercel.app';
+const BASE = String(process.env.QA_BASE_URL || '').replace(/\/+$/, '');
+const STUDENT_EMAIL = process.env.QA_STUDENT_EMAIL || '';
+const STUDENT_PASSWORD = process.env.QA_STUDENT_PASSWORD || '';
+const ALLOW_MUTATIONS = process.env.QA_ALLOW_MUTATIONS === 'true';
 const findings = { console: [], network: [], upload: {}, steps: [] };
 const log = (m) => { console.log(m); findings.steps.push(m); };
+
+function assertQaConfiguration() {
+  if (!BASE) {
+    throw new Error('QA_BASE_URL is required; refuse to use an implicit deployment target.');
+  }
+
+  const target = new URL(BASE);
+  const isKnownProduction = target.hostname === 'altafawwuq-one.vercel.app';
+
+  if (isKnownProduction && process.env.QA_ALLOW_PRODUCTION !== 'true') {
+    throw new Error('Refusing the known production host. Set QA_ALLOW_PRODUCTION=true only with explicit approval.');
+  }
+
+  if (!STUDENT_EMAIL || !STUDENT_PASSWORD) {
+    throw new Error('QA_STUDENT_EMAIL and QA_STUDENT_PASSWORD are required; credentials are never stored in this script.');
+  }
+}
 
 async function attachAudits(page, label) {
   page.on('console', (msg) => {
@@ -25,6 +45,8 @@ async function attachAudits(page, label) {
 }
 
 (async () => {
+  assertQaConfiguration();
+
   // generate a small fake receipt PNG (1x1 red pixel)
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',

@@ -17,11 +17,12 @@
 ## Verification
 
 - Laravel: 363 passed, 6 skipped, 2,698 assertions; six image tests are skipped because the current CLI lacks GD.
+- Focused assignment/group/preflight suite: 5 passed, 110 assertions.
 - Vite build: passed.
-- Targeted Pint: passed.
+- Targeted Pint: focused admin/test files passed; existing style findings remain in the touched route/config files.
 - Composer validation and diff check: passed.
 - Local/default and MySQL migration status: 91 ran, 0 pending.
-- Production homepage read-only HTTP shell: 200, but legacy title observed.
+- Production read-only smoke: `/`, `/health`, `/login`, and `/register` returned 200; `/health` reported database/cache `ok`, but the legacy title remains. The live `/api/search-autocomplete` endpoint returned 404 although the current workspace defines and tests it, confirming a deployment-parity gap.
 
 ## Why release is still blocked
 
