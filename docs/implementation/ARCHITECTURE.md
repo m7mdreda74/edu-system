@@ -40,6 +40,8 @@ Branch: `feature/lms-dashboard-v2`
 
 `ResourceLibraryService` owns teacher resource metadata, tag normalization, local private-file persistence, direct Vercel Blob completion, assignment attachment, search/filter presentation, and administrative share moderation. `LearningResourcePolicy` keeps private resources owner/admin-only, exposes approved shared resources to teachers, and derives student/parent download access from the resource's assignment links plus active subscriptions and verified parent-child links. `ProtectedFileController` re-checks that policy before serving a local file or issuing a short-lived Blob download URL.
 
+`AdminAnalyticsService` builds the administrator's read-only aggregate view from paid payments, subscription periods, lesson progress, approved teacher reviews, and scheduled live sessions. It uses database grouping for the rolling revenue, group sales, ratings, and session buckets, derives the first-purchase/no-renewal churn cohort from subscription periods, and caches the result for 15 minutes. No student-level rows are sent to the page, no snapshot table is introduced, and daily snapshots remain a future scaling option.
+
 ## Authorization surfaces
 
 - Student parent-link actions scope the link by `student_user_id` before mutation.
@@ -55,5 +57,7 @@ Branch: `feature/lms-dashboard-v2`
 - The migrations are additive but not applied in this workspace. Resource direct uploads additionally require a connected private Blob store and matching OIDC/token environment on the deployment.
 - The gradebook is a teacher-scoped aggregate with CSV export, server-side pagination, owner-scoped quiz feedback, and in-app release notifications. Teacher analytics use a selectable 7/30/90-day window and explainable rules; external push/SMS delivery and deeper parent analytics remain open. Question Bank reuse is now implemented through teacher-owned private/shared records and immutable quiz snapshots.
 - All application notifications implement `ShouldQueue`; the configured queue worker is required for database/mail delivery, with retry and failed-job monitoring handled by the deployment process.
+- Notification preferences are default-on and enforced centrally at `NotificationSending`; push/SMS and realtime channels are intentionally not exposed until their delivery infrastructure exists.
+- Admin analytics is intentionally read-only and aggregate-only; its 15-minute cache is suitable for operational reporting, while historical daily snapshots and external BI exports remain deferred.
 - Resource metadata editing and remote Blob orphan cleanup after an abandoned direct upload are follow-up hardening items; local deletion is handled immediately and protected retrieval remains fail-closed.
 - Browser/mobile E2E and production-like MySQL transaction/concurrency verification are still release gates.

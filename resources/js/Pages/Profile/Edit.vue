@@ -3,6 +3,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
+import NotificationPreferencesForm from './Partials/NotificationPreferencesForm.vue';
 import { Head } from '@inertiajs/vue3';
 
 defineProps({
@@ -15,6 +16,10 @@ defineProps({
     canChangePassword: {
         type: Boolean,
         default: true,
+    },
+    notificationPreferences: {
+        type: Array,
+        default: () => [],
     },
 });
 </script>
@@ -50,6 +55,10 @@ defineProps({
                             يتم تعيين كلمة مرور حساب المدرس وإدارتها عن طريق إدارة المنصة فقط.
                         </p>
                     </div>
+                </div>
+
+                <div class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">
+                    <NotificationPreferencesForm :preferences="notificationPreferences" class="max-w-xl" />
                 </div>
 
                 <div class="card p-6 sm:p-8 border border-surface-200 dark:border-surface-800">

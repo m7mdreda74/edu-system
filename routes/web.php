@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Admin\AcademicTermController;
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\GradeLevelController;
 use App\Http\Controllers\Admin\PaymentController;
@@ -126,6 +127,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/notification-preferences', [ProfileController::class, 'updateNotificationPreferences'])
+        ->name('profile.notification-preferences.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // ─── Chat ─────────────────────────────────────────────────────────────────
@@ -414,6 +417,7 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'active', 'role:admin', 'admin.sensitive'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports');
     // Polled by the dashboard so its figures stay live without a page reload.
     Route::get('/dashboard/stats', [App\Http\Controllers\Admin\DashboardController::class, 'stats'])->name('dashboard.stats');

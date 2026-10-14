@@ -36,6 +36,7 @@ Base commit: `08bc29c`
 - Submitted quiz attempts now support owner-scoped teacher feedback, visible in Gradebook, student assessments/Study Room, parent quiz history, and Gradebook CSV without changing scores.
 - Publishing new quiz feedback sends one in-app notification to the student and verified linked parents; repeated saves and clearing feedback are deduplicated.
 - All 19 application notification classes now implement `ShouldQueue`, preserving their existing channels and payloads while moving delivery behind Laravel Queue.
+- Notification preferences are available in Profile, default on, validated by supported type/channel, and enforced centrally before database/mail delivery.
 - Additive lifecycle migration and implementation documentation.
 
 ## Reused existing functionality
@@ -71,7 +72,9 @@ External push/SMS, AI, browser E2E, and full shared-component extraction require
 - New teacher feedback route: `teacher.gradebook.quiz-feedback`; only the owning teacher can update submitted quiz feedback.
 - Quiz feedback release notifications reuse `GenericDatabaseNotification` and are scoped to the attempt's student plus verified `parent_student_links`.
 - Queue worker configuration, retry policy, and failed-job monitoring are deployment requirements for notification delivery.
-- New additive migrations: `2026_10_13_000200_create_group_announcements_table`, `2026_10_13_000300_create_question_bank_tables`, `2026_10_13_000400_create_learning_resource_library_tables`, `2026_10_14_000100_create_learning_outcomes_table`, and `2026_10_14_000200_add_teacher_feedback_to_quiz_attempts_table`. The earlier parent-link migration `2026_10_13_000100_add_parent_student_link_lifecycle` also remains Pending until controlled release.
+- New route: `profile.notification-preferences.update`; new additive migration: `2026_10_14_000300_create_notification_preferences_table`.
+- New admin route: `GET /admin/analytics` (`admin.analytics`) with `AdminAnalyticsService`, `AnalyticsController`, and a 15-minute cached read-only aggregate dashboard; no migration was required.
+- New additive migrations: `2026_10_13_000100_add_parent_student_link_lifecycle`, `2026_10_13_000200_create_group_announcements_table`, `2026_10_13_000300_create_question_bank_tables`, `2026_10_13_000400_create_learning_resource_library_tables`, `2026_10_14_000100_create_learning_outcomes_table`, `2026_10_14_000200_add_teacher_feedback_to_quiz_attempts_table`, and `2026_10_14_000300_create_notification_preferences_table`; all remain Pending until controlled release.
 
 ## Verification
 
@@ -85,9 +88,9 @@ External push/SMS, AI, browser E2E, and full shared-component extraction require
 - Vite production build passes with 908 modules transformed.
 - PHP syntax and diff checks pass.
 - The release-hardening regression slice passes with 99 tests and 961 assertions, including deterministic admin-report/subscription, directory, curriculum, recorded-report, parent checkout/chat, free-intro, and sensitive-admin checks.
-- Full suite completed with **360 passed, 0 failed, and 2,588 assertions**; no new failure appeared in Resource Library, Blob uploads, Academic Alerts, live reminders, renewal reminders, queued notifications, teacher analytics/outcomes/export, quiz feedback/notifications, the weekly report/comparison, achievements, Learning Outcomes/status, parent outcome visibility, Question Bank, quiz, assessment, Gradebook pagination/export, or announcement management slices. See `TEST_RESULTS.md` and `REGRESSION_REPORT.md`.
-- Local MySQL reports the six additive migrations Pending; no migration or deployment was run.
+- Full suite completed with **366 passed, 0 failed, and 2,649 assertions**; no new failure appeared in Resource Library, Blob uploads, Academic Alerts, live reminders, renewal reminders, queued notifications/preferences, admin analytics, teacher analytics/outcomes/export, quiz feedback/notifications, the weekly report/comparison, achievements, Learning Outcomes/status, parent outcome visibility, Question Bank, quiz, assessment, Gradebook pagination/export, or announcement management slices. See `TEST_RESULTS.md` and `REGRESSION_REPORT.md`.
+- Local MySQL reports the seven additive migrations Pending; no migration or deployment was run.
 
 ## Production decision
 
-Do not deploy yet. Apply the six pending migrations only after review, verify isolated MySQL and browser journeys, complete the private Blob/OIDC smoke test, and obtain explicit staging/production authorization.
+Do not deploy yet. Apply the seven pending migrations only after review, verify isolated MySQL and browser journeys, complete the private Blob/OIDC smoke test, and obtain explicit staging/production authorization.

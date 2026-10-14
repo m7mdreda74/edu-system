@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## 2026-10-14 - P0-P6.2 + P4.1 + P5.1-P5.3 + P6.3-P6.7 + P7.1-P7.9 local checkpoint
+## 2026-10-14 - P0-P6.2 + P4.1 + P5.1-P5.3 + P6.3-P6.7 + P7.1-P7.11 local checkpoint
 
 - Created branch `feature/lms-dashboard-v2` from `08bc29c`.
 - Audited existing domain models, controllers, routes, protected learning access, dashboards, parent linking, quiz, worksheet, booking, subscription, and Blob storage paths.
@@ -35,6 +35,8 @@
 - Added owner-scoped quiz teacher feedback for submitted attempts and exposed it consistently in Gradebook, student assessment views, Study Room, parent quiz history, and Gradebook CSV.
 - Added owner-scoped quiz feedback notifications for the student and verified linked parents, with duplicate suppression and no notification when feedback is cleared.
 - Enforced queued delivery for all 19 application notification classes and added an architectural regression guard for `ShouldQueue` compliance.
+- Added per-user notification preferences with default-on behavior, profile UI, strict type/channel validation, and central `NotificationSending` suppression for supported database/mail channels.
+- Added the read-only admin analytics dashboard at `admin.analytics`, with cached 12-month revenue, top group sales, lesson completion, three-month first-purchase churn, approved teacher ratings, and peak live-session buckets.
 - Focused tests and the production frontend build pass for the new slices.
 
 ## Deferred after the local P6.3 checkpoint
@@ -45,7 +47,8 @@
 - AI integrations and external data-driven recommendations.
 - External announcement delivery and advanced notification scheduling remain follow-up hardening.
 - Queue worker uptime, retry, and failed-job monitoring remain deployment gates; no worker was started from this workspace.
+- Push/SMS and realtime notification channels remain deferred; only currently implemented channels are exposed in preferences.
 
 ## Schema status
 
-Migrations `2026_10_13_000100_add_parent_student_link_lifecycle`, `2026_10_13_000200_create_group_announcements_table`, `2026_10_13_000300_create_question_bank_tables`, `2026_10_13_000400_create_learning_resource_library_tables`, `2026_10_14_000100_create_learning_outcomes_table`, and `2026_10_14_000200_add_teacher_feedback_to_quiz_attempts_table` are additive and remain Pending on the local MySQL connection. None has been run against any production or deployment database.
+Migrations `2026_10_13_000100_add_parent_student_link_lifecycle`, `2026_10_13_000200_create_group_announcements_table`, `2026_10_13_000300_create_question_bank_tables`, `2026_10_13_000400_create_learning_resource_library_tables`, `2026_10_14_000100_create_learning_outcomes_table`, `2026_10_14_000200_add_teacher_feedback_to_quiz_attempts_table`, and `2026_10_14_000300_create_notification_preferences_table` are additive and remain Pending on the local MySQL connection. Phase 7.11 adds no migration. None has been run against any production or deployment database.

@@ -185,4 +185,18 @@
 3. Add an architectural regression test covering all application notification classes so new notifications cannot silently become synchronous.
 4. Keep queue-worker availability and failed-job monitoring as staging/production release gates; no worker or migration was run locally.
 
+## P7.10 - Notification preferences (completed locally)
+
+1. Add per-user, per-notification-type and per-channel preferences with enabled-by-default behavior for users without saved overrides.
+2. Enforce preferences centrally through `NotificationSending`, so database and supported mail channels are suppressed before delivery rather than only hidden in the UI.
+3. Add a profile settings panel, strict validation, user isolation, and an additive preference migration.
+4. Keep push/SMS and realtime delivery deferred until their infrastructure is approved; expose only channels implemented by the current notification classes.
+
+## P7.11 - Advanced admin analytics (completed locally)
+
+1. Add a read-only `/admin/analytics` dashboard backed by aggregated current records and a 15-minute cache.
+2. Report the rolling 12-month paid revenue series, top teaching groups by confirmed sales, lesson-progress completion, and first-purchase churn after a three-month no-renewal window.
+3. Report approved teacher ratings and peak live-session day/hour buckets without exposing student-level data or adding a snapshot migration.
+4. Cover administrator authorization, aggregation semantics, empty states, frontend build, and regression behavior; retain daily snapshots and deeper external analytics as follow-up work.
+
 Every phase ends with focused tests, regression tests, a frontend build, documentation, and a small reviewable checkpoint. Production remains explicitly out of scope.

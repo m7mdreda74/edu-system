@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Domain\User\Models;
 
 use App\Domain\Academic\Models\Subject;
+use App\Domain\Communication\Models\NotificationPreference;
 use App\Domain\Learning\Models\TeacherReview;
 use App\Domain\Payment\Models\Payment;
-use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
+use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Subscription\Models\Subscription;
 use App\Infrastructure\Observers\UserObserver;
+use Database\Factories\Domain\User\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -23,15 +25,15 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
- * @mixin \Spatie\Permission\Traits\HasRoles
+ * @mixin HasRoles
  */
 class User extends Authenticatable
 {
     use HasFactory, HasRoles, Notifiable, SoftDeletes;
 
-    protected static function newFactory(): \Database\Factories\Domain\User\UserFactory
+    protected static function newFactory(): UserFactory
     {
-        return new \Database\Factories\Domain\User\UserFactory();
+        return new UserFactory;
     }
 
     // IDE Helper: hasRole()/syncRoles() come from Spatie\Permission\Traits\HasRoles.
@@ -64,11 +66,11 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at'  => 'datetime',
-            'password'           => 'hashed',
-            'is_active'          => 'boolean',
-            'is_featured'        => 'boolean',
-            'years_experience'   => 'integer',
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'is_active' => 'boolean',
+            'is_featured' => 'boolean',
+            'years_experience' => 'integer',
             'commission_percent' => 'integer',
         ];
     }
@@ -108,6 +110,11 @@ class User extends Authenticatable
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function notificationPreferences(): HasMany
+    {
+        return $this->hasMany(NotificationPreference::class);
     }
 
     /** Ratings this teacher has received. */

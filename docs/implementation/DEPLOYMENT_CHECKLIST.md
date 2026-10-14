@@ -4,10 +4,10 @@ Status: **NOT READY — BLOCKERS REMAIN**
 
 ## Before staging
 
-- Review the feature branch diff and all six additive migrations: parent-link lifecycle, group announcements, Question Bank, Resource Library, Learning Outcomes, and quiz teacher feedback.
+- Review the feature branch diff and all seven additive migrations: parent-link lifecycle, group announcements, Question Bank, Resource Library, Learning Outcomes, quiz teacher feedback, and notification preferences.
 - Confirm backup/restore availability for `parent_student_links`.
 - Confirm backup/restore availability for `learning_resources` and `learning_resource_assignments`.
-- Apply all six migrations only through the approved staging/deployment process; do not run production migrations from this workspace.
+- Apply all seven migrations only through the approved staging/deployment process; do not run production migrations from this workspace.
 - Clear/cache Laravel configuration and routes according to the host release process.
 - Build and publish the matching Vite manifest/assets.
 - Configure and verify a queue worker for the selected `QUEUE_CONNECTION`; monitor retries and failed jobs before enabling queued notification flows.
@@ -48,11 +48,13 @@ Status: **NOT READY — BLOCKERS REMAIN**
 - A teacher adds, replaces, and clears feedback only on submitted quiz attempts owned by their assignment; the student and verified parent see the released feedback, while another teacher receives not found.
 - The first non-empty feedback release notifies the student and verified linked parent through the notification bell; an unverified parent is excluded, and saving the same feedback again or clearing it creates no duplicate notification.
 - Exercise queued delivery for academic alerts, live reminders, payment/renewal notifications, chat, announcements, and quiz feedback; confirm the worker persists database notifications and no failed jobs accumulate.
+- From Profile, disable a supported in-app notification type and confirm new matching notifications are suppressed; re-enable it and confirm delivery resumes, while another user's preference remains unchanged.
+- As an admin, open `/admin/analytics` and confirm the 12-month paid revenue chart, top-group ranking, completion/churn cards, approved teacher ratings, and live-session peak buckets match isolated staging records; confirm an empty dataset renders zero/empty states and no student-level data is exposed.
 - Exercise existing login, booking, subscription, payment, live room, recorded lesson, protected file, and renewal flows.
 
 ## Release gates
 
-- Full test suite reviewed: **360 passed, 0 failed, 2,588 assertions** locally.
+- Full test suite reviewed: **366 passed, 0 failed, 2,649 assertions** locally.
 - PHP GD/test environment parity addressed for image tests.
 - Isolated MySQL migration and concurrency checks pass.
 - Browser desktop/mobile smoke test passes with no console or failed-network errors.

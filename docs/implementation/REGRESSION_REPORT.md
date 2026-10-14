@@ -36,12 +36,14 @@ Branch: `feature/lms-dashboard-v2`
 - Teacher analytics export regression passes with the same ownership filters, CSV headers/BOM, null metric semantics, and formula neutralization.
 - Quiz feedback regression passes with submitted-attempt validation, owning-teacher authorization, student/parent/Gradebook visibility, verified-parent notification scope, and duplicate suppression.
 - Queued notification regression passes for all 19 application notification classes, while academic alerts, live reminders, payment notifications, renewal reminders, chat, and quiz feedback remain green.
+- Notification preference regression passes with default-on behavior, central suppression, supported channel validation, profile access, and user isolation.
+- Admin analytics regression passes with admin authorization, cached aggregate revenue/group/rating/session data, completion empty state, and three-month churn semantics.
 - Teacher dashboard's pending-grading assertion passes inside the focused Admin suite.
 - Frontend production build passes.
 
 ## Remaining release gates
 
-- The full suite after the P7.9 queued notification checkpoint is **360 passed, 0 failed, and 2,588 assertions**.
+- The full suite after the P7.11 admin analytics checkpoint is **366 passed, 0 failed, and 2,649 assertions**.
 - A queue worker and failed-job monitoring were not run locally and remain release gates.
 - Local migration is pending and must be verified on isolated MySQL after approval.
 - No browser viewport/device smoke test was run, so responsive behavior is code/build-verified but not browser-verified.
