@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
@@ -35,6 +35,22 @@ function formatDate(value) {
 function scoreLabel(row) {
     if (row.earned === null || row.maximum === null) return 'بانتظار التصحيح';
     return `${row.earned} / ${row.maximum}`;
+}
+
+const feedbackDrafts = ref({});
+
+function feedbackDraft(row) {
+    if (!(row.id in feedbackDrafts.value)) {
+        feedbackDrafts.value[row.id] = row.feedback || '';
+    }
+
+    return feedbackDrafts.value[row.id];
+}
+
+function saveQuizFeedback(row) {
+    router.post(route('teacher.gradebook.quiz-feedback', { attemptId: row.attempt_id }), {
+        teacher_feedback: feedbackDraft(row),
+    }, { preserveScroll: true });
 }
 
 const statusLabels = {
@@ -149,6 +165,16 @@ const statusClasses = {
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-xs text-surface-500">{{ formatDate(row.assessed_at) }}</td>
                                 <td class="px-5 py-4 text-end">
+                                    <div v-if="row.kind === 'quiz' && row.attempt_id" class="min-w-[220px] space-y-2 text-start">
+                                        <textarea
+                                            :value="feedbackDraft(row)"
+                                            class="input min-h-16 w-full text-xs"
+                                            maxlength="1000"
+                                            placeholder="ملاحظات للطالب"
+                                            @input="feedbackDrafts[row.id] = $event.target.value"
+                                        ></textarea>
+                                        <button type="button" class="btn-primary btn-sm" @click="saveQuizFeedback(row)">حفظ الملاحظة</button>
+                                    </div>
                                     <Link
                                         v-if="row.assignment_id"
                                         :href="route('teacher.curriculum', { assignment: row.assignment_id })"

@@ -7,9 +7,10 @@ namespace App\Domain\Communication\Notifications;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\User\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class StudentLiveSessionActivityNotification extends Notification
+class StudentLiveSessionActivityNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

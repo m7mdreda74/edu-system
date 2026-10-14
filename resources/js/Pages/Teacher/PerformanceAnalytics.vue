@@ -15,6 +15,7 @@ const props = defineProps({
     rows: { type: Array, default: () => [] },
     attention: { type: Array, default: () => [] },
     quiz_history: { type: Array, default: () => [] },
+    learning_outcomes: { type: Array, default: () => [] },
 });
 
 const selectedAssignment = ref(props.filters.assignment || '');
@@ -42,6 +43,15 @@ function applyFilters() {
         preserveState: true,
         preserveScroll: true,
         replace: true,
+    });
+}
+
+function exportUrl() {
+    return route('teacher.analytics.export', {
+        assignment: selectedAssignment.value || undefined,
+        group: selectedGroup.value || undefined,
+        student: selectedStudent.value || undefined,
+        days: selectedDays.value || 30,
     });
 }
 
@@ -82,6 +92,17 @@ function attentionClass(row) {
         ? 'border-amber-200 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20'
         : 'border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-900/40';
 }
+
+const outcomeStatusLabels = {
+    completed: 'مكتمل',
+    mastered: 'متقن',
+    in_progress: 'قيد التقدم',
+    not_started: 'لم يبدأ',
+};
+
+function outcomeTargetLabel(outcome) {
+    return `${outcome.target_type === 'quiz' ? 'اختبار' : 'درس'}: ${outcome.target_title || 'ناتج عام'}`;
+}
 </script>
 
 <template>
@@ -90,6 +111,7 @@ function attentionClass(row) {
     <DashboardLayout>
         <div class="space-y-7 pb-12">
             <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <a :href="exportUrl()" class="btn-outline btn-sm text-xs sm:order-2">تصدير CSV</a>
                 <div>
                     <h1 class="text-2xl font-black text-surface-900 dark:text-white">تحليل أداء الطلاب</h1>
                     <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
@@ -179,6 +201,47 @@ function attentionClass(row) {
                 <div class="card p-4">
                     <span class="block text-xl font-black text-sky-600">{{ formatScore(summary.attendance_rate) }}</span>
                     <span class="text-[11px] text-surface-500">نسبة الحضور</span>
+                </div>
+            </section>
+
+            <section v-if="learning_outcomes.length" class="card overflow-hidden">
+                <div class="flex flex-col gap-2 border-b border-surface-100 p-5 dark:border-surface-800 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 class="font-black text-surface-900 dark:text-white">متابعة نواتج التعلم</h2>
+                        <p class="mt-1 text-xs text-surface-400">ملخص وصفي لنتائج الطلاب في الوحدات المنشورة ضمن مقرراتك.</p>
+                    </div>
+                    <span class="text-xs text-surface-400">قراءة فقط · حسب الطلاب المشتركين حاليًا</span>
+                </div>
+                <div class="space-y-4 p-5">
+                    <article v-for="unit in learning_outcomes" :key="unit.id" class="rounded-xl border border-surface-200 p-4 dark:border-surface-700">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <h3 class="font-bold text-surface-900 dark:text-white">{{ unit.title }}</h3>
+                                <p class="mt-1 text-xs text-surface-500">{{ unit.subject?.name || 'مادة دراسية' }}</p>
+                            </div>
+                            <span class="text-xs text-surface-400">{{ unit.outcomes.length }} ناتج</span>
+                        </div>
+                        <div class="mt-4 grid gap-3 lg:grid-cols-2">
+                            <div v-for="outcome in unit.outcomes" :key="outcome.id" class="rounded-lg bg-surface-50 p-3 dark:bg-surface-900/60">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-xs font-bold text-surface-800 dark:text-surface-100">{{ outcome.title }}</p>
+                                        <p class="mt-1 truncate text-[11px] text-surface-500">{{ outcomeTargetLabel(outcome) }}</p>
+                                    </div>
+                                    <span class="shrink-0 text-sm font-black text-primary-600">{{ outcome.progress_percent }}%</span>
+                                </div>
+                                <div class="mt-3 h-2 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-800">
+                                    <div class="h-full rounded-full bg-primary-500" :style="{ width: `${outcome.progress_percent}%` }"></div>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-2 text-[10px] text-surface-500">
+                                    <span class="rounded-full bg-green-100 px-2 py-1 text-green-700 dark:bg-green-950/40 dark:text-green-300">مكتمل: {{ outcome.completed_count }}</span>
+                                    <span class="rounded-full bg-primary-100 px-2 py-1 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300">متقن: {{ outcome.mastered_count }}</span>
+                                    <span class="rounded-full bg-amber-100 px-2 py-1 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">قيد التقدم: {{ outcome.in_progress_count }}</span>
+                                    <span class="rounded-full bg-surface-200 px-2 py-1 text-surface-600 dark:bg-surface-800 dark:text-surface-300">لم يبدأ: {{ outcome.not_started_count }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
                 </div>
             </section>
 

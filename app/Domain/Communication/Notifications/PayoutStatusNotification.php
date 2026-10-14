@@ -6,9 +6,10 @@ namespace App\Domain\Communication\Notifications;
 
 use App\Domain\Payment\Models\TeacherPayout;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class PayoutStatusNotification extends Notification
+class PayoutStatusNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

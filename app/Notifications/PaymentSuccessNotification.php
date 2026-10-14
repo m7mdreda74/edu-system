@@ -30,7 +30,7 @@ class PaymentSuccessNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $amountQAR = number_format($this->payment->getAmountInMainUnit(), 2);
-        $label     = $this->subscriptionLabel();
+        $label = $this->subscriptionLabel();
 
         return (new MailMessage)
             ->subject('✅ تأكيد الدفع — بوابة المجد التعليمية')
@@ -45,12 +45,12 @@ class PaymentSuccessNotification extends Notification implements ShouldQueue
     public function toDatabase(object $notifiable): array
     {
         return [
-            'type'       => 'payment_success',
-            'title'      => '✅ تم الدفع بنجاح',
-            'message'    => "دفعت بنجاح لاشتراك: {$this->subscriptionLabel()}",
+            'type' => 'payment_success',
+            'title' => '✅ تم الدفع بنجاح',
+            'message' => "دفعت بنجاح لاشتراك: {$this->subscriptionLabel()}",
             'payment_id' => $this->payment->id,
-            'amount'     => $this->payment->amount,
-            'icon'       => '💳',
+            'amount' => $this->payment->amount,
+            'icon' => '💳',
         ];
     }
 

@@ -18,10 +18,10 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Communication\ChatController;
 use App\Http\Controllers\Communication\NotificationController;
+use App\Http\Controllers\Cron\AcademicAlertController;
 use App\Http\Controllers\Cron\LiveSessionReminderController;
 use App\Http\Controllers\Cron\MissedLiveSessionCronController;
 use App\Http\Controllers\Cron\SubscriptionRenewalReminderController;
-use App\Http\Controllers\Cron\AcademicAlertController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Learning\ProtectedFileController;
 use App\Http\Controllers\Learning\YoutubeProxyController;
@@ -29,46 +29,50 @@ use App\Http\Controllers\Live\LiveSessionRoomController;
 use App\Http\Controllers\Parent\ParentDashboardController;
 use App\Http\Controllers\Parent\ParentPrivateLessonRequestController;
 use App\Http\Controllers\Parent\ParentPurchaseRequestController;
+use App\Http\Controllers\Payment\PaymentReceiptController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Public\GradeLevelBrowseController;
+use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\FreeRecordingController;
+use App\Http\Controllers\Public\GradeLevelBrowseController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\Public\SubjectTeachersController;
 use App\Http\Controllers\Public\TeacherDirectoryController;
 use App\Http\Controllers\Public\TeacherProfileController;
-use App\Http\Controllers\Public\ContactController;
-use App\Http\Controllers\Student\CertificateController;
-use App\Http\Controllers\Student\AssignmentController;
 use App\Http\Controllers\Student\AssessmentController;
+use App\Http\Controllers\Student\AssignmentController;
+use App\Http\Controllers\Student\CertificateController;
 use App\Http\Controllers\Student\DashboardController;
 use App\Http\Controllers\Student\FreeIntroSessionController as StudentFreeIntroSessionController;
 use App\Http\Controllers\Student\LearnController;
 use App\Http\Controllers\Student\LessonQuestionController;
 use App\Http\Controllers\Student\MyGradeController;
+use App\Http\Controllers\Student\ParentStudentLinkController;
 use App\Http\Controllers\Student\PrivateLessonRequestController;
 use App\Http\Controllers\Student\QuizController;
-use App\Http\Controllers\Student\ReviewController;
 use App\Http\Controllers\Student\ResourceLibraryController as StudentResourceLibraryController;
+use App\Http\Controllers\Student\ReviewController;
 use App\Http\Controllers\Student\ScheduleController;
 use App\Http\Controllers\Student\StudentPurchaseRequestController;
 use App\Http\Controllers\Student\SubscriptionController;
 use App\Http\Controllers\Student\VideoUrlController;
-use App\Http\Controllers\VideoReconciliationController;
-use App\Http\Controllers\VideoWebhookController;
 use App\Http\Controllers\SubscriptionRenewalController;
-use App\Http\Controllers\Teacher\CurriculumController;
 use App\Http\Controllers\Teacher\AnnouncementController;
+use App\Http\Controllers\Teacher\CurriculumController;
 use App\Http\Controllers\Teacher\FreeIntroSessionController as TeacherFreeIntroSessionController;
 use App\Http\Controllers\Teacher\GradebookController;
 use App\Http\Controllers\Teacher\LiveSessionController;
 use App\Http\Controllers\Teacher\MaterialManagerController;
 use App\Http\Controllers\Teacher\PerformanceAnalyticsController;
 use App\Http\Controllers\Teacher\QuestionBankController;
-use App\Http\Controllers\Teacher\ResourceLibraryController as TeacherResourceLibraryController;
 use App\Http\Controllers\Teacher\QuizBuilderController;
+use App\Http\Controllers\Teacher\ResourceLibraryController as TeacherResourceLibraryController;
+use App\Http\Controllers\Teacher\TeacherGroupController;
+use App\Http\Controllers\Teacher\TeacherStudentController;
 use App\Http\Controllers\Teacher\TeachingScheduleController;
 use App\Http\Controllers\Teacher\WorksheetController;
+use App\Http\Controllers\VideoReconciliationController;
+use App\Http\Controllers\VideoWebhookController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
@@ -163,7 +167,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         ->middleware('throttle:10,1');
 
     // Electronic Payment Receipt / Tax Invoice (accessible by student and linked parents)
-    Route::get('/payments/{payment}/invoice', [\App\Http\Controllers\Payment\PaymentReceiptController::class, 'show'])
+    Route::get('/payments/{payment}/invoice', [PaymentReceiptController::class, 'show'])
         ->name('payments.invoice')
         ->whereNumber('payment');
 });
@@ -186,11 +190,11 @@ Route::middleware(['auth', 'active'])->group(function () {
 // ─── Student Routes ────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'active', 'verified', 'role:student'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::post('/parent-links/{linkId}/approve', [\App\Http\Controllers\Student\ParentStudentLinkController::class, 'approve'])
+    Route::post('/parent-links/{linkId}/approve', [ParentStudentLinkController::class, 'approve'])
         ->name('student.parent-links.approve')
         ->whereNumber('linkId')
         ->middleware('throttle:10,1');
-    Route::post('/parent-links/{linkId}/reject', [\App\Http\Controllers\Student\ParentStudentLinkController::class, 'reject'])
+    Route::post('/parent-links/{linkId}/reject', [ParentStudentLinkController::class, 'reject'])
         ->name('student.parent-links.reject')
         ->whereNumber('linkId')
         ->middleware('throttle:10,1');
@@ -281,11 +285,15 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 // ─── Teacher Routes ────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/my-groups', [App\Http\Controllers\Teacher\TeacherGroupController::class, 'index'])->name('groups.index');
-    Route::get('/my-students', [App\Http\Controllers\Teacher\TeacherStudentController::class, 'index'])->name('students.index');
-    Route::get('/gradebook/export', [GradebookController::class, 'export'])->name('gradebook.export');
-    Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook');
-    Route::get('/analytics', [PerformanceAnalyticsController::class, 'index'])->name('analytics');
+    Route::get('/my-groups', [TeacherGroupController::class, 'index'])->name('groups.index');
+    Route::get('/my-students', [TeacherStudentController::class, 'index'])->name('students.index');
+      Route::get('/gradebook/export', [GradebookController::class, 'export'])->name('gradebook.export');
+      Route::post('/gradebook/quiz-attempts/{attemptId}/feedback', [GradebookController::class, 'updateQuizFeedback'])
+          ->name('gradebook.quiz-feedback')
+          ->whereNumber('attemptId');
+      Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook');
+      Route::get('/analytics', [PerformanceAnalyticsController::class, 'index'])->name('analytics');
+      Route::get('/analytics/export', [PerformanceAnalyticsController::class, 'export'])->name('analytics.export');
     Route::get('/resource-library', [TeacherResourceLibraryController::class, 'index'])->name('resource-library');
     Route::post('/resource-library', [TeacherResourceLibraryController::class, 'store'])
         ->name('resource-library.store')
@@ -308,9 +316,14 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::put('/question-bank/{question}', [QuestionBankController::class, 'update'])->name('question-bank.update');
     Route::delete('/question-bank/{question}', [QuestionBankController::class, 'destroy'])->name('question-bank.destroy');
     Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements');
+    Route::get('/announcements/export', [AnnouncementController::class, 'export'])->name('announcements.export');
     Route::post('/announcements', [AnnouncementController::class, 'store'])
         ->name('announcements.store')
         ->middleware('throttle:20,1');
+    Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update'])
+        ->name('announcements.update');
+    Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])
+        ->name('announcements.destroy');
 
     // Curriculum builder — the syllabus hangs off the assignment, not the group,
     // so the teacher writes it once for every group and private student on it.
@@ -319,6 +332,9 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::post('/assignments/{assignment}/curriculum/skeleton', [CurriculumController::class, 'skeleton'])->name('curriculum.skeleton');
     Route::post('/assignments/{assignment}/units', [CurriculumController::class, 'storeUnit'])->name('units.store');
     Route::put('/units/{unit}', [CurriculumController::class, 'updateUnit'])->name('units.update');
+    Route::post('/units/{unit}/outcomes', [CurriculumController::class, 'storeOutcome'])->name('outcomes.store');
+    Route::put('/learning-outcomes/{outcome}', [CurriculumController::class, 'updateOutcome'])->name('outcomes.update');
+    Route::delete('/learning-outcomes/{outcome}', [CurriculumController::class, 'destroyOutcome'])->name('outcomes.destroy');
     Route::delete('/units/{unit}', [CurriculumController::class, 'destroyUnit'])->name('units.destroy');
     Route::post('/units/{unit}/reorder', [CurriculumController::class, 'reorderUnit'])->name('units.reorder');
     Route::post('/units/{unit}/lessons', [CurriculumController::class, 'storeLesson'])->name('lessons.store');

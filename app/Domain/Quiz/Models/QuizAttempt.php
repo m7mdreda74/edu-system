@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Quiz\Models;
 
 use App\Domain\User\Models\User;
+use Database\Factories\Domain\Quiz\QuizAttemptFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,9 +14,9 @@ class QuizAttempt extends Model
 {
     use HasFactory;
 
-    protected static function newFactory(): \Database\Factories\Domain\Quiz\QuizAttemptFactory
+    protected static function newFactory(): QuizAttemptFactory
     {
-        return new \Database\Factories\Domain\Quiz\QuizAttemptFactory();
+        return new QuizAttemptFactory;
     }
 
     protected $fillable = [
@@ -28,18 +29,19 @@ class QuizAttempt extends Model
         'started_at',
         'submitted_at',
         'violations',
+        'teacher_feedback',
     ];
 
     protected function casts(): array
     {
         return [
-            'score'        => 'integer', // computed server-side ONLY
+            'score' => 'integer', // computed server-side ONLY
             'earned_points' => 'integer',
-            'total_points'  => 'integer',
-            'passed'       => 'boolean',
-            'started_at'   => 'datetime',
+            'total_points' => 'integer',
+            'passed' => 'boolean',
+            'started_at' => 'datetime',
             'submitted_at' => 'datetime',
-            'violations'   => 'integer',
+            'violations' => 'integer',
         ];
     }
 

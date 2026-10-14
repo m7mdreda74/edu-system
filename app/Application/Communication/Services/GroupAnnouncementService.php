@@ -73,6 +73,35 @@ class GroupAnnouncementService
         });
     }
 
+    public function update(User $teacher, GroupAnnouncement $announcement, string $title, string $body): GroupAnnouncement
+    {
+        $this->authorizeOwner($teacher, $announcement);
+
+        $announcement->update([
+            'title' => $title,
+            'body' => $body,
+        ]);
+
+        return $announcement->refresh();
+    }
+
+    public function delete(User $teacher, GroupAnnouncement $announcement): void
+    {
+        $this->authorizeOwner($teacher, $announcement);
+        $announcement->delete();
+    }
+
+    /** @return Collection<int, GroupAnnouncement> */
+    public function forTeacher(User $teacher): Collection
+    {
+        return GroupAnnouncement::query()
+            ->where('teacher_id', $teacher->id)
+            ->with('group:id,name')
+            ->latest('published_at')
+            ->latest('id')
+            ->get();
+    }
+
     /**
      * Return only announcements from groups the student currently pays for.
      * The notification is a convenience; this query remains the source of
@@ -108,5 +137,10 @@ class GroupAnnouncementService
             'group' => $announcement->group?->only(['id', 'name']),
             'published_at' => $announcement->published_at?->toIso8601String(),
         ];
+    }
+
+    private function authorizeOwner(User $teacher, GroupAnnouncement $announcement): void
+    {
+        abort_unless((int) $announcement->teacher_id === (int) $teacher->id, 404);
     }
 }

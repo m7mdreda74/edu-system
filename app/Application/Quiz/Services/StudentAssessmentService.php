@@ -142,6 +142,7 @@ class StudentAssessmentService
             'started_at' => $attempt->started_at?->toIso8601String(),
             'submitted_at' => $attempt->submitted_at?->toIso8601String(),
             'violations' => (int) $attempt->violations,
+            'teacher_feedback' => $attempt->teacher_feedback,
         ];
     }
 

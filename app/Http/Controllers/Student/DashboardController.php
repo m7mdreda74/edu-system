@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Student;
 
 use App\Application\Communication\Services\GroupAnnouncementService;
+use App\Application\Learning\Services\StudentAchievementService;
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Learning\Models\LessonProgress;
@@ -23,7 +24,7 @@ class DashboardController extends Controller
     /** Renewal reminders start this many days before a subscription lapses. */
     private const EXPIRY_WARNING_DAYS = 7;
 
-    public function index(GroupAnnouncementService $announcements): Response
+    public function index(GroupAnnouncementService $announcements, StudentAchievementService $achievements): Response
     {
         $user = Auth::user();
 
@@ -110,6 +111,7 @@ class DashboardController extends Controller
             'pendingParentLinks' => $pendingParentLinks,
             'continueLearning' => $continueLearning,
             'announcements' => $announcements->forStudent($user),
+            'gamification' => $achievements->forStudent($user),
 
             'stats' => [
                 'activeSubscriptions' => $active->count(),

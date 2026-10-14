@@ -6,10 +6,11 @@ namespace App\Notifications;
 
 use App\Domain\Payment\Models\Payment;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
 /** Informs the student and linked parents that a transfer receipt was rejected. */
-class PaymentRejectedNotification extends Notification
+class PaymentRejectedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

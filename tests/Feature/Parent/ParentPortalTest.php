@@ -6,6 +6,7 @@ use App\Application\Subscription\Services\SubscriptionService;
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
+use App\Domain\Academic\Models\LearningOutcome;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Communication\Models\Conversation;
 use App\Domain\Learning\Models\GroupMaterial;
@@ -172,6 +173,7 @@ it('shows a linked parent attendance, assessment, quiz and payment-ready dashboa
         'quiz_id' => $quiz->id,
         'earned_points' => 4,
         'total_points' => 5,
+        'teacher_feedback' => 'راجع السؤال الثاني.',
     ]);
     $worksheet = Worksheet::create([
         'curriculum_unit_id' => $unit->id,
@@ -216,6 +218,7 @@ it('shows a linked parent attendance, assessment, quiz and payment-ready dashboa
             ->where('selectedStudent.attendanceSummary.present', 1)
             ->where('selectedStudent.attendanceSummary.rate', 100)
             ->where('selectedStudent.quizAttempts.0.earned_points', 4)
+            ->where('selectedStudent.quizAttempts.0.teacher_feedback', 'راجع السؤال الثاني.')
             ->where('selectedStudent.submissions.0.score', 18)
             ->where('selectedStudent.subscriptions.0.id', $subscription->id)
             ->has('selectedStudent.eligibleGroups')
@@ -325,9 +328,147 @@ it('shows a linked parent a seven-day report from the selected students real rec
             ->where('selectedStudent.weeklyReport.summary.quizzes_submitted', 1)
             ->where('selectedStudent.weeklyReport.summary.average_quiz_score', 85)
             ->where('selectedStudent.weeklyReport.summary.attendance_rate', 100)
+            ->where('selectedStudent.weeklyReport.comparison.previous_range.days', 7)
+            ->where('selectedStudent.weeklyReport.comparison.metrics.study_minutes.direction', 'up')
+            ->where('selectedStudent.weeklyReport.insights', [])
             ->where('selectedStudent.weeklyReport.daily', fn ($days): bool => count($days) === 7)
             ->where('selectedStudent.weeklyReport.by_subject.0.name', $this->assignment->subject?->name)
             ->has('selectedStudent.weeklyReport.recent', 4));
+});
+
+it('explains parent progress changes against the previous seven-day period', function (): void {
+    $term = AcademicTerm::currentOrNext() ?? AcademicTerm::firstOrFail();
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $term->id,
+        'is_published' => true,
+    ]);
+    $previousLesson = GroupMaterial::factory()->create(['curriculum_unit_id' => $unit->id]);
+    $currentLesson = GroupMaterial::factory()->create(['curriculum_unit_id' => $unit->id]);
+
+    $previousProgress = LessonProgress::create([
+        'student_id' => $this->student->id,
+        'lesson_id' => $previousLesson->id,
+        'watched_seconds' => 1_200,
+        'is_completed' => true,
+    ]);
+    $previousProgress->forceFill(['updated_at' => now()->subDays(8)])->saveQuietly();
+
+    $currentProgress = LessonProgress::create([
+        'student_id' => $this->student->id,
+        'lesson_id' => $currentLesson->id,
+        'watched_seconds' => 600,
+        'is_completed' => true,
+    ]);
+    $currentProgress->forceFill(['updated_at' => now()->subDay()])->saveQuietly();
+
+    $quiz = Quiz::factory()->withQuestions(1)->create(['curriculum_unit_id' => $unit->id]);
+    $previousAttempt = QuizAttempt::factory()->submitted(90)->create([
+        'user_id' => $this->student->id,
+        'quiz_id' => $quiz->id,
+        'earned_points' => 18,
+        'total_points' => 20,
+        'submitted_at' => now()->subDays(8),
+    ]);
+    $previousAttempt->forceFill(['submitted_at' => now()->subDays(8)])->saveQuietly();
+    QuizAttempt::factory()->submitted(60)->create([
+        'user_id' => $this->student->id,
+        'quiz_id' => $quiz->id,
+        'earned_points' => 12,
+        'total_points' => 20,
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    Subscription::factory()->active()->create([
+        'student_id' => $this->student->id,
+        'teaching_assignment_id' => $this->assignment->id,
+        'teaching_group_id' => $this->group->id,
+    ]);
+
+    $this->actingAs($this->parent)
+        ->get(route('parent.dashboard', ['student_id' => $this->student->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('selectedStudent.weeklyReport.comparison.metrics.study_minutes.current', 10)
+            ->where('selectedStudent.weeklyReport.comparison.metrics.study_minutes.previous', 20)
+            ->where('selectedStudent.weeklyReport.comparison.metrics.study_minutes.delta', -10)
+            ->where('selectedStudent.weeklyReport.comparison.metrics.study_minutes.direction', 'down')
+            ->where('selectedStudent.weeklyReport.comparison.metrics.average_quiz_score.current', 60)
+            ->where('selectedStudent.weeklyReport.comparison.metrics.average_quiz_score.previous', 90)
+            ->where('selectedStudent.weeklyReport.insights.0.key', 'study_minutes')
+            ->where('selectedStudent.weeklyReport.insights.1.key', 'average_quiz_score'));
+});
+
+it('shows a parent explainable outcome progress from the selected students active curriculum only', function (): void {
+    $term = AcademicTerm::currentOrNext() ?? AcademicTerm::firstOrFail();
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $term->id,
+        'is_published' => true,
+    ]);
+    $lesson = GroupMaterial::factory()->create([
+        'curriculum_unit_id' => $unit->id,
+        'title' => 'درس الناتج المكتمل',
+    ]);
+    $quiz = Quiz::factory()->withQuestions(1)->create([
+        'curriculum_unit_id' => $unit->id,
+        'title' => 'اختبار إتقان الناتج',
+    ]);
+    LearningOutcome::create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'curriculum_unit_id' => $unit->id,
+        'group_material_id' => $lesson->id,
+        'title' => 'إتمام الدرس',
+        'is_published' => true,
+    ]);
+    LearningOutcome::create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'curriculum_unit_id' => $unit->id,
+        'quiz_id' => $quiz->id,
+        'title' => 'إتقان الاختبار',
+        'is_published' => true,
+    ]);
+    LessonProgress::create([
+        'student_id' => $this->student->id,
+        'lesson_id' => $lesson->id,
+        'watched_seconds' => 1_800,
+        'is_completed' => true,
+    ]);
+    QuizAttempt::factory()->submitted(90)->create([
+        'user_id' => $this->student->id,
+        'quiz_id' => $quiz->id,
+        'earned_points' => 9,
+        'total_points' => 10,
+    ]);
+    Subscription::factory()->active()->create([
+        'student_id' => $this->student->id,
+        'teaching_assignment_id' => $this->assignment->id,
+        'teaching_group_id' => $this->group->id,
+    ]);
+
+    $unpublishedUnit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $term->id,
+        'is_published' => false,
+    ]);
+    LearningOutcome::create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'curriculum_unit_id' => $unpublishedUnit->id,
+        'title' => 'ناتج مسودة لا يظهر',
+        'is_published' => true,
+    ]);
+
+    $this->actingAs($this->parent)
+        ->get(route('parent.dashboard', ['student_id' => $this->student->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('selectedStudent.learningOutcomes', 1)
+            ->where('selectedStudent.learningOutcomes.0.id', $unit->id)
+            ->where('selectedStudent.learningOutcomes.0.total_count', 2)
+            ->where('selectedStudent.learningOutcomes.0.completed_count', 2)
+            ->where('selectedStudent.learningOutcomes.0.progress_percent', 100)
+            ->where('selectedStudent.learningOutcomes.0.outcomes.0.status.key', 'completed')
+            ->where('selectedStudent.learningOutcomes.0.outcomes.1.status.key', 'mastered'));
 });
 
 it('lets a linked parent reserve a group, pay through checkout, and book a free intro for the student', function (): void {

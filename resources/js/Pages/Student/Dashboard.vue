@@ -12,6 +12,7 @@ const props = defineProps({
     pendingParentLinks:  { type: Array, default: () => [] },
     continueLearning:    { type: Object, default: null },
     announcements:       { type: Array, default: () => [] },
+    gamification:        { type: Object, default: null },
     stats:               { type: Object, default: () => ({}) },
 });
 
@@ -86,6 +87,32 @@ function formatDateTime(value) {
                         {{ continueLearning.watched_seconds > 0 ? 'استكمل الدرس' : 'ابدأ الدرس' }}
                     </Link>
                 </div>
+            </section>
+
+            <section v-if="gamification" class="card overflow-hidden border-accent-200 dark:border-accent-900/60">
+                <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-accent-600 dark:text-accent-400">إنجازاتي التعليمية</p>
+                        <h2 class="mt-1 text-lg font-black text-surface-900 dark:text-white">{{ gamification.points }} نقطة · {{ gamification.level.label }}</h2>
+                        <p class="mt-1 text-xs text-surface-500">النقاط تُحتسب مرة واحدة لكل درس أو اختبار أو واجب أو حصة معتمدة.</p>
+                    </div>
+                    <div v-if="gamification.next_milestone" class="rounded-xl bg-accent-50 px-4 py-3 text-end dark:bg-accent-950/30">
+                        <p class="text-[11px] text-surface-500">المحطة القادمة</p>
+                        <p class="mt-1 text-sm font-black text-accent-700 dark:text-accent-300">{{ gamification.next_milestone.label }}</p>
+                        <p class="mt-1 text-[11px] text-surface-500">متبقٍ {{ gamification.next_milestone.remaining_points }} نقطة</p>
+                    </div>
+                </div>
+                <div class="grid gap-3 border-t border-surface-100 p-5 sm:grid-cols-2 lg:grid-cols-4 dark:border-surface-800">
+                    <div v-for="item in gamification.breakdown" :key="item.key" class="rounded-xl bg-surface-50 p-3 dark:bg-surface-900/60">
+                        <p class="text-[11px] text-surface-500">{{ item.label }}</p>
+                        <p class="mt-1 text-xl font-black text-surface-800 dark:text-white">{{ item.count }}</p>
+                        <p class="text-[11px] text-accent-600">+{{ item.points }} نقطة</p>
+                    </div>
+                </div>
+                <div v-if="gamification.badges.length" class="flex flex-wrap gap-2 border-t border-surface-100 px-5 py-4 dark:border-surface-800">
+                    <span v-for="badge in gamification.badges" :key="badge.key" class="badge-accent text-[11px]">{{ badge.label }}</span>
+                </div>
+                <p class="px-5 pb-5 text-[11px] text-surface-400">الترتيب العام غير مفعل حفاظًا على خصوصية الطلاب.</p>
             </section>
 
             <section v-if="announcements.length">

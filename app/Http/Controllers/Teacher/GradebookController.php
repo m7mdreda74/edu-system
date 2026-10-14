@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Teacher;
 
 use App\Application\Learning\Services\TeacherGradebookService;
+use App\Domain\Quiz\Models\QuizAttempt;
 use App\Http\Controllers\Controller;
+use App\Notifications\GenericDatabaseNotification;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -77,6 +80,61 @@ class GradebookController extends Controller
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Cache-Control' => 'no-store, private',
         ]);
+    }
+
+    public function updateQuizFeedback(Request $request, int $attemptId): RedirectResponse
+    {
+        $validated = $request->validate([
+            'teacher_feedback' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $attempt = QuizAttempt::query()
+            ->with(['quiz.unit.assignment', 'user.parentLinks.parent'])
+            ->findOrFail($attemptId);
+
+        abort_unless($attempt->quiz?->unit?->assignment?->teacher_id === Auth::id(), 404);
+        abort_unless($attempt->submitted_at !== null, 422, 'لا يمكن إضافة ملاحظات قبل تسليم الاختبار.');
+
+        $feedback = isset($validated['teacher_feedback'])
+            ? (trim($validated['teacher_feedback']) ?: null)
+            : null;
+        $previousFeedback = $attempt->teacher_feedback;
+
+        $feedbackChanged = false;
+
+        if ($feedback !== $previousFeedback) {
+            $feedbackChanged = QuizAttempt::query()
+                ->whereKey($attempt->id)
+                ->when(
+                    $previousFeedback === null,
+                    fn ($query) => $query->whereNull('teacher_feedback'),
+                    fn ($query) => $query->where('teacher_feedback', $previousFeedback),
+                )
+                ->update(['teacher_feedback' => $feedback]) === 1;
+        }
+
+        if ($feedbackChanged && $feedback !== null) {
+            $quizTitle = $attempt->quiz?->title ?? 'الاختبار';
+            $student = $attempt->user;
+
+            $student?->notify(new GenericDatabaseNotification([
+                'title' => 'تم نشر ملاحظة على الاختبار 📝',
+                'message' => "أضاف المعلم ملاحظة على اختبار '{$quizTitle}': {$feedback}",
+                'link' => route('student.assessments'),
+            ]));
+
+            foreach ($student?->parentLinks ?? [] as $link) {
+                if ($link->verified_at && $link->parent) {
+                    $link->parent->notify(new GenericDatabaseNotification([
+                        'title' => 'ملاحظة جديدة على اختبار الطالب',
+                        'message' => "أضاف المعلم ملاحظة على اختبار {$student->name} '{$quizTitle}': {$feedback}",
+                        'link' => route('parent.dashboard', ['student_id' => $student->id]),
+                    ]));
+                }
+            }
+        }
+
+        return back()->with('success', 'تم حفظ ملاحظات الاختبار.');
     }
 
     private function csvCell(mixed $value): string

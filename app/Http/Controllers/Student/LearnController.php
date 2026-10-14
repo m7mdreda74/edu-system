@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Student;
 
 use App\Application\Certificate\Services\CertificateService;
+use App\Application\Learning\Services\LearningOutcomeProgressService;
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Learning\Models\GroupMaterial;
@@ -35,11 +36,9 @@ use Inertia\Response;
  */
 class LearnController extends Controller
 {
-    /** A lesson counts as done once this much of its video has been watched. */
-    private const COMPLETION_RATIO = 0.9;
-
     public function __construct(
         private readonly CertificateService $certificates,
+        private readonly LearningOutcomeProgressService $outcomeProgress,
     ) {}
 
     public function show(Request $request, int $groupId): Response
@@ -253,6 +252,9 @@ class LearnController extends Controller
                 // for the student until the teacher activates it.
                 'electronicExam' => fn ($query) => $query->where('is_active', true)->withCount('questions'),
                 'paperExam',
+                'learningOutcomes' => fn ($query) => $query
+                    ->where('is_published', true)
+                    ->with(['lesson:id,title', 'quiz:id,title']),
             ])
             ->orderBy('order')
             ->get();
@@ -261,6 +263,9 @@ class LearnController extends Controller
         $progress = $this->progressMap($user, $lessons);
         $submissions = $this->submissionMap($user, $units, $lessons);
         $attempts = $this->attemptMap($user, $units);
+        $outcomeStatuses = $this->outcomeProgress->statuses($user, $units->flatMap(
+            fn (CurriculumUnit $unit) => $unit->learningOutcomes,
+        ));
 
         $previousCleared = true; // the first unit is never gated
         $tree = [];
@@ -275,6 +280,14 @@ class LearnController extends Controller
                 'order' => $unit->order,
                 'title' => $unit->title,
                 'description' => $unit->description,
+                'learning_outcomes' => $unit->learningOutcomes->map(fn ($outcome): array => [
+                    'id' => $outcome->id,
+                    'title' => $outcome->title,
+                    'description' => $outcome->description,
+                    'target_type' => $outcome->group_material_id !== null ? 'lesson' : ($outcome->quiz_id !== null ? 'quiz' : 'unit'),
+                    'target_title' => $outcome->lesson?->title ?? $outcome->quiz?->title,
+                    'status' => $outcomeStatuses->get($outcome->id, ['key' => 'not_started', 'percent' => 0]),
+                ])->values()->all(),
                 'is_locked' => $isLocked,
                 'is_completed' => $unitLessons !== [] && $done === count($unitLessons),
                 'lessons_count' => count($unitLessons),
@@ -412,6 +425,7 @@ class LearnController extends Controller
                 'id' => $best->id,
                 'score' => $best->score,
                 'passed' => $best->passed,
+                'teacher_feedback' => $best->teacher_feedback,
                 'submitted_at' => $best->submitted_at?->toIso8601String(),
             ],
             // An exam with no questions in it cannot be sat, however open it is.

@@ -6,9 +6,10 @@ namespace App\Domain\Communication\Notifications;
 
 use App\Domain\Scheduling\Models\SessionBooking;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class AdminSessionBookingNotification extends Notification
+class AdminSessionBookingNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

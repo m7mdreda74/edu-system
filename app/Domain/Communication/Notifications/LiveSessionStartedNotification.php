@@ -6,9 +6,10 @@ namespace App\Domain\Communication\Notifications;
 
 use App\Domain\Learning\Models\LiveSession;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class LiveSessionStartedNotification extends Notification
+class LiveSessionStartedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -27,9 +28,9 @@ class LiveSessionStartedNotification extends Notification
             ?? ($this->session->isPrivate() ? 'حصة خاصة' : 'حصة مباشرة');
 
         return [
-            'title'   => 'بدأت حصة مباشرة الآن 🔴',
+            'title' => 'بدأت حصة مباشرة الآن 🔴',
             'message' => "بدأت الحصة '{$this->session->title}' — {$context}.",
-            'link'    => route('live-sessions.room', $this->session->id),
+            'link' => route('live-sessions.room', $this->session->id),
         ];
     }
 }

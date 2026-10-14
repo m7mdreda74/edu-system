@@ -93,7 +93,7 @@
 1. Make baseline feature tests deterministic against the demo records created by the historical seed migration instead of assuming an empty database.
 2. Preserve and verify production-sensitive admin password confirmation, including no mutation before confirmation and JSON/redirect behavior.
 3. Run the full regression suite and frontend production build after the hardening changes; document the exact remaining staging, migration, browser, and Blob/OIDC gates.
-4. Keep external push/SMS, gamification, AI, announcement editing/export, and deeper parent trend analytics deferred until their business rules and infrastructure are approved.
+4. Keep external push/SMS and AI deferred until their business rules and infrastructure are approved; gamification may remain disabled by default.
 
 ## P6.4 - Gradebook CSV export hardening (completed locally)
 
@@ -108,5 +108,81 @@
 2. Apply teacher and assignment ownership filters before pagination, preserving the existing missing-work and latest-attempt semantics.
 3. Keep summary metrics calculated across the full scoped result set while returning only the requested page to Inertia.
 4. Add responsive pagination controls and cover page boundaries, totals, ordering, and regression behavior with focused tests and the full suite.
+
+## P6.6 - Announcement management hardening (completed locally)
+
+1. Let the owning teacher edit announcement title/body without changing group scope or sending duplicate notifications.
+2. Let only the owner delete an announcement; cross-teacher mutations fail closed.
+3. Add a teacher-scoped CSV export with UTF-8 spreadsheet compatibility and formula-like value neutralization.
+4. Cover ownership, notification behavior, deletion, export scope, and the frontend build with focused tests and the full suite.
+
+## P6.7 - Explainable parent progress comparison (completed locally)
+
+1. Compare the selected verified child's current seven-day report with the immediately preceding seven-day window using the same active-subscription authorization scope.
+2. Expose current value, previous value, delta, direction, and percentage change for study time, completed lessons, submitted assignments, quizzes, average quiz score, and attendance rate.
+3. Add only explainable attention signals for measurable study decline, significant quiz-score decline, low current attendance, and lessons without submitted assignments.
+4. Preserve the existing read-only parent dashboard and add focused real-record coverage for both current and previous periods.
+
+## P7.1 - Optional student achievements (completed locally)
+
+1. Add a feature-flagged achievement summary using only the student's active-subscription records.
+2. Award points once per completed lesson, distinct passed quiz, distinct submitted worksheet, and attended ended session; repeated quiz attempts cannot inflate the score.
+3. Expose private milestones, levels, badges, and a category breakdown on the student dashboard without a public leaderboard or external data transfer.
+4. Keep the feature disabled by default and cover both the disabled state and scoped non-repeat calculations with focused tests.
+
+## P7.2 - Lightweight learning outcomes (completed locally)
+
+1. Add optional teacher-owned outcomes under the existing curriculum unit model.
+2. Allow each outcome to target the unit, one lesson, or the unit's electronic assessment while enforcing ownership and same-unit relationships server-side.
+3. Show only published outcomes to students who already have authorized access to the teaching group; do not expose outcomes from unrelated assignments.
+4. Keep the feature small, additive, and covered by teacher ownership plus student visibility tests.
+
+## P7.3 - Explainable outcome status (completed locally)
+
+1. Derive outcome status from existing lesson progress and submitted quiz attempts without storing predictions or manual grades.
+2. Show `not_started`, `in_progress`, `completed`, or `mastered` with a bounded percentage where the source record supports it.
+3. Keep status inside the already authorized Study Room payload and cover completed lesson and passed assessment cases with focused regression tests.
+
+## P7.4 - Parent outcome progress (completed locally)
+
+1. Reuse one application service for outcome status calculation in the student Study Room and the parent report.
+2. Show verified parents a read-only outcome summary for the selected child's published units attached to active subscriptions only.
+3. Include explainable lesson/quiz status, completion count, and average progress without adding mutation controls or exposing draft curriculum.
+4. Cover completed lessons, mastered quizzes, active-subscription scoping, and unpublished-unit exclusion with focused parent regression coverage.
+
+## P7.5 - Teacher outcome analytics (completed locally)
+
+1. Add a read-only aggregate of published learning outcomes to teacher performance analytics.
+2. Scope the aggregate to the authenticated teacher's active assignments and current active roster.
+3. Show progress percentage plus completed, mastered, in-progress, and not-started counts without exposing student mutation controls.
+4. Cover teacher ownership, roster scoping, lesson/quiz status aggregation, and the frontend build.
+
+## P7.6 - Teacher analytics CSV export (completed locally)
+
+1. Export the same teacher-scoped analytics rows using assignment, group, student, and period filters.
+2. Preserve null semantics for unavailable metrics and include explainable attention reasons in stable CSV columns.
+3. Add UTF-8 BOM and neutralize formula-like values before spreadsheet export.
+4. Cover response headers, ownership filtering, formula neutralization, route wiring, and the frontend build.
+
+## P7.7 - Quiz teacher feedback (completed locally)
+
+1. Add optional teacher feedback to submitted quiz attempts without changing server-side scoring or attempt history.
+2. Allow only the owning teacher to create, replace, or clear feedback for an attempt in their curriculum.
+3. Surface released feedback in the student Assessment Center, Study Room, parent read-only quiz history, Gradebook, and Gradebook CSV.
+4. Cover migration shape, owner authorization, submitted-attempt validation, visibility, and the frontend build.
+
+## P7.8 - Quiz feedback notifications (completed locally)
+
+1. Notify the student when an owning teacher publishes a non-empty quiz feedback note.
+2. Fan out the same release event only to verified linked parents, with the existing database notification channel.
+3. Avoid duplicate notifications when the same feedback is saved again, and do not notify on feedback removal.
+4. Cover recipient scoping, unverified-parent exclusion, deduplication, and the frontend-compatible notification payload.
+
+## P7.9 - Queued notification delivery (completed locally)
+
+1. Make every application Notification implement Laravel's `ShouldQueue` contract while preserving the existing database, mail, and recipient payloads.
+2. Keep notification dispatch behavior compatible with the existing in-app bell, academic alert cooldowns, payment flows, live reminders, chat, and quiz feedback.
+3. Add an architectural regression test covering all application notification classes so new notifications cannot silently become synchronous.
+4. Keep queue-worker availability and failed-job monitoring as staging/production release gates; no worker or migration was run locally.
 
 Every phase ends with focused tests, regression tests, a frontend build, documentation, and a small reviewable checkpoint. Production remains explicitly out of scope.

@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Domain\Communication\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class AcademicAlertNotification extends Notification
+class AcademicAlertNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

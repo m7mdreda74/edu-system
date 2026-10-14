@@ -6,9 +6,10 @@ namespace App\Domain\Communication\Notifications;
 
 use App\Domain\Payment\Models\Payment;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class ManualPaymentSubmittedNotification extends Notification
+class ManualPaymentSubmittedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -23,7 +24,7 @@ class ManualPaymentSubmittedNotification extends Notification
     {
         return [
             'title' => 'إيصال تحويل جديد يحتاج مراجعة',
-            'message' => "رفع {$this->payment->user->name} إيصال دفع بمبلغ " . number_format($this->payment->amount / 100, 2) . ' ر.ق.',
+            'message' => "رفع {$this->payment->user->name} إيصال دفع بمبلغ ".number_format($this->payment->amount / 100, 2).' ر.ق.',
             'link' => route('admin.payments', ['status' => Payment::STATUS_PENDING_VERIFICATION]),
             'payment_id' => $this->payment->id,
             'icon' => '🧾',

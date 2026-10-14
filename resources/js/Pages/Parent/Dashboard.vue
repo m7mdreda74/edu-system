@@ -130,6 +130,79 @@ function reportScore(event) {
     return `${event.score}%`;
 }
 
+const comparisonMetricLabels = {
+    study_minutes: 'دقائق المذاكرة',
+    lessons_completed: 'الدروس المكتملة',
+    assignments_submitted: 'الواجبات المسلّمة',
+    quizzes_submitted: 'الاختبارات',
+    average_quiz_score: 'متوسط الاختبارات',
+    attendance_rate: 'نسبة الحضور',
+};
+
+const comparisonMetricUnits = {
+    study_minutes: ' د',
+    lessons_completed: ' درس',
+    assignments_submitted: ' واجب',
+    quizzes_submitted: ' اختبار',
+    average_quiz_score: '%',
+    attendance_rate: '%',
+};
+
+function comparisonValue(metric, key) {
+    if (metric.current === null || metric.current === undefined) return '—';
+
+    return `${metric.current}${comparisonMetricUnits[key] || ''}`;
+}
+
+function comparisonDelta(metric, key) {
+    if (metric.delta === null || metric.delta === undefined) return 'لا توجد قيمة سابقة';
+    if (metric.delta === 0) return 'بدون تغيير';
+
+    const sign = metric.delta > 0 ? '+' : '';
+
+    return `${sign}${metric.delta}${comparisonMetricUnits[key] || ''}`;
+}
+
+function comparisonDirectionClass(direction) {
+    return {
+        up: 'text-green-600',
+        new: 'text-primary-600',
+        down: 'text-red-600',
+        flat: 'text-surface-500',
+    }[direction] || 'text-surface-500';
+}
+
+function comparisonDirectionLabel(direction) {
+    return {
+        up: 'تحسّن',
+        new: 'بداية قياس',
+        down: 'انخفاض',
+        flat: 'مستقر',
+    }[direction] || 'مقارنة';
+}
+
+const outcomeStatusLabels = {
+    not_started: 'لم يبدأ',
+    in_progress: 'قيد التقدم',
+    completed: 'مكتمل',
+    mastered: 'متقن',
+};
+
+const outcomeStatusClasses = {
+    not_started: 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300',
+    in_progress: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+    completed: 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300',
+    mastered: 'bg-primary-100 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300',
+};
+
+function outcomeStatusLabel(status) {
+    return outcomeStatusLabels[status?.key] || 'غير محدد';
+}
+
+function outcomeStatusClass(status) {
+    return outcomeStatusClasses[status?.key] || outcomeStatusClasses.not_started;
+}
+
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 function studentId() {
@@ -410,6 +483,33 @@ function payForRequest(requestId) {
                                 </div>
                             </div>
 
+                            <div v-if="selectedStudent.weeklyReport.comparison" class="mt-6 rounded-xl border border-primary-100 bg-primary-50/50 p-4 dark:border-primary-950 dark:bg-primary-950/20">
+                                <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h4 class="text-sm font-bold text-surface-800 dark:text-surface-100">مقارنة بالفترة السابقة</h4>
+                                        <p class="mt-1 text-[11px] text-surface-500">مقارنة تفسيرية مع الأيام السبعة السابقة، وليست توقعًا للمستقبل.</p>
+                                    </div>
+                                    <span class="text-[11px] text-surface-400">
+                                        {{ reportDate(selectedStudent.weeklyReport.comparison.previous_range.start) }} — {{ reportDate(selectedStudent.weeklyReport.comparison.previous_range.end) }}
+                                    </span>
+                                </div>
+                                <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                                    <div v-for="(metric, key) in selectedStudent.weeklyReport.comparison.metrics" :key="key" class="rounded-lg bg-white/80 p-3 dark:bg-surface-900/60">
+                                        <p class="text-[11px] text-surface-500">{{ comparisonMetricLabels[key] }}</p>
+                                        <p class="mt-1 text-sm font-black text-surface-800 dark:text-white">{{ comparisonValue(metric, key) }}</p>
+                                        <p class="mt-1 text-[11px]" :class="comparisonDirectionClass(metric.direction)">
+                                            {{ comparisonDirectionLabel(metric.direction) }} · {{ comparisonDelta(metric, key) }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="selectedStudent.weeklyReport.insights?.length" class="mt-4 space-y-2">
+                                <div v-for="insight in selectedStudent.weeklyReport.insights" :key="`${insight.key}-${insight.message}`" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
+                                    {{ insight.message }}
+                                </div>
+                            </div>
+
                             <div class="mt-6 grid gap-6 lg:grid-cols-2">
                                 <div>
                                     <h4 class="mb-3 text-sm font-bold text-surface-800 dark:text-surface-100">النشاط اليومي</h4>
@@ -443,6 +543,45 @@ function payForRequest(requestId) {
                                         </div>
                                         <p class="mt-1 text-xs font-bold text-surface-700 dark:text-surface-200">{{ event.title }}</p>
                                         <p class="mt-1 text-[11px] text-surface-500">{{ event.subject || 'نشاط عام' }} · {{ event.detail }}<span v-if="reportScore(event)"> · {{ reportScore(event) }}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Learning outcomes: read-only, active-subscription scoped -->
+                        <div v-if="selectedStudent.learningOutcomes?.length" class="card p-6 border-primary-100 dark:border-primary-950">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <h3 class="text-lg font-bold text-surface-900 dark:text-white">متابعة نواتج التعلم</h3>
+                                    <p class="mt-1 text-xs text-surface-500">تقدّم مبني على الدروس والاختبارات المسجلة للطالب، للعرض والمتابعة فقط.</p>
+                                </div>
+                                <span class="text-xs text-surface-400">من المقررات المشتركة الفعّالة</span>
+                            </div>
+
+                            <div class="mt-5 space-y-4">
+                                <div v-for="unit in selectedStudent.learningOutcomes" :key="unit.id" class="rounded-xl border border-surface-200 p-4 dark:border-surface-700">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <p class="font-bold text-surface-900 dark:text-white">{{ unit.title }}</p>
+                                            <p class="mt-1 text-xs text-surface-500">{{ unit.subject?.name || 'مادة دراسية' }} · {{ unit.completed_count }}/{{ unit.total_count }} مكتمل</p>
+                                        </div>
+                                        <span class="text-sm font-black text-primary-600">{{ unit.progress_percent }}%</span>
+                                    </div>
+
+                                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-surface-100 dark:bg-surface-800">
+                                        <div class="h-full rounded-full bg-primary-500 transition-all" :style="{ width: `${unit.progress_percent}%` }"></div>
+                                    </div>
+
+                                    <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                                        <div v-for="outcome in unit.outcomes" :key="outcome.id" class="rounded-lg bg-surface-50 px-3 py-2 dark:bg-surface-900/60">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <p class="text-xs font-bold text-surface-800 dark:text-surface-100">{{ outcome.title }}</p>
+                                                <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" :class="outcomeStatusClass(outcome.status)">
+                                                    {{ outcomeStatusLabel(outcome.status) }}
+                                                </span>
+                                            </div>
+                                            <p class="mt-1 text-[11px] text-surface-500">{{ outcome.target_type === 'quiz' ? 'اختبار' : 'درس' }}: {{ outcome.target_title || 'ناتج عام للوحدة' }} · {{ outcome.status.percent }}%</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -621,6 +760,7 @@ function payForRequest(requestId) {
                                             </td>
                                             <td class="px-6 py-4 text-xs text-surface-400">
                                                 {{ att.submitted_at ? new Date(att.submitted_at).toLocaleDateString('ar') : 'لم يسلّم' }}
+                                                <p v-if="att.teacher_feedback" class="mt-2 text-start text-surface-500">ملاحظات المدرس: {{ att.teacher_feedback }}</p>
                                             </td>
                                         </tr>
                                     </tbody>

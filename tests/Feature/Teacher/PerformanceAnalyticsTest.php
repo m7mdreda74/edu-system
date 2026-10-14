@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
+use App\Domain\Academic\Models\LearningOutcome;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LessonProgress;
 use App\Domain\Learning\Models\LiveSession;
@@ -87,6 +88,22 @@ it('shows teacher-scoped analytics and explainable attention signals', function 
         'total_points' => 10,
         'submitted_at' => now()->subDay(),
     ]);
+    LearningOutcome::create([
+        'teaching_assignment_id' => $assignment->id,
+        'curriculum_unit_id' => $unit->id,
+        'group_material_id' => $lesson->id,
+        'title' => 'إكمال الدرس',
+        'order' => 1,
+        'is_published' => true,
+    ]);
+    LearningOutcome::create([
+        'teaching_assignment_id' => $assignment->id,
+        'curriculum_unit_id' => $unit->id,
+        'quiz_id' => $quiz->id,
+        'title' => 'إتقان الاختبار',
+        'order' => 2,
+        'is_published' => true,
+    ]);
 
     foreach ([$student, $studentWithGaps] as $rosterStudent) {
         Subscription::factory()->active()->create([
@@ -144,6 +161,11 @@ it('shows teacher-scoped analytics and explainable attention signals', function 
             ->where('summary.average_quiz_score', 60)
             ->where('summary.attendance_rate', 50)
             ->where('summary.students_requiring_attention', 1)
+            ->has('learning_outcomes', 1)
+            ->where('learning_outcomes.0.outcomes.0.completed_count', 1)
+            ->where('learning_outcomes.0.outcomes.0.progress_percent', 50)
+            ->where('learning_outcomes.0.outcomes.1.mastered_count', 1)
+            ->where('learning_outcomes.0.outcomes.1.progress_percent', 70)
             ->where('rows.0.id', $studentWithGaps->id)
             ->where('rows.0.requires_attention', true)
             ->where('rows.0.attention_reasons.0.code', 'missing_assignments')
@@ -161,4 +183,42 @@ it('shows teacher-scoped analytics and explainable attention signals', function 
     $this->actingAs($teacher)
         ->get(route('teacher.analytics', ['assignment' => $otherAssignment->id]))
         ->assertNotFound();
+});
+
+it('exports only the teacher scoped analytics rows and neutralizes spreadsheet formulas', function (): void {
+    Role::findOrCreate('teacher', 'web');
+    $teacher = User::factory()->create(['email_verified_at' => now()]);
+    $teacher->assignRole('teacher');
+    $student = User::factory()->create([
+        'name' => '=SUM(A1:A2)',
+        'email' => 'analytics-formula@example.test',
+    ]);
+    $assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $group = TeachingGroup::factory()->create(['teaching_assignment_id' => $assignment->id]);
+    Subscription::factory()->active()->create([
+        'student_id' => $student->id,
+        'teaching_assignment_id' => $assignment->id,
+        'teaching_group_id' => $group->id,
+    ]);
+
+    $response = $this->actingAs($teacher)
+        ->get(route('teacher.analytics.export', [
+            'assignment' => $assignment->id,
+            'days' => 7,
+        ]));
+
+    $response->assertOk()
+        ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+        ->assertHeader('cache-control', 'no-store, private');
+
+    $csv = $response->streamedContent();
+
+    expect($csv)
+        ->toContain("\xEF\xBB\xBFStudent,Email,Subjects,Groups,\"Lessons Completed\"")
+        ->toContain("'=SUM(A1:A2)")
+        ->toContain('analytics-formula@example.test')
+        ->toContain(',0,0,0,0,0,,,No,');
 });

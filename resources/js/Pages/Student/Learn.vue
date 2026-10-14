@@ -131,6 +131,24 @@ function selectLesson(unit, lesson) {
     activeTab.value      = 'description';
 }
 
+function outcomeStatusLabel(status) {
+    return {
+        not_started: 'لم يبدأ',
+        in_progress: 'قيد التقدم',
+        completed: 'مكتمل',
+        mastered: 'متقن',
+    }[status?.key] || 'غير محدد';
+}
+
+function outcomeStatusClass(status) {
+    return {
+        not_started: 'text-surface-400',
+        in_progress: 'text-amber-600 dark:text-amber-300',
+        completed: 'text-green-600 dark:text-green-300',
+        mastered: 'text-accent-600 dark:text-accent-300',
+    }[status?.key] || 'text-surface-400';
+}
+
 const nextLesson = computed(() => {
     const index = flatLessons.value.findIndex(lesson => lesson.id === activeLessonId.value);
     if (index === -1) return null;
@@ -921,6 +939,16 @@ function uploadAnswer(sheetId) {
                             <p v-if="unit.description" class="px-4 pt-3 text-[11px] text-surface-400 leading-relaxed">
                                 {{ unit.description }}
                             </p>
+                            <div v-if="unit.learning_outcomes?.length" class="mx-4 mt-3 rounded-xl border border-accent-200 bg-accent-50/40 p-3 dark:border-accent-900/60 dark:bg-accent-950/20">
+                                <p class="text-[11px] font-bold text-accent-700 dark:text-accent-300">نواتج التعلم</p>
+                                <ul class="mt-2 space-y-1.5">
+                                    <li v-for="outcome in unit.learning_outcomes" :key="outcome.id" class="text-xs text-surface-600 dark:text-surface-300">
+                                        <span class="font-bold">• {{ outcome.title }}</span>
+                                        <span v-if="outcome.target_title" class="text-[11px] text-surface-400"> · {{ outcome.target_title }}</span>
+                                        <span class="ms-2 text-[11px] font-bold" :class="outcomeStatusClass(outcome.status)">{{ outcomeStatusLabel(outcome.status) }}<span v-if="outcome.status?.percent > 0 && outcome.status?.percent < 100"> · {{ outcome.status.percent }}%</span></span>
+                                    </li>
+                                </ul>
+                            </div>
 
                             <!-- Lessons -->
                             <div class="pt-1">

@@ -23,7 +23,7 @@ class ParentProgressReportService
      * Build a rolling seven-day report from records the selected student is
      * currently authorized to access through an active subscription.
      *
-     * @return array{range: array<string, mixed>, summary: array<string, int|float|null>, daily: Collection<int, array<string, mixed>>, by_subject: Collection<int, array<string, mixed>>, recent: Collection<int, array<string, mixed>>}
+     * @return array<string, mixed>
      */
     public function forStudent(User $student): array
     {
@@ -35,6 +35,30 @@ class ParentProgressReportService
             ->filter()
             ->unique()
             ->values();
+
+        $current = $this->buildWindowReport($student, $end, $assignmentIds);
+        $previous = $this->buildWindowReport(
+            $student,
+            $end->subDays(self::WINDOW_DAYS)->endOfDay(),
+            $assignmentIds,
+        );
+
+        $current['comparison'] = $this->comparison($current['summary'], $previous['summary'], $previous['range']);
+        $current['insights'] = $this->insights($current['summary'], $previous['summary']);
+
+        return $current;
+    }
+
+    /**
+     * Build one report window. Keeping this separate makes the comparison
+     * explicit and ensures both periods use the same authorization scope.
+     *
+     * @param  Collection<int, int|string>  $assignmentIds
+     * @return array<string, mixed>
+     */
+    private function buildWindowReport(User $student, CarbonImmutable $end, Collection $assignmentIds): array
+    {
+        $start = $end->subDays(self::WINDOW_DAYS - 1)->startOfDay();
 
         if ($assignmentIds->isEmpty()) {
             return $this->emptyReport($start, $end);
@@ -248,6 +272,7 @@ class ParentProgressReportService
             ],
             'daily' => collect($days)->map(function (array $day): array {
                 $scores = $day['quiz_scores'];
+                $day['study_minutes'] = (int) round($day['study_seconds'] / 60);
                 unset($day['quiz_scores'], $day['study_seconds']);
                 $day['quiz_average_score'] = $scores === [] ? null : (int) round((float) collect($scores)->avg());
 
@@ -268,6 +293,115 @@ class ParentProgressReportService
                 ->take(12)
                 ->values(),
         ];
+    }
+
+    /** @param array<string, int|float|null> $current @param array<string, int|float|null> $previous @param array<string, mixed> $previousRange @return array<string, mixed> */
+    private function comparison(array $current, array $previous, array $previousRange): array
+    {
+        $keys = [
+            'study_minutes',
+            'lessons_completed',
+            'assignments_submitted',
+            'quizzes_submitted',
+            'average_quiz_score',
+            'attendance_rate',
+        ];
+
+        $metrics = [];
+        foreach ($keys as $key) {
+            $metrics[$key] = $this->metricComparison($current[$key] ?? null, $previous[$key] ?? null);
+        }
+
+        return [
+            'previous_range' => $previousRange,
+            'metrics' => $metrics,
+        ];
+    }
+
+    /** @return array<string, int|float|null|string> */
+    private function metricComparison(int|float|null $current, int|float|null $previous): array
+    {
+        if ($current === null && $previous === null) {
+            return [
+                'current' => null,
+                'previous' => null,
+                'delta' => null,
+                'change_percent' => null,
+                'direction' => 'flat',
+            ];
+        }
+
+        if ($previous === null) {
+            return [
+                'current' => $current,
+                'previous' => null,
+                'delta' => $current,
+                'change_percent' => null,
+                'direction' => $current === null || $current == 0 ? 'flat' : 'new',
+            ];
+        }
+
+        if ($current === null) {
+            return [
+                'current' => null,
+                'previous' => $previous,
+                'delta' => -$previous,
+                'change_percent' => null,
+                'direction' => 'down',
+            ];
+        }
+
+        $delta = round($current - $previous, 1);
+
+        return [
+            'current' => $current,
+            'previous' => $previous,
+            'delta' => $delta,
+            'change_percent' => $previous == 0 ? null : round(($delta / abs($previous)) * 100, 1),
+            'direction' => $delta > 0 ? 'up' : ($delta < 0 ? 'down' : 'flat'),
+        ];
+    }
+
+    /** @param array<string, int|float|null> $current @param array<string, int|float|null> $previous @return array<int, array<string, string>> */
+    private function insights(array $current, array $previous): array
+    {
+        $insights = [];
+
+        if (($current['study_minutes'] ?? 0) < ($previous['study_minutes'] ?? 0) && ($previous['study_minutes'] ?? 0) > 0) {
+            $insights[] = [
+                'type' => 'attention',
+                'key' => 'study_minutes',
+                'message' => 'انخفضت دقائق المذاكرة مقارنة بالفترة السابقة.',
+            ];
+        }
+
+        if (($current['average_quiz_score'] ?? null) !== null
+            && ($previous['average_quiz_score'] ?? null) !== null
+            && $current['average_quiz_score'] <= $previous['average_quiz_score'] - 10) {
+            $insights[] = [
+                'type' => 'attention',
+                'key' => 'average_quiz_score',
+                'message' => 'انخفض متوسط نتائج الاختبارات بعشر نقاط أو أكثر عن الفترة السابقة.',
+            ];
+        }
+
+        if (($current['attendance_sessions'] ?? 0) > 0 && ($current['attendance_rate'] ?? 0) < 75) {
+            $insights[] = [
+                'type' => 'attention',
+                'key' => 'attendance_rate',
+                'message' => 'نسبة الحضور الحالية أقل من 75% خلال الفترة الحالية.',
+            ];
+        }
+
+        if (($current['lessons_started'] ?? 0) > 0 && ($current['assignments_submitted'] ?? 0) === 0) {
+            $insights[] = [
+                'type' => 'attention',
+                'key' => 'assignments_submitted',
+                'message' => 'تمت متابعة دروس خلال الفترة الحالية دون تسجيل تسليم واجبات.',
+            ];
+        }
+
+        return $insights;
     }
 
     /** @return array<string, mixed> */

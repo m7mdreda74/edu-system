@@ -10,6 +10,7 @@ use App\Domain\Learning\Models\WorksheetSubmission;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\Quiz\Models\QuizAttempt;
 use App\Domain\Scheduling\Models\TeachingAssignment;
+use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -244,4 +245,51 @@ it('exports only the teacher scoped gradebook and neutralizes spreadsheet formul
         ->toContain('formula@example.test')
         ->toContain('Export homework')
         ->toContain(',8,10,80,graded,');
+});
+
+it('lets only the owning teacher save feedback on a submitted quiz attempt', function (): void {
+    Role::findOrCreate('teacher', 'web');
+    $teacher = User::factory()->create(['email_verified_at' => now()]);
+    $teacher->assignRole('teacher');
+    $otherTeacher = User::factory()->create(['email_verified_at' => now()]);
+    $otherTeacher->assignRole('teacher');
+    $student = User::factory()->create();
+    $parent = User::factory()->create();
+    ParentStudentLink::create([
+        'parent_user_id' => $parent->id,
+        'student_user_id' => $student->id,
+        'relationship' => 'parent',
+        'verified_at' => now(),
+        'status' => ParentStudentLink::STATUS_APPROVED,
+    ]);
+    $assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $assignment->id,
+        'academic_term_id' => AcademicTerm::currentOrNext()?->id,
+    ]);
+    $quiz = Quiz::factory()->withQuestions(1)->create(['curriculum_unit_id' => $unit->id]);
+    $attempt = QuizAttempt::factory()->submitted(80)->create([
+        'user_id' => $student->id,
+        'quiz_id' => $quiz->id,
+        'earned_points' => 8,
+        'total_points' => 10,
+    ]);
+
+    $this->actingAs($teacher)
+        ->post(route('teacher.gradebook.quiz-feedback', $attempt->id), [
+            'teacher_feedback' => 'راجع السؤال الثاني قبل المحاولة القادمة.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($attempt->fresh()->teacher_feedback)->toBe('راجع السؤال الثاني قبل المحاولة القادمة.');
+
+    $this->actingAs($otherTeacher)
+        ->post(route('teacher.gradebook.quiz-feedback', $attempt->id), [
+            'teacher_feedback' => 'لا يجب أن تظهر.',
+        ])
+        ->assertNotFound();
 });

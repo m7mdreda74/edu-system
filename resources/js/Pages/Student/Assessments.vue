@@ -128,6 +128,9 @@ function dateLabel(value) {
                             <span v-else-if="item.available_from">يفتح: {{ dateLabel(item.available_from) }}</span>
                             <span v-else>متاح الآن</span>
                         </div>
+                        <p v-if="item.best_attempt?.teacher_feedback" class="w-full text-xs text-surface-500 dark:text-surface-400">
+                            ملاحظات المدرس: {{ item.best_attempt.teacher_feedback }}
+                        </p>
                         <Link :href="route('student.quiz', { quizId: item.id })" class="btn-primary btn-sm">
                             {{ item.can_start ? 'ابدأ الاختبار' : 'عرض التفاصيل' }}
                         </Link>

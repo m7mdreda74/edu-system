@@ -6,10 +6,11 @@ namespace App\Notifications;
 
 use App\Domain\Subscription\Models\Subscription;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
 /** Confirms to the student that their month of access is live. */
-class SubscriptionActivatedNotification extends Notification
+class SubscriptionActivatedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -27,12 +28,12 @@ class SubscriptionActivatedNotification extends Notification
         $until = $this->subscription->period_end?->format('Y-m-d');
 
         return [
-            'type'            => 'subscription_activated',
-            'title'           => 'تم تفعيل اشتراكك ✅',
-            'message'         => "اشتراكك في {$this->subscription->label()} فعّال حتى {$until}.",
-            'link'            => route('student.my-classes'),
+            'type' => 'subscription_activated',
+            'title' => 'تم تفعيل اشتراكك ✅',
+            'message' => "اشتراكك في {$this->subscription->label()} فعّال حتى {$until}.",
+            'link' => route('student.my-classes'),
             'subscription_id' => $this->subscription->id,
-            'icon'            => '🎓',
+            'icon' => '🎓',
         ];
     }
 }

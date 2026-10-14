@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## 2026-10-14 - P0-P6.2 + P4.1 + P5.1-P5.3 + P6.3-P6.5 local checkpoint
+## 2026-10-14 - P0-P6.2 + P4.1 + P5.1-P5.3 + P6.3-P6.7 + P7.1-P7.9 local checkpoint
 
 - Created branch `feature/lms-dashboard-v2` from `08bc29c`.
 - Audited existing domain models, controllers, routes, protected learning access, dashboards, parent linking, quiz, worksheet, booking, subscription, and Blob storage paths.
@@ -24,16 +24,28 @@
 - Completed local release hardening: scoped tests away from historical demo-seed assumptions, stabilized checkout/chat/free-intro/report/curriculum assertions, and verified the production sensitive-admin password-confirmation boundary.
 - Added a teacher-scoped Gradebook CSV export with assignment ownership enforcement, UTF-8 spreadsheet compatibility, and formula-injection neutralization.
 - Added database-level Gradebook pagination over normalized worksheet and latest-quiz rows, with full-scope summary totals and responsive Inertia pagination links.
+- Added announcement editing/deletion with owner-only mutation checks, no duplicate notification on edit, and a teacher-scoped CSV export with formula neutralization.
+- Added explainable parent progress comparison against the preceding seven-day period, with metric deltas and read-only attention signals based on real authorized records.
+- Added optional student achievements behind `LEARNING_GAMIFICATION_ENABLED=false`: scoped non-repeat points, levels, milestones, badges, and private dashboard breakdown with no public leaderboard.
+- Added lightweight Learning Outcomes: teacher-owned unit outcomes can target a lesson or electronic assessment, while subscribed students see only published outcomes in the Study Room.
+- Added explainable Learning Outcome status derived from real lesson completion and quiz attempts: not started, in progress, completed, or mastered.
+- Added a shared Learning Outcome progress service and a read-only parent summary scoped to the selected verified child's active subscriptions and published curriculum.
+- Added teacher performance analytics for published outcomes, scoped to the teacher's active assignments and current active roster with aggregated status counts.
+- Added teacher analytics CSV export with the same filters, UTF-8 spreadsheet support, null-preserving metrics, and formula neutralization.
+- Added owner-scoped quiz teacher feedback for submitted attempts and exposed it consistently in Gradebook, student assessment views, Study Room, parent quiz history, and Gradebook CSV.
+- Added owner-scoped quiz feedback notifications for the student and verified linked parents, with duplicate suppression and no notification when feedback is cleared.
+- Enforced queued delivery for all 19 application notification classes and added an architectural regression guard for `ShouldQueue` compliance.
 - Focused tests and the production frontend build pass for the new slices.
 
 ## Deferred after the local P6.3 checkpoint
 
 - Shared dashboard component extraction beyond the existing reusable cards/layouts.
-- Richer manual quiz feedback; existing teacher worksheet grading remains the source of truth for mutations.
 - External push/SMS and advanced notification scheduling.
-- Deeper parent trend analytics and external notification scheduling.
-- Announcement editing, deletion, export, and large-dataset pagination remain follow-up hardening.
+- External notification scheduling.
+- AI integrations and external data-driven recommendations.
+- External announcement delivery and advanced notification scheduling remain follow-up hardening.
+- Queue worker uptime, retry, and failed-job monitoring remain deployment gates; no worker was started from this workspace.
 
 ## Schema status
 
-Migrations `2026_10_13_000100_add_parent_student_link_lifecycle`, `2026_10_13_000200_create_group_announcements_table`, `2026_10_13_000300_create_question_bank_tables`, and `2026_10_13_000400_create_learning_resource_library_tables` are additive and remain Pending on the local MySQL connection. None has been run against any production or deployment database.
+Migrations `2026_10_13_000100_add_parent_student_link_lifecycle`, `2026_10_13_000200_create_group_announcements_table`, `2026_10_13_000300_create_question_bank_tables`, `2026_10_13_000400_create_learning_resource_library_tables`, `2026_10_14_000100_create_learning_outcomes_table`, and `2026_10_14_000200_add_teacher_feedback_to_quiz_attempts_table` are additive and remain Pending on the local MySQL connection. None has been run against any production or deployment database.

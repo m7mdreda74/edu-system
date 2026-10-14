@@ -7,10 +7,11 @@ namespace App\Domain\Communication\Notifications;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
 /** Tells a teacher that a student subscribed to one of their groups. */
-class StudentSubscribedNotification extends Notification
+class StudentSubscribedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -27,9 +28,9 @@ class StudentSubscribedNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'title'   => 'اشتراك جديد 🎓',
+            'title' => 'اشتراك جديد 🎓',
             'message' => "اشترك الطالب '{$this->student->name}' في {$this->subscription->label()}.",
-            'link'    => route('teacher.teaching-schedule'),
+            'link' => route('teacher.teaching-schedule'),
         ];
     }
 }

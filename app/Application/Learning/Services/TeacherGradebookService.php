@@ -257,7 +257,7 @@ class TeacherGradebookService
                 'attempt.earned_points as earned',
                 'attempt.total_points as maximum',
                 DB::raw("'graded' as status"),
-                DB::raw('NULL as feedback'),
+                'attempt.teacher_feedback as feedback',
                 'attempt.submitted_at as assessed_at',
             ]);
 
@@ -319,6 +319,7 @@ class TeacherGradebookService
 
         return [
             'id' => $row->source_type.'-'.$row->source_id,
+            'attempt_id' => $isQuiz ? (int) $row->source_id : null,
             'assessment_id' => (int) $row->assessment_id,
             'assignment_id' => (int) $row->assignment_id,
             'kind' => $kind,
@@ -380,6 +381,7 @@ class TeacherGradebookService
 
         return [
             'id' => 'quiz-'.$attempt->id,
+            'attempt_id' => $attempt->id,
             'assessment_id' => $quiz->id,
             'assignment_id' => $assignment?->id,
             'kind' => 'quiz',
@@ -391,7 +393,7 @@ class TeacherGradebookService
             'maximum' => $maximum,
             'percentage' => $maximum === null ? $attempt->score : $this->percentage($earned, $maximum),
             'status' => 'graded',
-            'feedback' => null,
+            'feedback' => $attempt->teacher_feedback,
             'assessed_at' => $attempt->submitted_at?->toIso8601String(),
         ];
     }

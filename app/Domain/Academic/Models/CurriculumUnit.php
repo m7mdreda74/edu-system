@@ -9,6 +9,7 @@ use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
+use Database\Factories\Domain\Academic\CurriculumUnitFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,9 +28,9 @@ class CurriculumUnit extends Model
 {
     use HasFactory;
 
-    protected static function newFactory(): \Database\Factories\Domain\Academic\CurriculumUnitFactory
+    protected static function newFactory(): CurriculumUnitFactory
     {
-        return new \Database\Factories\Domain\Academic\CurriculumUnitFactory();
+        return new CurriculumUnitFactory;
     }
 
     protected $fillable = [
@@ -44,7 +45,7 @@ class CurriculumUnit extends Model
     protected function casts(): array
     {
         return [
-            'order'        => 'integer',
+            'order' => 'integer',
             'is_published' => 'boolean',
         ];
     }
@@ -76,6 +77,11 @@ class CurriculumUnit extends Model
         return $this->hasMany(Worksheet::class, 'curriculum_unit_id');
     }
 
+    public function learningOutcomes(): HasMany
+    {
+        return $this->hasMany(LearningOutcome::class, 'curriculum_unit_id')->orderBy('order');
+    }
+
     /**
      * "اختبار الوحدة — النموذج الإلكتروني". A quiz attached to a lesson is a
      * short drill for that lesson; the unit exam is the one standing alone.
@@ -104,8 +110,8 @@ class CurriculumUnit extends Model
         return self::firstOrCreate(
             [
                 'teaching_assignment_id' => $group->teaching_assignment_id,
-                'academic_term_id'       => $group->academic_term_id ?? AcademicTerm::currentOrNext()?->id,
-                'order'                  => 1,
+                'academic_term_id' => $group->academic_term_id ?? AcademicTerm::currentOrNext()?->id,
+                'order' => 1,
             ],
             ['title' => 'الوحدة الأولى'],
         );

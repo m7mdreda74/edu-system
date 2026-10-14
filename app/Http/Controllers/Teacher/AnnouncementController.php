@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AnnouncementController extends Controller
 {
@@ -62,5 +63,68 @@ class AnnouncementController extends Controller
         );
 
         return back()->with('success', 'تم نشر الإعلان وإرسال الإشعار للمستلمين المؤهلين.');
+    }
+
+    public function update(
+        Request $request,
+        GroupAnnouncement $announcement,
+        GroupAnnouncementService $announcements,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:180'],
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $announcements->update(
+            Auth::user(),
+            $announcement,
+            trim($validated['title']),
+            trim($validated['body']),
+        );
+
+        return back()->with('success', 'تم تحديث الإعلان دون إعادة إرسال الإشعارات.');
+    }
+
+    public function destroy(GroupAnnouncement $announcement, GroupAnnouncementService $announcements): RedirectResponse
+    {
+        $announcements->delete(Auth::user(), $announcement);
+
+        return back()->with('success', 'تم حذف الإعلان.');
+    }
+
+    public function export(GroupAnnouncementService $announcements): StreamedResponse
+    {
+        $rows = $announcements->forTeacher(Auth::user());
+
+        return response()->streamDownload(function () use ($rows): void {
+            $handle = fopen('php://output', 'wb');
+
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, ['Group', 'Title', 'Body', 'Published At', 'Updated At']);
+
+            foreach ($rows as $announcement) {
+                fputcsv($handle, [
+                    $this->csvCell($announcement->group?->name),
+                    $this->csvCell($announcement->title),
+                    $this->csvCell($announcement->body),
+                    $this->csvCell($announcement->published_at?->toIso8601String()),
+                    $this->csvCell($announcement->updated_at?->toIso8601String()),
+                ]);
+            }
+
+            fclose($handle);
+        }, 'announcements.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-store, private',
+        ]);
+    }
+
+    private function csvCell(mixed $value): string
+    {
+        $value = $value === null ? '' : (string) $value;
+
+        return preg_match('/^\s*[=+\-@]/u', $value) === 1
+            ? "'{$value}"
+            : $value;
     }
 }

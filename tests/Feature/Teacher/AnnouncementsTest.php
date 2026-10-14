@@ -115,6 +115,119 @@ it('rejects a teacher trying to publish to another teachers group', function ():
     $this->assertDatabaseCount('group_announcements', 0);
 });
 
+it('lets the owner edit or delete an announcement without re-notifying recipients', function (): void {
+    Role::findOrCreate('teacher', 'web');
+    $teacher = User::factory()->create();
+    $teacher->assignRole('teacher');
+    $otherTeacher = User::factory()->create();
+    $otherTeacher->assignRole('teacher');
+    $grade = GradeLevel::query()->firstOrFail();
+    $subject = Subject::query()->firstOrFail();
+    $group = TeachingGroup::factory()->create([
+        'teaching_assignment_id' => TeachingAssignment::factory()->create([
+            'teacher_id' => $teacher->id,
+            'grade_level_id' => $grade->id,
+            'subject_id' => $subject->id,
+        ])->id,
+    ]);
+    $announcement = GroupAnnouncement::create([
+        'teacher_id' => $teacher->id,
+        'teaching_group_id' => $group->id,
+        'title' => 'العنوان القديم',
+        'body' => 'النص القديم',
+        'published_at' => now(),
+    ]);
+
+    Notification::fake();
+
+    $this->actingAs($otherTeacher)
+        ->put(route('teacher.announcements.update', $announcement), [
+            'title' => 'محاولة غير مسموحة',
+            'body' => 'لا يجب حفظها',
+        ])
+        ->assertNotFound();
+
+    $this->actingAs($teacher)
+        ->put(route('teacher.announcements.update', $announcement), [
+            'title' => 'العنوان الجديد',
+            'body' => 'النص الجديد',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('group_announcements', [
+        'id' => $announcement->id,
+        'teacher_id' => $teacher->id,
+        'teaching_group_id' => $group->id,
+        'title' => 'العنوان الجديد',
+        'body' => 'النص الجديد',
+    ]);
+    Notification::assertNothingSent();
+
+    $this->actingAs($otherTeacher)
+        ->delete(route('teacher.announcements.destroy', $announcement))
+        ->assertNotFound();
+
+    $this->actingAs($teacher)
+        ->delete(route('teacher.announcements.destroy', $announcement))
+        ->assertRedirect();
+
+    $this->assertDatabaseMissing('group_announcements', ['id' => $announcement->id]);
+});
+
+it('exports only owned announcements and neutralizes spreadsheet formulas', function (): void {
+    Role::findOrCreate('teacher', 'web');
+    $teacher = User::factory()->create();
+    $teacher->assignRole('teacher');
+    $otherTeacher = User::factory()->create();
+    $otherTeacher->assignRole('teacher');
+    $grade = GradeLevel::query()->firstOrFail();
+    $subject = Subject::query()->firstOrFail();
+    $ownedGroup = TeachingGroup::factory()->create([
+        'teaching_assignment_id' => TeachingAssignment::factory()->create([
+            'teacher_id' => $teacher->id,
+            'grade_level_id' => $grade->id,
+            'subject_id' => $subject->id,
+        ])->id,
+    ]);
+    $otherGroup = TeachingGroup::factory()->create([
+        'teaching_assignment_id' => TeachingAssignment::factory()->create([
+            'teacher_id' => $otherTeacher->id,
+            'grade_level_id' => $grade->id,
+            'subject_id' => $subject->id,
+        ])->id,
+    ]);
+    GroupAnnouncement::create([
+        'teacher_id' => $teacher->id,
+        'teaching_group_id' => $ownedGroup->id,
+        'title' => '=SUM(A1:A2)',
+        'body' => 'Owned body',
+        'published_at' => now(),
+    ]);
+    GroupAnnouncement::create([
+        'teacher_id' => $otherTeacher->id,
+        'teaching_group_id' => $otherGroup->id,
+        'title' => 'Other title',
+        'body' => 'Other body',
+        'published_at' => now(),
+    ]);
+
+    $response = $this->actingAs($teacher)
+        ->get(route('teacher.announcements.export'));
+
+    $response->assertOk()
+        ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+        ->assertHeader('cache-control', 'no-store, private');
+
+    $csv = $response->streamedContent();
+
+    expect($csv)
+        ->toContain("\xEF\xBB\xBFGroup,Title,Body,\"Published At\",\"Updated At\"")
+        ->toContain("'=SUM(A1:A2)")
+        ->toContain('Owned body')
+        ->not->toContain('Other body');
+});
+
 it('shows only active groups owned by the teacher on the announcements page', function (): void {
     Role::findOrCreate('teacher', 'web');
     $teacher = User::factory()->create();

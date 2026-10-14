@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Parent;
 
+use App\Application\Learning\Services\LearningOutcomeProgressService;
 use App\Application\Learning\Services\ParentProgressReportService;
 use App\Application\Learning\Services\StudentAssignmentService;
 use App\Application\Scheduling\Services\SessionBookingService;
@@ -37,6 +38,7 @@ class ParentDashboardController extends Controller
         Request $request,
         StudentAssignmentService $studentAssignments,
         ParentProgressReportService $progressReports,
+        LearningOutcomeProgressService $outcomeProgress,
     ): Response {
         $parent = Auth::user();
 
@@ -166,6 +168,7 @@ class ParentDashboardController extends Controller
                     'total_points' => $attempt->total_points,
                     'passing_score' => $attempt->quiz?->passing_score,
                     'passed' => $attempt->passed,
+                    'teacher_feedback' => $attempt->teacher_feedback,
                     'submitted_at' => $attempt->submitted_at?->toIso8601String(),
                 ])->values();
 
@@ -322,6 +325,7 @@ class ParentDashboardController extends Controller
                 'assignments' => $assignmentCenter['items'],
                 'assignmentSummary' => $assignmentCenter['summary'],
                 'weeklyReport' => $weeklyReport,
+                'learningOutcomes' => $outcomeProgress->summaryForStudent($student),
                 'attendance' => $attendance,
                 'attendanceSummary' => [
                     'total' => $attendance->count(),

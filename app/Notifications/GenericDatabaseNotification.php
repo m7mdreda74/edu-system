@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class GenericDatabaseNotification extends Notification
+class GenericDatabaseNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(private array $data)
-    {
-    }
+    public function __construct(private array $data) {}
 
     public function via(object $notifiable): array
     {
@@ -23,9 +22,9 @@ class GenericDatabaseNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'title'   => $this->data['title'] ?? 'تنبيه جديد 🔔',
+            'title' => $this->data['title'] ?? 'تنبيه جديد 🔔',
             'message' => $this->data['message'] ?? '',
-            'link'    => $this->data['link'] ?? '#',
+            'link' => $this->data['link'] ?? '#',
         ];
     }
 }

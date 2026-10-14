@@ -59,6 +59,7 @@ it('lists only published active-subscription quizzes with real attempt state', f
         'quiz_id' => $available->id,
         'earned_points' => 2,
         'total_points' => 2,
+        'teacher_feedback' => 'راجع السؤال الثاني.',
     ]);
 
     $unpublishedUnit = CurriculumUnit::factory()->unpublished()->create([
@@ -91,6 +92,7 @@ it('lists only published active-subscription quizzes with real attempt state', f
             ->where('summary.average_score', 80)
             ->where('items', fn ($items): bool => collect($items)->pluck('title')->sort()->values()->all() === ['اختبار قادم', 'اختبار متاح', 'اختبار مفتوح'])
             ->where('items', fn ($items): bool => collect($items)->firstWhere('id', $available->id)['best_attempt']['score'] === 80)
+            ->where('items', fn ($items): bool => collect($items)->firstWhere('id', $available->id)['best_attempt']['teacher_feedback'] === 'راجع السؤال الثاني.')
             ->where('items', fn ($items): bool => collect($items)->every(fn (array $item): bool => ! array_key_exists('questions', $item) && ! array_key_exists('options', $item) && ! array_key_exists('answer_key', $item)))
             ->missing('items.3'));
 });

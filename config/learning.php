@@ -2,6 +2,7 @@
 
 return [
     'live_session_overdue_buffer_hours' => (int) env('LIVE_SESSION_OVERDUE_BUFFER_HOURS', 2),
+    'gamification_enabled' => filter_var(env('LEARNING_GAMIFICATION_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
 
     'academic_alerts' => [
         'homework_deadline_days' => (int) env('ACADEMIC_ALERT_HOMEWORK_DEADLINE_DAYS', 2),

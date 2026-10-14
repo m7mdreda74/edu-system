@@ -5,8 +5,10 @@ declare(strict_types=1);
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\GradeLevel;
+use App\Domain\Academic\Models\LearningOutcome;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\GroupMaterial;
+use App\Domain\Learning\Models\LessonProgress;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Learning\Models\WorksheetSubmission;
 use App\Domain\Quiz\Models\Quiz;
@@ -84,6 +86,73 @@ it('keeps another teacher out of the curriculum', function () {
             'lessons_per_unit' => 1,
         ])
         ->assertForbidden();
+});
+
+it('lets the owner define lesson and assessment outcomes that subscribed students can read', function (): void {
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $this->assignment->id,
+        'academic_term_id' => $this->term->id,
+        'is_published' => true,
+    ]);
+    $lesson = GroupMaterial::factory()->create(['curriculum_unit_id' => $unit->id]);
+    $quiz = Quiz::factory()->create(['curriculum_unit_id' => $unit->id, 'is_active' => true]);
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.outcomes.store', ['unit' => $unit->id]), [
+            'title' => 'يشرح الفكرة الأساسية',
+            'description' => 'يستخدم المصطلحات الصحيحة.',
+            'group_material_id' => $lesson->id,
+        ])
+        ->assertRedirect();
+
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.outcomes.store', ['unit' => $unit->id]), [
+            'title' => 'يطبق المفهوم في اختبار الوحدة',
+            'quiz_id' => $quiz->id,
+        ])
+        ->assertRedirect();
+
+    expect(LearningOutcome::where('curriculum_unit_id', $unit->id)->count())->toBe(2);
+
+    $otherTeacher = User::factory()->create(['email_verified_at' => now()]);
+    $otherTeacher->assignRole('teacher');
+    $outcome = LearningOutcome::firstOrFail();
+
+    $this->actingAs($otherTeacher)
+        ->delete(route('teacher.outcomes.destroy', ['outcome' => $outcome->id]))
+        ->assertForbidden();
+
+    $student = User::factory()->create(['email_verified_at' => now()]);
+    $student->assignRole('student');
+    LessonProgress::create([
+        'student_id' => $student->id,
+        'lesson_id' => $lesson->id,
+        'watched_seconds' => 600,
+        'is_completed' => true,
+    ]);
+    QuizAttempt::factory()->submitted(85)->create([
+        'user_id' => $student->id,
+        'quiz_id' => $quiz->id,
+    ]);
+    $group = TeachingGroup::factory()->create(['teaching_assignment_id' => $this->assignment->id]);
+    Subscription::factory()->active()->create([
+        'student_id' => $student->id,
+        'teaching_assignment_id' => $this->assignment->id,
+        'teaching_group_id' => $group->id,
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('student.learn', ['groupId' => $group->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('units.0.learning_outcomes.0.title', 'يشرح الفكرة الأساسية')
+            ->where('units.0.learning_outcomes.0.target_type', 'lesson')
+            ->where('units.0.learning_outcomes.0.status.key', 'completed')
+            ->where('units.0.learning_outcomes.0.status.percent', 100)
+            ->where('units.0.learning_outcomes.1.title', 'يطبق المفهوم في اختبار الوحدة')
+            ->where('units.0.learning_outcomes.1.target_type', 'quiz')
+            ->where('units.0.learning_outcomes.1.status.key', 'mastered')
+            ->where('units.0.learning_outcomes.1.status.percent', 100));
 });
 
 it('accepts safe lesson files homework and a paper unit exam', function () {

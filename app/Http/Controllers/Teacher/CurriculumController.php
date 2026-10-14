@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
+use App\Domain\Academic\Models\LearningOutcome;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Quiz\Models\Quiz;
@@ -30,6 +31,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -289,6 +291,62 @@ class CurriculumController extends Controller
         return back()->with('success', 'تم حفظ بيانات الوحدة.');
     }
 
+    public function storeOutcome(Request $request, int $unitId): RedirectResponse
+    {
+        $unit = $this->ownedUnit($unitId);
+        $data = $request->validate([
+            'title' => ['required', 'string', 'min:2', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'group_material_id' => ['nullable', 'integer'],
+            'quiz_id' => ['nullable', 'integer'],
+        ]);
+
+        $lessonId = $data['group_material_id'] ?? null;
+        $quizId = $data['quiz_id'] ?? null;
+
+        abort_if($lessonId !== null && ! $unit->lessons()->whereKey($lessonId)->exists(), 422, 'الدرس لا ينتمي إلى هذه الوحدة.');
+        abort_if($quizId !== null && ! $unit->quizzes()->whereKey($quizId)->exists(), 422, 'الاختبار لا ينتمي إلى هذه الوحدة.');
+        abort_if($lessonId !== null && $quizId !== null, 422, 'اربط الناتج بدرس أو اختبار واحد فقط.');
+
+        LearningOutcome::create([
+            'teaching_assignment_id' => $unit->teaching_assignment_id,
+            'curriculum_unit_id' => $unit->id,
+            'group_material_id' => $lessonId,
+            'quiz_id' => $quizId,
+            'title' => trim((string) $data['title']),
+            'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
+            'order' => ((int) $unit->learningOutcomes()->max('order')) + 1,
+            'is_published' => true,
+        ]);
+
+        return back()->with('success', 'تمت إضافة ناتج التعلم.');
+    }
+
+    public function updateOutcome(Request $request, int $outcomeId): RedirectResponse
+    {
+        $outcome = $this->ownedOutcome($outcomeId);
+        $data = $request->validate([
+            'title' => ['required', 'string', 'min:2', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'is_published' => ['sometimes', 'boolean'],
+        ]);
+
+        $outcome->update([
+            ...$data,
+            'title' => trim((string) $data['title']),
+            'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
+        ]);
+
+        return back()->with('success', 'تم حفظ ناتج التعلم.');
+    }
+
+    public function destroyOutcome(int $outcomeId): RedirectResponse
+    {
+        $this->ownedOutcome($outcomeId)->delete();
+
+        return back()->with('success', 'تم حذف ناتج التعلم.');
+    }
+
     public function destroyUnit(int $unitId): RedirectResponse
     {
         $unit = $this->ownedUnit($unitId);
@@ -360,14 +418,14 @@ class CurriculumController extends Controller
             'academic_term_id' => ['nullable', 'integer'],
         ]);
 
-        $termId = !empty($data['academic_term_id'])
+        $termId = ! empty($data['academic_term_id'])
             ? (int) $data['academic_term_id']
             : (AcademicTerm::currentOrNext()?->id ?? AcademicTerm::first()?->id);
 
         DB::transaction(function () use ($assignment, $termId, $data, $request): void {
-            if (!empty($data['unit_id'])) {
+            if (! empty($data['unit_id'])) {
                 $unit = CurriculumUnit::where('teaching_assignment_id', $assignment->id)->findOrFail($data['unit_id']);
-            } elseif (!empty($data['new_unit_title'])) {
+            } elseif (! empty($data['new_unit_title'])) {
                 $order = $this->lastUnitOrder($assignment->id, $termId) + 1;
                 $unit = CurriculumUnit::create([
                     'teaching_assignment_id' => $assignment->id,
@@ -382,7 +440,7 @@ class CurriculumController extends Controller
                     ->orderBy('order')
                     ->first();
 
-                if (!$unit) {
+                if (! $unit) {
                     $unit = CurriculumUnit::create([
                         'teaching_assignment_id' => $assignment->id,
                         'academic_term_id' => $termId,
@@ -637,6 +695,9 @@ class CurriculumController extends Controller
                 'lessons.latestLessonVideo',
                 'electronicExam' => fn ($query) => $query->withCount('questions'),
                 'paperExam' => fn ($query) => $query->withCount('submissions'),
+                'learningOutcomes' => fn ($query) => $query
+                    ->select(['id', 'teaching_assignment_id', 'curriculum_unit_id', 'group_material_id', 'quiz_id', 'title', 'description', 'order', 'is_published'])
+                    ->with(['lesson:id,title', 'quiz:id,title']),
             ])
             ->orderBy('order')
             ->get();
@@ -653,6 +714,14 @@ class CurriculumController extends Controller
             'description' => $unit->description,
             'is_published' => $unit->is_published,
             'academic_term_id' => (int) $unit->academic_term_id,
+            'learning_outcomes' => $unit->learningOutcomes->map(fn (LearningOutcome $outcome): array => [
+                'id' => $outcome->id,
+                'title' => $outcome->title,
+                'description' => $outcome->description,
+                'is_published' => $outcome->is_published,
+                'target_type' => $outcome->group_material_id !== null ? 'lesson' : ($outcome->quiz_id !== null ? 'quiz' : 'unit'),
+                'target_title' => $outcome->lesson?->title ?? $outcome->quiz?->title,
+            ])->values()->all(),
             'lessons' => $lessons->all(),
             'lessons_count' => $lessons->count(),
             'electronic_exam' => $this->presentQuiz($unit->electronicExam),
@@ -789,6 +858,15 @@ class CurriculumController extends Controller
         return $lesson;
     }
 
+    private function ownedOutcome(int $outcomeId): LearningOutcome
+    {
+        $outcome = LearningOutcome::with('unit.assignment')->findOrFail($outcomeId);
+
+        $this->assertOwns($outcome->unit?->assignment);
+
+        return $outcome;
+    }
+
     private function assertOwns(?TeachingAssignment $assignment): void
     {
         abort_unless(
@@ -851,7 +929,7 @@ class CurriculumController extends Controller
         } catch (\Throwable $exception) {
             error_log('Blob upload validateCompleted failed: '.$exception->getMessage().' [URL: '.$request->input('blob_url').'] [PATH: '.$request->input('blob_pathname').']');
 
-            \Illuminate\Support\Facades\Log::warning('Blob upload validateCompleted failed: '.$exception->getMessage(), [
+            Log::warning('Blob upload validateCompleted failed: '.$exception->getMessage(), [
                 'blob_url' => $request->input('blob_url'),
                 'blob_pathname' => $request->input('blob_pathname'),
                 'teacher_id' => Auth::id(),

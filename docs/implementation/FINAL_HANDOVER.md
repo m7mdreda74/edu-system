@@ -25,6 +25,17 @@ Base commit: `08bc29c`
 - Local release hardening with deterministic seed-aware regression assertions and sensitive-admin password-confirmation coverage.
 - Teacher-scoped Gradebook CSV export with assignment filtering, UTF-8 spreadsheet compatibility, and formula-injection neutralization.
 - Database-level Gradebook pagination over worksheet submissions and latest submitted quiz attempts, with full-scope summary totals and ownership filtering.
+- Announcement management with owner-only editing/deletion, no duplicate notifications on edit, and teacher-scoped CSV export with spreadsheet-formula neutralization.
+- Parent progress comparison with current/previous seven-day metric deltas and explainable read-only attention signals.
+- Optional student achievements behind `LEARNING_GAMIFICATION_ENABLED=false`, with active-subscription-scoped non-repeat points, levels, milestones, badges, and no public leaderboard.
+- Lightweight Learning Outcomes in the curriculum builder, with lesson/assessment targets, teacher ownership checks, and published authorized display in the student Study Room.
+- Explainable Learning Outcome status in the Study Room, derived from actual lesson completion and submitted quiz attempts without predictive or manually stored grades.
+- Shared Learning Outcome progress service plus a read-only verified-parent summary for published outcomes in the selected child's active curriculum, including completed/mastered counts and progress percentage.
+- Teacher Performance Analytics now includes read-only published-outcome progress aggregates for the teacher's active assignments and current roster.
+- Teacher Performance Analytics includes a filtered CSV export with stable columns, UTF-8 BOM, null-preserving metrics, and formula neutralization.
+- Submitted quiz attempts now support owner-scoped teacher feedback, visible in Gradebook, student assessments/Study Room, parent quiz history, and Gradebook CSV without changing scores.
+- Publishing new quiz feedback sends one in-app notification to the student and verified linked parents; repeated saves and clearing feedback are deduplicated.
+- All 19 application notification classes now implement `ShouldQueue`, preserving their existing channels and payloads while moving delivery behind Laravel Queue.
 - Additive lifecycle migration and implementation documentation.
 
 ## Reused existing functionality
@@ -33,18 +44,19 @@ Existing subscription/access rules, protected file controller, Learn submission 
 
 ## Deferred
 
-Deeper parent analytics, external push/SMS, announcement editing/export, browser E2E, and full shared-component extraction require separate checkpoints and additional business-rule verification. Existing worksheet grading and quiz submission/grading remain the mutation workflows; teacher analytics, academic alerts, parent homework monitoring, the weekly report, the Assessment Center, and resource-library metadata remain read-only after creation.
+External push/SMS, AI, browser E2E, and full shared-component extraction require separate checkpoints and additional business-rule verification. Existing worksheet grading, quiz submission/grading, and owner-scoped quiz feedback are the mutation workflows; teacher analytics, academic alerts, parent homework monitoring, the weekly report/comparison, achievements, Learning Outcomes display, the Assessment Center, and resource-library metadata remain read-only after creation.
 
 ## Changed areas
 
 - Backend: parent-link service/model/controllers, `ParentProgressReportService`, `TeacherPerformanceAnalyticsService`, `AcademicAlertService`, `AcademicAlertNotification`, `ResourceLibraryService`, `LearningResource`, `LearningResourcePolicy`, resource controllers, student dashboard/assignment/assessment services and controllers, teacher analytics/dashboard/question bank/quiz builder, cron routes, Blob upload support, config, and additive migrations.
-- Frontend: student/parent/teacher dashboards, the parent weekly-report panel, `Teacher/PerformanceAnalytics.vue`, `Student/Assignments.vue`, `Student/Assessments.vue`, `Teacher/QuestionBank.vue`, `Teacher/QuizBuilder.vue`, `Teacher/ResourceLibrary.vue`, `Admin/ResourceLibrary.vue`, and `Student/Resources.vue`.
-- Tests: parent-link security, student dashboard, assignment center, assessment center, weekly parent report, teacher performance analytics, announcements, Question Bank ownership/snapshot coverage, resource-library upload/approval/access coverage, Blob-kind validation, and admin dashboard expectation.
+- Frontend: student/parent/teacher dashboards, the parent weekly-report panel, the optional student achievements panel, curriculum-builder outcome controls, Study Room outcome display, `Teacher/PerformanceAnalytics.vue`, `Student/Assignments.vue`, `Student/Assessments.vue`, `Teacher/QuestionBank.vue`, `Teacher/QuizBuilder.vue`, `Teacher/ResourceLibrary.vue`, `Admin/ResourceLibrary.vue`, and `Student/Resources.vue`.
+- Tests: parent-link security, student dashboard/achievements, assignment center, assessment center, weekly parent report, teacher performance analytics, announcements, Question Bank ownership/snapshot coverage, resource-library upload/approval/access coverage, Blob-kind validation, and admin dashboard expectation.
 
 ## Routes and schema
 
 - New route: `GET /teacher/gradebook` (`teacher.gradebook`).
 - New route: `GET /teacher/gradebook/export` (`teacher.gradebook.export`) for the protected CSV download.
+- New announcement routes: `teacher.announcements.update`, `teacher.announcements.destroy`, and `teacher.announcements.export`; edits keep the original group and do not resend notifications.
 - Gradebook page results use a database-level worksheet/quiz union and return paginated `data`/`links`; CSV export intentionally remains an all-scoped-record download.
 - New application service/controller/page: `TeacherGradebookService`, `Teacher/GradebookController`, and `Teacher/Gradebook.vue`.
 - New route: `GET /my-assessments` (`student.assessments`) with `StudentAssessmentService`, `Student/AssessmentController`, and `Student/Assessments.vue`.
@@ -54,21 +66,28 @@ Deeper parent analytics, external push/SMS, announcement editing/export, browser
 - New teacher route: `GET /teacher/analytics` (`teacher.analytics`) with `PerformanceAnalyticsController`, `TeacherPerformanceAnalyticsService`, and a read-only Vue dashboard; no migration was required.
 - New academic alert triggers: `GET /api/cron/academic-alerts` (`cron.academic-alerts`) and `academic-alerts:send`; no migration was required, and `config/learning.php` exposes the alert windows/cooldown through environment variables.
 - New resource routes include `teacher.resource-library`, `admin.resource-library`, `student.resources`, and the protected `learning.resource.download` route. Direct upload completion is scoped through `CurriculumBlobUpload::KIND_RESOURCE` and `/api/blob-upload`.
-- New additive migrations: `2026_10_13_000200_create_group_announcements_table`, `2026_10_13_000300_create_question_bank_tables`, and `2026_10_13_000400_create_learning_resource_library_tables`. The earlier parent-link migration `2026_10_13_000100_add_parent_student_link_lifecycle` also remains Pending until controlled release.
+- New Learning Outcomes routes: `teacher.outcomes.store`, `teacher.outcomes.update`, and `teacher.outcomes.destroy`; student rendering remains inside the authorized `student.learn` Study Room response.
+- New teacher analytics route: `teacher.analytics.export`; it reuses the existing analytics filters and emits a protected teacher-scoped CSV.
+- New teacher feedback route: `teacher.gradebook.quiz-feedback`; only the owning teacher can update submitted quiz feedback.
+- Quiz feedback release notifications reuse `GenericDatabaseNotification` and are scoped to the attempt's student plus verified `parent_student_links`.
+- Queue worker configuration, retry policy, and failed-job monitoring are deployment requirements for notification delivery.
+- New additive migrations: `2026_10_13_000200_create_group_announcements_table`, `2026_10_13_000300_create_question_bank_tables`, `2026_10_13_000400_create_learning_resource_library_tables`, `2026_10_14_000100_create_learning_outcomes_table`, and `2026_10_14_000200_add_teacher_feedback_to_quiz_attempts_table`. The earlier parent-link migration `2026_10_13_000100_add_parent_student_link_lifecycle` also remains Pending until controlled release.
 
 ## Verification
 
-- Focused parent-link, student dashboard, assignment, assessment, Gradebook pagination/CSV export, announcement, and Question Bank tests pass.
-- The focused weekly parent report test passes with 1 test and 31 assertions; the full Parent Portal file now has 9 passing tests and 2 existing fixture failures.
-- The focused teacher performance analytics test passes with 1 test and 55 assertions; its regression slice with assessment, gradebook, announcement, and Question Bank tests passes with 10 tests and 244 assertions.
+- Focused parent-link, student dashboard, assignment, assessment, Gradebook pagination/CSV export, announcement management, and Question Bank tests pass.
+- The focused parent report/comparison/outcome tests pass with 3 tests and 85 assertions; the full Parent Portal file passes with 13 tests and 208 assertions.
+- The focused student dashboard/achievement tests pass with 3 tests and 68 assertions; the achievement flag is disabled by default.
+- The full Curriculum Builder slice passes with 14 tests and 121 assertions, including Learning Outcomes ownership, student visibility, and outcome status.
+- The focused teacher performance analytics/outcome test passes with 1 test and 65 assertions; its regression slice with assessment, gradebook, announcement, and Question Bank tests remains covered.
 - The focused Academic Alert test passes with 4 tests and 22 assertions; the live-reminder, subscription-renewal, and admin-notification regression slice passes with 16 tests and 73 assertions.
 - The focused Resource Library feature/unit slice passes with 35 tests and 114 assertions; its combined regression slice with Academic Alerts, live reminders, renewal reminders, admin notifications, analytics, assessment, gradebook, announcements, and Question Bank passes with 62 tests and 434 assertions.
 - Vite production build passes with 908 modules transformed.
 - PHP syntax and diff checks pass.
 - The release-hardening regression slice passes with 99 tests and 961 assertions, including deterministic admin-report/subscription, directory, curriculum, recorded-report, parent checkout/chat, free-intro, and sensitive-admin checks.
-- Full suite completed with **332 passed, 0 failed, and 2,384 assertions**; no new failure appeared in Resource Library, Blob uploads, Academic Alerts, live reminders, renewal reminders, teacher analytics, the weekly report, Question Bank, quiz, assessment, Gradebook pagination/export, or announcement slices. See `TEST_RESULTS.md` and `REGRESSION_REPORT.md`.
-- Local MySQL reports the four additive migrations Pending; no migration or deployment was run.
+- Full suite completed with **360 passed, 0 failed, and 2,588 assertions**; no new failure appeared in Resource Library, Blob uploads, Academic Alerts, live reminders, renewal reminders, queued notifications, teacher analytics/outcomes/export, quiz feedback/notifications, the weekly report/comparison, achievements, Learning Outcomes/status, parent outcome visibility, Question Bank, quiz, assessment, Gradebook pagination/export, or announcement management slices. See `TEST_RESULTS.md` and `REGRESSION_REPORT.md`.
+- Local MySQL reports the six additive migrations Pending; no migration or deployment was run.
 
 ## Production decision
 
-Do not deploy yet. Apply the four pending migrations only after review, verify isolated MySQL and browser journeys, complete the private Blob/OIDC smoke test, and obtain explicit staging/production authorization.
+Do not deploy yet. Apply the six pending migrations only after review, verify isolated MySQL and browser journeys, complete the private Blob/OIDC smoke test, and obtain explicit staging/production authorization.

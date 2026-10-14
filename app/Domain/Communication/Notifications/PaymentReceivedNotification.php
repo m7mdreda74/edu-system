@@ -7,10 +7,11 @@ namespace App\Domain\Communication\Notifications;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
 /** Tells admins that money landed for a subscription. */
-class PaymentReceivedNotification extends Notification
+class PaymentReceivedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -30,9 +31,9 @@ class PaymentReceivedNotification extends Notification
         $qar = number_format($this->amountInSmallestUnit / 100, 2);
 
         return [
-            'title'   => 'مدفوعات جديدة 💰',
+            'title' => 'مدفوعات جديدة 💰',
             'message' => "تم تحصيل مبلغ {$qar} ر.ق. من الطالب '{$this->student->name}' لاشتراك {$this->subscription->label()}.",
-            'link'    => route('admin.payments'),
+            'link' => route('admin.payments'),
         ];
     }
 }

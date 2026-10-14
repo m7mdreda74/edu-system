@@ -6,10 +6,11 @@ namespace App\Domain\Communication\Notifications;
 
 use App\Domain\Subscription\Models\Subscription;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
-class SubscriptionRenewalReminderNotification extends Notification
+class SubscriptionRenewalReminderNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

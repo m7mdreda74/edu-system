@@ -72,6 +72,7 @@ const expanded     = ref({});    // unitId   -> open
 const editingVideo = ref({});    // lessonId -> the url editor is showing
 const unitDrafts   = ref({});
 const lessonDrafts = ref({});
+const outcomeDrafts = ref({});
 const videoUploads = ref({});
 const managedVideoFiles = ref({});
 const uploadRequests = ref({});
@@ -112,6 +113,9 @@ watch(() => props.units, (units) => {
 
     unitDrafts.value   = nextUnits;
     lessonDrafts.value = nextLessons;
+    units.forEach((unit) => {
+        outcomeDrafts.value[unit.id] ??= { title: '', description: '', group_material_id: null, quiz_id: null };
+    });
 
     const ids = units.map((unit) => unit.id);
     if (seenUnitIds === null) {
@@ -192,6 +196,40 @@ function saveUnit(unit) {
 
 function togglePublished(unit) {
     send('put', route('teacher.units.update', unit.id), { is_published: !unit.is_published }, `unit:${unit.id}`);
+}
+
+function addOutcome(unit) {
+    const draft = outcomeDrafts.value[unit.id];
+    if (!draft?.title?.trim()) return;
+
+    send('post', route('teacher.outcomes.store', unit.id), {
+        title: draft.title,
+        description: draft.description,
+        group_material_id: draft.group_material_id || null,
+        quiz_id: draft.quiz_id || null,
+    }, `unit:${unit.id}:outcome`, {
+        onSuccess: () => {
+            outcomeDrafts.value[unit.id] = { title: '', description: '', group_material_id: null, quiz_id: null };
+        },
+    });
+}
+
+function toggleOutcome(outcome) {
+    send('put', route('teacher.outcomes.update', outcome.id), {
+        title: outcome.title,
+        description: outcome.description,
+        is_published: !outcome.is_published,
+    }, `outcome:${outcome.id}`);
+}
+
+async function removeOutcome(outcome) {
+    const ok = await confirm({
+        title: `حذف «${outcome.title}»`,
+        message: 'سيتم حذف ناتج التعلم من هذه الوحدة.',
+        confirmLabel: 'حذف',
+        variant: 'danger',
+    });
+    if (ok) send('delete', route('teacher.outcomes.destroy', outcome.id), {}, `outcome:${outcome.id}`);
 }
 
 function moveUnit(unit, direction) {
@@ -977,6 +1015,44 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                     <Icon name="trash" class="w-4 h-4" />
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- ── Learning outcomes ─────────────────────── -->
+                        <div class="rounded-xl border border-accent-200 bg-accent-50/40 p-4 dark:border-accent-900/60 dark:bg-accent-950/20">
+                            <div class="flex items-center justify-between gap-3">
+                                <h3 class="flex items-center gap-2 text-sm font-bold text-surface-700 dark:text-surface-200">
+                                    <Icon name="certificate" class="h-4 w-4 text-accent-500" />
+                                    نواتج التعلم
+                                    <span class="badge-gray text-[10px]">{{ unit.learning_outcomes?.length ?? 0 }}</span>
+                                </h3>
+                                <span class="text-[11px] text-surface-400">اختياري</span>
+                            </div>
+                            <div v-if="unit.learning_outcomes?.length" class="mt-3 space-y-2">
+                                <div v-for="outcome in unit.learning_outcomes" :key="outcome.id" class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-xs dark:bg-surface-900/60">
+                                    <div>
+                                        <p class="font-bold text-surface-800 dark:text-surface-100">{{ outcome.title }}</p>
+                                        <p v-if="outcome.target_title" class="mt-0.5 text-[11px] text-surface-500">مرتبط بـ{{ outcome.target_type === 'lesson' ? ' الدرس' : ' الاختبار' }}: {{ outcome.target_title }}</p>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <button type="button" class="btn-ghost btn-sm text-[11px]" @click="toggleOutcome(outcome)">{{ outcome.is_published ? 'إخفاء' : 'نشر' }}</button>
+                                        <button type="button" class="btn-ghost btn-sm text-red-500" @click="removeOutcome(outcome)">حذف</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3 grid gap-2 md:grid-cols-[1.2fr_1fr_1fr_auto]">
+                                <input v-model="outcomeDrafts[unit.id].title" type="text" maxlength="255" class="input py-2 text-xs" placeholder="مثال: يشرح الطالب الفكرة الأساسية" />
+                                <select v-model="outcomeDrafts[unit.id].group_material_id" class="input py-2 text-xs">
+                                    <option :value="null">مرتبط بالوحدة</option>
+                                    <option v-for="lesson in unit.lessons" :key="lesson.id" :value="lesson.id">درس: {{ lesson.title }}</option>
+                                </select>
+                                <select v-model="outcomeDrafts[unit.id].quiz_id" class="input py-2 text-xs">
+                                    <option :value="null">بدون اختبار محدد</option>
+                                    <option v-if="unit.electronic_exam" :value="unit.electronic_exam.id">اختبار: {{ unit.electronic_exam.title }}</option>
+                                </select>
+                                <button type="button" class="btn-accent btn-sm" @click="addOutcome(unit)">إضافة</button>
+                            </div>
+                            <input v-model="outcomeDrafts[unit.id].description" type="text" maxlength="1000" class="input mt-2 py-2 text-xs" placeholder="وصف مختصر (اختياري)" />
+                            <p v-if="firstError(`unit:${unit.id}:outcome`)" class="error-msg mt-2">{{ firstError(`unit:${unit.id}:outcome`) }}</p>
                         </div>
 
                         <!-- ── Lessons ────────────────────────────────── -->

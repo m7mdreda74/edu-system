@@ -26,6 +26,10 @@ class TeacherPerformanceAnalyticsService
 
     public const ALLOWED_DAYS = [7, 30, 90];
 
+    public function __construct(
+        private readonly LearningOutcomeProgressService $outcomeProgress,
+    ) {}
+
     /**
      * Build a teacher-scoped, read-only performance view from current roster
      * membership and the real learning records already used by the platform.
@@ -140,6 +144,10 @@ class TeacherPerformanceAnalyticsService
             ->sortByDesc('submitted_at')
             ->take(50)
             ->values();
+        $learningOutcomes = $this->outcomeProgress->summaryForTeacher(
+            collect($studentIds),
+            $scopedAssignmentIds,
+        );
 
         $allScores = collect($stats)->flatMap(
             fn (array $stat): Collection => collect($stat['quiz_scores'])->pluck('score'),
@@ -191,6 +199,7 @@ class TeacherPerformanceAnalyticsService
             'rows' => $rows,
             'attention' => $rows->where('requires_attention', true)->values(),
             'quiz_history' => $quizHistory,
+            'learning_outcomes' => $learningOutcomes,
         ];
     }
 

@@ -6,9 +6,10 @@ namespace App\Domain\Communication\Notifications;
 
 use App\Domain\Learning\Models\LiveSessionApology;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class SessionApologySubmittedNotification extends Notification
+class SessionApologySubmittedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
