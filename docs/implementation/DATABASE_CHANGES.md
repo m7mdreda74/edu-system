@@ -1,5 +1,7 @@
 # Database Changes
 
+> **Current status (2026-10-14):** The historical migration verification notes below describe the earlier pending state. A current read-only check reports all 91 local MySQL migrations as Ran; production database parity is still unverified. No production migration was executed.
+
 Date: 2026-10-13
 Migration: `2026_10_13_000100_add_parent_student_link_lifecycle`
 

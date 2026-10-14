@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
+import axios from 'axios';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import StatCard from '@/Components/StatCard.vue';
@@ -14,6 +15,10 @@ const props = defineProps({
 const searchQuery = ref('');
 const selectedGroupForStudents = ref(null);
 const studentSearchQuery = ref('');
+const rosterStudents = ref([]);
+const rosterMeta = ref({ current_page: 1, last_page: 1, total: 0 });
+const rosterLoading = ref(false);
+const rosterError = ref('');
 
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
@@ -29,14 +34,40 @@ const filteredGroups = computed(() => {
     );
 });
 
-function openStudentsModal(group) {
+async function openStudentsModal(group) {
     selectedGroupForStudents.value = group;
     studentSearchQuery.value = '';
+    rosterStudents.value = [];
+    rosterMeta.value = { current_page: 1, last_page: 1, total: 0 };
+    await fetchRoster();
 }
 
 function closeStudentsModal() {
     selectedGroupForStudents.value = null;
     studentSearchQuery.value = '';
+    rosterStudents.value = [];
+    rosterError.value = '';
+}
+
+async function fetchRoster(page = 1) {
+    if (!selectedGroupForStudents.value) return;
+
+    rosterLoading.value = true;
+    rosterError.value = '';
+
+    try {
+        const { data } = await axios.get(route('teacher.groups.roster', {
+            groupId: selectedGroupForStudents.value.id,
+            page,
+            search: studentSearchQuery.value || undefined,
+        }));
+        rosterStudents.value = data.data ?? [];
+        rosterMeta.value = data.meta ?? rosterMeta.value;
+    } catch (error) {
+        rosterError.value = error.response?.data?.message || 'تعذر تحميل قائمة الطلاب.';
+    } finally {
+        rosterLoading.value = false;
+    }
 }
 </script>
 
@@ -149,7 +180,7 @@ function closeStudentsModal() {
                             <div class="flex items-center justify-between gap-2">
                                 <span class="text-xs font-bold text-surface-700 dark:text-surface-300 flex items-center gap-1.5">
                                     <Icon name="student" class="w-3.5 h-3.5 text-accent-500" />
-                                    <span>طلاب المجموعة ({{ group.students?.length ?? 0 }})</span>
+                                    <span>طلاب المجموعة ({{ group.students_count ?? 0 }})</span>
                                 </span>
                                 <button
                                     type="button"
@@ -160,23 +191,7 @@ function closeStudentsModal() {
                                 </button>
                             </div>
 
-                            <div v-if="group.students?.length" class="flex flex-wrap items-center gap-1.5">
-                                <div
-                                    v-for="student in group.students.slice(0, 5)"
-                                    :key="student.id"
-                                    class="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-surface-900 ps-1 pe-2.5 py-0.5 text-[11px] border border-surface-200 dark:border-surface-700 shadow-sm"
-                                >
-                                    <div class="w-5 h-5 rounded-full bg-primary-500/10 text-primary-600 flex items-center justify-center font-bold text-[9px] overflow-hidden shrink-0">
-                                        <img v-if="student.avatar" :src="student.avatar" :alt="student.name" class="w-full h-full object-cover" />
-                                        <span v-else>{{ student.name?.charAt(0) }}</span>
-                                    </div>
-                                    <span class="truncate max-w-[100px]">{{ student.name }}</span>
-                                </div>
-                                <span v-if="group.students.length > 5" class="text-[11px] font-bold text-surface-400">
-                                    +{{ group.students.length - 5 }} آخرين
-                                </span>
-                            </div>
-                            <p v-else class="text-xs text-surface-400">لا يوجد طلاب مسجلون حتى الآن.</p>
+                            <p class="text-xs text-surface-400">تُحمّل بيانات الطلاب عند فتح القائمة لحماية الأداء والخصوصية.</p>
                         </div>
                     </div>
 
@@ -188,10 +203,11 @@ function closeStudentsModal() {
                             @click="openStudentsModal(group)"
                         >
                             <Icon name="users" class="w-4 h-4" />
-                            <span>قائمة الطلاب ({{ group.students?.length ?? 0 }})</span>
+                            <span>قائمة الطلاب ({{ group.students_count ?? 0 }})</span>
                         </button>
 
                         <div class="flex items-center gap-1.5">
+                            <Link :href="route('teacher.groups.workspace', { groupId: group.id })" class="btn-primary btn-sm">مساحة المجموعة</Link>
                             <Link v-if="group.assignment_id" :href="route('teacher.curriculum', { assignment: group.assignment_id })" class="btn-outline btn-sm">المنهج</Link>
                             <Link :href="route('teacher.materials', { groupId: group.id })" class="btn-outline btn-sm">المواد</Link>
                             <Link :href="route('teacher.worksheets.index', { groupId: group.id })" class="btn-ghost btn-sm">الواجبات</Link>
@@ -223,56 +239,68 @@ function closeStudentsModal() {
                             <span>طلاب مجموعة: {{ selectedGroupForStudents.name }}</span>
                         </h2>
                         <p class="text-xs text-surface-500 mt-1">
-                            {{ selectedGroupForStudents.students?.length ?? 0 }} طالب مسجل · سعة المجموعة {{ selectedGroupForStudents.capacity }} مقعد
+                            {{ selectedGroupForStudents.students_count ?? 0 }} طالب مسجل · سعة المجموعة {{ selectedGroupForStudents.capacity }} مقعد
                         </p>
                     </div>
                     <button type="button" class="text-surface-400 hover:text-surface-600 text-lg font-bold" @click="closeStudentsModal">✕</button>
                 </div>
 
-                <div v-if="selectedGroupForStudents.students?.length" class="space-y-2">
+                <div class="space-y-2">
                     <input
                         v-model="studentSearchQuery"
                         type="text"
                         class="input text-xs"
                         placeholder="ابحث بالاسم أو البريد الإلكتروني..."
+                        @keyup.enter="fetchRoster()"
                     />
+                    <button type="button" class="btn-outline btn-sm" :disabled="rosterLoading" @click="fetchRoster()">
+                        {{ rosterLoading ? 'جارٍ البحث...' : 'بحث' }}
+                    </button>
                 </div>
 
                 <div class="overflow-y-auto no-scrollbar flex-1 space-y-2.5 py-1">
-                    <div
-                        v-for="(student, sIdx) in (selectedGroupForStudents.students || []).filter(s => !studentSearchQuery || s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.email.toLowerCase().includes(studentSearchQuery.toLowerCase()))"
-                        :key="student.id"
-                        class="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/60 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-                    >
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="text-xs font-mono text-surface-400 w-5">{{ sIdx + 1 }}.</span>
-                            <div class="w-10 h-10 rounded-full bg-primary-500/10 text-primary-600 flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
-                                <img v-if="student.avatar" :src="student.avatar" :alt="student.name" class="w-full h-full object-cover" />
-                                <span v-else>{{ student.name?.charAt(0) }}</span>
-                            </div>
-                            <div class="min-w-0">
-                                <p class="font-bold text-sm text-surface-900 dark:text-white truncate">{{ student.name }}</p>
-                                <p class="text-xs text-surface-500 dark:text-surface-400 font-mono truncate">{{ student.email }}</p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-2 shrink-0">
-                            <span class="badge-green text-xs">مشترك</span>
-                            <Link :href="route('chat.index')" class="btn-ghost btn-sm text-primary-600">
-                                رسالة
-                            </Link>
-                        </div>
+                    <div v-if="rosterLoading" class="py-12 text-center text-sm text-surface-400">جارٍ تحميل قائمة الطلاب...</div>
+                    <div v-else-if="rosterError" class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
+                        {{ rosterError }}
                     </div>
+                    <template v-else>
+                        <div
+                            v-for="(student, sIdx) in rosterStudents"
+                            :key="student.id"
+                            class="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/60 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+                        >
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="text-xs font-mono text-surface-400 w-5">{{ sIdx + 1 }}.</span>
+                                <div class="w-10 h-10 rounded-full bg-primary-500/10 text-primary-600 flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
+                                    <img v-if="student.avatar" :src="student.avatar" :alt="student.name" class="w-full h-full object-cover" />
+                                    <span v-else>{{ student.name?.charAt(0) }}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="font-bold text-sm text-surface-900 dark:text-white truncate">{{ student.name }}</p>
+                                    <p class="text-xs text-surface-500 dark:text-surface-400 font-mono truncate">{{ student.email }}</p>
+                                </div>
+                            </div>
 
-                    <div v-if="!selectedGroupForStudents.students?.length" class="py-12 text-center text-surface-400 text-sm">
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="badge-green text-xs">مشترك</span>
+                                <Link :href="route('chat.index')" class="btn-ghost btn-sm text-primary-600">
+                                    رسالة
+                                </Link>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div v-if="!rosterLoading && !rosterError && !rosterStudents.length" class="py-12 text-center text-surface-400 text-sm">
                         لا يوجد طلاب مسجلون في هذه المجموعة بعد.
-                    </div>
-                    <div v-else-if="studentSearchQuery && !(selectedGroupForStudents.students || []).some(s => s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.email.toLowerCase().includes(studentSearchQuery.toLowerCase()))" class="py-8 text-center text-surface-400 text-xs">
-                        لا يوجد نتائج تطابق بحثك.
                     </div>
                 </div>
 
-                <div class="pt-3 border-t border-surface-200 dark:border-surface-700 flex justify-end">
+                <div class="pt-3 border-t border-surface-200 dark:border-surface-700 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="btn-ghost btn-sm" :disabled="rosterLoading || rosterMeta.current_page <= 1" @click="fetchRoster(rosterMeta.current_page - 1)">السابق</button>
+                        <span class="text-xs text-surface-500">{{ rosterMeta.current_page }} / {{ rosterMeta.last_page }}</span>
+                        <button type="button" class="btn-ghost btn-sm" :disabled="rosterLoading || rosterMeta.current_page >= rosterMeta.last_page" @click="fetchRoster(rosterMeta.current_page + 1)">التالي</button>
+                    </div>
                     <button type="button" class="btn-outline btn-sm" @click="closeStudentsModal">إغلاق</button>
                 </div>
             </div>

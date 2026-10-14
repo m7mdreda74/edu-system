@@ -63,6 +63,39 @@ Artisan::command('audit:production-readiness', function (): int {
     $check('APP_KEY', filled(config('app.key')), 'configured without displaying its value');
     $check('CRON_SECRET', filled(config('services.cron.secret')), 'configured without displaying its value');
 
+    if (config('app.env') === 'production') {
+        $queueDriver = (string) config('queue.default');
+        $durableQueue = ! in_array($queueDriver, ['sync', 'null'], true);
+        $check('Queue connection', $durableQueue, 'must use a durable queue backend, not sync/null');
+        $check(
+            'Queue worker',
+            $durableQueue && (bool) config('queue.worker_confirmed'),
+            'an external worker must be deployed and confirmed with a staging job',
+        );
+
+        $cacheStore = (string) config('cache.default');
+        $sharedCacheStores = ['database', 'dynamodb', 'memcached', 'redis'];
+        $check(
+            'Shared cache',
+            in_array($cacheStore, $sharedCacheStores, true),
+            'file/array cache is not safe for serverless locks and rate limits',
+        );
+        $check('GD image processing', extension_loaded('gd'), 'PHP GD is required for image upload conversion');
+
+        if ((bool) config('services.vercel_blob.serverless')) {
+            $blobStoreId = trim((string) config('services.vercel_blob.store_id', ''));
+            $blobCredential = filled(config('services.vercel_blob.oidc_token'))
+                || filled(config('services.vercel_blob.token'));
+
+            $check('Vercel Blob store', $blobStoreId !== '', 'BLOB_STORE_ID is required for serverless private storage');
+            $check(
+                'Vercel Blob credentials',
+                $blobCredential,
+                'VERCEL_OIDC_TOKEN or BLOB_READ_WRITE_TOKEN is required for private storage',
+            );
+        }
+    }
+
     $jitsiDomain = strtolower(trim((string) config('services.jitsi.domain')));
     $jitsiPrivate = (bool) config('services.jitsi.require_auth');
     $check('Jitsi domain', $jitsiDomain !== '' && $jitsiDomain !== 'meet.jit.si', 'use the approved production Jitsi host');

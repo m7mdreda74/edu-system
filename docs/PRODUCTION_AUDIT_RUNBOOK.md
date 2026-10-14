@@ -25,6 +25,8 @@ This runbook is intentionally operational. Run it against the production deploym
 For a non-destructive summary of the same deployment prerequisites, run `php artisan audit:production-readiness`. It reports presence/absence only and never prints secret values.
 For a read-only financial invariant check, run `php artisan audit:payment-reconciliation`.
 
+The readiness command also fails production when the queue driver is `sync`/`null`, when `QUEUE_WORKER_CONFIRMED` is not true, when the cache store is file/array instead of a shared backend, or when serverless Blob lacks `BLOB_STORE_ID` and either `VERCEL_OIDC_TOKEN` or `BLOB_READ_WRITE_TOKEN`. These checks confirm configuration gates only; they do not replace the smoke tests below.
+
 ## 3. Required production environment
 
 ```dotenv

@@ -76,6 +76,8 @@ class StudentAssignmentService
                 'group' => $subscription?->group?->only(['id', 'name']),
                 'group_id' => $subscription?->teaching_group_id,
                 'lesson' => $worksheet->material?->only(['id', 'title']),
+                'lesson_id' => $worksheet->lesson_id,
+                'term_id' => $worksheet->unit?->academic_term_id,
                 'due_date' => $worksheet->due_date?->toDateString(),
                 'max_score' => $worksheet->max_score,
                 'status' => $status,

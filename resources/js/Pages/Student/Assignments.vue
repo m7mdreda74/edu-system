@@ -98,10 +98,14 @@ function formatDate(value) {
                             </a>
                             <Link
                                 v-if="assignment.group_id"
-                                :href="route('student.learn', { groupId: assignment.group_id })"
+                                :href="route('student.learn', {
+                                    groupId: assignment.group_id,
+                                    worksheet: assignment.id,
+                                    term: assignment.term_id,
+                                })"
                                 class="btn-primary btn-sm"
                             >
-                                فتح الدرس
+                                فتح الواجب
                             </Link>
                             <Link v-else :href="route('student.my-classes')" class="btn-primary btn-sm">فتح الحصص</Link>
                         </div>

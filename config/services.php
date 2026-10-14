@@ -69,6 +69,7 @@ return [
             ),
         'store_id' => env('BLOB_STORE_ID'),
         'token' => env('BLOB_READ_WRITE_TOKEN'),
+        'oidc_token' => env('VERCEL_OIDC_TOKEN'),
         'handle_url' => env('BLOB_UPLOAD_HANDLE_URL', '/api/blob-upload'),
         'download_handle_url' => env('BLOB_DOWNLOAD_HANDLE_URL', '/api/blob-download'),
         'serverless' => filter_var(env('VERCEL', false), FILTER_VALIDATE_BOOLEAN),

@@ -171,7 +171,7 @@ it('runs sessions:cancel-overdue console command cleanly', function () {
         ->assertExitCode(0);
 });
 
-it('allows teacher to view their groups page with student details and blocks non-teachers', function () {
+it('allows teacher to view their groups summary and paginated roster while blocking non-teachers', function () {
     $response = $this->actingAs($this->teacher)
         ->get(route('teacher.groups.index'));
 
@@ -179,8 +179,14 @@ it('allows teacher to view their groups page with student details and blocks non
 
     $groups = $response->viewData('page')['props']['groups'];
     expect($groups)->toHaveCount(1)
-        ->and($groups[0]['students'])->toHaveCount(1)
-        ->and($groups[0]['students'][0]['id'])->toBe($this->student->id);
+        ->and($groups[0]['students_count'])->toBe(1)
+        ->and(array_key_exists('students', $groups[0]))->toBeFalse();
+
+    $this->actingAs($this->teacher)
+        ->getJson(route('teacher.groups.roster', ['groupId' => $this->group->id]))
+        ->assertOk()
+        ->assertJsonPath('data.0.id', $this->student->id)
+        ->assertJsonPath('meta.total', 1);
 
     $this->actingAs($this->student)
         ->get(route('teacher.groups.index'))
@@ -209,4 +215,3 @@ it('allows teacher to view their students directory with search and filter', fun
         ->get(route('teacher.students.index'))
         ->assertForbidden();
 });
-

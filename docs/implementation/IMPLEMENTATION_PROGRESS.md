@@ -1,5 +1,7 @@
 # Implementation Progress
 
+> **Current audit checkpoint (2026-10-14):** Continue from the current `main` workspace, not the historical branch metadata below. The seven migrations described in the earlier checkpoint now report **Ran** in both local/default and local MySQL status (91 ran, 0 pending). The latest full suite is **363 passed, 6 skipped, 2,698 assertions** because the current CLI lacks GD. Current release blockers are tracked in `docs/completion/OPEN_ISSUES.md`.
+
 ## 2026-10-14 - P0-P6.2 + P4.1 + P5.1-P5.3 + P6.3-P6.7 + P7.1-P7.11 local checkpoint
 
 - Created branch `feature/lms-dashboard-v2` from `08bc29c`.
@@ -51,4 +53,4 @@
 
 ## Schema status
 
-Migrations `2026_10_13_000100_add_parent_student_link_lifecycle`, `2026_10_13_000200_create_group_announcements_table`, `2026_10_13_000300_create_question_bank_tables`, `2026_10_13_000400_create_learning_resource_library_tables`, `2026_10_14_000100_create_learning_outcomes_table`, `2026_10_14_000200_add_teacher_feedback_to_quiz_attempts_table`, and `2026_10_14_000300_create_notification_preferences_table` are additive and remain Pending on the local MySQL connection. Phase 7.11 adds no migration. None has been run against any production or deployment database.
+The seven migrations listed in the earlier checkpoint were previously pending; the current read-only status now reports all seven as **Ran** on local MySQL. Phase 7.11 adds no migration. No migration has been run against any production or deployment database from this workspace.

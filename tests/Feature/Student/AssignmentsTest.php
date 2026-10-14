@@ -63,7 +63,20 @@ it('lists only active-subscription homework with real submission statuses', func
             ->where('summary.in_progress', 1)
             ->where('assignments.0.id', $homework->id)
             ->where('assignments.0.status', 'in_progress')
-            ->where('assignments.0.group_id', $group->id));
+            ->where('assignments.0.group_id', $group->id)
+            ->where('assignments.0.lesson_id', $lesson->id)
+            ->where('assignments.0.term_id', $unit->academic_term_id));
+
+    $this->actingAs($student)
+        ->get(route('student.learn', [
+            'groupId' => $group->id,
+            'worksheet' => $homework->id,
+            'term' => $unit->academic_term_id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Student/Learn')
+            ->where('initialLessonId', $lesson->id));
 
     WorksheetSubmission::create([
         'worksheet_id' => $homework->id,

@@ -15,6 +15,11 @@ return [
 
     'default' => env('QUEUE_CONNECTION', 'database'),
 
+    // This is an operational attestation, not a worker implementation. It
+    // becomes true only after the external queue consumer has been deployed
+    // and observed processing a staging job.
+    'worker_confirmed' => filter_var(env('QUEUE_WORKER_CONFIRMED', false), FILTER_VALIDATE_BOOLEAN),
+
     /*
     |--------------------------------------------------------------------------
     | Queue Connections

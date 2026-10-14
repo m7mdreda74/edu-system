@@ -466,6 +466,10 @@ it('counts a pending review in the action queue', function () {
 
 it('refuses a teacher uploading their own photo', function () {
     /** @var AdminControlTestCase $this */
+    if (! extension_loaded('gd')) {
+        $this->markTestSkipped('PHP GD is required for image upload tests.');
+    }
+
     Storage::fake('public');
 
     $this->actingAs($this->teacher)
@@ -481,6 +485,10 @@ it('refuses a teacher uploading their own photo', function () {
 
 it('still lets a student set their own photo', function () {
     /** @var AdminControlTestCase $this */
+    if (! extension_loaded('gd')) {
+        $this->markTestSkipped('PHP GD is required for image upload tests.');
+    }
+
     Storage::fake('public');
 
     $this->actingAs($this->student)
@@ -510,6 +518,10 @@ it('lets a teacher edit the rest of their profile', function () {
 
 it('lets an admin set and clear a teacher photo', function () {
     /** @var AdminControlTestCase $this */
+    if (! extension_loaded('gd')) {
+        $this->markTestSkipped('PHP GD is required for image upload tests.');
+    }
+
     Storage::fake('public');
 
     $this->actingAs($this->admin)
@@ -529,6 +541,10 @@ it('lets an admin set and clear a teacher photo', function () {
 
 it('lets an admin set and clear a teacher profile cover', function () {
     /** @var AdminControlTestCase $this */
+    if (! extension_loaded('gd')) {
+        $this->markTestSkipped('PHP GD is required for image upload tests.');
+    }
+
     Storage::fake('public');
 
     $this->actingAs($this->admin)
@@ -548,6 +564,10 @@ it('lets an admin set and clear a teacher profile cover', function () {
 
 it('manages photos for teachers only', function () {
     /** @var AdminControlTestCase $this */
+    if (! extension_loaded('gd')) {
+        $this->markTestSkipped('PHP GD is required for image upload tests.');
+    }
+
     Storage::fake('public');
 
     $this->actingAs($this->admin)
@@ -565,6 +585,10 @@ it('manages photos for teachers only', function () {
 
 it('lets an admin set and clear a subject image', function () {
     /** @var AdminControlTestCase $this */
+    if (! extension_loaded('gd')) {
+        $this->markTestSkipped('PHP GD is required for image upload tests.');
+    }
+
     Storage::fake('public');
 
     $subject = $this->assignment->subject;

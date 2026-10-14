@@ -12,6 +12,7 @@ const props = defineProps({
     activeTermId: { type: Number, default: null },
     units:        { type: Array,  default: () => [] },
     progress:     { type: Object, required: true },
+    initialLessonId: { type: Number, default: null },
 });
 
 // ── State ──────────────────────────────────────────────────────
@@ -67,11 +68,16 @@ function seedCompleted() {
 }
 
 /** Open on the first unfinished lesson the student is actually allowed to watch. */
-function pickDefaultLesson() {
+function pickDefaultLesson(preferredLessonId = null) {
     const open   = flatLessons.value.filter(lesson => !lesson.is_locked);
-    const target = open.find(lesson => !lesson.is_completed) ?? open[0] ?? flatLessons.value[0] ?? null;
+    const target = open.find(lesson => lesson.id === preferredLessonId)
+        ?? open.find(lesson => !lesson.is_completed)
+        ?? open[0]
+        ?? flatLessons.value[0]
+        ?? null;
 
     activeLessonId.value = target?.id ?? null;
+    if (target?.id === preferredLessonId) activeTab.value = 'files';
 
     if (target) {
         expandedUnits.value = { ...expandedUnits.value, [target.unit.id]: true };
@@ -79,7 +85,7 @@ function pickDefaultLesson() {
 }
 
 seedCompleted();
-pickDefaultLesson();
+pickDefaultLesson(props.initialLessonId);
 
 // ── Term tabs ──────────────────────────────────────────────────
 function selectTerm(termId) {

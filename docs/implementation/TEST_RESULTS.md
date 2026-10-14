@@ -1,5 +1,7 @@
 # Implementation Test Results
 
+> **Current checkpoint (2026-10-14):** The historical results below remain useful for phase history, but the latest full run is **363 passed, 6 skipped, 2,698 assertions**; the skips are GD-dependent image tests. See `docs/completion/TEST_EXECUTION_REPORT.md` for the current command/evidence matrix.
+
 Date: 2026-10-14
 Branch: `feature/lms-dashboard-v2`
 

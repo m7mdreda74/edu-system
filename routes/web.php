@@ -289,6 +289,11 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/my-groups', [TeacherGroupController::class, 'index'])->name('groups.index');
+    Route::get('/groups/{groupId}', [TeacherGroupController::class, 'workspace'])->name('groups.workspace');
+    Route::get('/groups/{groupId}/students', [TeacherGroupController::class, 'rosterPage'])->name('groups.roster.page');
+    Route::get('/groups/{groupId}/roster', [TeacherGroupController::class, 'roster'])
+        ->name('groups.roster')
+        ->middleware('throttle:60,1');
     Route::get('/my-students', [TeacherStudentController::class, 'index'])->name('students.index');
       Route::get('/gradebook/export', [GradebookController::class, 'export'])->name('gradebook.export');
       Route::post('/gradebook/quiz-attempts/{attemptId}/feedback', [GradebookController::class, 'updateQuizFeedback'])

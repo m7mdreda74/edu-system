@@ -1,5 +1,7 @@
 # Deployment Checklist
 
+> **Current checkpoint (2026-10-14):** This checklist contains historical migration wording from the previous phase. Current local/default and MySQL status is 91 ran and 0 pending; production status is unknown. Use `docs/completion/STAGING_CHECKLIST.md` and `docs/completion/OPEN_ISSUES.md` as the active release gate.
+
 Status: **NOT READY — BLOCKERS REMAIN**
 
 ## Before staging

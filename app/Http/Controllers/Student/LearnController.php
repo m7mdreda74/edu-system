@@ -53,6 +53,8 @@ class LearnController extends Controller
         $terms = $this->terms($group);
         $activeTermId = $this->activeTermId($request, $group, $terms);
         $progress = $this->certificates->progressSummary($user, $group);
+        $units = $this->presentUnits($user, $group, $activeTermId);
+        $initialLessonId = $this->initialLessonId($units, $request->integer('worksheet'));
 
         return Inertia::render('Student/Learn', [
             'group' => [
@@ -64,12 +66,37 @@ class LearnController extends Controller
             ],
             'terms' => $terms->all(),
             'activeTermId' => $activeTermId,
-            'units' => $this->presentUnits($user, $group, $activeTermId),
+            'units' => $units,
+            'initialLessonId' => $initialLessonId,
             'progress' => [
                 'percent' => $progress['percent'],
                 'certificate_ready' => $progress['certificate_ready'],
             ],
         ]);
+    }
+
+    /**
+     * Resolve an assignment deep-link only inside the already authorized,
+     * published tree. A forged worksheet id therefore falls back to the
+     * normal Continue Learning target rather than exposing another lesson.
+     *
+     * @param  array<int, array<string, mixed>>  $units
+     */
+    private function initialLessonId(array $units, ?int $worksheetId): ?int
+    {
+        if ($worksheetId === null || $worksheetId < 1) {
+            return null;
+        }
+
+        foreach ($units as $unit) {
+            foreach ($unit['lessons'] ?? [] as $lesson) {
+                if (($lesson['homework']['id'] ?? null) === $worksheetId) {
+                    return (int) $lesson['id'];
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
