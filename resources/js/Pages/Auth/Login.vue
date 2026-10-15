@@ -180,6 +180,8 @@ function resetToPhoneStep() {
                 <!-- Mode Switcher Tabs -->
                 <div class="bg-white/10 p-1 rounded-2xl flex items-center border border-white/10 text-xs font-bold shadow-inner">
                     <button
+                        id="tab-otp"
+                        data-testid="tab-otp"
                         type="button"
                         @click="authMode = 'otp'"
                         class="flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
@@ -191,6 +193,8 @@ function resetToPhoneStep() {
                         <span>رقم الجوال (OTP سريع)</span>
                     </button>
                     <button
+                        id="tab-password"
+                        data-testid="tab-password"
                         type="button"
                         @click="authMode = 'password'"
                         class="flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"

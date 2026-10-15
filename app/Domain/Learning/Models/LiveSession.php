@@ -67,6 +67,11 @@ class LiveSession extends Model
         return $this->belongsTo(TeachingGroup::class, 'teaching_group_id');
     }
 
+    public function group(): BelongsTo
+    {
+        return $this->teachingGroup();
+    }
+
     public function privateSessionSlot(): BelongsTo
     {
         return $this->belongsTo(PrivateSessionSlot::class, 'private_session_slot_id');

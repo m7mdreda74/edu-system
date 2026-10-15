@@ -11,14 +11,16 @@ const props = defineProps({
 });
 
 const tabs = [
-    { label: 'نظرة عامة', icon: 'dashboard', href: () => route('teacher.groups.workspace', { groupId: props.group.id }) },
-    { label: 'الطلاب', icon: 'student', href: () => '#students' },
+    { label: 'نظرة عامة', icon: 'dashboard', href: () => route('teacher.groups.workspace', { groupId: props.group.id }), active: true },
+    { label: 'الطلاب', icon: 'student', href: () => route('teacher.groups.roster.page', { groupId: props.group.id }) },
     { label: 'الجدول', icon: 'calendar', href: () => route('teacher.teaching-schedule') },
     { label: 'المنهج والدروس', icon: 'book', href: () => route('teacher.curriculum', { assignment: props.group.assignment_id }) },
-    { label: 'المواد', icon: 'file', href: () => route('teacher.materials', { groupId: props.group.id }) },
+    { label: 'المواد التعليمية', icon: 'file', href: () => route('teacher.materials', { groupId: props.group.id }) },
     { label: 'الواجبات', icon: 'assignment', href: () => route('teacher.worksheets.index', { groupId: props.group.id }) },
+    { label: 'سجل الدرجات', icon: 'chart', href: () => route('teacher.gradebook') },
+    { label: 'بنك الأسئلة', icon: 'calculator', href: () => route('teacher.question-bank') },
     { label: 'الحصص المباشرة', icon: 'live', href: () => route('teacher.live-sessions') },
-    { label: 'التقييم والتحليل', icon: 'chart', href: () => route('teacher.analytics', { assignment: props.group.assignment_id, group: props.group.id }) },
+    { label: 'التحليلات', icon: 'chart', href: () => route('teacher.analytics', { assignment: props.group.assignment_id, group: props.group.id }) },
     { label: 'الإعلانات', icon: 'chat', href: () => route('teacher.announcements') },
 ];
 </script>
@@ -44,10 +46,16 @@ const tabs = [
             </header>
 
             <nav class="card flex gap-2 overflow-x-auto p-3" aria-label="أقسام مساحة المجموعة">
-                <a v-for="tab in tabs" :key="tab.label" :href="tab.href()" class="btn-ghost btn-sm flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+                <Link
+                    v-for="tab in tabs"
+                    :key="tab.label"
+                    :href="tab.href()"
+                    class="btn-sm flex shrink-0 items-center gap-1.5 whitespace-nowrap transition-colors"
+                    :class="tab.active ? 'btn-primary' : 'btn-ghost'"
+                >
                     <Icon :name="tab.icon" class="h-4 w-4" />
                     {{ tab.label }}
-                </a>
+                </Link>
             </nav>
 
             <section class="grid gap-4 sm:grid-cols-3">

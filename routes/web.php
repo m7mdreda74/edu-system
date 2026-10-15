@@ -80,20 +80,38 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', HealthController::class)
     ->name('health')
     ->middleware('throttle:60,1');
+Route::get('/up', HealthController::class)
+    ->name('up')
+    ->middleware('throttle:60,1');
+
 Route::get('/api/cron/subscription-renewal-reminders', SubscriptionRenewalReminderController::class)
     ->name('cron.subscription-renewal-reminders')
     ->middleware(['throttle:10,1', 'cron.secret']);
+Route::get('/cron/subscription-renewal-reminders', SubscriptionRenewalReminderController::class)
+    ->middleware(['throttle:10,1', 'cron.secret']);
+
 Route::get('/api/cron/live-session-reminders', LiveSessionReminderController::class)
     ->name('cron.live-session-reminders')
     ->middleware(['throttle:10,1', 'cron.secret']);
+Route::get('/cron/live-session-reminders', LiveSessionReminderController::class)
+    ->middleware(['throttle:10,1', 'cron.secret']);
+
 Route::get('/api/cron/academic-alerts', AcademicAlertController::class)
     ->name('cron.academic-alerts')
     ->middleware(['throttle:10,1', 'cron.secret']);
+Route::get('/cron/academic-alerts', AcademicAlertController::class)
+    ->middleware(['throttle:10,1', 'cron.secret']);
+
 Route::get('/api/cron/missed-live-sessions', MissedLiveSessionCronController::class)
     ->name('cron.missed-live-sessions')
     ->middleware(['throttle:10,1', 'cron.secret']);
+Route::get('/cron/missed-live-sessions', MissedLiveSessionCronController::class)
+    ->middleware(['throttle:10,1', 'cron.secret']);
+
 Route::get('/api/cron/video-reconciliation', VideoReconciliationController::class)
     ->name('cron.video-reconciliation')
+    ->middleware(['throttle:10,1', 'cron.secret']);
+Route::get('/cron/video-reconciliation', VideoReconciliationController::class)
     ->middleware(['throttle:10,1', 'cron.secret']);
 
 Route::post('/webhooks/cloudflare-stream', [VideoWebhookController::class, 'cloudflare'])
@@ -112,6 +130,7 @@ Route::get('/free-recordings/{materialId}/stream', [FreeRecordingController::cla
     ->middleware('signed');
 
 Route::get('/api/search-autocomplete', [SearchController::class, 'autocomplete'])->name('search.autocomplete');
+Route::get('/search-autocomplete', [SearchController::class, 'autocomplete']);
 
 Route::get('/about', [HomeController::class, 'about'])->name('about');
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
@@ -295,13 +314,13 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
         ->name('groups.roster')
         ->middleware('throttle:60,1');
     Route::get('/my-students', [TeacherStudentController::class, 'index'])->name('students.index');
-      Route::get('/gradebook/export', [GradebookController::class, 'export'])->name('gradebook.export');
-      Route::post('/gradebook/quiz-attempts/{attemptId}/feedback', [GradebookController::class, 'updateQuizFeedback'])
-          ->name('gradebook.quiz-feedback')
-          ->whereNumber('attemptId');
-      Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook');
-      Route::get('/analytics', [PerformanceAnalyticsController::class, 'index'])->name('analytics');
-      Route::get('/analytics/export', [PerformanceAnalyticsController::class, 'export'])->name('analytics.export');
+    Route::get('/gradebook/export', [GradebookController::class, 'export'])->name('gradebook.export');
+    Route::post('/gradebook/quiz-attempts/{attemptId}/feedback', [GradebookController::class, 'updateQuizFeedback'])
+        ->name('gradebook.quiz-feedback')
+        ->whereNumber('attemptId');
+    Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook');
+    Route::get('/analytics', [PerformanceAnalyticsController::class, 'index'])->name('analytics');
+    Route::get('/analytics/export', [PerformanceAnalyticsController::class, 'export'])->name('analytics.export');
     Route::get('/resource-library', [TeacherResourceLibraryController::class, 'index'])->name('resource-library');
     Route::post('/resource-library', [TeacherResourceLibraryController::class, 'store'])
         ->name('resource-library.store')

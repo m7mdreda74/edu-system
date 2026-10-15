@@ -1,30 +1,9 @@
 {
-  "console": [
-    {
-      "page": "session",
-      "type": "error",
-      "text": "Failed to load resource: the server responded with a status of 404 ()"
-    },
-    {
-      "page": "session",
-      "type": "warning",
-      "text": "Autocomplete search failed: Request failed with status code 404"
-    }
-  ],
-  "network": [
-    {
-      "page": "session",
-      "status": 404,
-      "url": "https://altafawwuq-one.vercel.app/api/search-autocomplete?q=%D8%B1%D9%8A%D8%A7%D8%B6%D9%8A%D8%A7%D8%AA"
-    }
-  ],
+  "console": [],
+  "network": [],
   "upload": {
-    "fileInputsFound": 1,
-    "submitted": true,
-    "successMessage": false,
-    "stillOnCheckout": true,
-    "pageUrlAfter": "https://altafawwuq-one.vercel.app/checkout/87",
-    "error": "Error: page.goto: net::ERR_ABORTED at https://altafawwuq-one.vercel.app/my-classes\nCall log:\n\u001b[2m  - navigating to \"https://altafawwuq-one.vercel.app/my-classes\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    "skipped": true,
+    "reason": "Set QA_ALLOW_MUTATIONS=true with an approved target to run upload coverage."
   },
   "steps": [
     "LOGIN student: OK",
@@ -39,7 +18,7 @@
     "VISIT teacher-profile: OK",
     "VISIT grade: OK",
     "VISIT contact: OK",
-    "UPLOAD test ERROR: Error: page.goto: net::ERR_ABORTED at https://altafawwuq-one.vercel.app/my-classes\nCall log:\n\u001b[2m  - navigating to \"https://altafawwuq-one.vercel.app/my-classes\", waiting until \"domcontentloaded\"\u001b[22m\n",
+    "UPLOAD test skipped: mutation guard is disabled",
     "HEADER SEARCH autocomplete fired: true"
   ],
   "headerSearchAutocompleteFired": true

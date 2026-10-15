@@ -73,7 +73,7 @@ function assertConfiguration() {
     });
 
     await page.goto(BASE + '/login', { waitUntil: 'networkidle' });
-    await page.locator('button').nth(2).click();
+    await page.locator('#tab-password').click();
     await page.locator('#login_field').fill(EMAIL);
     await page.locator('#password').fill(PASSWORD);
     await page.locator('#login-submit-btn').click();

@@ -71,7 +71,7 @@ function createQaReceipt() {
     attachAudits(page, 'session');
 
     await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: /كلمة المرور/ }).click();
+    await page.locator('#tab-password').click();
     await page.locator('#login_field').fill(STUDENT_EMAIL);
     await page.locator('#password').fill(STUDENT_PASSWORD);
     await page.locator('#login-submit-btn').click();
