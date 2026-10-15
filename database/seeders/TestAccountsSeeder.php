@@ -18,10 +18,12 @@ use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Scheduling\Models\TeachingGroupLesson;
 use App\Domain\Scheduling\Models\TeachingGroupSchedule;
 use App\Domain\Subscription\Models\Subscription;
+use App\Domain\User\Models\ParentStudentLink;
 use App\Domain\User\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 class TestAccountsSeeder extends Seeder
@@ -47,7 +49,6 @@ class TestAccountsSeeder extends Seeder
                 'phone' => '+97455000001',
                 'password' => $passwordHash,
                 'email_verified_at' => $now,
-                'is_approved' => true,
             ]
         );
         $admin->syncRoles(['admin']);
@@ -82,7 +83,6 @@ class TestAccountsSeeder extends Seeder
                 'phone' => '+97455000003',
                 'password' => $passwordHash,
                 'email_verified_at' => $now,
-                'is_approved' => true,
                 'is_active' => true,
                 'is_featured' => true,
                 'headline' => 'خبير تدريس الرياضيات والقدرات والمناهج التعليمية',
@@ -101,8 +101,7 @@ class TestAccountsSeeder extends Seeder
                 'grade_level_id' => $grade->id,
             ],
             [
-                'monthly_group_rate' => 200,
-                'private_session_rate' => 120,
+                'private_monthly_price' => 120,
                 'accepts_private' => true,
                 'is_active' => true,
             ]
@@ -258,14 +257,45 @@ class TestAccountsSeeder extends Seeder
                 'phone' => '+97455000004',
                 'password' => $passwordHash,
                 'email_verified_at' => $now,
-                'is_approved' => true,
                 'is_active' => true,
-                'grade_level' => $grade->name,
+                'grade_level' => $grade->key,
             ]
         );
         $student->syncRoles(['student']);
 
-        // 12. Enroll Student in Teacher's Group & Subscription
+        // 12. Create / Update Test Parent only for the local browser fixture
+        if (app()->environment('local')) {
+            $parent = User::updateOrCreate(
+                ['email' => 'parent@almagd.com'],
+                [
+                    'name' => 'ولي أمر تجريبي',
+                    'phone' => '+97455000005',
+                    'password' => $passwordHash,
+                    'email_verified_at' => $now,
+                    'is_active' => true,
+                ]
+            );
+            $parent->syncRoles(['parent']);
+
+            $parentLinkAttributes = [
+                'relationship' => 'father',
+                'verified_at' => $now,
+            ];
+
+            if (Schema::hasColumn('parent_student_links', 'status')) {
+                $parentLinkAttributes['status'] = ParentStudentLink::STATUS_APPROVED;
+            }
+
+            ParentStudentLink::updateOrCreate(
+                [
+                    'parent_user_id' => $parent->id,
+                    'student_user_id' => $student->id,
+                ],
+                $parentLinkAttributes
+            );
+        }
+
+        // 13. Enroll Student in Teacher's Group & Subscription
         Subscription::updateOrCreate(
             [
                 'student_id' => $student->id,

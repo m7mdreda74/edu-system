@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "audit": "node qa-test.js",
+    "verify-admin-payments": "node verify-upload.js",
+    "role-smoke": "node role-smoke.js",
+    "deployment-smoke": "node deployment-smoke.js"
   },
   "keywords": [],
   "author": "",

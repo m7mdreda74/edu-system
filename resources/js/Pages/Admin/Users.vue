@@ -368,10 +368,16 @@ async function removeMedia() {
                                     </div>
                                 </td>
                                 <td class="p-4">
-                                    <span v-for="r in user.roles" :key="r.name"
-                                          :class="roleColors[r.name]"
-                                          class="text-xs me-1"
-                                    >{{ roleLabel[r.name] }}</span>
+                                    <div>
+                                        <span v-for="r in user.roles" :key="r.name"
+                                              :class="roleColors[r.name]"
+                                              class="text-xs me-1"
+                                        >{{ roleLabel[r.name] }}</span>
+                                        <span v-if="user.roles?.some(r => r.name === 'student') && user.grade_level"
+                                              class="text-[11px] font-medium text-surface-500 dark:text-surface-400 block mt-1">
+                                            {{ assignableGradeLevels.find(g => g.key === user.grade_level)?.name ?? user.grade_level }}
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="p-4 text-surface-600 dark:text-surface-300">
                                     {{ user.subscriptions_count }}
@@ -522,7 +528,7 @@ async function removeMedia() {
                         </label>
                     </div>
 
-                    <div v-if="editingUser?.roles?.[0]?.name === 'student'" class="mt-5 pt-4 border-t border-surface-200 dark:border-surface-800">
+                    <div v-if="editingUser?.roles?.some(r => r.name === 'student') || selectedRole === 'student'" class="mt-5 pt-4 border-t border-surface-200 dark:border-surface-800">
                         <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="edit-grade">الصف الدراسي للطالب</label>
                         <div class="flex gap-2">
                             <select id="edit-grade" v-model="editingGrade" class="input w-full text-sm">

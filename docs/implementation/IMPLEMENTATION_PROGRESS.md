@@ -1,6 +1,6 @@
 # Implementation Progress
 
-> **Current audit checkpoint (2026-10-14):** Continue from the current `main` workspace, not the historical branch metadata below. The seven migrations described in the earlier checkpoint now report **Ran** in both local/default and local MySQL status (91 ran, 0 pending). The latest full suite is **363 passed, 6 skipped, 2,698 assertions** because the current CLI lacks GD. Current release blockers are tracked in `docs/completion/OPEN_ISSUES.md`.
+> **Current audit checkpoint (2026-10-15):** Continue from the current `main` workspace, not the historical branch metadata below. The seven migrations described in the earlier checkpoint now report **Ran** in both local/default and local MySQL status (91 ran, 0 pending). The latest full suite is **371 passed, 5 skipped, 2,732 assertions** because the current CLI lacks GD. Current release blockers are tracked in `docs/completion/OPEN_ISSUES.md`.
 
 ## 2026-10-14 - P0-P6.2 + P4.1 + P5.1-P5.3 + P6.3-P6.7 + P7.1-P7.11 local checkpoint
 

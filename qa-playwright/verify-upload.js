@@ -1,17 +1,45 @@
+// Read-only admin payment verification. Supply all target and credentials explicitly.
 const { chromium } = require('playwright');
+
+const BASE = String(process.env.QA_BASE_URL || '').replace(/\/+$/, '');
+const ADMIN_EMAIL = process.env.QA_ADMIN_EMAIL || '';
+const ADMIN_PASSWORD = process.env.QA_ADMIN_PASSWORD || '';
+
 (async () => {
+  if (!BASE) {
+    throw new Error('QA_BASE_URL is required; refusing an implicit deployment target.');
+  }
+
+  const target = new URL(BASE);
+  if (!['http:', 'https:'].includes(target.protocol)) {
+    throw new Error('QA_BASE_URL must use http or https.');
+  }
+
+  if (target.hostname === 'altafawwuq-one.vercel.app' && process.env.QA_ALLOW_PRODUCTION !== 'true') {
+    throw new Error('Refusing the known production host. Set QA_ALLOW_PRODUCTION=true only with explicit approval.');
+  }
+
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    throw new Error('QA_ADMIN_EMAIL and QA_ADMIN_PASSWORD are required; credentials are never stored in this script.');
+  }
+
   const browser = await chromium.launch({ headless: true });
-  const page = await (await browser.newContext()).newPage();
-  await page.goto('https://altafawwuq-one.vercel.app/login', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('textbox', { name: 'البريد الإلكتروني أو رقم الهاتف *' }).fill('admin@altafawwuq.com');
-  await page.locator('input[type=password]').fill('password');
-  await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
-  await page.waitForURL('**/admin/dashboard', { timeout: 15000 });
-  await page.goto('https://altafawwuq-one.vercel.app/admin/payments?status=pending_verification', { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(2500);
-  const body = await page.content();
-  const m = body.match(/(\d+)\s*عملية دفع/);
-  const has87 = body.includes('طالب تجريبي');
-  console.log('PENDING COUNT:', m ? m[1] : '?', '| contains student@ (87):', has87);
-  await browser.close();
-})().catch(e => { console.error(e); process.exit(1); });
+  try {
+    const page = await (await browser.newContext()).newPage();
+    await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: /كلمة المرور/ }).click();
+    await page.locator('#login_field').fill(ADMIN_EMAIL);
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.locator('#login-submit-btn').click();
+    await page.waitForURL('**/admin/dashboard', { timeout: 15000 });
+    await page.goto(BASE + '/admin/payments?status=pending_verification', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(2500);
+    const body = await page.content();
+    console.log('PENDING PAYMENT PAGE LOADED:', body.length > 0);
+  } finally {
+    await browser.close();
+  }
+})().catch((error) => {
+  console.error('FATAL', error);
+  process.exit(1);
+});

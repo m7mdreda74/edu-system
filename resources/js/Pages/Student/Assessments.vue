@@ -66,7 +66,7 @@ function dateLabel(value) {
                         اختباراتك المنشورة ضمن الاشتراكات النشطة ومحاولاتك السابقة.
                     </p>
                 </div>
-                <Link :href="route('student.dashboard')" class="btn-outline btn-sm">العودة إلى اللوحة</Link>
+                <Link :href="route('dashboard')" class="btn-outline btn-sm">العودة إلى اللوحة</Link>
             </header>
 
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
