@@ -53,7 +53,7 @@ APP_NAME="بوابة المجد التعليمية"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://altafawwuq-one.vercel.app
-APP_KEY=base64:9K8wngSGg7S464gdZkpYIETvExOME0LrfbCnuPuO75w=
+APP_KEY=<redacted_application_encryption_key>
 
 DB_CONNECTION=mysql
 DB_HOST=<managed_mysql_host>
