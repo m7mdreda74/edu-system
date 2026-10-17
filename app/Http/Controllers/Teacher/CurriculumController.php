@@ -59,10 +59,55 @@ class CurriculumController extends Controller
         private readonly LessonVideoService $lessonVideos,
     ) {}
 
+    public function landing(Request $request): RedirectResponse
+    {
+        $teacherId = (int) Auth::id();
+        $assignmentId = $request->integer('assignment');
+
+        if ($assignmentId > 0) {
+            $assignment = TeachingAssignment::where('id', $assignmentId)
+                ->where('teacher_id', $teacherId)
+                ->first();
+            if ($assignment) {
+                return redirect()->route('teacher.curriculum', [
+                    'assignment' => $assignment->id,
+                    'term' => $request->integer('term') ?: null,
+                ]);
+            }
+        }
+
+        $firstAssignment = TeachingAssignment::where('teacher_id', $teacherId)
+            ->where('is_active', true)
+            ->latest('id')
+            ->first();
+
+        if ($firstAssignment) {
+            return redirect()->route('teacher.curriculum', [
+                'assignment' => $firstAssignment->id,
+                'term' => $request->integer('term') ?: null,
+            ]);
+        }
+
+        return redirect()->route('teacher.dashboard')->with('info', 'يرجى التواصل مع الإدارة لإسناد مادة دراسية لك أولاً لتتمكن من إنشاء الخطة الأكاديمية.');
+    }
+
     public function index(Request $request, int $assignmentId): Response
     {
         $assignment = $this->ownedAssignment($assignmentId);
         $assignment->load(['subject:id,name', 'gradeLevel:id,key,name', 'teacher:id,name']);
+
+        $allAssignments = TeachingAssignment::with(['subject:id,name', 'gradeLevel:id,key,name'])
+            ->where('teacher_id', Auth::id())
+            ->where('is_active', true)
+            ->get()
+            ->map(fn (TeachingAssignment $a) => [
+                'id' => $a->id,
+                'subject_name' => $a->subject?->name,
+                'grade_name' => $a->gradeLevel?->name,
+                'label' => ($a->subject?->name ?? 'مادة') . ' — ' . ($a->gradeLevel?->name ?? 'الصف'),
+            ])
+            ->values()
+            ->all();
 
         $terms = AcademicTerm::orderBy('starts_on')->get();
 
@@ -87,6 +132,7 @@ class CurriculumController extends Controller
                 'grade' => $assignment->gradeLevel?->only(['id', 'key', 'name']),
                 'teacher' => $assignment->teacher?->only(['id', 'name']),
             ],
+            'allAssignments' => $allAssignments,
             'terms' => $terms->map(fn (AcademicTerm $term) => [
                 'id' => $term->id,
                 'name' => $term->name,

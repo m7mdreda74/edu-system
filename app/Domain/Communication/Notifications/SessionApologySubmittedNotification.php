@@ -22,9 +22,12 @@ class SessionApologySubmittedNotification extends Notification implements Should
 
     public function toArray(object $notifiable): array
     {
+        $sessionTitle = trim((string) ($this->apology->session?->title ?? ''));
+        $formattedTitle = preg_match('/^حصة\b/u', $sessionTitle) ? $sessionTitle : 'حصة '.$sessionTitle;
+
         return [
-            'title' => 'اعتذار جديد عن حصة',
-            'message' => $this->apology->teacher?->name.' اعتذر عن حصة '.$this->apology->session?->title.'.',
+            'title' => 'اعتذار جديد عن الحصة',
+            'message' => $this->apology->teacher?->name.' اعتذر عن '.$formattedTitle.'.',
             'link' => route('admin.session-apologies'),
             'apology_id' => $this->apology->id,
             'icon' => '📅',

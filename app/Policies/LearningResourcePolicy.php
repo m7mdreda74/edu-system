@@ -28,10 +28,11 @@ class LearningResourcePolicy
         $assignmentIds = $resource->assignments()->select('teaching_assignments.id');
 
         if ($user->isStudent()) {
-            return Subscription::active()
-                ->where('student_id', $user->id)
-                ->whereIn('teaching_assignment_id', $assignmentIds)
-                ->exists();
+            return $resource->approval_status === LearningResource::APPROVAL_APPROVED
+                && Subscription::active()
+                    ->where('student_id', $user->id)
+                    ->whereIn('teaching_assignment_id', $assignmentIds)
+                    ->exists();
         }
 
         if ($user->isParent()) {
@@ -40,10 +41,11 @@ class LearningResourcePolicy
                 ->whereNotNull('verified_at')
                 ->select('student_user_id');
 
-            return Subscription::active()
-                ->whereIn('student_id', $studentIds)
-                ->whereIn('teaching_assignment_id', $assignmentIds)
-                ->exists();
+            return $resource->approval_status === LearningResource::APPROVAL_APPROVED
+                && Subscription::active()
+                    ->whereIn('student_id', $studentIds)
+                    ->whereIn('teaching_assignment_id', $assignmentIds)
+                    ->exists();
         }
 
         return false;
@@ -68,6 +70,6 @@ class LearningResourcePolicy
 
     public function moderate(User $user, LearningResource $resource): bool
     {
-        return $user->isAdmin() && $resource->isPendingShare();
+        return $user->isAdmin();
     }
 }

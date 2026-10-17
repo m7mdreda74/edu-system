@@ -46,13 +46,13 @@ class MyGradeController extends Controller
         // with — keyed by subject so the lookup below stays flat.
         $subscribedTeachers = Subscription::active()
             ->where('student_id', $student->id)
-            ->with('assignment:id,subject_id,teacher_id', 'assignment.teacher:id,name')
+            ->with(['assignment:id,subject_id,teacher_id', 'assignment.teacher:id,name', 'assignment.groups'])
             ->get()
             ->mapWithKeys(fn (Subscription $s) => [
                 $s->assignment?->subject_id => [
                     'teacher_id' => $s->assignment?->teacher_id,
                     'teacher_name' => $s->assignment?->teacher?->name,
-                    'group_id' => $s->teaching_group_id,
+                    'group_id' => $s->teaching_group_id ?? $s->assignment?->groups?->first()?->id,
                     'type' => $s->type,
                 ],
             ]);

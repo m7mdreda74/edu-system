@@ -117,7 +117,7 @@ class OperationalSeeder extends Seeder
             ],
             [
                 'status' => LiveSessionApology::STATUS_DEDUCTED,
-                'reason' => 'اعتذار عن الحصة لظرف خارج عن الإرادة دون موعد تعويضي.',
+                'reason' => 'ظرف طارئ خارج عن الإرادة حال دون الحضور دون موعد تعويضي.',
             ],
         ];
 

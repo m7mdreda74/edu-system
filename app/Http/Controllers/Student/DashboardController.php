@@ -144,19 +144,22 @@ class DashboardController extends Controller
 
         $term = AcademicTerm::currentOrNext();
 
-        if ($term === null) {
-            return null;
-        }
-
         $assignmentIds = $groupSubscriptions->pluck('teaching_assignment_id')->filter()->unique();
-        $units = CurriculumUnit::query()
+        $unitsQuery = CurriculumUnit::query()
             ->whereIn('teaching_assignment_id', $assignmentIds)
-            ->where('academic_term_id', $term->id)
-            ->where('is_published', true)
+            ->where(function ($q) {
+                $q->where('is_published', true)->orWhereNull('is_published');
+            })
             ->with(['lessons' => fn ($query) => $query->orderBy('order')])
-            ->orderBy('order')
-            ->get()
-            ->groupBy('teaching_assignment_id');
+            ->orderBy('order');
+
+        $units = $term
+            ? (clone $unitsQuery)->where('academic_term_id', $term->id)->get()->groupBy('teaching_assignment_id')
+            : collect();
+
+        if ($units->isEmpty()) {
+            $units = $unitsQuery->get()->groupBy('teaching_assignment_id');
+        }
 
         $lessons = $units->flatten(1)->flatMap(fn (CurriculumUnit $unit) => $unit->lessons);
         $progress = LessonProgress::query()

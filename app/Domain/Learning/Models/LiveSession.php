@@ -43,6 +43,7 @@ class LiveSession extends Model
         'recording_url',
         'is_published_as_lesson',
         'lesson_id',
+        'is_free',
     ];
 
     protected function casts(): array
@@ -52,6 +53,7 @@ class LiveSession extends Model
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
             'is_published_as_lesson' => 'boolean',
+            'is_free' => 'boolean',
         ];
     }
 

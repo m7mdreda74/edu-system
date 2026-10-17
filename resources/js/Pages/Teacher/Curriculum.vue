@@ -10,6 +10,7 @@ import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     assignment:   { type: Object, required: true },
+    allAssignments: { type: Array, default: () => [] },
     terms:        { type: Array,  default: () => [] },
     activeTermId: { type: Number, default: null },
     units:        { type: Array,  default: () => [] },
@@ -135,6 +136,13 @@ function goToTerm(termId) {
     router.get(route('teacher.curriculum', { assignment: props.assignment.id, term: termId }), {}, {
         ...VISIT,
         only: ['terms', 'activeTermId', 'units', 'stats'],
+    });
+}
+
+function switchAssignment(assignmentId) {
+    if (!assignmentId || Number(assignmentId) === Number(props.assignment.id)) return;
+    router.get(route('teacher.curriculum', { assignment: assignmentId }), {}, {
+        preserveScroll: false,
     });
 }
 
@@ -803,31 +811,51 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
 
 <template>
     <DashboardLayout>
-        <Head :title="`بناء المنهج — ${assignment.subject?.name ?? ''}`" />
+        <Head :title="`الخطة الأكاديمية — ${assignment.subject?.name ?? ''}`" />
 
         <div class="space-y-6">
             <!-- ── Header ─────────────────────────────────────────────── -->
             <header class="flex flex-wrap items-start justify-between gap-4">
                 <div class="min-w-0">
                     <nav class="text-xs text-surface-400 mb-1 flex items-center gap-1 flex-wrap">
-                        <Link :href="route('teacher.teaching-schedule')" class="hover:text-primary-500">جدول التدريس</Link>
+                        <Link :href="route('teacher.dashboard')" class="hover:text-primary-500">لوحة المعلم</Link>
                         <span>/</span>
-                        <span class="text-surface-500 dark:text-surface-400">بناء المنهج</span>
+                        <span class="text-surface-500 dark:text-surface-400 font-bold">الخطة الأكاديمية (خطة فصلية)</span>
                     </nav>
-                    <h1 class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2 flex-wrap">
-                        <Icon name="courses" class="w-7 h-7 text-primary-500 shrink-0" />
-                        <span>{{ assignment.subject?.name }}</span>
-                        <span v-if="assignment.grade" class="badge-primary text-xs">{{ assignment.grade.name }}</span>
-                    </h1>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <h1 class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2 flex-wrap">
+                            <Icon name="book" class="w-7 h-7 text-primary-500 shrink-0" />
+                            <span>الخطة الأكاديمية: {{ assignment.subject?.name }}</span>
+                            <span v-if="assignment.grade" class="badge-primary text-xs">{{ assignment.grade.name }}</span>
+                        </h1>
+
+                        <!-- Assignment switcher if teacher teaches multiple subjects/grades -->
+                        <div v-if="allAssignments && allAssignments.length > 1" class="flex items-center gap-2">
+                            <label class="text-xs font-bold text-surface-500 dark:text-surface-400">تبديل المادة:</label>
+                            <select
+                                :value="assignment.id"
+                                @change="switchAssignment($event.target.value)"
+                                class="input-sm text-xs font-bold rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 py-1 px-3"
+                            >
+                                <option v-for="a in allAssignments" :key="a.id" :value="a.id">{{ a.label }}</option>
+                            </select>
+                        </div>
+                    </div>
                     <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                        الفصول والوحدات والدروس واختبارات كل وحدة — {{ assignment.teacher?.name }}
+                        خطة فصلية شاملة مقسمة لكل فصل دراسي (الوحدات، الدروس، الملازم والفيديوهات، والواجبات والاختبارات) — تسمّع وتظهر لجميع طلابك مباشرة.
                     </p>
                 </div>
 
-                <button type="button" class="btn-primary btn-sm shrink-0" @click="showSkeleton = !showSkeleton">
-                    <Icon name="plus" class="w-4 h-4" />
-                    <span>{{ showSkeleton ? 'إغلاق مولّد الهيكل' : 'إنشاء هيكل الفصل' }}</span>
-                </button>
+                <div class="flex items-center gap-2 flex-wrap shrink-0">
+                    <Link :href="route('teacher.teaching-schedule')" class="btn-outline btn-sm flex items-center gap-1.5">
+                        <Icon name="calendar" class="w-4 h-4" />
+                        <span>تحديد المواعيد والجدول</span>
+                    </Link>
+                    <button type="button" class="btn-primary btn-sm shrink-0" @click="showSkeleton = !showSkeleton">
+                        <Icon name="plus" class="w-4 h-4" />
+                        <span>{{ showSkeleton ? 'إغلاق مولّد الهيكل' : '⚡ إنشاء هيكل الفصل (وحدات ودروس)' }}</span>
+                    </button>
+                </div>
             </header>
 
             <!-- ── No academic calendar ───────────────────────────────── -->

@@ -108,13 +108,14 @@ const menuGroups = computed(() => {
                 title: 'لوحة المعلم',
                 links: [
                     { label: 'الرئيسية',     icon: 'dashboard', href: route('teacher.dashboard'), name: 'teacher.dashboard' },
+                    { label: 'الخطة الأكاديمية', icon: 'book', href: route('teacher.curriculum.index'), name: 'teacher.curriculum' },
+                    { label: 'تحديد المواعيد', icon: 'calendar', href: route('teacher.teaching-schedule'), name: 'teacher.teaching-schedule' },
                     { label: 'مجموعاتي',     icon: 'courses',   href: route('teacher.groups.index'), name: 'teacher.groups.index' },
                     { label: 'طلابي',        icon: 'student',   href: route('teacher.students.index'), name: 'teacher.students.index' },
                     { label: 'دفتر الدرجات', icon: 'assignment', href: route('teacher.gradebook'), name: 'teacher.gradebook' },
                     { label: 'تحليل الأداء', icon: 'chart', href: route('teacher.analytics'), name: 'teacher.analytics' },
                     { label: 'الإعلانات', icon: 'chat', href: route('teacher.announcements'), name: 'teacher.announcements' },
                     { label: 'مكتبة الموارد', icon: 'book', href: route('teacher.resource-library'), name: 'teacher.resource-library' },
-                    { label: 'الخطة الأكاديمية', icon: 'book', href: route('teacher.teaching-schedule'), name: 'teacher.teaching-schedule' },
                     { label: 'بنك الأسئلة', icon: 'calculator', href: route('teacher.question-bank'), name: 'teacher.question-bank' },
                     { label: 'الحصص المباشرة',icon: 'live',      href: route('teacher.live-sessions'), name: 'teacher.live-sessions' },
                     { label: 'الرسائل',      icon: 'chat',      href: route('chat.index'),       name: 'chat.index' },
@@ -138,7 +139,6 @@ const menuGroups = computed(() => {
                 links: [
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
                     { label: 'مواد صفي', icon: 'book',      href: route('student.my-grade'),   name: 'student.my-grade' },
-                    { label: 'حصصي',     icon: 'courses',   href: route('student.my-classes'), name: 'student.my-classes' },
                     { label: 'واجباتي', icon: 'assignment', href: route('student.assignments'), name: 'student.assignments' },
                     { label: 'مركز الاختبارات', icon: 'chart', href: route('student.assessments'), name: 'student.assessments' },
                     { label: 'الموارد التعليمية', icon: 'book', href: route('student.resources'), name: 'student.resources' },

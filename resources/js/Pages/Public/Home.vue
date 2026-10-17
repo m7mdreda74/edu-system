@@ -301,9 +301,9 @@ refreshAllStagePreview();
                         </div>
 
                         <!-- Main Headline -->
-                        <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.25] md:leading-[1.3] mb-6 tracking-tight">
-                            {{ heroContent.title }}
-                            <span class="block mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black bg-gradient-to-r from-amber-200 via-accent-300 to-amber-500 bg-clip-text text-transparent">
+                        <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.35] md:leading-[1.4] mb-6">
+                            <span class="block pb-1">{{ heroContent.title }}</span>
+                            <span class="block mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black bg-gradient-to-r from-amber-200 via-accent-300 to-amber-500 bg-clip-text text-transparent pt-1 pb-4 leading-normal sm:leading-relaxed">
                                 {{ heroContent.subtitle }}
                             </span>
                         </h1>

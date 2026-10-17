@@ -213,7 +213,10 @@ function submitGrade(subId, maxScore) {
                                     <a :href="sub.submitted_file_path" target="_blank" rel="noopener noreferrer" class="text-xs text-primary-500 hover:underline">عرض حل الطالب 🔗</a>
                                 </td>
                                 <td class="px-6 py-4 text-xs text-surface-500">
-                                    {{ new Date(sub.submitted_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                    <div>{{ new Date(sub.submitted_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}</div>
+                                    <span v-if="sub.is_late" class="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-500 border border-red-500/20 mt-1">
+                                        ⚠️ تسليم متأخر
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4 font-semibold">
                                     <span v-if="sub.score !== null" class="text-green-600 dark:text-green-400">

@@ -19,9 +19,17 @@ const filters = [
     { key: 'graded', label: 'تم التصحيح' },
 ];
 
-const visibleAssignments = computed(() => activeFilter.value === 'all'
-    ? props.assignments
-    : props.assignments.filter((assignment) => assignment.status === activeFilter.value));
+const visibleAssignments = computed(() => {
+    if (activeFilter.value === 'all') {
+        return props.assignments;
+    }
+    if (activeFilter.value === 'late') {
+        return props.assignments.filter((assignment) =>
+            assignment.status === 'late' || assignment.submitted_late || assignment.submission?.is_late
+        );
+    }
+    return props.assignments.filter((assignment) => assignment.status === activeFilter.value);
+});
 
 const statusLabels = {
     pending: 'مطلوب',
@@ -82,13 +90,24 @@ function formatDate(value) {
                             <div class="flex flex-wrap items-center gap-2">
                                 <h2 class="font-bold text-surface-900 dark:text-white">{{ assignment.title }}</h2>
                                 <span :class="statusClasses[assignment.status]" class="text-[10px]">{{ statusLabels[assignment.status] }}</span>
+                                <span
+                                    v-if="assignment.submitted_late || assignment.submission?.is_late"
+                                    class="badge-red text-[10px] flex items-center gap-1 font-bold"
+                                    title="تم التسليم بعد انتهاء الموعد المحدد"
+                                >
+                                    <span>⚠️</span>
+                                    <span>تسليم متأخر</span>
+                                </span>
                             </div>
                             <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">
                                 {{ assignment.subject?.name }} — {{ assignment.teacher?.name }}<span v-if="assignment.group?.name"> · {{ assignment.group.name }}</span>
                             </p>
                             <p class="mt-2 flex items-center gap-1.5 text-xs" :class="assignment.is_late ? 'font-bold text-red-500' : 'text-surface-500'">
                                 <Icon name="calendar" class="h-3.5 w-3.5" />
-                                التسليم: {{ formatDate(assignment.due_date) }}
+                                <span>التسليم: {{ formatDate(assignment.due_date) }}</span>
+                                <span v-if="!assignment.submission && assignment.is_late" class="ms-1 font-bold text-red-600 dark:text-red-400">
+                                    (متأخر - يرجى التسليم فوراً)
+                                </span>
                             </p>
                         </div>
 
@@ -113,11 +132,29 @@ function formatDate(value) {
 
                     <div v-if="assignment.submission" class="mt-4 rounded-xl bg-surface-50 p-3 text-xs dark:bg-surface-900/60">
                         <div class="flex flex-wrap items-center justify-between gap-2 text-surface-500">
-                            <span>تم التسليم: {{ new Date(assignment.submission.submitted_at).toLocaleDateString('ar-QA') }}</span>
+                            <div class="flex items-center gap-2">
+                                <span>تم التسليم: {{ new Date(assignment.submission.submitted_at).toLocaleDateString('ar-QA') }}</span>
+                                <span
+                                    v-if="assignment.submission.is_late || assignment.submitted_late"
+                                    class="rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-500 border border-red-500/20"
+                                >
+                                    تأخر في التسليم
+                                </span>
+                            </div>
                             <span v-if="assignment.submission.score !== null" class="font-bold text-green-600">
                                 الدرجة: {{ assignment.submission.score }} / {{ assignment.max_score ?? '—' }}
                             </span>
                         </div>
+
+                        <!-- Late submission explicit note -->
+                        <div
+                            v-if="assignment.submission.is_late || assignment.submitted_late || assignment.late_notice"
+                            class="mt-2 flex items-center gap-1.5 rounded-lg bg-red-500/10 px-2.5 py-1.5 text-[11px] font-medium text-red-600 dark:text-red-400 border border-red-500/20"
+                        >
+                            <Icon name="alert-triangle" class="h-3.5 w-3.5 flex-shrink-0" />
+                            <span>{{ assignment.late_notice || 'تنبيه: تم تسليم هذا الواجب بعد انتهاء الموعد المحدد (تأخر في التسليم).' }}</span>
+                        </div>
+
                         <p v-if="assignment.submission.teacher_feedback" class="mt-2 text-surface-700 dark:text-surface-200">
                             {{ assignment.submission.teacher_feedback }}
                         </p>

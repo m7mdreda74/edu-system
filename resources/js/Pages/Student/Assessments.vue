@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
@@ -9,27 +9,75 @@ const props = defineProps({
     summary: { type: Object, default: () => ({}) },
 });
 
-const filter = ref('all');
+// Filters
+const activeMode = ref('all');    // all | electronic | paper
+const activeScope = ref('all');   // all | unit | midterm | comprehensive
+const activeStatus = ref('all');  // all | available | in_progress | completed | upcoming
 
-const filters = [
-    { key: 'all', label: 'الكل' },
-    { key: 'available', label: 'متاحة' },
-    { key: 'in_progress', label: 'قيد التنفيذ' },
-    { key: 'completed', label: 'مكتملة' },
-    { key: 'upcoming', label: 'قادمة' },
-];
+// Paper upload state
+const submitFiles = ref({});
+const uploadingSheet = ref(null);
+const uploadNotices = ref({});
 
-const filteredItems = computed(() => filter.value === 'all'
-    ? props.items
-    : props.items.filter((item) => item.status === filter.value));
+function onFileChange(event, sheetId) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+        uploadNotices.value[sheetId] = 'حجم الملف يتجاوز الحد الأقصى (10 ميجابايت).';
+        return;
+    }
+
+    submitFiles.value[sheetId] = file;
+    uploadNotices.value[sheetId] = '';
+}
+
+function uploadAnswer(sheetId) {
+    const file = submitFiles.value[sheetId];
+    if (!file) {
+        uploadNotices.value[sheetId] = 'الرجاء اختيار ملف الحل أولاً.';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('submitted_file', file);
+
+    uploadingSheet.value = sheetId;
+
+    router.post(route('student.assessments.submit-paper', { worksheetId: sheetId }), formData, {
+        preserveScroll: true,
+        onFinish: () => {
+            uploadingSheet.value = null;
+            submitFiles.value[sheetId] = null;
+        },
+    });
+}
+
+const filteredItems = computed(() => {
+    return props.items.filter((item) => {
+        // Mode filter
+        if (activeMode.value !== 'all' && item.mode !== activeMode.value) {
+            return false;
+        }
+        // Scope filter
+        if (activeScope.value !== 'all' && item.scope !== activeScope.value) {
+            return false;
+        }
+        // Status filter
+        if (activeStatus.value !== 'all' && item.status !== activeStatus.value) {
+            return false;
+        }
+        return true;
+    });
+});
 
 const statusLabels = {
-    available: 'متاح الآن',
-    in_progress: 'قيد التنفيذ',
-    completed: 'مكتمل',
+    available: 'متاح للحل الآن',
+    in_progress: 'قيد التنفيذ / بانتظار التصحيح',
+    completed: 'مكتمل ومصحح',
     upcoming: 'يفتح قريباً',
-    closed: 'مغلق',
-    not_ready: 'غير جاهز',
+    closed: 'منتهي الصلاحية',
+    not_ready: 'قيد التجهيز',
 };
 
 const statusClasses = {
@@ -42,7 +90,7 @@ const statusClasses = {
 };
 
 function dateLabel(value) {
-    if (!value) return 'متاح دون موعد محدد';
+    if (!value) return 'متاح في أي وقت';
 
     return new Date(value).toLocaleString('ar-QA', {
         day: 'numeric',
@@ -52,97 +100,439 @@ function dateLabel(value) {
         minute: '2-digit',
     });
 }
+
+function formatDateOnly(value) {
+    if (!value) return 'غير محدد';
+    return new Date(value).toLocaleDateString('ar-QA', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    });
+}
 </script>
 
 <template>
-    <Head title="مركز الاختبارات" />
+    <Head title="مركز الاختبارات والتقييمات" />
 
     <DashboardLayout>
         <div class="space-y-8 pb-12">
-            <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+
+            <!-- ── Page Header ────────────────────────────────────── -->
+            <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 class="text-3xl font-black text-surface-900 dark:text-white">مركز الاختبارات</h1>
-                    <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
-                        اختباراتك المنشورة ضمن الاشتراكات النشطة ومحاولاتك السابقة.
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white">
+                            مركز الاختبارات والتقييمات
+                        </h1>
+                        <span class="badge-primary text-xs font-bold">{{ summary.total ?? 0 }} اختبار</span>
+                    </div>
+                    <p class="mt-1 text-sm text-surface-500 dark:text-surface-400 max-w-2xl leading-relaxed">
+                        اختبارات إلكترونية ومقالية تشمل اختبارات الوحدات، وأجزاء المنهج، والاختبارات الشاملة والتجريبية لموادك المشترك بها.
                     </p>
                 </div>
-                <Link :href="route('dashboard')" class="btn-outline btn-sm">العودة إلى اللوحة</Link>
+                <div class="flex items-center gap-2">
+                    <Link :href="route('dashboard')" class="btn-outline btn-sm">العودة للرئيسية</Link>
+                    <Link :href="route('student.resources')" class="btn-primary btn-sm flex items-center gap-1.5 font-bold">
+                        <Icon name="book" class="w-3.5 h-3.5" />
+                        <span>الموارد والدروس</span>
+                    </Link>
+                </div>
             </header>
 
+            <!-- ── Flash Message ──────────────────────────────────── -->
+            <div v-if="$page.props.flash?.success"
+                 class="p-4 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-300 font-bold text-sm flex items-center gap-2">
+                <Icon name="success" class="w-5 h-5 text-green-500 shrink-0" />
+                <span>{{ $page.props.flash.success }}</span>
+            </div>
+
+            <!-- ── Summary Stats ──────────────────────────────────── -->
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                <div v-for="stat in [
-                    { label: 'كل الاختبارات', value: summary.total, icon: 'courses' },
-                    { label: 'متاحة الآن', value: summary.available, icon: 'success' },
-                    { label: 'قيد التنفيذ', value: summary.in_progress, icon: 'clock' },
-                    { label: 'اختبارات مكتملة', value: summary.completed, icon: 'chart' },
-                    { label: 'متوسط الدرجات', value: (summary.average_score ?? 0) + '%', icon: 'certificate' },
-                ]" :key="stat.label" class="card p-4">
-                    <Icon :name="stat.icon" class="h-5 w-5 text-primary-500" />
-                    <div class="mt-3 text-2xl font-black text-surface-900 dark:text-white">{{ stat.value ?? 0 }}</div>
-                    <div class="mt-1 text-[11px] text-surface-400">{{ stat.label }}</div>
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] text-surface-400 font-bold">كل الاختبارات</span>
+                        <Icon name="courses" class="h-4 w-4 text-primary-500" />
+                    </div>
+                    <div class="mt-2 text-2xl font-black text-surface-900 dark:text-white">{{ summary.total ?? 0 }}</div>
+                    <div class="mt-1 text-[10px] text-surface-400">إلكتروني ومقالي</div>
+                </div>
+
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] text-surface-400 font-bold">اختبارات إلكترونية</span>
+                        <span class="text-sm">📝</span>
+                    </div>
+                    <div class="mt-2 text-2xl font-black text-primary-600 dark:text-primary-400">{{ summary.electronic_count ?? 0 }}</div>
+                    <div class="mt-1 text-[10px] text-surface-400">تصحيح فوري وآلي</div>
+                </div>
+
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] text-surface-400 font-bold">اختبارات مقالية / ورقية</span>
+                        <span class="text-sm">📑</span>
+                    </div>
+                    <div class="mt-2 text-2xl font-black text-accent-600 dark:text-accent-400">{{ summary.paper_count ?? 0 }}</div>
+                    <div class="mt-1 text-[10px] text-surface-400">رفع حل وتصحيح المعلم</div>
+                </div>
+
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] text-surface-400 font-bold">مكتملة ومصححة</span>
+                        <Icon name="success" class="h-4 w-4 text-green-500" />
+                    </div>
+                    <div class="mt-2 text-2xl font-black text-green-600 dark:text-green-400">{{ summary.completed ?? 0 }}</div>
+                    <div class="mt-1 text-[10px] text-surface-400">{{ summary.passed ?? 0 }} اجتياز بنجاح</div>
+                </div>
+
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] text-surface-400 font-bold">متوسط الدرجات</span>
+                        <Icon name="certificate" class="h-4 w-4 text-amber-500" />
+                    </div>
+                    <div class="mt-2 text-2xl font-black text-amber-600 dark:text-amber-400">{{ (summary.average_score ?? 0) }}%</div>
+                    <div class="mt-1 text-[10px] text-surface-400">معدل الإنجاز العام</div>
                 </div>
             </div>
 
-            <div class="flex gap-2 overflow-x-auto pb-1">
-                <button
-                    v-for="item in filters"
-                    :key="item.key"
-                    type="button"
-                    class="shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition-colors"
-                    :class="filter === item.key ? 'bg-primary-600 text-white' : 'bg-surface-100 text-surface-500 dark:bg-surface-800 dark:text-surface-300'"
-                    @click="filter = item.key"
-                >
-                    {{ item.label }}
-                </button>
+            <!-- ── Filters Toolbar ────────────────────────────────── -->
+            <div class="card p-4 sm:p-5 space-y-4">
+
+                <!-- 1. نمط الاختبار (Mode) -->
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span class="text-xs font-bold text-surface-500 dark:text-surface-400 shrink-0 w-24">نمط الاختبار:</span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button
+                            type="button"
+                            @click="activeMode = 'all'"
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all"
+                            :class="activeMode === 'all'
+                                ? 'bg-surface-900 text-white dark:bg-white dark:text-surface-900 shadow-sm'
+                                : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200'"
+                        >
+                            الكل ({{ summary.total ?? 0 }})
+                        </button>
+                        <button
+                            type="button"
+                            @click="activeMode = 'electronic'"
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                            :class="activeMode === 'electronic'
+                                ? 'bg-primary-600 text-white shadow-sm'
+                                : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200'"
+                        >
+                            <span>📝 اختبارات إلكترونية</span>
+                            <span class="text-[10px] opacity-80">({{ summary.electronic_count ?? 0 }})</span>
+                        </button>
+                        <button
+                            type="button"
+                            @click="activeMode = 'paper'"
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                            :class="activeMode === 'paper'
+                                ? 'bg-accent-600 text-white shadow-sm'
+                                : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200'"
+                        >
+                            <span>📑 اختبارات مقالية / ورقية</span>
+                            <span class="text-[10px] opacity-80">({{ summary.paper_count ?? 0 }})</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. نطاق الاختبار (Scope: وحدات / أجزاء المنهج / شامل) -->
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 pt-2 border-t border-surface-100 dark:border-surface-800">
+                    <span class="text-xs font-bold text-surface-500 dark:text-surface-400 shrink-0 w-24">نطاق الاختبار:</span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button
+                            type="button"
+                            @click="activeScope = 'all'"
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all"
+                            :class="activeScope === 'all'
+                                ? 'bg-primary-700 text-white shadow-sm'
+                                : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200'"
+                        >
+                            كل النطاقات
+                        </button>
+                        <button
+                            type="button"
+                            @click="activeScope = 'unit'"
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+                            :class="activeScope === 'unit'
+                                ? 'bg-primary-700 text-white shadow-sm'
+                                : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200'"
+                        >
+                            <span>📁 اختبارات الوحدات</span>
+                            <span class="text-[10px] opacity-80">({{ summary.unit_count ?? 0 }})</span>
+                        </button>
+                        <button
+                            type="button"
+                            @click="activeScope = 'midterm'"
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+                            :class="activeScope === 'midterm'
+                                ? 'bg-primary-700 text-white shadow-sm'
+                                : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200'"
+                        >
+                            <span>📚 اختبارات أجزاء المنهج</span>
+                            <span class="text-[10px] opacity-80">({{ summary.midterm_count ?? 0 }})</span>
+                        </button>
+                        <button
+                            type="button"
+                            @click="activeScope = 'comprehensive'"
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+                            :class="activeScope === 'comprehensive'
+                                ? 'bg-primary-700 text-white shadow-sm'
+                                : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200'"
+                        >
+                            <span>🏆 اختبارات شاملة وتجريبية</span>
+                            <span class="text-[10px] opacity-80">({{ summary.comprehensive_count ?? 0 }})</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. حالة الحل (Status) -->
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 pt-2 border-t border-surface-100 dark:border-surface-800">
+                    <span class="text-xs font-bold text-surface-500 dark:text-surface-400 shrink-0 w-24">حالة الحل:</span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button
+                            v-for="st in [
+                                { key: 'all', label: 'الكل' },
+                                { key: 'available', label: 'متاح الآن' },
+                                { key: 'in_progress', label: 'قيد الحل / التسليم' },
+                                { key: 'completed', label: 'مكتمل ومصحح' },
+                                { key: 'upcoming', label: 'قادم قريباً' },
+                            ]"
+                            :key="st.key"
+                            type="button"
+                            @click="activeStatus = st.key"
+                            class="px-3 py-1 rounded-xl text-xs font-bold transition-colors"
+                            :class="activeStatus === st.key
+                                ? 'bg-surface-800 text-white dark:bg-surface-200 dark:text-surface-900'
+                                : 'bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400 hover:text-surface-800'"
+                        >
+                            {{ st.label }}
+                        </button>
+                    </div>
+                </div>
+
             </div>
 
-            <section v-if="filteredItems.length" class="grid gap-4 lg:grid-cols-2">
-                <article v-for="item in filteredItems" :key="item.id" class="card p-5">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="text-xs font-bold text-primary-600 dark:text-primary-400">
-                                {{ item.subject?.name }} · {{ item.unit?.title }}
+            <!-- ── Exam Cards List ────────────────────────────────── -->
+            <section v-if="filteredItems.length" class="grid gap-5 lg:grid-cols-2">
+                <article
+                    v-for="item in filteredItems"
+                    :key="`${item.mode}-${item.id}`"
+                    class="card p-5 sm:p-6 border transition-all hover:shadow-md flex flex-col justify-between"
+                    :class="item.mode === 'paper' ? 'border-accent-200/80 dark:border-accent-900/50' : 'border-primary-200/80 dark:border-primary-900/50'"
+                >
+                    <div>
+                        <!-- Header Tags & Status -->
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <!-- Mode Badge: Electronic vs Paper -->
+                                <span
+                                    class="text-[11px] px-2.5 py-0.5 rounded-full font-black flex items-center gap-1"
+                                    :class="item.mode === 'paper'
+                                        ? 'bg-accent-50 text-accent-700 dark:bg-accent-950/60 dark:text-accent-300 border border-accent-200 dark:border-accent-800'
+                                        : 'bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800'"
+                                >
+                                    <span>{{ item.mode === 'paper' ? '📑' : '📝' }}</span>
+                                    <span>{{ item.type_label }}</span>
+                                </span>
+
+                                <!-- Scope Badge: Unit, Midterm, Comprehensive -->
+                                <span
+                                    class="text-[11px] px-2.5 py-0.5 rounded-full font-bold"
+                                    :class="item.scope === 'comprehensive'
+                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                        : (item.scope === 'midterm' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300' : 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300')"
+                                >
+                                    {{ item.scope_label }}
+                                </span>
+                            </div>
+
+                            <span :class="statusClasses[item.status] ?? 'badge-gray'" class="shrink-0 text-[11px] font-bold">
+                                {{ statusLabels[item.status] ?? item.status }}
+                            </span>
+                        </div>
+
+                        <!-- Exam Title & Info -->
+                        <h2 class="text-lg font-black text-surface-900 dark:text-white leading-snug">
+                            {{ item.title }}
+                        </h2>
+                        <div class="mt-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400 flex-wrap">
+                            <span class="font-bold text-surface-700 dark:text-surface-200">{{ item.subject?.name }}</span>
+                            <span>·</span>
+                            <span>{{ item.unit ? (item.unit.title) : 'اختبار شامل' }}</span>
+                            <span v-if="item.teacher">·</span>
+                            <span v-if="item.teacher">المعلم: {{ item.teacher.name }}</span>
+                        </div>
+
+                        <!-- ── Electronic Exam Details (📝) ─────────────── -->
+                        <div v-if="item.mode === 'electronic'" class="mt-5 space-y-3">
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                                <div class="rounded-xl bg-surface-50 dark:bg-surface-800/60 p-2.5">
+                                    <span class="block text-[10px] text-surface-400">الأسئلة</span>
+                                    <strong class="mt-0.5 block text-sm font-black text-surface-800 dark:text-surface-100">{{ item.questions_count }}</strong>
+                                </div>
+                                <div class="rounded-xl bg-surface-50 dark:bg-surface-800/60 p-2.5">
+                                    <span class="block text-[10px] text-surface-400">المدة</span>
+                                    <strong class="mt-0.5 block text-sm font-black text-surface-800 dark:text-surface-100">
+                                        {{ item.time_limit_minutes ? item.time_limit_minutes + ' د' : 'مفتوح' }}
+                                    </strong>
+                                </div>
+                                <div class="rounded-xl bg-surface-50 dark:bg-surface-800/60 p-2.5">
+                                    <span class="block text-[10px] text-surface-400">درجة النجاح</span>
+                                    <strong class="mt-0.5 block text-sm font-black text-surface-800 dark:text-surface-100">{{ item.passing_score }}%</strong>
+                                </div>
+                                <div class="rounded-xl bg-surface-50 dark:bg-surface-800/60 p-2.5">
+                                    <span class="block text-[10px] text-surface-400">المحاولات المتبقية</span>
+                                    <strong class="mt-0.5 block text-sm font-black text-surface-800 dark:text-surface-100">{{ item.remaining_attempts }}</strong>
+                                </div>
+                            </div>
+
+                            <!-- Best Attempt Result -->
+                            <div v-if="item.best_attempt" class="p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-xs flex items-center justify-between gap-3">
+                                <div>
+                                    <span class="text-surface-500">أعلى نتيجة حققتها: </span>
+                                    <strong class="text-green-600 dark:text-green-400 font-black text-sm">{{ item.best_attempt.score }}%</strong>
+                                    <span class="ms-1 font-bold" :class="item.best_attempt.passed ? 'text-green-500' : 'text-red-400'">
+                                        ({{ item.best_attempt.passed ? 'اجتياز بنجاح' : 'لم يجتز' }})
+                                    </span>
+                                </div>
+                                <span class="text-[10px] text-surface-400">{{ dateLabel(item.best_attempt.submitted_at) }}</span>
+                            </div>
+
+                            <p v-if="item.best_attempt?.teacher_feedback" class="text-xs text-surface-500 dark:text-surface-400 italic bg-surface-50 dark:bg-surface-800/40 p-2.5 rounded-xl border border-surface-200 dark:border-surface-700">
+                                ملاحظات المعلم: "{{ item.best_attempt.teacher_feedback }}"
                             </p>
-                            <h2 class="mt-1 truncate text-lg font-black text-surface-900 dark:text-white">{{ item.title }}</h2>
-                            <p class="mt-1 text-xs text-surface-400">{{ item.teacher?.name }}</p>
                         </div>
-                        <span :class="statusClasses[item.status] ?? 'badge-gray'" class="shrink-0 text-[10px]">
-                            {{ statusLabels[item.status] ?? item.status }}
-                        </span>
+
+                        <!-- ── Paper / Essay Exam Details (📑) ───────────── -->
+                        <div v-else-if="item.mode === 'paper'" class="mt-5 space-y-4">
+                            <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                                <div class="rounded-xl bg-surface-50 dark:bg-surface-800/60 p-2.5">
+                                    <span class="block text-[10px] text-surface-400">الدرجة الكاملة</span>
+                                    <strong class="mt-0.5 block text-sm font-black text-surface-800 dark:text-surface-100">{{ item.max_score }} درجة</strong>
+                                </div>
+                                <div class="rounded-xl bg-surface-50 dark:bg-surface-800/60 p-2.5">
+                                    <span class="block text-[10px] text-surface-400">آخر موعد للتسليم</span>
+                                    <strong class="mt-0.5 block text-xs font-bold text-surface-800 dark:text-surface-100">
+                                        {{ item.due_date ? formatDateOnly(item.due_date) : 'مفتوح' }}
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <!-- Download Questions Sheet -->
+                            <div v-if="item.file_url" class="p-3 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="text-lg">📄</span>
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-bold text-surface-900 dark:text-white truncate">ورقة أسئلة الاختبار المقالي</div>
+                                        <div class="text-[10px] text-surface-400">حمّل الملف واكتب إجاباتك تمهيداً لرفعها</div>
+                                    </div>
+                                </div>
+                                <a :href="item.file_url" target="_blank" rel="noopener" class="btn btn-xs bg-primary-600 hover:bg-primary-700 text-white font-bold shrink-0 flex items-center gap-1">
+                                    <Icon name="download" class="w-3.5 h-3.5" />
+                                    <span>تحميل الأسئلة</span>
+                                </a>
+                            </div>
+
+                            <!-- Submission State & Teacher Feedback -->
+                            <div v-if="item.submission" class="p-3.5 rounded-xl bg-surface-900/5 dark:bg-surface-950/60 border border-surface-200 dark:border-surface-800 text-xs space-y-2">
+                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                    <div class="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-bold">
+                                        <Icon name="success" class="w-4 h-4" />
+                                        <span>تم تسليم الإجابة</span>
+                                        <span class="text-surface-400 font-normal">({{ dateLabel(item.submission.submitted_at) }})</span>
+                                    </div>
+                                    <a v-if="item.submission.file_url" :href="item.submission.file_url" target="_blank" rel="noopener" class="text-primary-600 dark:text-primary-400 hover:underline font-bold inline-flex items-center gap-1 text-[11px]">
+                                        <span>عرض إجابتي المرفوعة</span>
+                                        <span>↗</span>
+                                    </a>
+                                </div>
+
+                                <div v-if="item.submission.is_graded" class="pt-1 border-t border-surface-200 dark:border-surface-700">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-surface-500">الدرجة المرصودة:</span>
+                                        <strong class="text-sm font-black text-primary-600 dark:text-primary-400">
+                                            {{ item.submission.score }} / {{ item.max_score }}
+                                        </strong>
+                                        <span v-if="item.submission.score_percent !== null" class="text-[11px] font-bold text-surface-400">
+                                            ({{ item.submission.score_percent }}%)
+                                        </span>
+                                    </div>
+                                    <p v-if="item.submission.teacher_feedback" class="mt-1 text-surface-600 dark:text-surface-300 italic">
+                                        ملاحظات المعلم: "{{ item.submission.teacher_feedback }}"
+                                    </p>
+                                </div>
+                                <div v-else class="text-surface-400 text-[11px]">
+                                    في انتظار مراجعة وتصحيح المعلم للدرجة.
+                                </div>
+                            </div>
+
+                            <!-- Upload Answer Form -->
+                            <div v-if="item.requires_submission" class="space-y-1.5 pt-1">
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.docx,.png,.jpg,.jpeg"
+                                        :key="`pe-input-${item.id}-${item.submission?.submitted_at ?? 'new'}`"
+                                        @change="onFileChange($event, item.id)"
+                                        class="text-xs text-surface-500 bg-surface-50 dark:bg-surface-850 border border-surface-200 dark:border-surface-700 rounded-xl px-3 py-2 flex-1 min-w-0"
+                                    />
+                                    <button
+                                        type="button"
+                                        @click="uploadAnswer(item.id)"
+                                        :disabled="uploadingSheet === item.id"
+                                        class="btn-primary btn-sm shrink-0 font-bold"
+                                    >
+                                        {{ uploadingSheet === item.id
+                                            ? 'جارٍ الرفع...'
+                                            : (item.submission ? 'إعادة رفع الإجابة' : 'تسليم إجابة الاختبار') }}
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-surface-400">
+                                    صيغ مسموحة: PDF أو Word أو صورة ممسوحة ضوئياً (بحد أقصى 10 ميجابايت).
+                                </p>
+                                <p v-if="uploadNotices[item.id]" class="text-[11px] text-red-500 font-bold">
+                                    {{ uploadNotices[item.id] }}
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="mt-5 grid grid-cols-2 gap-3 text-xs">
-                        <div class="rounded-xl bg-surface-50 p-3 dark:bg-surface-800/60">
-                            <span class="block text-surface-400">الأسئلة</span>
-                            <strong class="mt-1 block text-surface-800 dark:text-surface-100">{{ item.questions_count }}</strong>
+                    <!-- Footer Action Bar for Electronic Exams -->
+                    <div v-if="item.mode === 'electronic'" class="mt-6 pt-4 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between gap-3 text-xs">
+                        <div class="text-surface-500 dark:text-surface-400 text-[11px]">
+                            <span v-if="item.available_from">يبدأ في: {{ dateLabel(item.available_from) }}</span>
+                            <span v-else>متاح للبدء في أي وقت</span>
                         </div>
-                        <div class="rounded-xl bg-surface-50 p-3 dark:bg-surface-800/60">
-                            <span class="block text-surface-400">المحاولات المتبقية</span>
-                            <strong class="mt-1 block text-surface-800 dark:text-surface-100">{{ item.remaining_attempts }}</strong>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
-                        <div class="text-surface-500 dark:text-surface-400">
-                            <span v-if="item.best_attempt">أفضل نتيجة: <strong class="text-surface-800 dark:text-surface-100">{{ item.best_attempt.score }}%</strong></span>
-                            <span v-else-if="item.available_from">يفتح: {{ dateLabel(item.available_from) }}</span>
-                            <span v-else>متاح الآن</span>
-                        </div>
-                        <p v-if="item.best_attempt?.teacher_feedback" class="w-full text-xs text-surface-500 dark:text-surface-400">
-                            ملاحظات المدرس: {{ item.best_attempt.teacher_feedback }}
-                        </p>
-                        <Link :href="route('student.quiz', { quizId: item.id })" class="btn-primary btn-sm">
-                            {{ item.can_start ? 'ابدأ الاختبار' : 'عرض التفاصيل' }}
+                        <Link :href="route('student.quiz', { quizId: item.id })" class="btn-primary btn-sm flex items-center gap-1 font-bold">
+                            <span>{{ item.can_start ? 'ابدأ الاختبار الإلكتروني' : 'تفاصيل الاختبار' }}</span>
+                            <span>←</span>
                         </Link>
                     </div>
                 </article>
             </section>
 
-            <div v-else class="card p-10 text-center">
-                <Icon name="chart" class="mx-auto h-10 w-10 text-surface-300" />
-                <h2 class="mt-3 font-black text-surface-800 dark:text-surface-100">لا توجد اختبارات في هذا التصنيف</h2>
-                <p class="mt-1 text-sm text-surface-400">ستظهر هنا الاختبارات المنشورة ضمن اشتراكاتك النشطة.</p>
+            <!-- ── Empty State ────────────────────────────────────── -->
+            <div v-else class="card p-12 text-center max-w-lg mx-auto">
+                <div class="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 flex items-center justify-center mx-auto mb-4">
+                    <Icon name="chart" class="w-8 h-8" />
+                </div>
+                <h2 class="text-lg font-black text-surface-900 dark:text-white mb-1">
+                    لا توجد اختبارات تطابق هذا التصنيف
+                </h2>
+                <p class="text-xs text-surface-500 dark:text-surface-400 leading-relaxed mb-6">
+                    جرّب تغيير خيارات التصفية (الكل / إلكتروني / مقالي)، أو استعرض مواردك التعليمية لمتابعة الدروس المنشورة أولاً.
+                </p>
+                <div class="flex items-center justify-center gap-2">
+                    <button type="button" @click="activeMode = 'all'; activeScope = 'all'; activeStatus = 'all'" class="btn-outline btn-sm">
+                        إعادة تعيين الفلاتر
+                    </button>
+                    <Link :href="route('student.resources')" class="btn-primary btn-sm">
+                        الموارد التعليمية
+                    </Link>
+                </div>
             </div>
+
         </div>
     </DashboardLayout>
 </template>

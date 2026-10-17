@@ -758,11 +758,17 @@
     .text-gradient-primary {
         @apply bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500
                bg-clip-text text-transparent;
+        padding-bottom: 0.2em;
+        display: inline-block;
+        line-height: normal;
     }
 
     .text-gradient-accent {
         @apply bg-gradient-to-r from-accent-500 to-accent-400
                bg-clip-text text-transparent;
+        padding-bottom: 0.2em;
+        display: inline-block;
+        line-height: normal;
     }
 
     /* Hide scrollbar but keep scroll */

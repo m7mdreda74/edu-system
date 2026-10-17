@@ -120,3 +120,108 @@ it('does not expose homework belonging to another assignment', function (): void
             ->where('summary.total', 0)
             ->has('assignments', 0));
 });
+
+it('sends missing homework alert notification and marks assignment as late when deadline has passed', function (): void {
+    Role::findOrCreate('student', 'web');
+    $student = User::factory()->create(['email_verified_at' => now()]);
+    $student->assignRole('student');
+    $assignment = TeachingAssignment::factory()->create([
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $group = TeachingGroup::factory()->create(['teaching_assignment_id' => $assignment->id]);
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $assignment->id,
+        'academic_term_id' => AcademicTerm::currentOrNext()?->id,
+        'is_published' => true,
+    ]);
+    $lesson = GroupMaterial::factory()->create(['curriculum_unit_id' => $unit->id]);
+    $homework = Worksheet::create([
+        'curriculum_unit_id' => $unit->id,
+        'lesson_id' => $lesson->id,
+        'title' => 'واجب متأخر',
+        'file_path' => 'private://worksheets/late_hw.pdf',
+        'type' => Worksheet::TYPE_HOMEWORK,
+        'requires_submission' => true,
+        'due_date' => today()->subDays(2),
+        'max_score' => 20,
+    ]);
+
+    Subscription::factory()->active()->create([
+        'student_id' => $student->id,
+        'teaching_group_id' => $group->id,
+        'teaching_assignment_id' => $assignment->id,
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('student.assignments'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Student/Assignments')
+            ->where('summary.late', 1)
+            ->where('assignments.0.id', $homework->id)
+            ->where('assignments.0.status', 'late')
+            ->where('assignments.0.is_late', true)
+            ->where('assignments.0.submitted_late', false));
+
+    // Confirm that notification was created for student
+    $notification = $student->notifications()->first();
+    expect($notification)->not->toBeNull();
+    expect($notification->data['title'])->toContain('تأخرت في تسليم الواجب');
+    expect($notification->data['alert_type'])->toBe('missing_assignment');
+});
+
+it('marks submission as late and shows late notice even if submitted after deadline', function (): void {
+    Role::findOrCreate('student', 'web');
+    $student = User::factory()->create(['email_verified_at' => now()]);
+    $student->assignRole('student');
+    $assignment = TeachingAssignment::factory()->create([
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $group = TeachingGroup::factory()->create(['teaching_assignment_id' => $assignment->id]);
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $assignment->id,
+        'academic_term_id' => AcademicTerm::currentOrNext()?->id,
+        'is_published' => true,
+    ]);
+    $lesson = GroupMaterial::factory()->create(['curriculum_unit_id' => $unit->id]);
+    $homework = Worksheet::create([
+        'curriculum_unit_id' => $unit->id,
+        'lesson_id' => $lesson->id,
+        'title' => 'واجب الفيزياء المتأخر',
+        'file_path' => 'private://worksheets/physics.pdf',
+        'type' => Worksheet::TYPE_HOMEWORK,
+        'requires_submission' => true,
+        'due_date' => today()->subDays(3),
+        'max_score' => 10,
+    ]);
+
+    Subscription::factory()->active()->create([
+        'student_id' => $student->id,
+        'teaching_group_id' => $group->id,
+        'teaching_assignment_id' => $assignment->id,
+    ]);
+
+    // Submit homework after deadline
+    $submission = WorksheetSubmission::create([
+        'worksheet_id' => $homework->id,
+        'student_id' => $student->id,
+        'submitted_file_path' => 'private://submissions/physics_solved.pdf',
+        'submitted_at' => now(),
+        'is_late' => true,
+    ]);
+
+    expect($submission->isLate())->toBeTrue();
+
+    $this->actingAs($student)
+        ->get(route('student.assignments'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Student/Assignments')
+            ->where('summary.late', 1)
+            ->where('assignments.0.id', $homework->id)
+            ->where('assignments.0.is_late', true)
+            ->where('assignments.0.submitted_late', true)
+            ->where('assignments.0.late_notice', 'تم التسليم بعد انتهاء الموعد المحدد (تأخر في التسليم)')
+            ->where('assignments.0.submission.is_late', true));
+});
+

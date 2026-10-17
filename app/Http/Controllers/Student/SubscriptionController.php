@@ -74,7 +74,7 @@ class SubscriptionController extends Controller
                         ->pluck('total', 'assignment_id');
             })
             ->map(function (Subscription $subscription) use (&$materialCounts, &$completedCounts) {
-                $group = $subscription->group;
+                $group = $subscription->group ?? $subscription->assignment?->groups?->first();
                 $assignmentId = (int) $subscription->teaching_assignment_id;
                 $totalMaterials = (int) ($materialCounts[$assignmentId] ?? 0);
                 $completedMaterials = (int) ($completedCounts[$assignmentId] ?? 0);

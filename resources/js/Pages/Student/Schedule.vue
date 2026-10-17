@@ -1,11 +1,27 @@
 <script setup>
-import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { computed, onMounted, onBeforeUnmount } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     sessions: { type: Array, default: () => [] },
+});
+
+let pollTimer = null;
+
+onMounted(() => {
+    // Poll every 12 seconds to auto-unlock the entry button once teacher starts the class
+    pollTimer = window.setInterval(() => {
+        router.reload({ only: ['sessions'], preserveScroll: true });
+    }, 12000);
+});
+
+onBeforeUnmount(() => {
+    if (pollTimer) {
+        window.clearInterval(pollTimer);
+        pollTimer = null;
+    }
 });
 
 const groupedSessions = computed(() => {
@@ -93,7 +109,10 @@ function formatTime(session) {
                                     <span :class="session.type === 'private' ? 'badge-accent' : 'badge-primary'" class="text-[10px]">
                                         {{ session.type === 'private' ? 'حصة خاصة' : 'حصة جماعية' }}
                                     </span>
-                                    <span v-if="session.status === 'live'" class="badge-red animate-pulse text-[10px]">مباشرة الآن</span>
+                                    <span v-if="session.is_free" class="badge-green text-[10px]">
+                                        حصة مجانية
+                                    </span>
+                                    <span v-if="session.status === 'live'" class="badge-red animate-pulse text-[10px]">مباشرة الآن 🔴</span>
                                 </div>
                                 <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-surface-500 dark:text-surface-400">
                                     <span>{{ session.subject ?? 'المادة غير محددة' }}</span>
@@ -112,11 +131,21 @@ function formatTime(session) {
                             <Link
                                 v-if="session.status === 'live'"
                                 :href="route('live-sessions.room', session.id)"
-                                class="btn-primary btn-sm shrink-0"
+                                class="btn-primary btn-sm shrink-0 flex items-center gap-1.5 shadow-md shadow-primary-500/20 font-bold"
                             >
-                                ادخل الحصة
+                                <span class="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
+                                <span>دخول الحصة الآن 🔴</span>
                             </Link>
-                            <span v-else class="badge-gray self-start text-[10px] sm:self-auto">مجدولة</span>
+                            <button
+                                v-else
+                                type="button"
+                                disabled
+                                class="btn-sm bg-surface-100 dark:bg-surface-800 text-surface-400 dark:text-surface-500 cursor-not-allowed flex items-center gap-1.5 border border-surface-200 dark:border-surface-700 shrink-0 self-start sm:self-auto"
+                                title="يتفعل زر الدخول فور بدء المعلم للحصة"
+                            >
+                                <Icon name="clock" class="w-3.5 h-3.5 text-surface-400" />
+                                <span>بانتظار بدء المعلم للحصة</span>
+                            </button>
                         </article>
                     </div>
                 </section>

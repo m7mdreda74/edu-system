@@ -187,9 +187,6 @@ function subscribe(groupId) {
 
                                             <div class="flex items-center gap-2 mt-2 flex-wrap text-[11px] text-surface-400">
                                                 <span v-if="teacher.years_experience">{{ teacher.years_experience }} سنة خبرة</span>
-                                                <span v-if="teacher.cheapest_monthly !== null" class="font-black text-primary-700 dark:text-primary-400 text-xs">
-                                                    {{ formatMonthly(teacher.cheapest_monthly) }}
-                                                </span>
                                                 <span v-if="!teacher.has_free_seats" class="badge-red text-[10px]">اكتمل العدد</span>
                                             </div>
                                         </div>
@@ -199,24 +196,32 @@ function subscribe(groupId) {
                                             <template v-if="teacher.is_subscribed">
                                                 <Link
                                                     v-if="subject.learn_group_id"
-                                                    :href="route('student.learn', { groupId: subject.learn_group_id })"
-                                                    class="btn-primary btn-sm justify-center"
-                                                >ادخل الحصة</Link>
+                                                    :href="route('student.learn', { groupId: subject.learn_group_id, progress: 1 })"
+                                                    class="btn-primary btn-sm justify-center gap-1.5 shadow-sm"
+                                                >
+                                                    <Icon name="chart" class="w-4 h-4" />
+                                                    <span>تابع تقدمك</span>
+                                                </Link>
+                                                <Link
+                                                    v-else
+                                                    :href="route('student.resources')"
+                                                    class="btn-primary btn-sm justify-center gap-1.5 shadow-sm"
+                                                >
+                                                    <Icon name="chart" class="w-4 h-4" />
+                                                    <span>تابع تقدمك</span>
+                                                </Link>
                                             </template>
 
                                             <template v-else>
-                                                <button
-                                                    v-if="teacher.groups.length && teacher.has_free_seats"
-                                                    type="button"
+                                                <Link
+                                                    :href="teacher.profile_url"
                                                     class="btn-primary btn-sm justify-center"
-                                                    :disabled="subscribing === teacher.groups[0].id"
-                                                    @click="subscribe(teacher.groups[0].id)"
                                                 >
-                                                    {{ subscribing === teacher.groups[0].id ? '...' : 'اشترك' }}
-                                                </button>
+                                                    اشترك مع المعلم
+                                                </Link>
 
                                                 <Link :href="teacher.profile_url" class="btn-outline btn-sm justify-center">
-                                                    اطّلع على المعلم
+                                                    اطّلع على الملف
                                                 </Link>
                                             </template>
                                         </div>

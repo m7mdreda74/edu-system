@@ -230,6 +230,7 @@ Route::middleware(['auth', 'active', 'verified', 'role:student'])->group(functio
     Route::get('/my-classes', [SubscriptionController::class, 'index'])->name('student.my-classes');
     Route::get('/my-assignments', [AssignmentController::class, 'index'])->name('student.assignments');
     Route::get('/my-assessments', [AssessmentController::class, 'index'])->name('student.assessments');
+    Route::post('/my-assessments/worksheets/{worksheetId}/submit', [AssessmentController::class, 'submitPaperExam'])->name('student.assessments.submit-paper');
     Route::get('/my-resources', [StudentResourceLibraryController::class, 'index'])->name('student.resources');
     Route::post('/subscribe/group/{groupId}', [SubscriptionController::class, 'subscribeToGroup'])->name('student.subscribe.group')->middleware('throttle:15,1');
     Route::post('/subscribe/private/{assignmentId}', [SubscriptionController::class, 'subscribeToPrivate'])->name('student.subscribe.private')->middleware('throttle:15,1');
@@ -354,6 +355,7 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
 
     // Curriculum builder — the syllabus hangs off the assignment, not the group,
     // so the teacher writes it once for every group and private student on it.
+    Route::get('/curriculum', [CurriculumController::class, 'landing'])->name('curriculum.index');
     Route::get('/assignments/{assignment}/curriculum', [CurriculumController::class, 'index'])->name('curriculum');
     Route::post('/assignments/{assignment}/quick-lesson', [CurriculumController::class, 'storeQuickLesson'])->name('curriculum.quick-lesson');
     Route::post('/assignments/{assignment}/curriculum/skeleton', [CurriculumController::class, 'skeleton'])->name('curriculum.skeleton');
@@ -505,6 +507,7 @@ Route::middleware(['auth', 'active', 'role:admin', 'admin.sensitive'])->prefix('
     Route::get('/resource-library', [AdminResourceLibraryController::class, 'index'])->name('resource-library');
     Route::patch('/resource-library/{resource}/approve', [AdminResourceLibraryController::class, 'approve'])->name('resource-library.approve');
     Route::patch('/resource-library/{resource}/reject', [AdminResourceLibraryController::class, 'reject'])->name('resource-library.reject');
+    Route::patch('/resource-library/{resource}/notes', [AdminResourceLibraryController::class, 'updateNotes'])->name('resource-library.update-notes');
 
     // Subjects
     Route::get('/subjects', [SubjectController::class, 'index'])->name('subjects');

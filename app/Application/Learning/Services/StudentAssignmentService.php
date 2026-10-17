@@ -22,6 +22,12 @@ class StudentAssignmentService
      */
     public function forStudent(User $student): array
     {
+        try {
+            app(AcademicAlertService::class)->sendMissingHomeworkAlertsForStudent($student);
+        } catch (\Throwable) {
+            // Keep resilient even if notification evaluation encounters an issue
+        }
+
         $subscriptions = Subscription::active()
             ->where('student_id', $student->id)
             ->with([
@@ -67,6 +73,7 @@ class StudentAssignmentService
             $lessonProgress = $progress->get($worksheet->lesson_id);
             $isLate = $this->isLate($worksheet, $submission);
             $status = $this->status($worksheet, $submission, $lessonProgress, $isLate);
+            $submittedLate = ($submission?->is_late === true) || ($submission?->submitted_at !== null && $isLate);
 
             return [
                 'id' => $worksheet->id,
@@ -82,12 +89,17 @@ class StudentAssignmentService
                 'max_score' => $worksheet->max_score,
                 'status' => $status,
                 'is_late' => $isLate,
+                'submitted_late' => $submittedLate,
+                'late_notice' => $submittedLate
+                    ? 'تم التسليم بعد انتهاء الموعد المحدد (تأخر في التسليم)'
+                    : ($status === 'late' ? 'تأخرت في تسليم هذا الواجب عن الموعد المحدد' : null),
                 'worksheet_file' => filled($worksheet->file_path)
                     ? route('learning.worksheet.download', $worksheet->id)
                     : null,
                 'submission' => $submission === null ? null : [
                     'id' => $submission->id,
                     'submitted_at' => $submission->submitted_at?->toIso8601String(),
+                    'is_late' => (bool) ($submission->is_late || $submittedLate),
                     'score' => $submission->score,
                     'teacher_feedback' => $submission->teacher_feedback,
                     'graded_at' => $submission->graded_at?->toIso8601String(),
@@ -101,6 +113,9 @@ class StudentAssignmentService
         $summary = $this->emptySummary();
         foreach ($items as $item) {
             $summary[$item['status']] = ($summary[$item['status']] ?? 0) + 1;
+            if ($item['submitted_late'] && $item['status'] !== 'late') {
+                $summary['late']++;
+            }
             $summary['total']++;
         }
 
@@ -127,7 +142,7 @@ class StudentAssignmentService
         }
 
         if ($submission?->submitted_at !== null) {
-            return $submission->submitted_at->startOfDay()->isAfter($worksheet->due_date);
+            return (bool) $submission->is_late || $submission->submitted_at->startOfDay()->isAfter($worksheet->due_date);
         }
 
         return $worksheet->due_date->isBefore(today());

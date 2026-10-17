@@ -160,7 +160,12 @@ const statusClasses = {
                                     <div v-if="row.percentage !== null" class="mt-0.5 text-xs text-surface-500">{{ row.percentage }}%</div>
                                 </td>
                                 <td class="px-5 py-4">
-                                    <span :class="statusClasses[row.status]" class="text-[10px]">{{ statusLabels[row.status] }}</span>
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <span :class="statusClasses[row.status]" class="text-[10px]">{{ statusLabels[row.status] }}</span>
+                                        <span v-if="row.is_late" class="rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-500 border border-red-500/20">
+                                            ⚠️ تسليم متأخر
+                                        </span>
+                                    </div>
                                     <p v-if="row.feedback" class="mt-2 max-w-xs text-xs text-surface-500">{{ row.feedback }}</p>
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-xs text-surface-500">{{ formatDate(row.assessed_at) }}</td>

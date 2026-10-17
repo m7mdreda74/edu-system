@@ -18,21 +18,61 @@ class ResourceLibraryController extends Controller
     public function index(Request $request, ResourceLibraryService $resources): Response
     {
         return Inertia::render('Admin/ResourceLibrary', $resources->adminIndex(
-            $request->only(['status']),
+            $request->only(['status', 'search']),
         ));
     }
 
-    public function approve(LearningResource $resource, ResourceLibraryService $resources): RedirectResponse
-    {
-        $resources->approve(Auth::user(), $resource);
+    public function approve(
+        Request $request,
+        LearningResource $resource,
+        ResourceLibraryService $resources,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'admin_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
 
-        return back()->with('success', 'تم اعتماد المورد ومشاركته مع المعلمين.');
+        $resources->approve(Auth::user(), $resource, $data['admin_notes'] ?? null);
+
+        return back()->with('success', 'تم اعتماد المورد ومشاركته بنجاح، مع إشعار المعلم بالملاحظات.');
     }
 
-    public function reject(LearningResource $resource, ResourceLibraryService $resources): RedirectResponse
-    {
-        $resources->reject(Auth::user(), $resource);
+    public function reject(
+        Request $request,
+        LearningResource $resource,
+        ResourceLibraryService $resources,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'rejection_reason' => ['required', 'string', 'min:3', 'max:2000'],
+            'admin_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
 
-        return back()->with('success', 'تم رفض مشاركة المورد.');
+        $resources->reject(
+            Auth::user(),
+            $resource,
+            $data['rejection_reason'],
+            $data['admin_notes'] ?? null,
+        );
+
+        return back()->with('success', 'تم رفض المورد وتوجيه أسباب الرفض والملاحظات للمعلم.');
+    }
+
+    public function updateNotes(
+        Request $request,
+        LearningResource $resource,
+        ResourceLibraryService $resources,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'admin_notes' => ['nullable', 'string', 'max:2000'],
+            'rejection_reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $resources->updateNotes(
+            Auth::user(),
+            $resource,
+            $data['admin_notes'] ?? null,
+            $data['rejection_reason'] ?? null,
+        );
+
+        return back()->with('success', 'تم تحديث ملاحظات وتوجيهات الإدارة بنجاح.');
     }
 }

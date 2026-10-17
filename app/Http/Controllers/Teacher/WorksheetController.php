@@ -40,15 +40,18 @@ class WorksheetController extends Controller
             ));
 
         $submissions = WorksheetSubmission::whereIn('worksheet_id', $worksheets->pluck('id'))
-            ->with(['worksheet:id,title,max_score', 'student:id,name,email'])
+            ->with(['worksheet:id,title,max_score,due_date', 'student:id,name,email'])
             ->latest('submitted_at')
             ->get()
-            ->each(fn (WorksheetSubmission $submission) => $submission->setAttribute(
-                'submitted_file_path',
-                filled($submission->submitted_file_path)
-                    ? route('learning.submission.download', $submission->id)
-                    : null,
-            ));
+            ->each(function (WorksheetSubmission $submission): void {
+                $submission->setAttribute(
+                    'submitted_file_path',
+                    filled($submission->submitted_file_path)
+                        ? route('learning.submission.download', $submission->id)
+                        : null,
+                );
+                $submission->setAttribute('is_late', (bool) ($submission->is_late || $submission->isLate()));
+            });
 
         return Inertia::render('Teacher/Worksheets', [
             'group' => [

@@ -148,18 +148,18 @@ class AcademicAlertService
 
                 $key = $alertType.':'.$worksheet->id.':'.$student->id.':'.$dueDate;
                 $message = $isMissing
-                    ? "لم يتم تسليم واجب {$worksheet->title}{$subjectLabel} وكان موعده {$dueDate}. راجع مركز الواجبات لإتمام المطلوب."
+                    ? "تأخرت في تسليم واجب {$worksheet->title}{$subjectLabel} وكان آخر موعد هو {$dueDate}. يرجى إنجاز الواجب وتسليمه في أقرب وقت عبر مركز الواجبات."
                     : "اقترب موعد تسليم واجب {$worksheet->title}{$subjectLabel} في {$dueDate}. افتح مركز الواجبات وخطط للتسليم في الوقت المناسب.";
 
                 $this->notifyStudentAndParents(
                     $student,
                     [
                         'alert_type' => $alertType,
-                        'title' => $isMissing ? 'واجب متأخر يحتاج متابعة' : 'موعد تسليم واجب قريب',
+                        'title' => $isMissing ? '⚠️ تنبيه: تأخرت في تسليم الواجب' : 'موعد تسليم واجب قريب',
                         'message' => $message,
                         'link' => route('student.assignments'),
                         'parent_link' => route('parent.dashboard'),
-                        'icon' => 'clipboard',
+                        'icon' => $isMissing ? 'warning' : 'clipboard',
                         'student_id' => $student->id,
                         'entity_id' => $worksheet->id,
                     ],
@@ -169,6 +169,67 @@ class AcademicAlertService
                 );
             }
         }
+    }
+
+    public function sendMissingHomeworkAlertsForStudent(User $student, ?Carbon $now = null): int
+    {
+        $now ??= now();
+        $today = $now->copy()->startOfDay();
+        $missingFrom = $today->copy()->subDays(max(1, (int) config('learning.academic_alerts.missing_assignment_days', 30)));
+
+        $subscriptions = Subscription::query()
+            ->active()
+            ->where('student_id', $student->id)
+            ->whereNotNull('teaching_assignment_id')
+            ->pluck('teaching_assignment_id')
+            ->filter()
+            ->unique();
+
+        if ($subscriptions->isEmpty()) {
+            return 0;
+        }
+
+        $worksheets = Worksheet::query()
+            ->where('type', Worksheet::TYPE_HOMEWORK)
+            ->where('requires_submission', true)
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', $today->toDateString())
+            ->where('due_date', '>=', $missingFrom->toDateString())
+            ->whereHas('unit', fn ($query) => $query
+                ->whereIn('teaching_assignment_id', $subscriptions)
+                ->where('is_published', true))
+            ->whereDoesntHave('submissions', fn ($q) => $q->where('student_id', $student->id)->whereNotNull('submitted_at'))
+            ->with(['unit.assignment.subject:id,name'])
+            ->get();
+
+        $stats = ['alerts_evaluated' => 0, 'notifications_sent' => 0, 'duplicates_skipped' => 0];
+
+        foreach ($worksheets as $worksheet) {
+            $dueDate = $worksheet->due_date->toDateString();
+            $subject = $worksheet->unit?->assignment?->subject?->name;
+            $subjectLabel = $subject ? " في مادة {$subject}" : '';
+            $key = self::ALERT_MISSING_ASSIGNMENT.':'.$worksheet->id.':'.$student->id.':'.$dueDate;
+            $message = "تأخرت في تسليم واجب {$worksheet->title}{$subjectLabel} وكان آخر موعد هو {$dueDate}. يرجى إنجاز الواجب وتسليمه في أقرب وقت عبر مركز الواجبات.";
+
+            $this->notifyStudentAndParents(
+                $student,
+                [
+                    'alert_type' => self::ALERT_MISSING_ASSIGNMENT,
+                    'title' => '⚠️ تنبيه: تأخرت في تسليم الواجب',
+                    'message' => $message,
+                    'link' => route('student.assignments'),
+                    'parent_link' => route('parent.dashboard'),
+                    'icon' => 'warning',
+                    'student_id' => $student->id,
+                    'entity_id' => $worksheet->id,
+                ],
+                $key,
+                $now,
+                $stats,
+            );
+        }
+
+        return $stats['notifications_sent'];
     }
 
     private function sendUpcomingClassAlerts(Carbon $now, array &$stats): void

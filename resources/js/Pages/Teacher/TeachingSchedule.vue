@@ -148,13 +148,13 @@ function formatDate(value) {
 
 <template>
     <DashboardLayout>
-        <Head title="الخطة الأكاديمية وجدول الحصص" />
+        <Head title="تحديد المواعيد وجدول الحصص" />
 
         <div class="container-app px-4 py-8 space-y-7">
             <header>
-                <h1 class="text-3xl font-black text-surface-900 dark:text-white">الخطة الأكاديمية وجدول الحصص</h1>
+                <h1 class="text-3xl font-black text-surface-900 dark:text-white">تحديد المواعيد وجدول الحصص</h1>
                 <p class="text-surface-500 mt-2">
-                    الإدارة تحدد الإسنادات والأسعار والسعة، وأنت تنشر مواعيد مجموعاتك ومواعيد البرايفيت من جدولك.
+                    حدد مواعيد مجموعاتك الأسبوعية، مواعيد الحصص الخاصة (البرايفت)، والحصص المجانية. لبناء الخطة الأكاديمية والمناهج، انتقل إلى تبويب الخطة الأكاديمية.
                 </p>
             </header>
 
@@ -176,8 +176,9 @@ function formatDate(value) {
                         </h2>
                         <p class="text-xs text-surface-400 mt-1">{{ assignment.groups.length }} مجموعة مسندة إليك</p>
                     </div>
-                    <Link :href="route('teacher.curriculum', { assignment: assignment.id })" class="btn-primary btn-sm">
-                        بناء المنهج والوحدات والدروس
+                    <Link :href="route('teacher.curriculum', { assignment: assignment.id })" class="btn-primary btn-sm flex items-center gap-1.5 shadow-sm">
+                        <Icon name="book" class="w-4 h-4" />
+                        <span>الخطة الأكاديمية وبناء المنهج</span>
                     </Link>
                 </div>
 
@@ -355,7 +356,16 @@ function formatDate(value) {
 
                     <div class="rounded-xl bg-surface-50 dark:bg-surface-900/50 p-4">
                         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                            <h4 class="font-bold">خطة حصص المجموعة</h4>
+                            <div>
+                                <h4 class="font-bold flex items-center gap-2">
+                                    <span>جدولة الحصص المباشرة للمجموعة</span>
+                                    <span class="badge-primary text-[10px]">Live Sessions</span>
+                                </h4>
+                                <p class="text-xs text-surface-500 mt-0.5">
+                                    تُجدول تلقائياً في مواعيد المجموعة التالية. لبناء الوحدات الكاملة والملازم، انتقل إلى
+                                    <Link :href="route('teacher.curriculum', { assignment: assignment.id })" class="text-primary-600 dark:text-primary-400 underline font-bold">الخطة الأكاديمية</Link>.
+                                </p>
+                            </div>
                             <button
                                 v-if="group.lessons?.some((l) => l.status === 'pending')"
                                 type="button"
@@ -394,9 +404,9 @@ function formatDate(value) {
                         </div>
 
                         <form class="grid md:grid-cols-4 gap-3" @submit.prevent="addLesson(group.id)">
-                            <input v-model="lessonDrafts[group.id].title" class="input md:col-span-2" minlength="3" maxlength="255" placeholder="عنوان الحصة" required />
-                            <input v-model="lessonDrafts[group.id].description" class="input" maxlength="2000" placeholder="ملاحظات أكاديمية" />
-                                <button type="submit" class="btn-outline">+ إضافة للخطة</button>
+                            <input v-model="lessonDrafts[group.id].title" class="input md:col-span-2" minlength="3" maxlength="255" placeholder="عنوان الحصة المباشرة" required />
+                            <input v-model="lessonDrafts[group.id].description" class="input" maxlength="2000" placeholder="ملاحظات الحصة" />
+                            <button type="submit" class="btn-outline">+ إضافة للجدول</button>
                         </form>
                     </div>
                 </article>

@@ -213,6 +213,8 @@ class TeacherGradebookService
                 'worksheet.max_score as maximum',
                 DB::raw("CASE WHEN submission.graded_at IS NULL THEN 'needs_grading' ELSE 'graded' END as status"),
                 'submission.teacher_feedback as feedback',
+                'worksheet.due_date as due_date',
+                DB::raw("CASE WHEN submission.is_late = 1 OR (worksheet.due_date IS NOT NULL AND DATE(submission.submitted_at) > worksheet.due_date) THEN 1 ELSE 0 END as is_late"),
                 'submission.submitted_at as assessed_at',
             ]);
 
@@ -258,6 +260,8 @@ class TeacherGradebookService
                 'attempt.total_points as maximum',
                 DB::raw("'graded' as status"),
                 'attempt.teacher_feedback as feedback',
+                DB::raw('NULL as due_date'),
+                DB::raw('0 as is_late'),
                 'attempt.submitted_at as assessed_at',
             ]);
 
@@ -341,6 +345,8 @@ class TeacherGradebookService
                 : $this->percentage($earned, $maximum),
             'status' => $row->status,
             'feedback' => $row->feedback,
+            'due_date' => $row->due_date ? Carbon::parse((string) $row->due_date)->toDateString() : null,
+            'is_late' => (bool) ($row->is_late ?? false),
             'assessed_at' => $row->assessed_at === null
                 ? null
                 : Carbon::parse((string) $row->assessed_at)->toIso8601String(),
@@ -368,6 +374,8 @@ class TeacherGradebookService
             'percentage' => $this->percentage($earned, $maximum),
             'status' => $submission->graded_at !== null ? 'graded' : 'needs_grading',
             'feedback' => $submission->teacher_feedback,
+            'due_date' => $worksheet->due_date?->toDateString(),
+            'is_late' => $submission->isLate(),
             'assessed_at' => $submission->submitted_at?->toIso8601String(),
         ];
     }

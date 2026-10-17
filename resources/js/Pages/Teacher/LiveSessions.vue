@@ -6,6 +6,7 @@ import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { ref, computed } from 'vue';
 import { useClientPagination } from '@/composables/useClientPagination';
 import { formatTime12 } from '@/lib/money';
+import axios from 'axios';
 
 const props = defineProps({
     sessions: { type: Array, required: true },
@@ -27,14 +28,18 @@ const {
 const form = useForm({
     title:        '',
     description:  '',
-    source_type: 'group',
+    is_free:      false,
+    source_type:  'group',
     teaching_group_id: '',
     private_session_slot_id: '',
     scheduled_date: '',
 });
 
+const modalStep = ref(1);
 const isModalOpen = ref(false);
 const actionModal = ref(null);
+const startingSessionId = ref(null);
+
 const statusForm = useForm({ status: 'ended', recording_url: '', curriculum_unit_id: '' });
 const editForm = useForm({ title: '', description: '' });
 const attendanceForm = useForm({ student_ids: [] });
@@ -57,6 +62,15 @@ const matchingAssignments = computed(() => props.assignments.filter(
 const groupOptions = computed(() => matchingAssignments.value.flatMap(assignment => assignment.groups.map(group => ({ ...group, subject: assignment.subject?.name, grade: assignment.grade_level?.name }))));
 const privateOptions = computed(() => matchingAssignments.value.flatMap(assignment => assignment.private_slots.map(slot => ({ ...slot, subject: assignment.subject?.name, grade: assignment.grade_level?.name }))));
 
+const filteredPrivateOptions = computed(() => {
+    return privateOptions.value.filter(slot => {
+        if (form.is_free) {
+            return Boolean(slot.is_free_intro);
+        }
+        return !slot.is_free_intro;
+    });
+});
+
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 function localDateTimeValue(date = new Date()) {
@@ -74,10 +88,42 @@ function localDateValue(date = new Date()) {
 const minMakeupDateTime = localDateTimeValue();
 const minScheduledDate = localDateValue(new Date(Date.now() + 24 * 60 * 60 * 1000));
 
+function openCreateModal() {
+    form.reset();
+    form.is_free = false;
+    form.source_type = 'group';
+    modalStep.value = 1;
+    selectedAssignmentId.value = props.assignments[0]?.id ? String(props.assignments[0].id) : '';
+    resetScheduleSelection();
+    isModalOpen.value = true;
+}
+
+function isSessionReadyToStart(session) {
+    if (session.status === 'live') return true;
+    if (session.status !== 'scheduled' || isOverdueSession(session)) return false;
+    const scheduledTime = new Date(session.scheduled_at).getTime();
+    // Teacher can start session 15 minutes before scheduled start time or any time after
+    return (scheduledTime - Date.now()) <= (15 * 60 * 1000);
+}
+
+async function startAndEnterSession(session) {
+    startingSessionId.value = session.id;
+    try {
+        await axios.post(route('teacher.live-sessions.start', session.id));
+        window.location.href = route('live-sessions.room', session.id);
+    } catch (error) {
+        console.error('Error starting live session', error);
+        window.location.href = route('live-sessions.room', session.id);
+    } finally {
+        startingSessionId.value = null;
+    }
+}
+
 function submit() {
     form.post(route('teacher.live-sessions.store'), {
         onSuccess: () => {
             form.reset();
+            modalStep.value = 1;
             isModalOpen.value = false;
         }
     });
@@ -260,8 +306,8 @@ function formatDate(value) {
                     </h1>
                     <p class="text-surface-500 mt-1">جدولة وبدء حصص مباشرة آمنة عبر Jitsi داخل المنصة</p>
                 </div>
-                <button type="button" @click="isModalOpen = true" class="btn-primary">
-                    + جدولة حصة جديدة
+                <button type="button" @click="openCreateModal" class="btn-primary flex items-center gap-2">
+                    <span>+ جدولة حصة جديدة</span>
                 </button>
             </div>
 
@@ -282,11 +328,20 @@ function formatDate(value) {
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-700">
                             <tr v-for="session in paginatedSessions" :key="session.id" class="hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
                                 <td class="p-4">
-                                    <div class="font-bold text-surface-900 dark:text-white text-base">{{ session.title }}</div>
-                                    <div class="text-xs text-surface-500 mt-1">{{ session.teaching_group?.name || 'حصة خاصة' }}</div>
-                                    <div v-if="session.teaching_group" class="text-[11px] text-primary-500 mt-1">مجموعة: {{ session.teaching_group.name }}</div>
-                                    <div v-else-if="session.private_session_slot" class="text-[11px] text-accent-500 mt-1">
-                                        {{ session.private_session_slot.is_free_intro ? 'حصة تجريبية مجانية محجوزة' : 'جلسة برايفيت محجوزة' }}
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-bold text-surface-900 dark:text-white text-base">{{ session.title }}</span>
+                                        <span :class="session.is_free ? 'badge-green' : 'badge-primary'" class="text-[10px] font-bold">
+                                            {{ session.is_free ? 'حصة مجانية' : 'حصة مدفوعة' }}
+                                        </span>
+                                        <span :class="session.teaching_group ? 'badge-accent' : 'badge-gray'" class="text-[10px] font-bold">
+                                            {{ session.teaching_group ? 'مجموعة' : 'برايفت' }}
+                                        </span>
+                                    </div>
+                                    <div v-if="session.teaching_group" class="text-xs text-primary-600 dark:text-primary-400 mt-1">
+                                        مجموعة: {{ session.teaching_group.name }}
+                                    </div>
+                                    <div v-else-if="session.private_session_slot" class="text-xs text-accent-600 dark:text-accent-400 mt-1">
+                                        {{ session.private_session_slot.is_free_intro ? 'جلسة تجريبية مجانية' : 'جلسة برايفيت محجوزة' }}
                                     </div>
                                     <div v-if="session.apology" class="mt-2 rounded-lg bg-red-500/10 p-2 text-[11px] text-red-600">
                                         سبب الاعتذار: {{ session.apology.reason }}
@@ -332,8 +387,44 @@ function formatDate(value) {
                                     </div>
                                 </td>
                                 <td class="data-table-actions p-3">
-                                    <div class="flex max-w-[22rem] flex-wrap items-center gap-2">
-                                        <a v-if="session.status === 'scheduled' && !isOverdueSession(session)" :href="route('live-sessions.room', session.id)" target="_blank" rel="noopener noreferrer" class="btn-sm bg-accent-50 text-accent-600 hover:bg-accent-100 dark:bg-accent-900/30 dark:hover:bg-accent-900/50">دخول وبدء الحصة</a>
+                                    <div class="flex max-w-[24rem] flex-wrap items-center gap-2">
+                                        <!-- Ready to start / At session time -->
+                                        <template v-if="session.status === 'scheduled' && !isOverdueSession(session)">
+                                            <button
+                                                v-if="isSessionReadyToStart(session)"
+                                                type="button"
+                                                @click="startAndEnterSession(session)"
+                                                :disabled="startingSessionId === session.id"
+                                                class="btn-sm bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-sm shadow-emerald-500/20"
+                                                title="بدء الحصة الآن ونقل الطلاب والغرفة إلى الحالة المباشرة"
+                                            >
+                                                <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                                                <span>{{ startingSessionId === session.id ? 'جاري التحويل...' : 'بدء الحصة ودخول الغرفة 🔴' }}</span>
+                                            </button>
+                                            <button
+                                                v-else
+                                                type="button"
+                                                disabled
+                                                class="btn-sm bg-surface-100 dark:bg-surface-800 text-surface-400 dark:text-surface-500 cursor-not-allowed flex items-center gap-1.5 border border-surface-200 dark:border-surface-700"
+                                                :title="'يُفتح زر بدء الحصة في موعدها (' + formatDate(session.scheduled_at) + ')'"
+                                            >
+                                                <Icon name="clock" class="w-3.5 h-3.5 text-surface-400" />
+                                                <span>يُفتح في موعد الحصة</span>
+                                            </button>
+                                        </template>
+
+                                        <!-- Live now -->
+                                        <a
+                                            v-if="session.status === 'live'"
+                                            :href="route('live-sessions.room', session.id)"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="btn-sm bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-1.5 animate-pulse"
+                                        >
+                                            <span class="w-2 h-2 rounded-full bg-white"></span>
+                                            <span>دخول الغرفة (مباشر الآن 🔴)</span>
+                                        </a>
+
                                         <button type="button" v-if="session.status === 'scheduled' && !isOverdueSession(session)" @click="openEdit(session)" class="btn-sm btn-outline">تعديل</button>
                                         <button type="button" v-if="session.status === 'scheduled' && !isOverdueSession(session)" @click="openApology(session)" class="btn-sm btn-ghost text-red-500">تقديم اعتذار</button>
                                         <button type="button" v-if="session.status === 'live'" @click="openEndModal(session)" class="btn-sm bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-300">إنهاء</button>
@@ -571,72 +662,307 @@ function formatDate(value) {
             </div>
         </div>
 
-        <!-- Create Modal -->
-        <div v-if="isModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="إنشاء حصة مباشرة">
-            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="isModalOpen = false"></div>
-            <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-lg animate-fade-up">
+        <!-- Create Modal with Step Wizard & Cards -->
+        <div v-if="isModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="جدولة حصة مباشرة">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isModalOpen = false"></div>
+            <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl border border-surface-200 dark:border-surface-800 animate-fade-up overflow-hidden">
+                <!-- Modal Top Header -->
+                <div class="p-6 border-b border-surface-100 dark:border-surface-800 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white flex items-center gap-2">
+                            <span class="p-2 rounded-xl bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                                <Icon name="calendar" class="w-5 h-5" />
+                            </span>
+                            <span>جدولة حصة مباشرة جديدة</span>
+                        </h3>
+                        <p class="text-xs text-surface-500 mt-1">اتبع خطوات الكروت لتحديد نوع الحصة، الحضور، وتثبيت الموعد المعتمد</p>
+                    </div>
+                    <button type="button" @click="isModalOpen = false" class="p-2 rounded-xl text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800 transition">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Stepper Progress Bar -->
+                <div class="px-6 pt-5 pb-2 bg-surface-50/50 dark:bg-surface-950/30 border-b border-surface-100 dark:border-surface-800">
+                    <div class="grid grid-cols-3 gap-2">
+                        <!-- Step 1 Tab -->
+                        <button
+                            type="button"
+                            @click="modalStep > 1 && (modalStep = 1)"
+                            class="flex items-center gap-2.5 p-2 rounded-xl text-start transition"
+                            :class="modalStep === 1 ? 'bg-white dark:bg-surface-800 shadow-sm border border-surface-200 dark:border-surface-700' : (modalStep > 1 ? 'hover:bg-surface-100 dark:hover:bg-surface-800 cursor-pointer' : 'opacity-60 cursor-not-allowed')"
+                        >
+                            <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                                  :class="modalStep > 1 ? 'bg-emerald-500 text-white' : (modalStep === 1 ? 'bg-primary-600 text-white' : 'bg-surface-200 dark:bg-surface-700 text-surface-600')">
+                                {{ modalStep > 1 ? '✓' : '1' }}
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-surface-800 dark:text-surface-100 truncate">تسعير الحصة</p>
+                                <p class="text-[10px] text-surface-400 truncate">{{ form.is_free ? 'مجانية' : 'مدفوعة' }}</p>
+                            </div>
+                        </button>
+
+                        <!-- Step 2 Tab -->
+                        <button
+                            type="button"
+                            @click="modalStep > 2 && (modalStep = 2)"
+                            class="flex items-center gap-2.5 p-2 rounded-xl text-start transition"
+                            :class="modalStep === 2 ? 'bg-white dark:bg-surface-800 shadow-sm border border-surface-200 dark:border-surface-700' : (modalStep > 2 ? 'hover:bg-surface-100 dark:hover:bg-surface-800 cursor-pointer' : 'opacity-60 cursor-not-allowed')"
+                        >
+                            <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                                  :class="modalStep > 2 ? 'bg-emerald-500 text-white' : (modalStep === 2 ? 'bg-primary-600 text-white' : 'bg-surface-200 dark:bg-surface-700 text-surface-600')">
+                                {{ modalStep > 2 ? '✓' : '2' }}
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-surface-800 dark:text-surface-100 truncate">نوع الحضور</p>
+                                <p class="text-[10px] text-surface-400 truncate">{{ form.source_type === 'group' ? 'مجموعة' : 'برايفت' }}</p>
+                            </div>
+                        </button>
+
+                        <!-- Step 3 Tab -->
+                        <div
+                            class="flex items-center gap-2.5 p-2 rounded-xl text-start"
+                            :class="modalStep === 3 ? 'bg-white dark:bg-surface-800 shadow-sm border border-surface-200 dark:border-surface-700' : 'opacity-60'"
+                        >
+                            <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                                  :class="modalStep === 3 ? 'bg-primary-600 text-white' : 'bg-surface-200 dark:bg-surface-700 text-surface-600'">
+                                3
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-surface-800 dark:text-surface-100 truncate">الموعد والتفاصيل</p>
+                                <p class="text-[10px] text-surface-400 truncate">حسب الجدول</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <form @submit.prevent="submit">
-                    <div class="p-6">
-                        <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-6">جدولة حصة مباشرة</h3>
-                        
-                        <div class="space-y-4">
+                    <!-- STEP 1: FREE VS PAID CARDS -->
+                    <div v-if="modalStep === 1" class="p-6 space-y-4">
+                        <div class="mb-4">
+                            <h4 class="text-base font-bold text-surface-900 dark:text-white">الخطوة 1: حدد تسعير الحصة (مجانية أم مدفوعة)</h4>
+                            <p class="text-xs text-surface-500 mt-1">اختر ما إذا كانت الحصة مجانية وتجريبية أو مدفوعة للمشتركين</p>
+                        </div>
+
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <!-- Card Free -->
+                            <div
+                                @click="form.is_free = true; resetScheduleSelection()"
+                                class="cursor-pointer relative p-5 rounded-2xl border-2 transition-all duration-200 flex flex-col justify-between"
+                                :class="form.is_free === true ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 ring-2 ring-emerald-500/20 shadow-md' : 'border-surface-200 dark:border-surface-700 hover:border-emerald-300 dark:hover:border-emerald-800 bg-white dark:bg-surface-900'"
+                            >
+                                <div class="flex items-start justify-between gap-3 mb-3">
+                                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-2xl">
+                                        🎁
+                                    </div>
+                                    <span class="badge-green text-[10px] font-bold">مجانية للطلاب</span>
+                                </div>
+                                <div>
+                                    <h5 class="text-base font-black text-surface-900 dark:text-white">حصة مجانية (Free / Intro)</h5>
+                                    <p class="text-xs text-surface-500 dark:text-surface-400 mt-1 leading-5">
+                                        جلسة تجريبية مفتوحة للتعريف بالمنهج، حصة مراجعة مجانية، أو جلسة تمهيدية مجانية لجذب طلاب جدد.
+                                    </p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                    <span>{{ form.is_free === true ? '✓ تم الاختيار' : 'اضغط للاختيار' }}</span>
+                                    <span class="text-lg">←</span>
+                                </div>
+                            </div>
+
+                            <!-- Card Paid -->
+                            <div
+                                @click="form.is_free = false; resetScheduleSelection()"
+                                class="cursor-pointer relative p-5 rounded-2xl border-2 transition-all duration-200 flex flex-col justify-between"
+                                :class="form.is_free === false ? 'border-primary-500 bg-primary-50/60 dark:bg-primary-950/20 ring-2 ring-primary-500/20 shadow-md' : 'border-surface-200 dark:border-surface-700 hover:border-primary-300 dark:hover:border-primary-800 bg-white dark:bg-surface-900'"
+                            >
+                                <div class="flex items-start justify-between gap-3 mb-3">
+                                    <div class="w-12 h-12 rounded-2xl bg-primary-500/10 text-primary-600 dark:text-primary-400 flex items-center justify-center text-2xl">
+                                        💎
+                                    </div>
+                                    <span class="badge-primary text-[10px] font-bold">للمشتركين فقط</span>
+                                </div>
+                                <div>
+                                    <h5 class="text-base font-black text-surface-900 dark:text-white">حصة مدفوعة (Paid Class)</h5>
+                                    <p class="text-xs text-surface-500 dark:text-surface-400 mt-1 leading-5">
+                                        حصة منهجية مدفوعة مخصصة للطلاب المشتركين في المجموعة أو جلسة برايفيت مدفوعة تم تأكيد حجزها.
+                                    </p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between text-xs font-bold text-primary-600 dark:text-primary-400">
+                                    <span>{{ form.is_free === false ? '✓ تم الاختيار' : 'اضغط للاختيار' }}</span>
+                                    <span class="text-lg">←</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 2: GROUP VS PRIVATE CARDS -->
+                    <div v-else-if="modalStep === 2" class="p-6 space-y-4">
+                        <div class="mb-4">
+                            <h4 class="text-base font-bold text-surface-900 dark:text-white">الخطوة 2: حدد نوع الحضور (مجموعة ولا برايفيت)</h4>
+                            <p class="text-xs text-surface-500 mt-1">اختر نمط انعقاد الحصة: جماعي لمجموعة أو فردي لطالب واحد</p>
+                        </div>
+
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <!-- Card Group -->
+                            <div
+                                @click="form.source_type = 'group'; resetScheduleSelection()"
+                                class="cursor-pointer relative p-5 rounded-2xl border-2 transition-all duration-200 flex flex-col justify-between"
+                                :class="form.source_type === 'group' ? 'border-primary-500 bg-primary-50/60 dark:bg-primary-950/20 ring-2 ring-primary-500/20 shadow-md' : 'border-surface-200 dark:border-surface-700 hover:border-primary-300 dark:hover:border-primary-800 bg-white dark:bg-surface-900'"
+                            >
+                                <div class="flex items-start justify-between gap-3 mb-3">
+                                    <div class="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-2xl">
+                                        👥
+                                    </div>
+                                    <span class="badge-primary text-[10px] font-bold">مجموعة دراسية</span>
+                                </div>
+                                <div>
+                                    <h5 class="text-base font-black text-surface-900 dark:text-white">حصة مجموعة (Group)</h5>
+                                    <p class="text-xs text-surface-500 dark:text-surface-400 mt-1 leading-5">
+                                        حصة تفاعلية جماعية لطلاب المجموعة المسجلين وفق الجدول الأسبوعي للمجموعة.
+                                    </p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between text-xs font-bold text-primary-600 dark:text-primary-400">
+                                    <span>{{ form.source_type === 'group' ? '✓ تم الاختيار' : 'اضغط للاختيار' }}</span>
+                                    <span class="text-lg">←</span>
+                                </div>
+                            </div>
+
+                            <!-- Card Private -->
+                            <div
+                                @click="form.source_type = 'private'; resetScheduleSelection()"
+                                class="cursor-pointer relative p-5 rounded-2xl border-2 transition-all duration-200 flex flex-col justify-between"
+                                :class="form.source_type === 'private' ? 'border-accent-500 bg-accent-50/60 dark:bg-accent-950/20 ring-2 ring-accent-500/20 shadow-md' : 'border-surface-200 dark:border-surface-700 hover:border-accent-300 dark:hover:border-accent-800 bg-white dark:bg-surface-900'"
+                            >
+                                <div class="flex items-start justify-between gap-3 mb-3">
+                                    <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-2xl">
+                                        👤
+                                    </div>
+                                    <span class="badge-accent text-[10px] font-bold">جلسة برايفيت 1:1</span>
+                                </div>
+                                <div>
+                                    <h5 class="text-base font-black text-surface-900 dark:text-white">حصة خاصة (Private)</h5>
+                                    <p class="text-xs text-surface-500 dark:text-surface-400 mt-1 leading-5">
+                                        جلسة فردية مباشرة لطالب واحد يتم اختيارها من بين المواعيد المحجوزة في جدولك.
+                                    </p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between text-xs font-bold text-accent-600 dark:text-accent-400">
+                                    <span>{{ form.source_type === 'private' ? '✓ تم الاختيار' : 'اضغط للاختيار' }}</span>
+                                    <span class="text-lg">←</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: SCHEDULE TIMING & DETAILS -->
+                    <div v-else-if="modalStep === 3" class="p-6 space-y-4 max-h-[68vh] overflow-y-auto">
+                        <div class="mb-2 flex items-center justify-between">
                             <div>
-                                <label class="input-label">اختر المادة والصف</label>
+                                <h4 class="text-base font-bold text-surface-900 dark:text-white">الخطوة 3: تحديد الموعد من المواعيد المسجلة</h4>
+                                <p class="text-xs text-surface-500 mt-1">اختر الموعد المعتمد وبيانات الحصة</p>
+                            </div>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <button type="button" @click="modalStep = 1" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-surface-100 dark:bg-surface-800 text-surface-600 hover:bg-surface-200">
+                                    {{ form.is_free ? '🎁 مجانية' : '💎 مدفوعة' }} ✎
+                                </button>
+                                <button type="button" @click="modalStep = 2" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-surface-100 dark:bg-surface-800 text-surface-600 hover:bg-surface-200">
+                                    {{ form.source_type === 'group' ? '👥 مجموعة' : '👤 برايفيت' }} ✎
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Form fields -->
+                        <div class="space-y-4 pt-2">
+                            <div>
+                                <label class="input-label">المادة والصف الدراسي</label>
                                 <select v-model="selectedAssignmentId" class="input" required @change="resetScheduleSelection">
-                                    <option value="" disabled>-- المادة --</option>
+                                    <option value="" disabled>-- اختر المادة والصف --</option>
                                     <option v-for="assignment in assignments" :key="assignment.id" :value="assignment.id">
                                         {{ assignment.subject?.name }} — {{ assignment.grade_level?.name }}
                                     </option>
                                 </select>
                             </div>
-                            
+
+                            <!-- IF GROUP -->
+                            <div v-if="form.source_type === 'group'" class="space-y-4">
+                                <div>
+                                    <label class="input-label">المجموعة الدراسية المسجلة</label>
+                                    <select v-model="form.teaching_group_id" class="input" required>
+                                        <option value="" disabled>-- اختر المجموعة من جدولك --</option>
+                                        <option v-for="group in groupOptions" :key="group.id" :value="group.id">
+                                            {{ group.name }} — يوم {{ days[group.day_of_week] }} ({{ formatTime12(group.start_time) }} - {{ formatTime12(group.end_time) }})
+                                        </option>
+                                    </select>
+                                    <p v-if="!groupOptions.length" class="text-xs text-red-500 mt-1">
+                                        لا توجد مجموعات مسجلة لهذه المادة. أضف مجموعة من جدول التدريس أولاً.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="input-label">تاريخ الحصة (يجب أن يوافق يوم المجموعة)</label>
+                                    <input v-model="form.scheduled_date" type="date" :min="minScheduledDate" class="input" required />
+                                    <p class="text-[11px] text-surface-500 mt-1">
+                                        اختر التاريخ المناسب، وسيتم اعتماد وقت البداية والنهاية تلقائياً من مواعيد المجموعة المسجلة.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- IF PRIVATE -->
+                            <div v-else class="space-y-4">
+                                <div>
+                                    <label class="input-label">الموعد المحجوز من جدول البرايفيت المسجل</label>
+                                    <select v-model="form.private_session_slot_id" class="input" required>
+                                        <option value="" disabled>-- اختر موعد الحصة الخاصة المحجوز --</option>
+                                        <option v-for="slot in filteredPrivateOptions" :key="slot.id" :value="slot.id">
+                                            {{ new Date(slot.starts_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                            — الطالب: {{ slot.booking?.student?.name || 'طالب محجوز' }}
+                                        </option>
+                                    </select>
+                                    <p v-if="!filteredPrivateOptions.length" class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                        لا توجد مواعيد برايفيت محجوزة مطابقة لهذا الاختيار ({{ form.is_free ? 'حصة تجريبية مجانية' : 'جلسة برايفيت مدفوعة' }}). تأكد من حجز الطالب للموعد أولاً.
+                                    </p>
+                                </div>
+                            </div>
+
                             <div>
                                 <label class="input-label">عنوان الحصة</label>
-                                <input v-model="form.title" type="text" minlength="3" maxlength="255" class="input" placeholder="مثال: مراجعة الوحدة الأولى" required>
+                                <input v-model="form.title" type="text" minlength="3" maxlength="255" class="input" placeholder="مثال: مراجعة الباب الأول وحل تدريبات عامة" required />
                             </div>
 
                             <div>
-                                <label class="input-label">نوع الحجز والموعد</label>
-                                <select v-model="form.source_type" class="input" @change="resetScheduleSelection" required>
-                                    <option value="group">حصة مجموعة</option>
-                                    <option value="private">حصة برايفيت</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="input-label">{{ form.source_type === 'group' ? 'اختر المجموعة' : 'اختر موعد البرايفيت المحجوز' }}</label>
-                                <select v-if="form.source_type === 'group'" v-model="form.teaching_group_id" class="input" required>
-                                    <option value="" disabled>-- المجموعة --</option>
-                                    <option v-for="group in groupOptions" :key="group.id" :value="group.id">
-                                        {{ group.name }} — {{ days[group.day_of_week] }} — {{ formatTime12(group.start_time) }} إلى {{ formatTime12(group.end_time) }}
-                                    </option>
-                                </select>
-                                <select v-else v-model="form.private_session_slot_id" class="input" required>
-                                    <option value="" disabled>-- الموعد المحجوز --</option>
-                                    <option v-for="slot in privateOptions" :key="slot.id" :value="slot.id">
-                                        {{ new Date(slot.starts_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
-                                    </option>
-                                </select>
-                                <p v-if="!matchingAssignments.length" class="text-xs text-red-500 mt-1">لا يوجد جدول لهذه المادة. أنشئ ربط المادة والصف من جدول التدريس أولاً.</p>
-                            </div>
-
-                            <div v-if="form.source_type === 'group'">
-                                <label class="input-label">تاريخ تنفيذ حصة المجموعة</label>
-                                <input v-model="form.scheduled_date" type="date" :min="minScheduledDate" class="input" required>
-                                <p class="text-[11px] text-surface-400 mt-1">اختار نفس يوم المجموعة، والساعة هتتحدد تلقائيًا من الجدول.</p>
-                            </div>
-
-                            <div>
-                                <label class="input-label">وصف إضافي (اختياري)</label>
-                                <textarea v-model="form.description" class="input resize-y" rows="2" maxlength="2000" placeholder="معلومات للطلاب قبل بدء الحصة..."></textarea>
+                                <label class="input-label">وصف الحصة وتعليمات الطلاب (اختياري)</label>
+                                <textarea v-model="form.description" class="input resize-y" rows="2" maxlength="2000" placeholder="تعليمات للطلاب قبل موعد الحصة..."></textarea>
                             </div>
                         </div>
                     </div>
-                    <div class="p-4 bg-surface-50 dark:bg-surface-950 flex justify-end gap-3 border-t border-surface-200 dark:border-surface-800">
-                        <button type="button" @click="isModalOpen = false" class="btn-ghost">إلغاء</button>
-                        <button type="submit" :disabled="form.processing" class="btn-primary">
-                            {{ form.processing ? 'حفظ...' : 'جدولة الحصة' }}
-                        </button>
+
+                    <!-- FOOTER ACTIONS -->
+                    <div class="p-4 bg-surface-50 dark:bg-surface-950 flex justify-between items-center border-t border-surface-200 dark:border-surface-800">
+                        <div>
+                            <button v-if="modalStep > 1" type="button" @click="modalStep--" class="btn-ghost text-xs">
+                                → السابق
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="isModalOpen = false" class="btn-ghost">
+                                إلغاء
+                            </button>
+                            <button
+                                v-if="modalStep < 3"
+                                type="button"
+                                @click="modalStep++"
+                                class="btn-primary"
+                            >
+                                التالي ←
+                            </button>
+                            <button
+                                v-else
+                                type="submit"
+                                :disabled="form.processing"
+                                class="btn-primary"
+                            >
+                                {{ form.processing ? 'جاري الجدولة...' : 'تأكيد وجدولة الحصة ✅' }}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

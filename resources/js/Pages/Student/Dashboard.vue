@@ -83,9 +83,15 @@ function formatDateTime(value) {
                             {{ continueLearning.subject?.name }} — {{ continueLearning.teacher?.name }} · {{ continueLearning.group_name }}
                         </p>
                     </div>
-                    <Link :href="route('student.learn', { groupId: continueLearning.group_id })" class="btn-primary btn-sm shrink-0">
-                        {{ continueLearning.watched_seconds > 0 ? 'استكمل الدرس' : 'ابدأ الدرس' }}
-                    </Link>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <Link :href="route('student.learn', { groupId: continueLearning.group_id, progress: 1 })" class="btn-outline btn-sm flex items-center gap-1.5 font-bold">
+                            <Icon name="chart" class="w-3.5 h-3.5" />
+                            <span>خريطة المنهج</span>
+                        </Link>
+                        <Link :href="route('student.learn', { groupId: continueLearning.group_id })" class="btn-primary btn-sm">
+                            {{ continueLearning.watched_seconds > 0 ? 'استكمل الدرس' : 'ابدأ الدرس' }}
+                        </Link>
+                    </div>
                 </div>
             </section>
 
@@ -222,11 +228,15 @@ function formatDateTime(value) {
                         <Link
                             v-if="session.status === 'live'"
                             :href="route('live-sessions.room', session.id)"
-                            class="btn-primary btn-sm shrink-0 animate-pulse"
+                            class="btn-primary btn-sm shrink-0 flex items-center gap-1.5 animate-pulse font-bold"
                         >
-                            ادخل الآن
+                            <span class="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
+                            <span>ادخل الآن 🔴</span>
                         </Link>
-                        <span v-else class="badge-gray text-[10px] shrink-0">مجدولة</span>
+                        <span v-else class="badge-gray text-[10px] shrink-0 flex items-center gap-1" title="يُتاح الدخول فور بدء المعلم للحصة">
+                            <Icon name="clock" class="w-3 h-3 text-surface-400" />
+                            <span>بانتظار بدء المعلم</span>
+                        </span>
                     </div>
                 </div>
 
@@ -246,21 +256,27 @@ function formatDateTime(value) {
                     <Link
                         v-for="sub in activeSubscriptions"
                         :key="sub.id"
-                        :href="sub.group ? route('student.learn', { groupId: sub.group.id }) : route('student.my-classes')"
-                        class="card-hover p-4 flex items-center gap-3"
+                        :href="sub.group ? route('student.learn', { groupId: sub.group.id, progress: 1 }) : route('student.my-classes')"
+                        class="card-hover p-4 flex items-center justify-between gap-3"
                     >
-                        <div class="avatar-md">
-                            <img v-if="sub.teacher?.avatar" :src="sub.teacher.avatar" :alt="sub.teacher.name" class="w-full h-full object-cover" />
-                            <span v-else class="text-primary-700 dark:text-primary-300 font-bold">{{ sub.teacher?.name?.charAt(0) }}</span>
-                        </div>
-                        <div class="min-w-0">
-                            <div class="text-sm font-bold text-surface-800 dark:text-surface-100 truncate">
-                                {{ sub.subject?.name }}
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="avatar-md">
+                                <img v-if="sub.teacher?.avatar" :src="sub.teacher.avatar" :alt="sub.teacher.name" class="w-full h-full object-cover" />
+                                <span v-else class="text-primary-700 dark:text-primary-300 font-bold">{{ sub.teacher?.name?.charAt(0) }}</span>
                             </div>
-                            <div class="text-[11px] text-surface-400 truncate">
-                                {{ sub.teacher?.name }} · متبقٍ {{ sub.days_remaining }} يوم
+                            <div class="min-w-0">
+                                <div class="text-sm font-bold text-surface-800 dark:text-surface-100 truncate">
+                                    {{ sub.subject?.name }}
+                                </div>
+                                <div class="text-[11px] text-surface-400 truncate">
+                                    {{ sub.teacher?.name }} · متبقٍ {{ sub.days_remaining }} يوم
+                                </div>
                             </div>
                         </div>
+                        <span class="btn-primary btn-xs shrink-0 flex items-center gap-1 font-bold">
+                            <Icon name="chart" class="w-3.5 h-3.5" />
+                            <span>تابع تقدمك</span>
+                        </span>
                     </Link>
                 </div>
             </section>

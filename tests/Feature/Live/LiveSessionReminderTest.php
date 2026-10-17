@@ -183,3 +183,67 @@ it('protects the reminder cron endpoint and reports the sent notification count'
             'notifications_sent' => 1,
         ]);
 });
+
+it('sends 30-minute advance reminders to teacher, student, and verified parent', function (): void {
+    /** @var LiveSessionReminderTestCase $this */
+    Notification::fake();
+
+    $parent = User::factory()->create(['email_verified_at' => now()]);
+    $parent->assignRole('parent');
+
+    \App\Domain\User\Models\ParentStudentLink::create([
+        'parent_user_id' => $parent->id,
+        'student_user_id' => $this->student->id,
+        'relationship' => 'guardian',
+        'status' => 'approved',
+        'verified_at' => now(),
+    ]);
+
+    $session = LiveSession::create([
+        'teacher_id' => $this->teacher->id,
+        'teaching_group_id' => $this->group->id,
+        'title' => 'حصة مراجعة هامة',
+        'scheduled_at' => now()->addMinutes(25),
+        'status' => LiveSession::STATUS_SCHEDULED,
+    ]);
+
+    $service = app(LiveSessionReminderService::class);
+
+    // First run sends to teacher, student, and parent (3 notifications)
+    $sentCount = $service->sendThirtyMinuteReminders();
+    expect($sentCount)->toBe(3);
+
+    // Second run sends 0 due to deduplication
+    expect($service->sendThirtyMinuteReminders())->toBe(0);
+
+    Notification::assertSentTo(
+        $this->teacher,
+        LiveSessionReminderNotification::class,
+        function (LiveSessionReminderNotification $n) use ($session): bool {
+            $data = $n->toArray($this->teacher);
+            return $data['type'] === 'live_session_reminder_teacher'
+                && $data['link'] === route('live-sessions.room', $session->id);
+        }
+    );
+
+    Notification::assertSentTo(
+        $this->student,
+        LiveSessionReminderNotification::class,
+        function (LiveSessionReminderNotification $n): bool {
+            $data = $n->toArray($this->student);
+            return $data['type'] === 'live_session_reminder'
+                && str_contains($data['message'], '30 دقيقة');
+        }
+    );
+
+    Notification::assertSentTo(
+        $parent,
+        LiveSessionReminderNotification::class,
+        function (LiveSessionReminderNotification $n) use ($parent): bool {
+            $data = $n->toArray($parent);
+            return $data['type'] === 'live_session_reminder_parent'
+                && $data['link'] === route('parent.dashboard');
+        }
+    );
+});
+

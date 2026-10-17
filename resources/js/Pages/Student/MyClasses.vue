@@ -156,8 +156,9 @@ async function cancel(id) {
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2">
-                            <Link v-if="sub.group" :href="route('student.learn', { groupId: sub.group.id })" class="btn-primary btn-sm">
-                                ادخل الحصة
+                            <Link v-if="sub.group" :href="route('student.learn', { groupId: sub.group.id, progress: 1 })" class="btn-primary btn-sm flex items-center gap-1.5 shadow-sm">
+                                <Icon name="chart" class="w-4 h-4" />
+                                <span>تابع تقدمك</span>
                             </Link>
 
                             <Link

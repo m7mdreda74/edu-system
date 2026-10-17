@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Teacher;
 
 use App\Application\Learning\Services\MissedLiveSessionService;
+use App\Domain\Academic\Models\AcademicTerm;
+use App\Domain\Academic\Models\CurriculumUnit;
+use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -86,6 +89,39 @@ class TeachingScheduleController extends Controller
 
         $position = ((int) $group->lessons()->max('position')) + 1;
         $lesson = $group->lessons()->create([...$data, 'position' => $position, 'status' => 'pending']);
+
+        // Auto-sync into the assignment's curriculum (CurriculumUnit + GroupMaterial)
+        // so that the academic plan immediately reflects for students!
+        try {
+            $termId = $group->academic_term_id ?? (AcademicTerm::currentOrNext()?->id ?? AcademicTerm::first()?->id);
+            if ($termId) {
+                $unit = CurriculumUnit::firstOrCreate(
+                    [
+                        'teaching_assignment_id' => $group->teaching_assignment_id,
+                        'academic_term_id' => $termId,
+                    ],
+                    [
+                        'order' => 1,
+                        'title' => 'الوحدة الأولى',
+                        'is_published' => true,
+                    ]
+                );
+
+                GroupMaterial::firstOrCreate(
+                    [
+                        'curriculum_unit_id' => $unit->id,
+                        'title' => $lesson->title,
+                    ],
+                    [
+                        'academic_term_id' => $termId,
+                        'order' => ((int) $unit->lessons()->max('order')) + 1,
+                        'description' => $lesson->description,
+                    ]
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to auto-sync group lesson to curriculum: ' . $e->getMessage());
+        }
 
         // Auto-schedule immediately if group has schedules!
         $group->loadMissing('schedules');

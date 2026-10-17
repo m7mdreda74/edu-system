@@ -1212,16 +1212,34 @@ function createMeeting() {
             disableInviteFunctions: true,
             doNotStoreRoom: true,
             useHostPageLocalStorage: true,
-            fileRecordingsEnabled: props.jitsi.recording?.enabled === true,
-            fileRecordingsServiceEnabled: props.jitsi.recording?.enabled === true,
+            toolbarButtons: props.user.isTeacher
+                ? [
+                    'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+                    'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+                    'livestreaming', 'sharedvideo', 'settings', 'raisehand',
+                    'videoquality', 'filmstrip', 'stats', 'shortcuts',
+                    'tileview', 'videobackgroundblur', 'mute-everyone', 'security',
+                ]
+                : [
+                    'microphone', 'camera', 'chat', 'raisehand',
+                    'tileview', 'fullscreen', 'hangup',
+                ],
+            disableRemoteMute: !props.user.isTeacher,
+            remoteVideoMenu: {
+                disableKick: !props.user.isTeacher,
+                disableGrantModerator: true,
+            },
+            disableKick: !props.user.isTeacher,
+            fileRecordingsEnabled: props.user.isTeacher && props.jitsi.recording?.enabled === true,
+            fileRecordingsServiceEnabled: props.user.isTeacher && props.jitsi.recording?.enabled === true,
             fileRecordingsServiceSharingEnabled: false,
             localRecording: {
-                disable: true,
+                disable: !props.user.isTeacher,
                 notifyAllParticipants: true,
             },
             recordings: {
                 recordAudioAndVideo: true,
-                showRecordingLink: true,
+                showRecordingLink: props.user.isTeacher,
             },
             timeTimer: { enabled: false },
             whiteboard: whiteboardConfig(),
@@ -1232,6 +1250,18 @@ function createMeeting() {
             SHOW_BRAND_WATERMARK: false,
             SHOW_POWERED_BY: false,
             SHOW_CHROME_EXTENSION_BANNER: false,
+            TOOLBAR_BUTTONS: props.user.isTeacher
+                ? [
+                    'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+                    'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+                    'livestreaming', 'sharedvideo', 'settings', 'raisehand',
+                    'videoquality', 'filmstrip', 'stats', 'shortcuts',
+                    'tileview', 'videobackgroundblur', 'mute-everyone', 'security',
+                ]
+                : [
+                    'microphone', 'camera', 'chat', 'raisehand',
+                    'tileview', 'fullscreen', 'hangup',
+                ],
         },
     };
 
@@ -1344,7 +1374,17 @@ onBeforeUnmount(() => {
                 </button>
                 <span class="header-divider" aria-hidden="true"></span>
                 <div>
-                    <h1>{{ session.title }}</h1>
+                    <div class="flex items-center gap-2">
+                        <h1>{{ session.title }}</h1>
+                        <span v-if="user.isTeacher" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                            <span>👑</span>
+                            <span>المعلم ومقدم الحصة</span>
+                        </span>
+                        <span v-else class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center gap-1 shrink-0">
+                            <span>🎓</span>
+                            <span>طالب</span>
+                        </span>
+                    </div>
                     <p>{{ session.teaching_group?.name || 'حصة مباشرة خاصة' }}</p>
                 </div>
             </div>

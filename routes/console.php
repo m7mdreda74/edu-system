@@ -25,11 +25,11 @@ Artisan::command(
 Artisan::command(
     'sessions:send-reminders',
     function (LiveSessionReminderService $reminders): void {
-        $count = $reminders->sendDueReminders();
+        $count = $reminders->sendDueReminders() + $reminders->sendThirtyMinuteReminders();
 
         $this->info("Sent {$count} live session reminder(s).");
     },
-)->purpose('Notify students up to 24 hours before every scheduled class');
+)->purpose('Notify students, teachers, and parents before scheduled classes');
 
 Artisan::command(
     'academic-alerts:send',

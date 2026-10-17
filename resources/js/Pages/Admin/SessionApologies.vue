@@ -109,7 +109,7 @@ function formatDate(value) {
                     <div class="rounded-2xl bg-surface-50 p-4 dark:bg-surface-900">
                         <b class="text-sm text-surface-900 dark:text-white">{{ apology.session?.title }}</b>
                         <p class="mt-1 text-xs text-surface-500">
-                            {{ apology.session?.teaching_group?.name || 'حصة برايفيت' }} · {{ formatDate(apology.session?.scheduled_at) }}
+                            {{ apology.session?.teaching_group?.name || 'جلسة خاصة (برايفت)' }} · {{ formatDate(apology.session?.scheduled_at) }}
                         </p>
                     </div>
 

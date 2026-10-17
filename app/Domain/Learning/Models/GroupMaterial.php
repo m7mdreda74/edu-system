@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Learning\Models;
 
 use App\Domain\Academic\Models\CurriculumUnit;
+use App\Domain\Quiz\Models\Quiz;
 use Database\Factories\Domain\Learning\GroupMaterialFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -80,6 +81,11 @@ class GroupMaterial extends Model
     public function questions(): HasMany
     {
         return $this->hasMany(LessonQuestion::class, 'lesson_id');
+    }
+
+    public function quizzes(): HasMany
+    {
+        return $this->hasMany(Quiz::class, 'lesson_id');
     }
 
     /** The live class that published this protected recording, if any. */

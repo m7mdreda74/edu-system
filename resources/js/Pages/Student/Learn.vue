@@ -13,6 +13,7 @@ const props = defineProps({
     units:        { type: Array,  default: () => [] },
     progress:     { type: Object, required: true },
     initialLessonId: { type: Number, default: null },
+    showProgressModal: { type: Boolean, default: false },
 });
 
 // ── State ──────────────────────────────────────────────────────
@@ -22,6 +23,31 @@ const expandedUnits    = ref({});      // { [unitId]: true }
 const progressPercent  = ref(props.progress.percent);
 const certificateReady = ref(props.progress.certificate_ready);
 const treeOpen         = ref(true);
+const isProgressModalOpen = ref(
+    Boolean(props.showProgressModal) ||
+    (typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('progress') === '1' || new URLSearchParams(window.location.search).has('progress')))
+);
+
+function openProgressModal() {
+    isProgressModalOpen.value = true;
+}
+
+function closeProgressModal() {
+    isProgressModalOpen.value = false;
+}
+
+function selectLessonFromModal(unit, lesson) {
+    if (lesson.is_locked) {
+        lockNotice.value = lockReason(unit, lesson);
+        return;
+    }
+    selectLesson(unit, lesson);
+    isProgressModalOpen.value = false;
+}
+
+function unitCompletedCount(unit) {
+    return (unit.lessons || []).filter(isDone).length;
+}
 const activeTab        = ref('description'); // description | files | questions
 const signedVideoUrl   = ref('');
 const videoProvider    = ref('');
@@ -500,12 +526,24 @@ function uploadAnswer(sheetId) {
                 </div>
             </div>
 
-            <!-- Overall progress -->
-            <div class="hidden sm:flex items-center gap-3 flex-shrink-0">
-                <div class="w-32 progress-bar bg-surface-700">
-                    <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
+            <!-- Overall progress & Progress Roadmap trigger -->
+            <div class="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
+                <div class="hidden sm:flex items-center gap-3">
+                    <div class="w-28 md:w-32 progress-bar bg-surface-700">
+                        <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
+                    </div>
+                    <span class="text-primary-400 font-bold text-sm">{{ progressPercent }}%</span>
                 </div>
-                <span class="text-primary-400 font-bold text-sm">{{ progressPercent }}%</span>
+
+                <button
+                    type="button"
+                    @click="openProgressModal"
+                    class="btn-primary btn-xs sm:btn-sm flex items-center gap-1.5 font-bold shadow-md shadow-primary-500/20"
+                    title="افتح خريطة تقدمك في المنهج والدروس"
+                >
+                    <Icon name="chart" class="w-3.5 h-3.5" />
+                    <span>تابع تقدمك</span>
+                </button>
 
                 <button type="button" @click="treeOpen = !treeOpen"
                     class="btn-ghost text-sm text-surface-400 hover:text-white px-3 py-1.5 hidden lg:inline-flex">
@@ -700,10 +738,22 @@ function uploadAnswer(sheetId) {
                                               class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-red-500/10 text-red-400 border border-red-500/20">
                                             يتطلب تسليماً
                                         </span>
+                                        <span v-if="activeLesson.homework.submission?.is_late"
+                                              class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1">
+                                            <span>⚠️</span>
+                                            <span>تأخر في التسليم</span>
+                                        </span>
+                                        <span v-else-if="!activeLesson.homework.submission && activeLesson.homework.is_overdue"
+                                              class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1">
+                                            <span>⚠️</span>
+                                            <span>متأخر عن موعد التسليم</span>
+                                        </span>
                                     </div>
                                     <h4 class="font-bold text-white text-base">{{ activeLesson.homework.title }}</h4>
                                     <div class="text-xs text-surface-400 mt-1 flex items-center gap-3 flex-wrap">
-                                        <span v-if="activeLesson.homework.due_date">آخر موعد: {{ formatDate(activeLesson.homework.due_date) }}</span>
+                                        <span v-if="activeLesson.homework.due_date" :class="activeLesson.homework.is_overdue && !activeLesson.homework.submission ? 'text-red-400 font-bold' : ''">
+                                            آخر موعد: {{ formatDate(activeLesson.homework.due_date) }}
+                                        </span>
                                         <span v-if="activeLesson.homework.max_score">الدرجة الكاملة: {{ activeLesson.homework.max_score }}</span>
                                     </div>
                                 </div>
@@ -716,14 +766,35 @@ function uploadAnswer(sheetId) {
                                 </a>
                             </div>
 
+                            <!-- Overdue Alert when not submitted yet -->
+                            <div v-if="!activeLesson.homework.submission && activeLesson.homework.is_overdue"
+                                 class="p-3 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs flex items-center gap-2">
+                                <Icon name="alert-triangle" class="w-4 h-4 text-red-400 flex-shrink-0" />
+                                <span>⚠️ تنبيه: انتهى الموعد المحدد لتسليم هذا الواجب ({{ formatDate(activeLesson.homework.due_date) }}). يُرجى إرفاق الحل وتسليمه فوراً.</span>
+                            </div>
+
                             <!-- Submission state -->
                             <div v-if="activeLesson.homework.submission"
-                                 class="bg-surface-950 border border-surface-800 rounded-xl p-4 text-xs space-y-1.5">
-                                <div class="font-bold text-green-400 flex items-center gap-1.5">
-                                    <Icon name="success" class="w-4 h-4" />
-                                    تم تسليم الحل
-                                    <span class="text-surface-500 font-normal">{{ formatDateTime(activeLesson.homework.submission.submitted_at) }}</span>
+                                 class="bg-surface-950 border border-surface-800 rounded-xl p-4 text-xs space-y-2">
+                                <div class="flex items-center justify-between flex-wrap gap-2">
+                                    <div class="font-bold flex items-center gap-1.5" :class="activeLesson.homework.submission.is_late ? 'text-amber-400' : 'text-green-400'">
+                                        <Icon :name="activeLesson.homework.submission.is_late ? 'alert-triangle' : 'success'" class="w-4 h-4" />
+                                        <span>{{ activeLesson.homework.submission.is_late ? 'تم تسليم الحل (متأخر)' : 'تم تسليم الحل' }}</span>
+                                        <span class="text-surface-500 font-normal">{{ formatDateTime(activeLesson.homework.submission.submitted_at) }}</span>
+                                    </div>
+                                    <span v-if="activeLesson.homework.submission.is_late"
+                                          class="text-[10px] px-2 py-0.5 rounded font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+                                        ⚠️ تأخر في التسليم
+                                    </span>
                                 </div>
+
+                                <!-- Late submission notice -->
+                                <div v-if="activeLesson.homework.submission.is_late"
+                                     class="p-2.5 rounded-lg bg-red-950/30 border border-red-900/40 text-red-300 text-[11px] flex items-center gap-1.5">
+                                    <Icon name="alert-circle" class="w-3.5 h-3.5 flex-shrink-0 text-red-400" />
+                                    <span>ملاحظة: تم تسليم هذا الواجب بعد انتهاء الموعد المحدد (ديدلاين الواجب).</span>
+                                </div>
+
                                 <a :href="activeLesson.homework.submission.file_path" target="_blank" rel="noopener"
                                    class="text-primary-400 hover:text-primary-300 inline-flex items-center gap-1">
                                     <Icon name="file" class="w-3.5 h-3.5" />
@@ -857,11 +928,22 @@ function uploadAnswer(sheetId) {
 
                 <!-- Term tabs -->
                 <div class="p-4 border-b border-surface-800 space-y-3">
-                    <div>
-                        <h3 class="text-white font-bold text-sm">منهج المادة</h3>
-                        <p class="text-surface-400 text-xs mt-1">
-                            {{ localUnits.length }} وحدة · {{ completedCount }} / {{ totalLessons }} درس مكتمل
-                        </p>
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <h3 class="text-white font-bold text-sm">منهج المادة</h3>
+                            <p class="text-surface-400 text-xs mt-0.5">
+                                {{ localUnits.length }} وحدة · {{ completedCount }} / {{ totalLessons }} درس مكتمل
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            @click="openProgressModal"
+                            class="btn-primary btn-xs flex items-center gap-1 font-bold shadow-sm"
+                            title="عرض خريطة المنهج والدروس بالكامل"
+                        >
+                            <Icon name="chart" class="w-3 h-3" />
+                            <span>خريطة التقدم</span>
+                        </button>
                     </div>
 
                     <div v-if="terms.length" class="flex gap-1.5 overflow-x-auto pb-1">
@@ -961,55 +1043,74 @@ function uploadAnswer(sheetId) {
                                 <button type="button" v-for="lesson in unit.lessons" :key="lesson.id"
                                         @click="selectLesson(unit, lesson)"
                                         :id="`lesson-btn-${lesson.id}`"
-                                        class="w-full flex items-start gap-3 px-4 py-2.5 text-start transition-colors duration-150"
+                                        class="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-start transition-colors duration-150"
                                         :class="lesson.id === activeLessonId
-                                            ? 'bg-primary-900/40 border-s-2 border-primary-500'
+                                            ? 'bg-primary-950/60 border-s-2 border-primary-500'
                                             : 'hover:bg-surface-800/60 border-s-2 border-transparent'">
-                                    <!-- Status icon -->
-                                    <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-[11px]"
-                                         :class="lesson.is_locked
-                                            ? 'bg-surface-800 text-surface-600'
-                                            : isDone(lesson)
-                                                ? 'bg-green-500 text-white'
-                                                : lesson.id === activeLessonId
-                                                    ? 'bg-primary-500 text-white'
-                                                    : 'bg-surface-700 text-surface-400'">
-                                        <Icon v-if="lesson.is_locked" name="lock" class="w-3 h-3" />
-                                        <span v-else-if="isDone(lesson)">✓</span>
-                                        <span v-else>{{ lesson.order }}</span>
+
+                                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                                        <!-- Checklist icon: (✔) vs (⭕) matching handwritten sketch -->
+                                        <div v-if="isDone(lesson)"
+                                             class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center shrink-0 shadow-sm ring-2 ring-green-500/25 font-bold text-[11px]"
+                                             title="درس مكتمل">
+                                            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div v-else-if="lesson.is_locked"
+                                             class="w-6 h-6 rounded-full border border-dashed border-surface-600 bg-surface-800/80 text-surface-500 flex items-center justify-center shrink-0"
+                                             title="درس مغلق">
+                                            <Icon name="lock" class="w-3 h-3" />
+                                        </div>
+                                        <div v-else
+                                             class="w-6 h-6 rounded-full border-2 border-surface-500 hover:border-primary-400 bg-transparent flex items-center justify-center shrink-0 transition-colors"
+                                             :class="lesson.id === activeLessonId ? 'border-primary-400 bg-primary-500/10 ring-2 ring-primary-500/20' : ''"
+                                             title="قيد الانتظار لم يكتمل بعد">
+                                            <span v-if="lesson.id === activeLessonId" class="w-2 h-2 rounded-full bg-primary-400 animate-pulse"></span>
+                                        </div>
+
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-sm font-semibold flex items-center gap-1.5 flex-wrap"
+                                                 :class="lesson.is_locked ? 'text-surface-500' : (lesson.id === activeLessonId ? 'text-white font-bold' : 'text-surface-200')">
+                                                <span class="font-black text-xs shrink-0" :class="isDone(lesson) ? 'text-green-400' : (lesson.id === activeLessonId ? 'text-primary-400' : 'text-surface-400')">
+                                                    درس {{ lesson.order }}
+                                                </span>
+                                                <span class="text-surface-600">:</span>
+                                                <span class="truncate">{{ lesson.title }}</span>
+                                            </div>
+
+                                            <div class="text-[11px] text-surface-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                                                <span v-if="lesson.duration_seconds" class="flex items-center gap-1">
+                                                    <Icon name="clock" class="w-3 h-3" />
+                                                    {{ formatDuration(lesson.duration_seconds) }}
+                                                </span>
+                                                <span v-if="lesson.booklet_path" class="flex items-center gap-0.5 text-primary-400/80">
+                                                    <Icon name="book" class="w-3 h-3" /> ملزمة
+                                                </span>
+                                                <span v-if="lesson.homework" class="flex items-center gap-0.5"
+                                                      :class="lesson.homework.submission ? 'text-green-400/80' : 'text-amber-400/80'">
+                                                    <Icon name="file" class="w-3 h-3" />
+                                                    {{ lesson.homework.submission ? 'واجب مُسلَّم' : 'واجب' }}
+                                                </span>
+                                                <span v-if="lesson.is_free_preview" class="text-accent-400/90 font-medium">معاينة مجانية</span>
+                                            </div>
+
+                                            <!-- Locked lessons say why, without needing a click -->
+                                            <div v-if="lesson.is_locked" class="text-[10px] text-accent-400/80 mt-1 flex items-center gap-1">
+                                                <Icon name="lock" class="w-2.5 h-2.5" />
+                                                {{ unit.is_locked ? 'الوحدة السابقة غير مكتملة' : 'أكمل الدرس السابق لفتحه' }}
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div class="flex-1 min-w-0">
-                                        <div class="text-sm font-medium line-clamp-2"
-                                             :class="lesson.is_locked
-                                                ? 'text-surface-500'
-                                                : lesson.id === activeLessonId
-                                                    ? 'text-white font-bold'
-                                                    : 'text-surface-300'">
-                                            {{ lesson.title }}
-                                        </div>
-
-                                        <div class="text-[11px] text-surface-500 mt-0.5 flex items-center gap-2 flex-wrap">
-                                            <span class="flex items-center gap-1">
-                                                <Icon name="clock" class="w-3 h-3" />
-                                                {{ formatDuration(lesson.duration_seconds) }}
-                                            </span>
-                                            <span v-if="lesson.booklet_path" class="flex items-center gap-0.5 text-primary-400/80">
-                                                <Icon name="book" class="w-3 h-3" /> ملزمة
-                                            </span>
-                                            <span v-if="lesson.homework" class="flex items-center gap-0.5"
-                                                  :class="lesson.homework.submission ? 'text-green-400/80' : 'text-amber-400/80'">
-                                                <Icon name="file" class="w-3 h-3" />
-                                                {{ lesson.homework.submission ? 'واجب مُسلَّم' : 'واجب' }}
-                                            </span>
-                                            <span v-if="lesson.is_free_preview" class="text-accent-400/90">معاينة مجانية</span>
-                                        </div>
-
-                                        <!-- Locked lessons say why, without needing a click -->
-                                        <div v-if="lesson.is_locked" class="text-[10px] text-accent-400/80 mt-1 flex items-center gap-1">
-                                            <Icon name="lock" class="w-2.5 h-2.5" />
-                                            {{ unit.is_locked ? 'الوحدة السابقة غير مكتملة' : 'أكمل الدرس السابق لفتحه' }}
-                                        </div>
+                                    <!-- Status pill -->
+                                    <div class="shrink-0 flex items-center">
+                                        <span v-if="isDone(lesson)" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/15 text-green-400 border border-green-500/20">
+                                            مكتمل ✓
+                                        </span>
+                                        <span v-else-if="lesson.id === activeLessonId" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary-500/20 text-primary-300 border border-primary-500/20">
+                                            يشاهد الآن
+                                        </span>
                                     </div>
                                 </button>
 
@@ -1174,5 +1275,206 @@ function uploadAnswer(sheetId) {
                 </div>
             </aside>
         </div>
+
+        <!-- ── Progress Roadmap Modal (تابع تقدمك) ────────────────── -->
+        <Transition enter-active-class="transition duration-200 ease-out"
+                    enter-from-class="opacity-0"
+                    enter-to-class="opacity-100"
+                    leave-active-class="transition duration-150 ease-in"
+                    leave-from-class="opacity-100"
+                    leave-to-class="opacity-0">
+            <div v-if="isProgressModalOpen"
+                 class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+                 @click.self="closeProgressModal">
+                <div class="bg-surface-900 border border-surface-700/80 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
+
+                    <!-- Modal Header -->
+                    <div class="p-5 sm:p-6 border-b border-surface-800 flex items-center justify-between gap-4 bg-surface-950/60">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-2xl bg-primary-500/20 text-primary-400 flex items-center justify-center font-black">
+                                <Icon name="chart" class="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 class="text-base sm:text-lg font-black text-white">تابع تقدمك في المنهج الدراسي</h3>
+                                <p class="text-xs text-surface-400 mt-0.5">
+                                    {{ group.subject?.name }} — {{ group.name }} · {{ group.teacher?.name }}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" @click="closeProgressModal"
+                                class="w-8 h-8 rounded-full bg-surface-800 hover:bg-surface-700 text-surface-400 hover:text-white flex items-center justify-center transition-colors"
+                                aria-label="إغلاق">
+                            <Icon name="close" class="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <!-- Modal Progress Summary Bar -->
+                    <div class="px-5 sm:px-6 py-4 bg-surface-950/30 border-b border-surface-800 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="text-surface-400 font-semibold">مستوى الإنجاز:</span>
+                                <span class="font-black text-primary-400 text-sm">{{ progressPercent }}%</span>
+                            </div>
+                            <div class="text-surface-400 font-bold">
+                                {{ completedCount }} من {{ totalLessons }} درس مكتمل
+                            </div>
+                        </div>
+                        <div class="w-full h-2.5 rounded-full bg-surface-800 overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-primary-500 to-green-500 rounded-full transition-all duration-500"
+                                 :style="{ width: progressPercent + '%' }"></div>
+                        </div>
+
+                        <!-- Terms switch inside modal if multiple terms exist -->
+                        <div v-if="terms.length > 1" class="flex items-center gap-2 pt-1 overflow-x-auto">
+                            <span class="text-[11px] text-surface-400 shrink-0 font-bold">الفصل الدراسي:</span>
+                            <button
+                                v-for="term in terms"
+                                :key="term.id"
+                                type="button"
+                                @click="selectTerm(term.id)"
+                                class="px-3 py-1 rounded-xl text-xs font-bold transition-all"
+                                :class="term.id === activeTermId
+                                    ? 'bg-primary-600 text-white shadow-sm'
+                                    : 'bg-surface-800 text-surface-400 hover:text-white hover:bg-surface-700'"
+                            >
+                                {{ term.name }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Modal Body (List of Units and Lessons Checklist) -->
+                    <div class="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
+                        <div v-for="unit in localUnits" :key="unit.id" class="space-y-3">
+                            <!-- Unit Header -->
+                            <div class="flex items-center justify-between gap-3 px-1">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-3 h-3 rounded-full bg-accent-400"></span>
+                                    <h4 class="font-black text-sm sm:text-base text-white">
+                                        الوحدة {{ unit.order }}: {{ unit.title }}
+                                    </h4>
+                                </div>
+                                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full"
+                                      :class="unitCompletedCount(unit) === unit.lessons.length && unit.lessons.length > 0 ? 'bg-green-500/20 text-green-300' : 'bg-surface-800 text-surface-400'">
+                                    {{ unitCompletedCount(unit) }} / {{ unit.lessons.length }} مكتمل
+                                </span>
+                            </div>
+
+                            <!-- Checklist matching handwritten sketch -->
+                            <div class="card divide-y divide-surface-800 border-surface-800 bg-surface-950/70 rounded-2xl overflow-hidden">
+                                <div
+                                    v-for="lesson in unit.lessons"
+                                    :key="lesson.id"
+                                    @click="selectLessonFromModal(unit, lesson)"
+                                    class="flex items-center justify-between gap-3 p-3.5 transition-all text-start"
+                                    :class="lesson.is_locked
+                                        ? 'opacity-50 cursor-not-allowed bg-surface-950/40'
+                                        : (lesson.id === activeLessonId
+                                            ? 'bg-primary-950/40 hover:bg-primary-900/40 cursor-pointer'
+                                            : 'hover:bg-surface-800/60 cursor-pointer')"
+                                >
+                                    <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                                        <!-- (✔) vs (⭕) -->
+                                        <div
+                                            v-if="isDone(lesson)"
+                                            class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center shrink-0 font-black text-sm shadow-md ring-4 ring-green-500/20"
+                                            title="درس مكتمل"
+                                        >
+                                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div
+                                            v-else-if="lesson.is_locked"
+                                            class="w-8 h-8 rounded-full border-2 border-surface-700 bg-surface-800 text-surface-500 flex items-center justify-center shrink-0 text-xs"
+                                            title="مغلق"
+                                        >
+                                            <Icon name="lock" class="w-3.5 h-3.5" />
+                                        </div>
+                                        <div
+                                            v-else
+                                            class="w-8 h-8 rounded-full border-2 border-surface-400 hover:border-primary-400 bg-surface-900 flex items-center justify-center shrink-0 transition-colors"
+                                            :class="lesson.id === activeLessonId ? 'border-primary-400 ring-4 ring-primary-500/20' : ''"
+                                            title="قيد الانتظار لم يكتمل بعد"
+                                        >
+                                            <span v-if="lesson.id === activeLessonId" class="w-2.5 h-2.5 rounded-full bg-primary-400 animate-pulse"></span>
+                                        </div>
+
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="font-black text-sm" :class="isDone(lesson) ? 'text-green-400' : (lesson.id === activeLessonId ? 'text-primary-400' : 'text-surface-300')">
+                                                    درس {{ lesson.order }}
+                                                </span>
+                                                <span class="text-surface-600">:</span>
+                                                <span class="font-bold text-sm text-white truncate">
+                                                    {{ lesson.title }}
+                                                </span>
+                                            </div>
+                                            <div class="text-[11px] text-surface-400 mt-1 flex items-center gap-3 flex-wrap">
+                                                <span v-if="lesson.duration_seconds" class="flex items-center gap-1">
+                                                    <Icon name="clock" class="w-3 h-3" />
+                                                    {{ formatDuration(lesson.duration_seconds) }}
+                                                </span>
+                                                <span v-if="lesson.booklet_path" class="text-primary-400 flex items-center gap-1">
+                                                    <Icon name="book" class="w-3 h-3" />
+                                                    ملزمة
+                                                </span>
+                                                <span v-if="lesson.homework" :class="lesson.homework.submission ? 'text-green-400' : 'text-amber-400'" class="flex items-center gap-1">
+                                                    <Icon name="file" class="w-3 h-3" />
+                                                    {{ lesson.homework.submission ? 'واجب مُسلَّم' : 'واجب' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="shrink-0 flex items-center gap-2">
+                                        <span
+                                            v-if="isDone(lesson)"
+                                            class="px-2.5 py-1 rounded-full text-xs font-black bg-green-500/20 text-green-300 border border-green-500/30 flex items-center gap-1"
+                                        >
+                                            <span>مكتمل</span>
+                                            <span>✓</span>
+                                        </span>
+                                        <span
+                                            v-else-if="lesson.id === activeLessonId"
+                                            class="px-2.5 py-1 rounded-full text-xs font-black bg-primary-500/20 text-primary-300 border border-primary-500/30 flex items-center gap-1"
+                                        >
+                                            <span>يشاهد الآن</span>
+                                            <span>▶</span>
+                                        </span>
+                                        <button
+                                            v-else-if="!lesson.is_locked"
+                                            type="button"
+                                            class="btn btn-xs bg-surface-800 hover:bg-primary-600 hover:text-white text-surface-300 rounded-lg flex items-center gap-1 transition-colors"
+                                        >
+                                            <span>ابدأ الدرس</span>
+                                            <span>←</span>
+                                        </button>
+                                        <span v-else class="text-xs text-surface-500">
+                                            مغلق
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div v-if="!unit.lessons.length" class="p-4 text-center text-xs text-surface-500">
+                                    لم يضف المعلم دروساً لهذه الوحدة بعد.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="!localUnits.length" class="p-8 text-center text-surface-400 text-sm">
+                            لا توجد وحدات أو دروس منشورة في هذا الفصل الدراسي بعد.
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="p-4 bg-surface-950/80 border-t border-surface-800 flex items-center justify-between gap-3 text-xs text-surface-400">
+                        <span>اضغط على أي درس مفتوح للانتقال إليه مباشرة.</span>
+                        <button type="button" @click="closeProgressModal" class="btn-outline btn-xs text-white border-surface-700 hover:bg-surface-800">
+                            إغلاق
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Transition>
     </div>
 </template>

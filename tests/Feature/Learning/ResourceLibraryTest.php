@@ -158,6 +158,7 @@ it('allows only eligible subscribed students and verified parents to download at
     $resource = LearningResource::factory()->create([
         'owner_teacher_id' => $teacher->id,
         'file_path' => 'private://resources/geometry.pdf',
+        'approval_status' => LearningResource::APPROVAL_APPROVED,
     ]);
     $resource->assignments()->attach($assignment->id, ['attached_by_teacher_id' => $teacher->id]);
     Storage::disk('local')->put('resources/geometry.pdf', 'resource contents');
@@ -197,3 +198,176 @@ it('allows only eligible subscribed students and verified parents to download at
         ->get(route('learning.resource.download', $resource))
         ->assertForbidden();
 });
+
+it('provides subscribed student with subject tabs, lessons, videos, booklets (PDF/Word), and electronic assessments', function (): void {
+    $teacher = resourceTeacher();
+    $assignment = resourceAssignment($teacher);
+    $unit = \App\Domain\Academic\Models\CurriculumUnit::create([
+        'teaching_assignment_id' => $assignment->id,
+        'academic_term_id' => \App\Domain\Academic\Models\AcademicTerm::first()?->id,
+        'order' => 1,
+        'title' => 'الوحدة الأولى: الجبر',
+        'is_published' => true,
+    ]);
+
+    $lesson = \App\Domain\Learning\Models\GroupMaterial::create([
+        'curriculum_unit_id' => $unit->id,
+        'title' => 'الدرس الأول: المعادلات الخطية',
+        'video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        'duration_seconds' => 1800,
+        'order' => 1,
+        'attachment_path' => 'private://booklets/algebra-notes.pdf',
+    ]);
+
+    \App\Domain\Learning\Models\Worksheet::create([
+        'curriculum_unit_id' => $unit->id,
+        'lesson_id' => $lesson->id,
+        'title' => 'شيت تمارين الجبر',
+        'file_path' => 'private://worksheets/algebra-exercises.docx',
+        'type' => \App\Domain\Learning\Models\Worksheet::TYPE_STUDY,
+    ]);
+
+    \App\Domain\Quiz\Models\Quiz::create([
+        'curriculum_unit_id' => $unit->id,
+        'lesson_id' => $lesson->id,
+        'title' => 'اختبار إلكتروني قصير',
+        'passing_score' => 60,
+        'time_limit_minutes' => 15,
+        'is_active' => true,
+    ]);
+
+    $student = User::factory()->create(['email_verified_at' => now()]);
+    $student->assignRole('student');
+
+    Subscription::factory()->active()->create([
+        'student_id' => $student->id,
+        'teaching_assignment_id' => $assignment->id,
+        'teaching_group_id' => null,
+        'type' => Subscription::TYPE_PRIVATE,
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('student.resources'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Student/Resources')
+            ->has('subjects', 1)
+            ->where('subjects.0.name', $assignment->subject->name)
+            ->where('subjects.0.units.0.lessons.0.title', 'الدرس الأول: المعادلات الخطية')
+            ->where('subjects.0.units.0.lessons.0.videos.0.title', 'فيديو شرح: الدرس الأول: المعادلات الخطية')
+            ->has('subjects.0.units.0.lessons.0.booklets', 2)
+            ->where('subjects.0.units.0.lessons.0.assessments.0.title', 'اختبار إلكتروني قصير'));
+});
+
+it('automatically sets uploaded files to pending admin review and forbids attaching until approved', function (): void {
+    $teacher = resourceTeacher();
+    $assignment = resourceAssignment($teacher);
+
+    $this->actingAs($teacher)
+        ->post(route('teacher.resource-library.store'), [
+            'title' => 'ملزمة الميكانيكا',
+            'category' => 'مراجعة',
+            'attachment' => UploadedFile::fake()->create('mechanics.pdf', 50, 'application/pdf'),
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $resource = LearningResource::query()->latest('id')->firstOrFail();
+    expect($resource->approval_status)->toBe(LearningResource::APPROVAL_PENDING)
+        ->and($resource->isPending())->toBeTrue();
+
+    // Teacher cannot attach unapproved resource to assignments
+    $this->actingAs($teacher)
+        ->post(route('teacher.resource-library.attach', $resource), [
+            'assignment_id' => $assignment->id,
+        ])
+        ->assertForbidden();
+});
+
+it('allows admin to approve a resource with suggestions and notes', function (): void {
+    \Illuminate\Support\Facades\Notification::fake();
+
+    $teacher = resourceTeacher();
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('admin');
+
+    $resource = LearningResource::factory()->create([
+        'owner_teacher_id' => $teacher->id,
+        'approval_status' => LearningResource::APPROVAL_PENDING,
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.resource-library.approve', $resource), [
+            'admin_notes' => 'محتوى ممتاز، يُقترح إضافة أسئلة تدريبية في الصفحة الأخيرة.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $fresh = $resource->fresh();
+    expect($fresh->approval_status)->toBe(LearningResource::APPROVAL_APPROVED)
+        ->and($fresh->approved_by_admin_id)->toBe($admin->id)
+        ->and($fresh->admin_notes)->toBe('محتوى ممتاز، يُقترح إضافة أسئلة تدريبية في الصفحة الأخيرة.')
+        ->and($fresh->rejection_reason)->toBeNull()
+        ->and($fresh->approved_at)->not->toBeNull();
+
+    \Illuminate\Support\Facades\Notification::assertSentTo(
+        $teacher,
+        \App\Domain\Communication\Notifications\LearningResourceReviewedNotification::class,
+        fn ($n) => $n->action === 'approved' && str_contains($n->adminNotes, 'محتوى ممتاز')
+    );
+});
+
+it('allows admin to reject a resource with rejection reason and suggestions', function (): void {
+    \Illuminate\Support\Facades\Notification::fake();
+
+    $teacher = resourceTeacher();
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('admin');
+
+    $resource = LearningResource::factory()->create([
+        'owner_teacher_id' => $teacher->id,
+        'approval_status' => LearningResource::APPROVAL_PENDING,
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.resource-library.reject', $resource), [
+            'rejection_reason' => 'الصفحات غير واضحة والخط صغير جداً.',
+            'admin_notes' => 'يرجى إعادة التصدير بصيغة PDF عالية الدقة.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $fresh = $resource->fresh();
+    expect($fresh->approval_status)->toBe(LearningResource::APPROVAL_REJECTED)
+        ->and($fresh->rejection_reason)->toBe('الصفحات غير واضحة والخط صغير جداً.')
+        ->and($fresh->admin_notes)->toBe('يرجى إعادة التصدير بصيغة PDF عالية الدقة.')
+        ->and($fresh->rejected_at)->not->toBeNull();
+
+    \Illuminate\Support\Facades\Notification::assertSentTo(
+        $teacher,
+        \App\Domain\Communication\Notifications\LearningResourceReviewedNotification::class,
+        fn ($n) => $n->action === 'rejected' && str_contains($n->rejectionReason, 'الصفحات غير واضحة')
+    );
+});
+
+it('allows admin to update notes and suggestions on a resource', function (): void {
+    $teacher = resourceTeacher();
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('admin');
+
+    $resource = LearningResource::factory()->create([
+        'owner_teacher_id' => $teacher->id,
+        'approval_status' => LearningResource::APPROVAL_APPROVED,
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.resource-library.update-notes', $resource), [
+            'admin_notes' => 'تم التحديث: تم التنسيق مع موجه المادة.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($resource->fresh()->admin_notes)->toBe('تم التحديث: تم التنسيق مع موجه المادة.');
+});
+
+

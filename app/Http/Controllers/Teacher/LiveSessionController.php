@@ -60,7 +60,7 @@ class LiveSessionController extends Controller
             'units:id,teaching_assignment_id,academic_term_id,title,order',
             'groups' => fn ($q) => $q->where('is_active', true)->with('schedules')->orderBy('day_of_week')->orderBy('start_time'),
             // A private class only exists once a student confirms the slot.
-            'privateSlots' => fn ($q) => $q->where('status', 'booked')->where('starts_at', '>=', now())->orderBy('starts_at'),
+            'privateSlots' => fn ($q) => $q->where('status', 'booked')->where('starts_at', '>=', now())->with('booking.student:id,name,email')->orderBy('starts_at'),
         ])
             ->where('teacher_id', $teacherId)
             ->where('is_active', true)
@@ -177,6 +177,7 @@ class LiveSessionController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'is_free' => ['nullable', 'boolean'],
             'source_type' => ['required', 'in:group,private'],
             'teaching_group_id' => ['exclude_unless:source_type,group', 'required', 'integer', 'min:1', 'exists:teaching_groups,id'],
             'private_session_slot_id' => ['exclude_unless:source_type,private', 'required', 'integer', 'min:1', 'exists:private_session_slots,id'],
@@ -189,6 +190,7 @@ class LiveSessionController extends Controller
 
         $group = null;
         $privateSlot = null;
+        $isFree = $request->boolean('is_free');
 
         if ($validated['source_type'] === 'group') {
             abort_if(
@@ -225,6 +227,9 @@ class LiveSessionController extends Controller
             );
 
             $scheduledAt = $privateSlot->starts_at;
+            if ($privateSlot->is_free_intro) {
+                $isFree = true;
+            }
         }
 
         abort_if($scheduledAt->isPast(), 422, 'موعد الحصة يجب أن يكون في المستقبل.');
@@ -244,6 +249,7 @@ class LiveSessionController extends Controller
             'description' => $validated['description'] ?? null,
             'scheduled_at' => $scheduledAt,
             'status' => LiveSession::STATUS_SCHEDULED,
+            'is_free' => $isFree,
         ]);
 
         return back()->with('success', 'تم إنشاء الحصة بنجاح.');

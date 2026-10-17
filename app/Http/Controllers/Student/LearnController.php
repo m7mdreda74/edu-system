@@ -68,6 +68,7 @@ class LearnController extends Controller
             'activeTermId' => $activeTermId,
             'units' => $units,
             'initialLessonId' => $initialLessonId,
+            'showProgressModal' => $request->boolean('progress') || $request->has('progress'),
             'progress' => [
                 'percent' => $progress['percent'],
                 'certificate_ready' => $progress['certificate_ready'],
@@ -164,6 +165,7 @@ class LearnController extends Controller
 
         abort_if(! $worksheet->requires_submission, 403, 'هذا الشيت لا يتطلب تسليماً.');
 
+        $isLate = $worksheet->due_date !== null && now()->startOfDay()->isAfter($worksheet->due_date);
         $path = $request->file('submitted_file')->store('submissions', 'local');
 
         WorksheetSubmission::updateOrCreate(
@@ -171,6 +173,7 @@ class LearnController extends Controller
             [
                 'submitted_file_path' => 'private://'.$path,
                 'submitted_at' => now(),
+                'is_late' => $isLate,
                 // Resubmitting clears the previous grade.
                 'score' => null,
                 'teacher_feedback' => null,
@@ -178,9 +181,12 @@ class LearnController extends Controller
             ],
         );
 
-        return back()->with('success', $worksheet->type === Worksheet::TYPE_PAPER_EXAM
-            ? 'تم تسليم إجابة الاختبار بنجاح.'
-            : 'تم تسليم الواجب بنجاح.');
+        $typeLabel = $worksheet->type === Worksheet::TYPE_PAPER_EXAM ? 'إجابة الاختبار' : 'الواجب';
+        $message = $isLate
+            ? "تم تسليم {$typeLabel} بنجاح (ملاحظة: تم التسليم متأخراً بعد انتهاء الموعد المحدد)."
+            : "تم تسليم {$typeLabel} بنجاح.";
+
+        return back()->with('success', $message);
     }
 
     // ─── Access ───────────────────────────────────────────────────
@@ -215,13 +221,14 @@ class LearnController extends Controller
     private function terms(TeachingGroup $group): Collection
     {
         $counts = CurriculumUnit::where('teaching_assignment_id', $group->teaching_assignment_id)
-            ->where('is_published', true)
+            ->where(function ($q) {
+                $q->where('is_published', true)->orWhereNull('is_published');
+            })
             ->groupBy('academic_term_id')
             ->selectRaw('academic_term_id, count(*) as total')
             ->pluck('total', 'academic_term_id');
 
-        return AcademicTerm::whereIn('id', $counts->keys()->all())
-            ->orderBy('starts_on')
+        return AcademicTerm::orderBy('starts_on')
             ->get()
             ->map(fn (AcademicTerm $term) => [
                 'id' => $term->id,
@@ -230,7 +237,7 @@ class LearnController extends Controller
                 'term_number' => $term->term_number,
                 'full_name' => $term->fullName(),
                 'is_current' => (bool) $term->isCurrent(),
-                'units_count' => (int) $counts[$term->id],
+                'units_count' => (int) ($counts[$term->id] ?? 0),
             ]);
     }
 
@@ -238,19 +245,38 @@ class LearnController extends Controller
     private function activeTermId(Request $request, TeachingGroup $group, Collection $terms): ?int
     {
         $available = $terms->pluck('id');
+        $requested = $request->integer('term');
 
-        // The tab the student clicked wins; then the term their slot runs in.
-        foreach ([$request->integer('term'), (int) $group->academic_term_id] as $candidate) {
-            if ($candidate && $available->contains($candidate)) {
-                return $candidate;
+        // 1. If explicit term requested and exists, respect user choice
+        if ($requested && $available->contains($requested)) {
+            return $requested;
+        }
+
+        // 2. Candidate from group if it has content
+        if ($group->academic_term_id) {
+            $groupTerm = $terms->firstWhere('id', (int) $group->academic_term_id);
+            if ($groupTerm && ($groupTerm['units_count'] ?? 0) > 0) {
+                return (int) $group->academic_term_id;
             }
         }
 
+        // 3. Current term if it has content
         $current = AcademicTerm::currentOrNext()?->id;
+        if ($current) {
+            $currentTerm = $terms->firstWhere('id', (int) $current);
+            if ($currentTerm && ($currentTerm['units_count'] ?? 0) > 0) {
+                return (int) $current;
+            }
+        }
 
-        return $current && $available->contains($current)
-            ? (int) $current
-            : $terms->first()['id'] ?? null;
+        // 4. Any term that actually has units!
+        $termWithUnits = $terms->first(fn ($t) => ($t['units_count'] ?? 0) > 0);
+        if ($termWithUnits) {
+            return (int) $termWithUnits['id'];
+        }
+
+        // 5. Fallback to current term or first term in calendar
+        return (int) ($current ?? $terms->first()['id'] ?? null);
     }
 
     // ─── Presentation ─────────────────────────────────────────────
@@ -271,7 +297,9 @@ class LearnController extends Controller
 
         $units = CurriculumUnit::where('teaching_assignment_id', $group->teaching_assignment_id)
             ->where('academic_term_id', $termId)
-            ->where('is_published', true)
+            ->where(function ($q) {
+                $q->where('is_published', true)->orWhereNull('is_published');
+            })
             ->with([
                 'lessons.homework',
                 'lessons.activeLessonVideo',
@@ -394,6 +422,8 @@ class LearnController extends Controller
         }
 
         $submission = $submissions->get($sheet->id);
+        $isOverdue = $sheet->due_date !== null && $sheet->due_date->isBefore(today());
+        $isLate = $submission?->isLate() ?? false;
 
         return [
             'id' => $sheet->id,
@@ -404,6 +434,7 @@ class LearnController extends Controller
             'due_date' => $sheet->due_date?->format('Y-m-d'),
             'max_score' => $sheet->max_score,
             'requires_submission' => $sheet->requires_submission,
+            'is_overdue' => $isOverdue,
             'submission' => $submission === null ? null : [
                 'id' => $submission->id,
                 'file_path' => filled($submission->submitted_file_path)
@@ -414,6 +445,7 @@ class LearnController extends Controller
                 'teacher_feedback' => $submission->teacher_feedback,
                 'graded_at' => $submission->graded_at?->toIso8601String(),
                 'is_graded' => $submission->isGraded(),
+                'is_late' => $isLate,
             ],
         ];
     }

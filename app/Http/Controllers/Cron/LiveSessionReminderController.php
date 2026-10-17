@@ -12,9 +12,14 @@ class LiveSessionReminderController extends Controller
 {
     public function __invoke(LiveSessionReminderService $reminders): JsonResponse
     {
+        $due24h = $reminders->sendDueReminders();
+        $due30m = $reminders->sendThirtyMinuteReminders();
+
         return response()->json([
             'success' => true,
-            'notifications_sent' => $reminders->sendDueReminders(),
+            'notifications_sent' => $due24h + $due30m,
+            'due_24h_sent' => $due24h,
+            'due_30m_sent' => $due30m,
         ]);
     }
 }

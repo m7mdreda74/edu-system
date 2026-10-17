@@ -50,6 +50,8 @@ class LearningResource extends Model
         'approved_by_admin_id',
         'approved_at',
         'rejected_at',
+        'admin_notes',
+        'rejection_reason',
         'is_active',
     ];
 
@@ -87,6 +89,21 @@ class LearningResource extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true)->whereNotNull('file_path');
+    }
+
+    public function isPending(): bool
+    {
+        return $this->approval_status === self::APPROVAL_PENDING;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approval_status === self::APPROVAL_APPROVED;
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->approval_status === self::APPROVAL_REJECTED;
     }
 
     public function isPendingShare(): bool

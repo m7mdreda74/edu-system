@@ -262,6 +262,17 @@ class LiveSessionRoomController extends Controller
      */
     private function studentMayJoin(LiveSession $session, User $user): bool
     {
+        if ($session->is_free && $user->hasRole('student')) {
+            if ($session->private_session_slot_id) {
+                return $session->privateSessionSlot?->booking()
+                    ->where('student_id', $user->id)
+                    ->where('status', 'confirmed')
+                    ->exists() ?? false;
+            }
+
+            return true;
+        }
+
         if ($session->teaching_group_id) {
             $group = $session->teachingGroup;
             if (! $group) {

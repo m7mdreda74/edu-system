@@ -16,6 +16,7 @@ class WorksheetSubmission extends Model
         'submitted_file_path',
         'score',
         'teacher_feedback',
+        'is_late',
         'submitted_at',
         'graded_at',
     ];
@@ -24,6 +25,7 @@ class WorksheetSubmission extends Model
     {
         return [
             'score'        => 'integer',
+            'is_late'      => 'boolean',
             'submitted_at' => 'datetime',
             'graded_at'    => 'datetime',
         ];
@@ -42,5 +44,20 @@ class WorksheetSubmission extends Model
     public function isGraded(): bool
     {
         return $this->graded_at !== null;
+    }
+
+    public function isLate(): bool
+    {
+        if ($this->is_late !== null) {
+            return (bool) $this->is_late;
+        }
+
+        if (! $this->worksheet || ! $this->worksheet->due_date) {
+            return false;
+        }
+
+        $submitted = $this->submitted_at ?? $this->created_at;
+
+        return $submitted && $submitted->startOfDay()->isAfter($this->worksheet->due_date);
     }
 }
