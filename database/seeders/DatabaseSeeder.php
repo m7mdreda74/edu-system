@@ -64,6 +64,7 @@ class DatabaseSeeder extends Seeder
         $this->step('💳 الاشتراكات والمدفوعات والكوبونات والتسويات', fn () => $this->call(CommerceSeeder::class));
         $this->step('💬 التفاعل — تقدّم ومحاولات وأسئلة ورسائل وتقييمات', fn () => $this->call(EngagementSeeder::class));
         $this->step('🧪 الحالات التشغيلية — Jitsi والتجريبي والتذكيرات والاعتذارات', fn () => $this->call(OperationalSeeder::class));
+        $this->step('🎯 البيانات التجريبية الشاملة لكافة أقسام المنصة', fn () => $this->call(ComprehensiveDemoSeeder::class));
 
         $this->flushCaches();
         $this->report();
