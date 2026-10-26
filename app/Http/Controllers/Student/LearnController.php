@@ -166,6 +166,20 @@ class LearnController extends Controller
         abort_if(! $worksheet->requires_submission, 403, 'هذا الشيت لا يتطلب تسليماً.');
 
         $isLate = $worksheet->due_date !== null && now()->startOfDay()->isAfter($worksheet->due_date);
+
+        if ($isLate && ! ($worksheet->allow_late_submission ?? true)) {
+            abort(403, 'عفواً، انتهى موعد التسليم المحدد ولا يُسمح بالتسليم المتأخر لهذا الواجب.');
+        }
+
+        $existing = WorksheetSubmission::where('worksheet_id', $worksheet->id)
+            ->where('student_id', $user->id)
+            ->first();
+
+        $maxAttempts = (int) ($worksheet->max_attempts > 0 ? $worksheet->max_attempts : 1);
+        if ($existing && $existing->isGraded() && $maxAttempts <= 1) {
+            abort(403, 'تم تصحيح إجابتك بالفعل ولا يمكن إعادة التسليم وفقاً لإعدادات المعلم.');
+        }
+
         $path = $request->file('submitted_file')->store('submissions', 'local');
 
         WorksheetSubmission::updateOrCreate(
@@ -303,6 +317,7 @@ class LearnController extends Controller
             ->with([
                 'lessons.homework',
                 'lessons.activeLessonVideo',
+                'lessons.quiz' => fn ($query) => $query->where('is_active', true)->withCount('questions'),
                 // A draft exam — no questions, switched off — does not exist
                 // for the student until the teacher activates it.
                 'electronicExam' => fn ($query) => $query->where('is_active', true)->withCount('questions'),
@@ -327,7 +342,7 @@ class LearnController extends Controller
 
         foreach ($units as $unit) {
             $isLocked = ! $previousCleared;
-            $unitLessons = $this->presentLessons($unit, $progress, $submissions, $isLocked);
+            $unitLessons = $this->presentLessons($unit, $progress, $submissions, $attempts, $isLocked);
             $done = count(array_filter($unitLessons, fn (array $lesson) => $lesson['is_completed']));
 
             $tree[] = [
@@ -367,12 +382,14 @@ class LearnController extends Controller
      *
      * @param  Collection<int, LessonProgress>  $progress
      * @param  Collection<int, WorksheetSubmission>  $submissions
+     * @param  Collection<int, Collection<int, QuizAttempt>>  $attempts
      * @return array<int, array<string, mixed>>
      */
     private function presentLessons(
         CurriculumUnit $unit,
         Collection $progress,
         Collection $submissions,
+        Collection $attempts,
         bool $unitLocked,
     ): array {
         $previousDone = true;
@@ -401,6 +418,7 @@ class LearnController extends Controller
                 'watched_seconds' => (int) ($seen->watched_seconds ?? 0),
                 'is_locked' => ! $lesson->is_free_preview && ($unitLocked || ! $previousDone),
                 'homework' => $this->presentSheet($lesson->homework, $submissions),
+                'quiz' => $this->presentExam($lesson->quiz, $attempts),
             ];
 
             $previousDone = $isCompleted;
@@ -424,6 +442,9 @@ class LearnController extends Controller
         $submission = $submissions->get($sheet->id);
         $isOverdue = $sheet->due_date !== null && $sheet->due_date->isBefore(today());
         $isLate = $submission?->isLate() ?? false;
+        $allowLate = (bool) ($sheet->allow_late_submission ?? true);
+        $maxAttempts = (int) ($sheet->max_attempts > 0 ? $sheet->max_attempts : 1);
+        $canSubmit = (! $isOverdue || $allowLate) && ($submission === null || ! $submission->isGraded() || $maxAttempts > 1);
 
         return [
             'id' => $sheet->id,
@@ -434,6 +455,9 @@ class LearnController extends Controller
             'due_date' => $sheet->due_date?->format('Y-m-d'),
             'max_score' => $sheet->max_score,
             'requires_submission' => $sheet->requires_submission,
+            'allow_late_submission' => $allowLate,
+            'max_attempts' => $maxAttempts,
+            'can_submit' => $canSubmit,
             'is_overdue' => $isOverdue,
             'submission' => $submission === null ? null : [
                 'id' => $submission->id,
@@ -467,6 +491,7 @@ class LearnController extends Controller
         $best = $mine->whereNotNull('submitted_at')->sortByDesc('score')->first();
         $used = $mine->count();
         $questions = (int) ($quiz->questions_count ?? 0);
+        $maxAttempts = (int) ($quiz->max_attempts > 0 ? $quiz->max_attempts : Quiz::MAX_QUIZ_ATTEMPTS);
 
         return [
             'id' => $quiz->id,
@@ -475,11 +500,14 @@ class LearnController extends Controller
             'time_limit_minutes' => $quiz->time_limit_minutes,
             'passing_score' => $quiz->passing_score,
             'is_open' => $quiz->isOpen(),
+            'is_late_window' => $quiz->isLateWindow(),
+            'allow_late_submission' => (bool) ($quiz->allow_late_submission ?? false),
+            'max_attempts' => $maxAttempts,
             'opens_at' => $quiz->available_from?->toIso8601String(),
             'closes_at' => $quiz->available_until?->toIso8601String(),
             'window_label' => $quiz->windowLabel(),
             'attempts_count' => $used,
-            'attempts_left' => max(0, Quiz::MAX_QUIZ_ATTEMPTS - $used),
+            'attempts_left' => max(0, $maxAttempts - $used),
             'best_attempt' => $best === null ? null : [
                 'id' => $best->id,
                 'score' => $best->score,
@@ -488,7 +516,7 @@ class LearnController extends Controller
                 'submitted_at' => $best->submitted_at?->toIso8601String(),
             ],
             // An exam with no questions in it cannot be sat, however open it is.
-            'can_start' => $quiz->isOpen() && $questions > 0 && $used < Quiz::MAX_QUIZ_ATTEMPTS,
+            'can_start' => $quiz->isOpen() && $questions > 0 && $used < $maxAttempts,
         ];
     }
 
@@ -530,7 +558,10 @@ class LearnController extends Controller
      */
     private function attemptMap(User $user, Collection $units): Collection
     {
-        $quizIds = $units->map(fn (CurriculumUnit $unit) => $unit->electronicExam?->id)->filter()->all();
+        $quizIds = $units->map(fn (CurriculumUnit $unit) => $unit->electronicExam?->id)
+            ->merge($units->flatMap(fn (CurriculumUnit $unit) => $unit->lessons->map(fn ($l) => $l->quiz?->id)))
+            ->filter()
+            ->all();
 
         return QuizAttempt::where('user_id', $user->id)
             ->whereIn('quiz_id', $quizIds)

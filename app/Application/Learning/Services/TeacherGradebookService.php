@@ -215,6 +215,7 @@ class TeacherGradebookService
                 'submission.teacher_feedback as feedback',
                 'worksheet.due_date as due_date',
                 DB::raw("CASE WHEN submission.is_late = 1 OR (worksheet.due_date IS NOT NULL AND DATE(submission.submitted_at) > worksheet.due_date) THEN 1 ELSE 0 END as is_late"),
+                'submission.submitted_file_path as submitted_file_path',
                 'submission.submitted_at as assessed_at',
             ]);
 
@@ -260,8 +261,9 @@ class TeacherGradebookService
                 'attempt.total_points as maximum',
                 DB::raw("'graded' as status"),
                 'attempt.teacher_feedback as feedback',
-                DB::raw('NULL as due_date'),
-                DB::raw('0 as is_late'),
+                'quiz.available_until as due_date',
+                DB::raw("CASE WHEN quiz.available_until IS NOT NULL AND attempt.submitted_at > quiz.available_until THEN 1 ELSE 0 END as is_late"),
+                DB::raw('NULL as submitted_file_path'),
                 'attempt.submitted_at as assessed_at',
             ]);
 
@@ -323,6 +325,8 @@ class TeacherGradebookService
 
         return [
             'id' => $row->source_type.'-'.$row->source_id,
+            'source_type' => $row->source_type,
+            'submission_id' => ! $isQuiz ? (int) $row->source_id : null,
             'attempt_id' => $isQuiz ? (int) $row->source_id : null,
             'assessment_id' => (int) $row->assessment_id,
             'assignment_id' => (int) $row->assignment_id,
@@ -347,6 +351,9 @@ class TeacherGradebookService
             'feedback' => $row->feedback,
             'due_date' => $row->due_date ? Carbon::parse((string) $row->due_date)->toDateString() : null,
             'is_late' => (bool) ($row->is_late ?? false),
+            'download_url' => ! $isQuiz && filled($row->submitted_file_path)
+                ? route('learning.submission.download', (int) $row->source_id)
+                : null,
             'assessed_at' => $row->assessed_at === null
                 ? null
                 : Carbon::parse((string) $row->assessed_at)->toIso8601String(),
@@ -362,6 +369,8 @@ class TeacherGradebookService
 
         return [
             'id' => 'worksheet-'.$submission->id,
+            'source_type' => 'worksheet',
+            'submission_id' => $submission->id,
             'assessment_id' => $worksheet->id,
             'assignment_id' => $assignment?->id,
             'kind' => $worksheet->type === Worksheet::TYPE_PAPER_EXAM ? 'paper_exam' : 'homework',
@@ -376,6 +385,9 @@ class TeacherGradebookService
             'feedback' => $submission->teacher_feedback,
             'due_date' => $worksheet->due_date?->toDateString(),
             'is_late' => $submission->isLate(),
+            'download_url' => filled($submission->submitted_file_path)
+                ? route('learning.submission.download', $submission->id)
+                : null,
             'assessed_at' => $submission->submitted_at?->toIso8601String(),
         ];
     }
@@ -389,6 +401,7 @@ class TeacherGradebookService
 
         return [
             'id' => 'quiz-'.$attempt->id,
+            'source_type' => 'quiz',
             'attempt_id' => $attempt->id,
             'assessment_id' => $quiz->id,
             'assignment_id' => $assignment?->id,
@@ -402,6 +415,9 @@ class TeacherGradebookService
             'percentage' => $maximum === null ? $attempt->score : $this->percentage($earned, $maximum),
             'status' => 'graded',
             'feedback' => $attempt->teacher_feedback,
+            'due_date' => $quiz->available_until?->toDateString(),
+            'is_late' => $quiz->available_until !== null && $attempt->submitted_at !== null && $attempt->submitted_at->gt($quiz->available_until),
+            'download_url' => null,
             'assessed_at' => $attempt->submitted_at?->toIso8601String(),
         ];
     }

@@ -43,6 +43,8 @@ class UploadHomeworkRequest extends FormRequest
             'due_date' => ['nullable', 'date'],
             'max_score' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'requires_submission' => ['nullable', 'boolean'],
+            'allow_late_submission' => ['nullable', 'boolean'],
+            'max_attempts' => ['nullable', 'integer', 'min:1', 'max:10'],
         ];
     }
 

@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -51,6 +51,47 @@ function saveQuizFeedback(row) {
     router.post(route('teacher.gradebook.quiz-feedback', { attemptId: row.attempt_id }), {
         teacher_feedback: feedbackDraft(row),
     }, { preserveScroll: true });
+}
+
+// ── Interactive Grading Modal for Worksheets / Paper Exams ──
+const gradingModal = ref({
+    isOpen: false,
+    row: null,
+});
+
+const gradeForm = useForm({
+    score: '',
+    teacher_feedback: '',
+});
+
+function openGradingModal(row) {
+    gradingModal.value.row = row;
+    gradeForm.reset();
+    gradeForm.clearErrors();
+    gradeForm.score = row.earned !== null ? row.earned : '';
+    gradeForm.teacher_feedback = row.feedback || '';
+    gradingModal.value.isOpen = true;
+}
+
+function closeGradingModal() {
+    gradingModal.value.isOpen = false;
+    gradingModal.value.row = null;
+    gradeForm.reset();
+}
+
+function submitGradingModal() {
+    if (! gradingModal.value.row) return;
+    const row = gradingModal.value.row;
+    gradeForm.post(route('teacher.worksheets.grade', { submissionId: row.submission_id }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeGradingModal();
+        },
+    });
+}
+
+function applyFeedbackPreset(preset) {
+    gradeForm.teacher_feedback = preset;
 }
 
 const statusLabels = {
@@ -152,7 +193,13 @@ const statusClasses = {
                                 </td>
                                 <td class="px-5 py-4">
                                     <div class="font-bold text-surface-900 dark:text-white">{{ row.title }}</div>
-                                    <span class="mt-1 inline-block text-[11px] text-surface-400">{{ row.kind_label }}</span>
+                                    <div class="flex items-center gap-2 mt-1 flex-wrap">
+                                        <span class="inline-block text-[11px] text-surface-400">{{ row.kind_label }}</span>
+                                        <a v-if="row.download_url" :href="row.download_url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:underline">
+                                            <span>حل الطالب 📎</span>
+                                            <span>↗</span>
+                                        </a>
+                                    </div>
                                 </td>
                                 <td class="px-5 py-4 text-surface-600 dark:text-surface-300">{{ row.subject?.name || '—' }}</td>
                                 <td class="px-5 py-4">
@@ -170,6 +217,7 @@ const statusClasses = {
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-xs text-surface-500">{{ formatDate(row.assessed_at) }}</td>
                                 <td class="px-5 py-4 text-end">
+                                    <!-- Quiz Feedback -->
                                     <div v-if="row.kind === 'quiz' && row.attempt_id" class="min-w-[220px] space-y-2 text-start">
                                         <textarea
                                             :value="feedbackDraft(row)"
@@ -180,8 +228,28 @@ const statusClasses = {
                                         ></textarea>
                                         <button type="button" class="btn-primary btn-sm" @click="saveQuizFeedback(row)">حفظ الملاحظة</button>
                                     </div>
+
+                                    <!-- Worksheet / Paper Exam Grading Action -->
+                                    <div v-else-if="row.submission_id" class="flex flex-col items-end gap-1.5">
+                                        <button
+                                            type="button"
+                                            @click="openGradingModal(row)"
+                                            class="btn-primary btn-sm flex items-center gap-1.5 font-bold"
+                                        >
+                                            <Icon name="edit" class="w-3.5 h-3.5" />
+                                            <span>{{ row.status === 'graded' ? 'تعديل الدرجة' : 'رصد الدرجة' }}</span>
+                                        </button>
+                                        <Link
+                                            v-if="row.assignment_id"
+                                            :href="route('teacher.curriculum', { assignment: row.assignment_id })"
+                                            class="btn-ghost btn-xs text-surface-400 hover:text-surface-600"
+                                        >
+                                            فتح المنهج
+                                        </Link>
+                                    </div>
+
                                     <Link
-                                        v-if="row.assignment_id"
+                                        v-else-if="row.assignment_id"
                                         :href="route('teacher.curriculum', { assignment: row.assignment_id })"
                                         class="btn-ghost btn-sm"
                                     >
@@ -223,6 +291,130 @@ const statusClasses = {
                     ستظهر هنا الواجبات المسلّمة والاختبارات المكتملة فقط؛ الواجب غير المسلّم لا يتحول تلقائيًا إلى صفر.
                 </p>
             </div>
+
+            <!-- ── Interactive Teacher Grading Modal (Qatar LMS Style) ── -->
+            <Transition
+                enter-active-class="transition duration-200 ease-out"
+                enter-from-class="opacity-0 scale-95"
+                enter-to-class="opacity-100 scale-100"
+                leave-active-class="transition duration-150 ease-in"
+                leave-from-class="opacity-100 scale-100"
+                leave-to-class="opacity-0 scale-95"
+            >
+                <div v-if="gradingModal.isOpen && gradingModal.row" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div class="card p-6 w-full max-w-lg shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+                        <div class="flex items-center justify-between border-b border-surface-200 dark:border-surface-700 pb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="p-2 rounded-xl bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                                    <Icon name="edit" class="w-5 h-5" />
+                                </span>
+                                <div>
+                                    <h2 class="text-lg font-black text-surface-900 dark:text-white">تصحيح ورصد الدرجة</h2>
+                                    <p class="text-xs text-surface-500">{{ gradingModal.row.title }} ({{ gradingModal.row.kind_label }})</p>
+                                </div>
+                            </div>
+                            <button type="button" @click="closeGradingModal" class="btn-ghost btn-sm p-1.5 text-surface-400 hover:text-surface-600">
+                                <Icon name="close" class="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <!-- Student Info Card -->
+                        <div class="p-3.5 rounded-xl bg-surface-50 dark:bg-surface-850 border border-surface-200 dark:border-surface-800 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-sm text-surface-900 dark:text-white">{{ gradingModal.row.student?.name }}</div>
+                                    <div class="text-xs text-surface-400">{{ gradingModal.row.student?.email }}</div>
+                                </div>
+                                <span v-if="gradingModal.row.is_late" class="rounded bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-500 border border-red-500/20">
+                                    ⚠️ تسليم متأخر
+                                </span>
+                                <span v-else class="rounded bg-green-500/10 px-2 py-0.5 text-xs font-bold text-green-600 border border-green-500/20">
+                                    تسليم في الموعد
+                                </span>
+                            </div>
+
+                            <!-- Attached File -->
+                            <div v-if="gradingModal.row.download_url" class="pt-2 border-t border-surface-200 dark:border-surface-700 flex items-center justify-between">
+                                <span class="text-xs text-surface-500">الملف المرفق من الطالب:</span>
+                                <a :href="gradingModal.row.download_url" target="_blank" rel="noopener noreferrer" class="btn-primary btn-xs py-1 px-2.5 rounded-lg flex items-center gap-1 font-bold">
+                                    <Icon name="download" class="w-3.5 h-3.5" />
+                                    <span>عرض وتحميل حل الطالب ↗</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Grading Form -->
+                        <form @submit.prevent="submitGradingModal" class="space-y-4">
+                            <div>
+                                <label class="label mb-1 font-bold">
+                                    رصد الدرجة (من 0 إلى {{ gradingModal.row.maximum || 100 }})
+                                </label>
+                                <input
+                                    v-model.number="gradeForm.score"
+                                    type="number"
+                                    min="0"
+                                    :max="gradingModal.row.maximum || 100"
+                                    required
+                                    class="input text-lg font-bold"
+                                    :class="{ 'input-error': gradeForm.errors.score }"
+                                    placeholder="أدخل درجة الطالب..."
+                                />
+                                <p v-if="gradeForm.errors.score" class="error-msg">{{ gradeForm.errors.score }}</p>
+                            </div>
+
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="label mb-0 font-bold">ملاحظات وتقييم المعلم للطالب</label>
+                                    <span class="text-[11px] text-surface-400">تصل للطالب وولي أمره</span>
+                                </div>
+                                <textarea
+                                    v-model="gradeForm.teacher_feedback"
+                                    rows="3"
+                                    maxlength="1000"
+                                    class="input text-xs"
+                                    :class="{ 'input-error': gradeForm.errors.teacher_feedback }"
+                                    placeholder="أضف توجيهات للطالب أو إشادة بنقاط القوة..."
+                                ></textarea>
+                                <p v-if="gradeForm.errors.teacher_feedback" class="error-msg">{{ gradeForm.errors.teacher_feedback }}</p>
+
+                                <!-- Quick Suggestions -->
+                                <div class="flex flex-wrap gap-1.5 mt-2">
+                                    <button
+                                        type="button"
+                                        @click="applyFeedbackPreset('ممتاز! إجابة نموذجية ومتقنة 🌟')"
+                                        class="text-[11px] bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-lg px-2.5 py-1 transition-colors"
+                                    >
+                                        🌟 ممتاز ومتقن
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="applyFeedbackPreset('عمل جيد، أحسنت مع مراعاة الملاحظات 👍')"
+                                        class="text-[11px] bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-lg px-2.5 py-1 transition-colors"
+                                    >
+                                        👍 عمل جيد
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="applyFeedbackPreset('يرجى مراجعة النقاط غير المكتملة وإعادة التدريب 💡')"
+                                        class="text-[11px] bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-lg px-2.5 py-1 transition-colors"
+                                    >
+                                        💡 بحاجة لمراجعة
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-3 pt-2">
+                                <button type="submit" :disabled="gradeForm.processing" class="btn-primary flex-1 py-2.5 font-bold">
+                                    {{ gradeForm.processing ? 'جارٍ الاعتماد...' : 'اعتماد ورصد الدرجة' }}
+                                </button>
+                                <button type="button" @click="closeGradingModal" class="btn-ghost flex-1 py-2.5">
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </Transition>
         </div>
     </DashboardLayout>
 </template>

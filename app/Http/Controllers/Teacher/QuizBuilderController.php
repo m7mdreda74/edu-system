@@ -55,7 +55,10 @@ class QuizBuilderController extends Controller
                 'available_until' => $quiz->available_until?->format('Y-m-d\TH:i'),
                 'window_label' => $quiz->windowLabel(),
                 'is_open' => $quiz->isOpen(),
+                'allow_late_submission' => (bool) $quiz->allow_late_submission,
+                'max_attempts' => (int) ($quiz->max_attempts ?: 3),
                 'is_unit_exam' => $quiz->lesson_id === null,
+                'lesson_id' => $quiz->lesson_id,
                 'lesson' => $quiz->material?->only(['id', 'title']),
                 'attempts_count' => $quiz->attempts()->count(),
             ],
@@ -66,6 +69,7 @@ class QuizBuilderController extends Controller
                 'term_id' => $unit->academic_term_id,
                 'term' => $unit->term?->only(['id', 'name']),
             ],
+            'lessons' => $unit->lessons()->orderBy('order')->get(['id', 'title']),
             'assignment' => [
                 'id' => $assignment->id,
                 'subject' => $assignment->subject?->only(['id', 'name']),

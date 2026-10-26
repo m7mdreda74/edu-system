@@ -34,8 +34,10 @@ class QuizService
             ->where('quiz_id', $quiz->id)
             ->count();
 
-        if ($attemptsCount >= self::MAX_ATTEMPTS) {
-            throw new LogicException('لقد استنفذت جميع محاولاتك لهذا الاختبار.');
+        $maxAttempts = (int) ($quiz->max_attempts > 0 ? $quiz->max_attempts : self::MAX_ATTEMPTS);
+
+        if ($attemptsCount >= $maxAttempts) {
+            throw new LogicException("لقد استنفذت جميع محاولاتك لهذا الاختبار ({$maxAttempts} محاولة).");
         }
 
         return DB::transaction(fn () => QuizAttempt::create([
@@ -147,6 +149,8 @@ class QuizService
             ->where('quiz_id', $quiz->id)
             ->count();
 
-        return max(0, self::MAX_ATTEMPTS - $used);
+        $maxAttempts = (int) ($quiz->max_attempts > 0 ? $quiz->max_attempts : self::MAX_ATTEMPTS);
+
+        return max(0, $maxAttempts - $used);
     }
 }

@@ -736,6 +736,7 @@ class CurriculumController extends Controller
             ->where('academic_term_id', $termId)
             ->with([
                 'lessons.homework' => fn ($query) => $query->withCount('submissions'),
+                'lessons.quiz' => fn ($query) => $query->withCount('questions'),
                 'lessons.liveSession:id,lesson_id',
                 'lessons.activeLessonVideo',
                 'lessons.latestLessonVideo',
@@ -810,6 +811,7 @@ class CurriculumController extends Controller
             'has_booklet' => filled($lesson->attachment_path),
             'is_live_recording' => $lesson->liveSession !== null,
             'homework' => $this->presentWorksheet($lesson->homework),
+            'quiz' => $this->presentQuiz($lesson->quiz),
         ];
     }
 
@@ -824,9 +826,12 @@ class CurriculumController extends Controller
         return [
             'id' => $quiz->id,
             'title' => $quiz->title,
+            'lesson_id' => $quiz->lesson_id,
             'questions_count' => $questions,
             'time_limit_minutes' => $quiz->time_limit_minutes,
             'passing_score' => $quiz->passing_score,
+            'allow_late_submission' => (bool) ($quiz->allow_late_submission ?? false),
+            'max_attempts' => (int) ($quiz->max_attempts ?? 3),
             'is_active' => $quiz->is_active,
             'available_from' => $quiz->available_from?->toIso8601String(),
             'available_until' => $quiz->available_until?->toIso8601String(),
@@ -852,6 +857,8 @@ class CurriculumController extends Controller
             'due_date' => $sheet->due_date?->format('Y-m-d'),
             'max_score' => $sheet->max_score,
             'requires_submission' => $sheet->requires_submission,
+            'allow_late_submission' => (bool) ($sheet->allow_late_submission ?? true),
+            'max_attempts' => (int) ($sheet->max_attempts ?? 1),
             'submissions_count' => (int) ($sheet->submissions_count ?? 0),
         ];
     }
@@ -1062,6 +1069,14 @@ class CurriculumController extends Controller
 
         if ($existing === null || $request->has('requires_submission')) {
             $data['requires_submission'] = $request->boolean('requires_submission', true);
+        }
+
+        if ($existing === null || $request->has('allow_late_submission')) {
+            $data['allow_late_submission'] = $request->boolean('allow_late_submission', true);
+        }
+
+        if ($existing === null || $request->has('max_attempts')) {
+            $data['max_attempts'] = $request->filled('max_attempts') ? $request->integer('max_attempts') : 1;
         }
 
         return $data;

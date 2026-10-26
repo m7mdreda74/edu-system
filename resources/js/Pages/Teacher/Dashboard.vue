@@ -10,11 +10,13 @@ import QuickContentModal from '@/Components/Teacher/QuickContentModal.vue';
 import { formatTime12 } from '@/lib/money';
 
 const props = defineProps({
-    stats:             { type: Object, default: () => ({}) },
-    assignments:       { type: Array,  default: () => [] },
-    groups:            { type: Array,  default: () => [] },
-    upcoming_sessions: { type: Array,  default: () => [] },
-    terms:             { type: Array,  default: () => [] },
+    stats:               { type: Object, default: () => ({}) },
+    assignments:         { type: Array,  default: () => [] },
+    groups:              { type: Array,  default: () => [] },
+    upcoming_sessions:   { type: Array,  default: () => [] },
+    pending_submissions: { type: Array,  default: () => [] },
+    at_risk_students:    { type: Array,  default: () => [] },
+    terms:               { type: Array,  default: () => [] },
 });
 
 // Modals state
@@ -165,6 +167,105 @@ function autoScheduleGroup(groupId) {
                             <Icon name="live" class="w-3.5 h-3.5" />
                             <span>دخول</span>
                         </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Urgent Actions & Follow-up (Grading Queue & At-risk Students) ── -->
+            <section v-if="pending_submissions.length || at_risk_students.length" class="grid lg:grid-cols-2 gap-5">
+                <!-- Submissions Awaiting Grading -->
+                <div v-if="pending_submissions.length" class="card p-5 space-y-4 border-r-4 border-r-accent-500 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="p-2 rounded-xl bg-accent-500/10 text-accent-600 dark:text-accent-400">
+                                <Icon name="edit" class="w-4 h-4" />
+                            </span>
+                            <h2 class="font-black text-sm text-surface-900 dark:text-white">
+                                تسليمات بانتظار تصحيحك ({{ stats.pending_grading }})
+                            </h2>
+                        </div>
+                        <span class="text-xs text-surface-400 font-bold">الأحدث</span>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        <div
+                            v-for="sub in pending_submissions"
+                            :key="sub.id"
+                            class="flex items-center justify-between gap-3 p-3 rounded-xl bg-surface-50 dark:bg-surface-850 border border-surface-200/70 dark:border-surface-800"
+                        >
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 rounded-full bg-primary-500/10 text-primary-600 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                                    <img v-if="sub.student_avatar" :src="sub.student_avatar" :alt="sub.student_name" class="w-full h-full object-cover" />
+                                    <span v-else>{{ sub.student_name?.charAt(0) }}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-bold text-xs text-surface-900 dark:text-white truncate">{{ sub.student_name }}</p>
+                                        <span v-if="sub.is_late" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20">
+                                            متأخر
+                                        </span>
+                                    </div>
+                                    <p class="text-[11px] text-surface-500 truncate">{{ sub.subject_name }} · {{ sub.worksheet_title }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="text-[11px] text-surface-400 font-mono">{{ sub.submitted_at_formatted }}</span>
+                                <Link
+                                    v-if="sub.group_id"
+                                    :href="route('teacher.worksheets.index', { groupId: sub.group_id })"
+                                    class="btn-accent btn-xs px-2.5 py-1 text-[11px] font-bold"
+                                >
+                                    تصحيح
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Students Needing Follow-up (Quiz Score < 50%) -->
+                <div v-if="at_risk_students.length" class="card p-5 space-y-4 border-r-4 border-r-amber-500 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                <Icon name="chart" class="w-4 h-4" />
+                            </span>
+                            <h2 class="font-black text-sm text-surface-900 dark:text-white">
+                                طلاب بحاجة إلى متابعة ودعم تعليمي
+                            </h2>
+                        </div>
+                        <span class="text-xs text-amber-600 dark:text-amber-400 font-bold">تنبيه أداء</span>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        <div
+                            v-for="st in at_risk_students"
+                            :key="st.id"
+                            class="flex items-center justify-between gap-3 p-3 rounded-xl bg-surface-50 dark:bg-surface-850 border border-surface-200/70 dark:border-surface-800"
+                        >
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                                    <img v-if="st.student_avatar" :src="st.student_avatar" :alt="st.student_name" class="w-full h-full object-cover" />
+                                    <span v-else>{{ st.student_name?.charAt(0) }}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="font-bold text-xs text-surface-900 dark:text-white truncate">{{ st.student_name }}</p>
+                                    <p class="text-[11px] text-surface-500 truncate">{{ st.subject_name }} · {{ st.quiz_title }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2.5 shrink-0">
+                                <span class="px-2 py-0.5 rounded-full text-xs font-black bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                                    {{ st.score }}%
+                                </span>
+                                <Link
+                                    :href="route('teacher.gradebook')"
+                                    class="text-xs font-bold text-primary-600 hover:underline"
+                                >
+                                    سجل الدرجات ←
+                                </Link>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

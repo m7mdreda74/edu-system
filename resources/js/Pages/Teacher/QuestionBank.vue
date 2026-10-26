@@ -31,6 +31,7 @@ const difficultyLabels = {
 const typeLabels = {
     single: 'اختيار واحد',
     multiple: 'اختيارات متعددة',
+    true_false: 'صواب / خطأ',
 };
 
 const visibilityLabels = {
@@ -163,7 +164,12 @@ function toggleCorrect(index) {
 function changeType(type) {
     form.type = type;
 
-    if (type === 'single') {
+    if (type === 'true_false') {
+        form.options = [
+            makeOption('صواب', true),
+            makeOption('خطأ', false),
+        ];
+    } else if (type === 'single') {
         let found = false;
         form.options.forEach((option) => {
             if (option.is_correct && ! found) {
@@ -172,6 +178,9 @@ function changeType(type) {
                 option.is_correct = false;
             }
         });
+        if (! found && form.options.length) {
+            form.options[0].is_correct = true;
+        }
     }
 }
 
@@ -184,7 +193,7 @@ function problemOf() {
     if (form.options.length < MIN_OPTIONS) return 'أضف إجابتين على الأقل.';
     if (form.options.some((option) => ! option.option_text.trim())) return 'اكتب نص كل إجابة.';
     if (correctCount() === 0) return 'حدد إجابة صحيحة واحدة على الأقل.';
-    if (form.type === 'single' && correctCount() > 1) return 'الاختيار الواحد يقبل إجابة صحيحة واحدة فقط.';
+    if ((form.type === 'single' || form.type === 'true_false') && correctCount() > 1) return 'هذا السؤال يقبل إجابة صحيحة واحدة فقط.';
 
     return null;
 }
@@ -306,19 +315,20 @@ async function deleteQuestion(question) {
                             <label class="input-label mb-0">نوع السؤال</label>
                             <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'single' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-surface-200 text-surface-500'" @click="changeType('single')">إجابة واحدة</button>
                             <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'multiple' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-surface-200 text-surface-500'" @click="changeType('multiple')">إجابات متعددة</button>
+                            <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'true_false' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-surface-200 text-surface-500'" @click="changeType('true_false')">صواب / خطأ</button>
                         </div>
                         <div class="space-y-2">
                             <div v-for="(option, index) in form.options" :key="index" class="flex items-center gap-2 rounded-xl border border-surface-100 p-2 dark:border-surface-800">
-                                <input v-if="form.type === 'single'" type="radio" :name="`bank-correct-${editingId ?? 'new'}`" :checked="option.is_correct" @change="markCorrect(index)" />
+                                <input v-if="form.type === 'single' || form.type === 'true_false'" type="radio" :name="`bank-correct-${editingId ?? 'new'}`" :checked="option.is_correct" @change="markCorrect(index)" />
                                 <input v-else v-model="option.is_correct" type="checkbox" class="rounded" />
                                 <input v-model="option.option_text" type="text" class="input" maxlength="500" :placeholder="`الإجابة ${index + 1}`" />
-                                <button type="button" class="btn-ghost btn-sm px-2 text-red-500" :disabled="form.options.length <= MIN_OPTIONS" @click="removeOption(index)">
+                                <button type="button" class="btn-ghost btn-sm px-2 text-red-500" :disabled="form.type === 'true_false' || form.options.length <= MIN_OPTIONS" @click="removeOption(index)">
                                     <Icon name="close" class="h-4 w-4" />
                                 </button>
                             </div>
                         </div>
                         <p v-if="form.errors.options" class="error-msg">{{ form.errors.options }}</p>
-                        <button type="button" class="btn-ghost btn-sm mt-2" :disabled="form.options.length >= MAX_OPTIONS" @click="addOption">
+                        <button v-if="form.type !== 'true_false'" type="button" class="btn-ghost btn-sm mt-2" :disabled="form.options.length >= MAX_OPTIONS" @click="addOption">
                             <Icon name="plus" class="h-4 w-4" />
                             <span>إضافة إجابة</span>
                         </button>
@@ -353,6 +363,7 @@ async function deleteQuestion(question) {
                     <option value="">كل الأنواع</option>
                     <option value="single">اختيار واحد</option>
                     <option value="multiple">اختيارات متعددة</option>
+                    <option value="true_false">صواب / خطأ</option>
                 </select>
                 <div class="flex gap-2">
                     <select v-model="visibilityFilter" class="input min-w-0 flex-1">

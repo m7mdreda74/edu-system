@@ -77,8 +77,43 @@ class DashboardController extends Controller
 
         $continueLearning = $this->continueLearning($user, $active);
 
-        return Inertia::render('Student/Dashboard', [
-            'activeSubscriptions' => $active->map(fn (Subscription $s) => [
+        $assessmentService = app(\App\Application\Quiz\Services\StudentAssessmentService::class);
+        $assignmentService = app(\App\Application\Learning\Services\StudentAssignmentService::class);
+        $assessmentData = $assessmentService->forStudent($user);
+        $assignmentData = $assignmentService->forStudent($user);
+
+        $pendingAssessmentsCount = $assessmentData['items']->where('status', 'available')->count();
+        $pendingAssignmentsCount = $assignmentData['items']->whereIn('status', ['pending', 'in_progress'])->count();
+
+        $activeWithProgress = $active->map(function (Subscription $s) use ($user) {
+            $group = $s->group;
+            $progressPercent = 0;
+            $totalLessons = 0;
+            $completedLessons = 0;
+
+            if ($group) {
+                $term = AcademicTerm::currentOrNext();
+                $units = CurriculumUnit::where('teaching_assignment_id', $s->teaching_assignment_id)
+                    ->when($term, fn ($q) => $q->where('academic_term_id', $term->id))
+                    ->where(function ($q) {
+                        $q->where('is_published', true)->orWhereNull('is_published');
+                    })
+                    ->with('lessons:id,curriculum_unit_id')
+                    ->get();
+
+                $lessonIds = $units->flatMap(fn ($u) => $u->lessons)->pluck('id');
+                $totalLessons = $lessonIds->count();
+
+                if ($totalLessons > 0) {
+                    $completedLessons = LessonProgress::where('student_id', $user->id)
+                        ->whereIn('lesson_id', $lessonIds)
+                        ->where('is_completed', true)
+                        ->count();
+                    $progressPercent = (int) round(($completedLessons / $totalLessons) * 100);
+                }
+            }
+
+            return [
                 'id' => $s->id,
                 'type' => $s->type,
                 'subject' => $s->assignment?->subject?->only(['id', 'name', 'icon']),
@@ -86,7 +121,14 @@ class DashboardController extends Controller
                 'group' => $s->group?->only(['id', 'name']),
                 'period_end' => $s->period_end?->toDateString(),
                 'days_remaining' => $s->daysRemaining(),
-            ])->values(),
+                'progress_percent' => $progressPercent,
+                'completed_lessons' => $completedLessons,
+                'total_lessons' => $totalLessons,
+            ];
+        })->values();
+
+        return Inertia::render('Student/Dashboard', [
+            'activeSubscriptions' => $activeWithProgress,
 
             'expiringSoon' => $active
                 ->filter(fn (Subscription $s) => $s->daysRemaining() <= self::EXPIRY_WARNING_DAYS)
@@ -118,6 +160,9 @@ class DashboardController extends Controller
                 'teachers' => $active->pluck('teaching_assignment_id')->unique()->count(),
                 'subjects' => $active->map(fn (Subscription $s) => $s->assignment?->subject_id)->filter()->unique()->count(),
                 'upcomingSessions' => $upcomingSessions->count(),
+                'pendingAssessments' => $pendingAssessmentsCount,
+                'pendingAssignments' => $pendingAssignmentsCount,
+                'totalPendingEvaluations' => $pendingAssessmentsCount + $pendingAssignmentsCount,
             ],
         ]);
     }

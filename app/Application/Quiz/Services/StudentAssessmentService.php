@@ -43,6 +43,7 @@ class StudentAssessmentService
                 'unit:id,teaching_assignment_id,title,order',
                 'unit.assignment.subject:id,name',
                 'unit.assignment.teacher:id,name',
+                'material:id,title',
                 'questions:id,quiz_id,points',
                 'attempts' => fn ($query) => $query
                     ->where('user_id', $student->id)
@@ -65,6 +66,7 @@ class StudentAssessmentService
                 'unit:id,teaching_assignment_id,title,order',
                 'unit.assignment.subject:id,name',
                 'unit.assignment.teacher:id,name',
+                'material:id,title',
                 'submissions' => fn ($query) => $query
                     ->where('student_id', $student->id)
                     ->latest('submitted_at'),
@@ -110,7 +112,8 @@ class StudentAssessmentService
         $latest = $attempts->first();
         $best = $submitted->sortByDesc(fn (QuizAttempt $attempt): int => (int) ($attempt->score ?? 0))->first();
         $questionCount = $quiz->questions->count();
-        $remainingAttempts = max(0, QuizService::MAX_ATTEMPTS - $attempts->count());
+        $maxAttempts = (int) ($quiz->max_attempts > 0 ? $quiz->max_attempts : QuizService::MAX_ATTEMPTS);
+        $remainingAttempts = max(0, $maxAttempts - $attempts->count());
         $scope = $this->inferScope($quiz->title, $quiz->unit?->title);
 
         return [
@@ -123,6 +126,10 @@ class StudentAssessmentService
             'subject' => $quiz->unit?->assignment?->subject?->only(['id', 'name']),
             'teacher' => $quiz->unit?->assignment?->teacher?->only(['id', 'name']),
             'unit' => $quiz->unit?->only(['id', 'title', 'order']),
+            'lesson' => $quiz->material?->only(['id', 'title']),
+            'lesson_id' => $quiz->lesson_id,
+            'allow_late_submission' => (bool) $quiz->allow_late_submission,
+            'max_attempts' => $maxAttempts,
             'questions_count' => $questionCount,
             'total_points' => (int) $quiz->questions->sum(fn ($question): int => max(1, (int) $question->points)),
             'passing_score' => (int) $quiz->passing_score,
@@ -150,13 +157,18 @@ class StudentAssessmentService
         $isGraded = $submission?->isGraded() ?? false;
         $hasSubmitted = $submission !== null && $submission->submitted_at !== null;
         $isPastDue = $exam->due_date?->isPast() ?? false;
+        $allowLate = (bool) ($exam->allow_late_submission ?? true);
+        $maxAttempts = (int) ($exam->max_attempts > 0 ? $exam->max_attempts : 1);
 
         $status = match (true) {
             $isGraded => 'completed',
             $hasSubmitted => 'in_progress',
-            $isPastDue => 'closed',
+            $isPastDue && ! $allowLate => 'closed',
+            $isPastDue && $allowLate => 'available',
             default => 'available',
         };
+
+        $canSubmit = (bool) $exam->requires_submission && (! $isPastDue || $allowLate);
 
         return [
             'id' => $exam->id,
@@ -168,6 +180,10 @@ class StudentAssessmentService
             'subject' => $exam->unit?->assignment?->subject?->only(['id', 'name']),
             'teacher' => $exam->unit?->assignment?->teacher?->only(['id', 'name']),
             'unit' => $exam->unit?->only(['id', 'title', 'order']),
+            'lesson' => $exam->material?->only(['id', 'title']),
+            'lesson_id' => $exam->lesson_id,
+            'allow_late_submission' => $allowLate,
+            'max_attempts' => $maxAttempts,
             'file_url' => filled($exam->file_path) ? route('learning.worksheet.download', $exam->id) : null,
             'due_date' => $exam->due_date?->toIso8601String(),
             'max_score' => (int) ($exam->max_score ?? 100),
@@ -175,7 +191,7 @@ class StudentAssessmentService
             'status' => $status,
             'is_late' => $submission?->isLate() ?? false,
             'can_start' => true,
-            'can_submit' => (bool) $exam->requires_submission,
+            'can_submit' => $canSubmit,
             'submission' => $submission === null ? null : [
                 'id' => $submission->id,
                 'submitted_at' => $submission->submitted_at?->toIso8601String(),

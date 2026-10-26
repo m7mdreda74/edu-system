@@ -77,8 +77,12 @@ class WorksheetController extends Controller
             'requires_submission' => ['required', 'boolean'],
             'due_date'            => ['nullable', 'date'],
             'max_score'           => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'allow_late_submission' => ['nullable', 'boolean'],
+            'max_attempts'        => ['nullable', 'integer', 'min:1', 'max:10'],
         ]);
 
+        $validated['allow_late_submission'] = (bool) ($request->boolean('allow_late_submission'));
+        $validated['max_attempts'] = (int) ($request->input('max_attempts', 1) ?: 1);
         $validated['file_path'] = 'private://' . $request->file('file')->store('worksheets', 'local');
 
         // Homework inherits its lesson's unit; reject a lesson belonging to a

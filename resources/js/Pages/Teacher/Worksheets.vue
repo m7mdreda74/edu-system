@@ -25,6 +25,8 @@ const form = useForm({
     requires_submission: false,
     due_date: '',
     max_score: '100',
+    allow_late_submission: true,
+    max_attempts: 1,
 });
 
 const gradeForm = useForm({
@@ -87,23 +89,39 @@ async function deleteWorksheet(id) {
     if (ok) router.delete(route('teacher.worksheets.destroy', { id }));
 }
 
-function submitGrade(subId, maxScore) {
-    const scoreStr = prompt(`أدخل الدرجة (من 0 إلى ${maxScore}):`);
-    if (scoreStr === null) return;
-    
-    const score = parseInt(scoreStr);
-    if (isNaN(score) || score < 0 || score > maxScore) {
-        alert('الرجاء إدخال درجة صالحة ضمن النطاق المسموح.');
-        return;
-    }
-    
-    const feedback = prompt('أضف تعليقاً للمعلم (اختياري):');
-    
-    gradeForm.score = score;
-    gradeForm.teacher_feedback = feedback || '';
-    gradeForm.post(route('teacher.worksheets.grade', { submissionId: subId }), {
-        preserveScroll: true
+const gradingModal = ref({
+    isOpen: false,
+    submission: null,
+});
+
+function openGradingModal(sub) {
+    gradingModal.value.submission = sub;
+    gradeForm.reset();
+    gradeForm.clearErrors();
+    gradeForm.score = sub.score !== null ? sub.score : '';
+    gradeForm.teacher_feedback = sub.teacher_feedback || '';
+    gradingModal.value.isOpen = true;
+}
+
+function closeGradingModal() {
+    gradingModal.value.isOpen = false;
+    gradingModal.value.submission = null;
+    gradeForm.reset();
+}
+
+function submitGradingModal() {
+    if (! gradingModal.value.submission) return;
+    const sub = gradingModal.value.submission;
+    gradeForm.post(route('teacher.worksheets.grade', { submissionId: sub.id }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeGradingModal();
+        },
     });
+}
+
+function applyFeedbackPreset(preset) {
+    gradeForm.teacher_feedback = preset;
 }
 </script>
 
@@ -228,10 +246,11 @@ function submitGrade(subId, maxScore) {
                                     {{ sub.teacher_feedback || '—' }}
                                 </td>
                                 <td class="data-table-actions px-6 py-4 text-center">
-                                    <button type="button" @click="submitGrade(sub.id, sub.worksheet?.max_score)"
-                                            class="btn-primary btn-xs py-1.5 px-3 rounded-lg"
+                                    <button type="button" @click="openGradingModal(sub)"
+                                            class="btn-primary btn-xs py-1.5 px-3 rounded-lg flex items-center gap-1.5 mx-auto"
                                     >
-                                        {{ sub.score !== null ? 'تعديل الدرجة' : 'رصد الدرجة' }}
+                                        <Icon name="edit" class="w-3.5 h-3.5" />
+                                        <span>{{ sub.score !== null ? 'تعديل الدرجة' : 'رصد الدرجة' }}</span>
                                     </button>
                                 </td>
                             </tr>
@@ -296,14 +315,27 @@ function submitGrade(subId, maxScore) {
                                 <label for="homework-require" class="text-sm font-semibold text-surface-700 dark:text-surface-300">يتطلب من الطالب رفع ملف الحل</label>
                             </div>
 
-                            <div v-if="form.type === 'homework' && form.requires_submission" class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="label mb-1">آخر موعد للتسليم</label>
-                                    <input v-model="form.due_date" type="date" class="input" />
+                            <div v-if="form.type === 'homework' && form.requires_submission" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="label mb-1">آخر موعد للتسليم</label>
+                                        <input v-model="form.due_date" type="date" class="input" />
+                                    </div>
+                                    <div>
+                                        <label class="label mb-1">الدرجة الكبرى</label>
+                                        <input v-model="form.max_score" type="number" min="1" max="1000" required class="input" />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="label mb-1">الدرجة الكبرى</label>
-                                    <input v-model="form.max_score" type="number" min="1" max="1000" required class="input" />
+
+                                <div class="grid grid-cols-2 gap-4 items-center bg-surface-50 dark:bg-surface-850 p-3 rounded-xl border border-surface-200 dark:border-surface-800">
+                                    <div>
+                                        <label class="label mb-1">عدد المحاولات المسموحة</label>
+                                        <input v-model="form.max_attempts" type="number" min="1" max="10" class="input" />
+                                    </div>
+                                    <div class="flex items-center gap-2 pt-4">
+                                        <input v-model="form.allow_late_submission" type="checkbox" id="hw-allow-late" class="rounded border-surface-300 text-primary-600 focus:ring-primary-500" />
+                                        <label for="hw-allow-late" class="text-xs font-bold text-surface-700 dark:text-surface-300">السماح بتسليم متأخر</label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -315,6 +347,130 @@ function submitGrade(subId, maxScore) {
                             <div class="flex gap-3 pt-4">
                                 <button type="submit" :disabled="form.processing" class="btn-primary flex-1">رفع الملف</button>
                                 <button type="button" @click="isModalOpen = false" class="btn-ghost flex-1">إلغاء</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </Transition>
+
+            <!-- ── Interactive Teacher Grading Modal (Qatar LMS Style) ── -->
+            <Transition
+                enter-active-class="transition duration-200 ease-out"
+                enter-from-class="opacity-0 scale-95"
+                enter-to-class="opacity-100 scale-100"
+                leave-active-class="transition duration-150 ease-in"
+                leave-from-class="opacity-100 scale-100"
+                leave-to-class="opacity-0 scale-95"
+            >
+                <div v-if="gradingModal.isOpen && gradingModal.submission" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div class="card p-6 w-full max-w-lg shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+                        <div class="flex items-center justify-between border-b border-surface-200 dark:border-surface-700 pb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="p-2 rounded-xl bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                                    <Icon name="edit" class="w-5 h-5" />
+                                </span>
+                                <div>
+                                    <h2 class="text-lg font-black text-surface-900 dark:text-white">تصحيح ورصد الدرجة</h2>
+                                    <p class="text-xs text-surface-500">{{ gradingModal.submission.worksheet?.title }}</p>
+                                </div>
+                            </div>
+                            <button type="button" @click="closeGradingModal" class="btn-ghost btn-sm p-1.5 text-surface-400 hover:text-surface-600">
+                                <Icon name="close" class="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <!-- Student Info Card -->
+                        <div class="p-3.5 rounded-xl bg-surface-50 dark:bg-surface-850 border border-surface-200 dark:border-surface-800 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-sm text-surface-900 dark:text-white">{{ gradingModal.submission.student?.name }}</div>
+                                    <div class="text-xs text-surface-400">{{ gradingModal.submission.student?.email }}</div>
+                                </div>
+                                <span v-if="gradingModal.submission.is_late" class="rounded bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-500 border border-red-500/20">
+                                    ⚠️ تسليم متأخر
+                                </span>
+                                <span v-else class="rounded bg-green-500/10 px-2 py-0.5 text-xs font-bold text-green-600 border border-green-500/20">
+                                    تسليم في الموعد
+                                </span>
+                            </div>
+
+                            <!-- Attached File -->
+                            <div v-if="gradingModal.submission.submitted_file_path" class="pt-2 border-t border-surface-200 dark:border-surface-700 flex items-center justify-between">
+                                <span class="text-xs text-surface-500">الملف المرفق من الطالب:</span>
+                                <a :href="gradingModal.submission.submitted_file_path" target="_blank" rel="noopener noreferrer" class="btn-primary btn-xs py-1 px-2.5 rounded-lg flex items-center gap-1 font-bold">
+                                    <Icon name="download" class="w-3.5 h-3.5" />
+                                    <span>عرض وتحميل حل الطالب ↗</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Grading Form -->
+                        <form @submit.prevent="submitGradingModal" class="space-y-4">
+                            <div>
+                                <label class="label mb-1 font-bold">
+                                    رصد الدرجة (من 0 إلى {{ gradingModal.submission.worksheet?.max_score || 100 }})
+                                </label>
+                                <input
+                                    v-model.number="gradeForm.score"
+                                    type="number"
+                                    min="0"
+                                    :max="gradingModal.submission.worksheet?.max_score || 100"
+                                    required
+                                    class="input text-lg font-bold"
+                                    :class="{ 'input-error': gradeForm.errors.score }"
+                                    placeholder="أدخل درجة الطالب..."
+                                />
+                                <p v-if="gradeForm.errors.score" class="error-msg">{{ gradeForm.errors.score }}</p>
+                            </div>
+
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="label mb-0 font-bold">ملاحظات وتقييم المعلم للطالب</label>
+                                    <span class="text-[11px] text-surface-400">تصل للطالب وولي أمره</span>
+                                </div>
+                                <textarea
+                                    v-model="gradeForm.teacher_feedback"
+                                    rows="3"
+                                    maxlength="1000"
+                                    class="input text-xs"
+                                    :class="{ 'input-error': gradeForm.errors.teacher_feedback }"
+                                    placeholder="أضف توجيهات للطالب أو إشادة بنقاط القوة..."
+                                ></textarea>
+                                <p v-if="gradeForm.errors.teacher_feedback" class="error-msg">{{ gradeForm.errors.teacher_feedback }}</p>
+
+                                <!-- Quick Suggestions -->
+                                <div class="flex flex-wrap gap-1.5 mt-2">
+                                    <button
+                                        type="button"
+                                        @click="applyFeedbackPreset('ممتاز! إجابة نموذجية ومتقنة 🌟')"
+                                        class="text-[11px] bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-lg px-2.5 py-1 transition-colors"
+                                    >
+                                        🌟 ممتاز ومتقن
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="applyFeedbackPreset('عمل جيد، أحسنت مع مراعاة الملاحظات 👍')"
+                                        class="text-[11px] bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-lg px-2.5 py-1 transition-colors"
+                                    >
+                                        👍 عمل جيد
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="applyFeedbackPreset('يرجى مراجعة النقاط غير المكتملة وإعادة التدريب 💡')"
+                                        class="text-[11px] bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-lg px-2.5 py-1 transition-colors"
+                                    >
+                                        💡 بحاجة لمراجعة
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-3 pt-2">
+                                <button type="submit" :disabled="gradeForm.processing" class="btn-primary flex-1 py-2.5 font-bold">
+                                    {{ gradeForm.processing ? 'جارٍ الاعتماد...' : 'اعتماد ورصد الدرجة' }}
+                                </button>
+                                <button type="button" @click="closeGradingModal" class="btn-ghost flex-1 py-2.5">
+                                    إلغاء
+                                </button>
                             </div>
                         </form>
                     </div>

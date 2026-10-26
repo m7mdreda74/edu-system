@@ -404,14 +404,17 @@ onUnmounted(() => {
 
                     <div class="flex flex-col sm:flex-row gap-3 justify-center">
                         <button type="button"
-                            v-if="!result.passed && remainingAttempts > 0"
+                            v-if="remainingAttempts > 0"
                             @click="phase = 'intro'"
                             class="btn-primary"
                         >
-                            أعد المحاولة
+                            إعادة المحاولة (متبقي {{ remainingAttempts }})
                         </button>
+                        <Link :href="route('student.assessments')" class="btn-primary shadow-glow-primary">
+                            العودة للواجبات والتقييمات
+                        </Link>
                         <Link :href="route('dashboard')" class="btn-outline">
-                            العودة للداشبورد
+                            اللوحة الرئيسية
                         </Link>
                     </div>
                 </div>

@@ -30,17 +30,21 @@ class Quiz extends Model
         'time_limit_minutes',
         'available_from',
         'available_until',
+        'allow_late_submission',
+        'max_attempts',
         'is_active',
     ];
 
     protected function casts(): array
     {
         return [
-            'passing_score'      => 'integer',
-            'time_limit_minutes' => 'integer',
-            'available_from'     => 'datetime',
-            'available_until'    => 'datetime',
-            'is_active'          => 'boolean',
+            'passing_score'         => 'integer',
+            'time_limit_minutes'    => 'integer',
+            'available_from'        => 'datetime',
+            'available_until'       => 'datetime',
+            'allow_late_submission' => 'boolean',
+            'max_attempts'          => 'integer',
+            'is_active'             => 'boolean',
         ];
     }
 
@@ -69,12 +73,27 @@ class Quiz extends Model
         return $this->time_limit_minutes !== null;
     }
 
-    /** Sitting the exam is allowed now. A missing bound means that side is open. */
+    /** Sitting the exam is allowed now. If late submissions are enabled, allow after available_until. */
     public function isOpen(): bool
     {
-        return $this->is_active
-            && ($this->available_from === null || $this->available_from->isPast())
-            && ($this->available_until === null || $this->available_until->isFuture());
+        if (! $this->is_active) {
+            return false;
+        }
+
+        if ($this->available_from !== null && $this->available_from->isFuture()) {
+            return false;
+        }
+
+        if ($this->available_until !== null && $this->available_until->isPast()) {
+            return (bool) $this->allow_late_submission;
+        }
+
+        return true;
+    }
+
+    public function isLateWindow(): bool
+    {
+        return $this->available_until !== null && $this->available_until->isPast() && (bool) $this->allow_late_submission;
     }
 
     /** "متاح من 2026-01-12 08:00 إلى 2026-01-20 20:00" */

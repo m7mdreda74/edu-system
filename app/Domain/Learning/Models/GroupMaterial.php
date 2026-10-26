@@ -88,6 +88,12 @@ class GroupMaterial extends Model
         return $this->hasMany(Quiz::class, 'lesson_id');
     }
 
+    /** "كويز الدرس" — a lesson carries at most one primary drill quiz. */
+    public function quiz(): HasOne
+    {
+        return $this->hasOne(Quiz::class, 'lesson_id');
+    }
+
     /** The live class that published this protected recording, if any. */
     public function liveSession(): HasOne
     {

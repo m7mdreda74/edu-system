@@ -79,10 +79,16 @@ const activeTerm = computed(() =>
     props.terms.find(term => term.id === props.activeTermId) ?? null
 );
 
-const attachmentCount = computed(() => {
+const resourceCount = computed(() => {
     const lesson = activeLesson.value;
     if (!lesson) return 0;
-    return (lesson.booklet_path ? 1 : 0) + (lesson.homework ? 1 : 0);
+    return lesson.booklet_path ? 1 : 0;
+});
+
+const evaluationCount = computed(() => {
+    const lesson = activeLesson.value;
+    if (!lesson) return 0;
+    return (lesson.homework ? 1 : 0) + (lesson.quiz ? 1 : 0);
 });
 
 function seedCompleted() {
@@ -103,7 +109,7 @@ function pickDefaultLesson(preferredLessonId = null) {
         ?? null;
 
     activeLessonId.value = target?.id ?? null;
-    if (target?.id === preferredLessonId) activeTab.value = 'files';
+    if (target?.id === preferredLessonId) activeTab.value = 'evaluations';
 
     if (target) {
         expandedUnits.value = { ...expandedUnits.value, [target.unit.id]: true };
@@ -188,6 +194,13 @@ const nextLesson = computed(() => {
     return flatLessons.value.slice(index + 1).find(lesson => !lesson.is_locked) ?? null;
 });
 
+const previousLesson = computed(() => {
+    const index = flatLessons.value.findIndex(lesson => lesson.id === activeLessonId.value);
+    if (index <= 0) return null;
+
+    return flatLessons.value.slice(0, index).reverse().find(lesson => !lesson.is_locked) ?? null;
+});
+
 const hasLaterLessons = computed(() => {
     const index = flatLessons.value.findIndex(lesson => lesson.id === activeLessonId.value);
     return index !== -1 && index < flatLessons.value.length - 1;
@@ -195,6 +208,11 @@ const hasLaterLessons = computed(() => {
 
 function goNextLesson() {
     const target = nextLesson.value;
+    if (target) selectLesson(target.unit, target);
+}
+
+function goPreviousLesson() {
+    const target = previousLesson.value;
     if (target) selectLesson(target.unit, target);
 }
 
@@ -656,11 +674,17 @@ function uploadAnswer(sheetId) {
                         >
                             الشرح والمشاهدة
                         </button>
-                        <button type="button" @click="activeTab = 'files'"
+                        <button type="button" @click="activeTab = 'resources'"
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
-                                :class="activeTab === 'files' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
+                                :class="activeTab === 'resources' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
                         >
-                            الملزمة والواجب ({{ attachmentCount }})
+                            الموارد والمذكرات ({{ resourceCount }})
+                        </button>
+                        <button type="button" @click="activeTab = 'evaluations'"
+                                class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
+                                :class="activeTab === 'evaluations' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
+                        >
+                            الواجب والتقييم ({{ evaluationCount }})
                         </button>
                         <button type="button" @click="activeTab = 'questions'"
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
@@ -676,43 +700,58 @@ function uploadAnswer(sheetId) {
                             {{ activeLesson.description || 'لا يوجد وصف متاح لهذا الدرس حالياً.' }}
                         </p>
 
-                        <div class="flex flex-wrap items-center gap-3 pt-4">
-                            <button type="button"
-                                v-if="nextLesson"
-                                @click="goNextLesson"
-                                class="btn-primary"
-                                id="next-lesson-btn"
-                            >
-                                الدرس التالي ←
-                            </button>
-                            <div v-else-if="hasLaterLessons"
-                                 class="text-xs text-accent-300 flex items-center gap-1.5 bg-accent-500/5 border border-accent-500/20 rounded-xl px-3 py-2">
-                                <Icon name="lock" class="w-3.5 h-3.5 flex-shrink-0" />
-                                أكمل مشاهدة هذا الدرس ليُفتح الدرس التالي.
+                        <div class="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-surface-800">
+                            <div>
+                                <button
+                                    type="button"
+                                    v-if="previousLesson"
+                                    @click="goPreviousLesson"
+                                    class="btn-outline text-white border-surface-700 hover:bg-surface-800 flex items-center gap-2"
+                                    id="prev-lesson-btn"
+                                >
+                                    <span>→ الدرس السابق</span>
+                                </button>
                             </div>
-                            <Link
-                                v-else
-                                :href="route('dashboard')"
-                                class="btn-outline text-white border-surface-600 hover:bg-surface-800"
-                            >
-                                العودة للداشبورد
-                            </Link>
+
+                            <div class="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    v-if="nextLesson"
+                                    @click="goNextLesson"
+                                    class="btn-primary flex items-center gap-2 shadow-glow-primary"
+                                    id="next-lesson-btn"
+                                >
+                                    <span>الدرس التالي ←</span>
+                                </button>
+                                <div
+                                    v-else-if="hasLaterLessons"
+                                    class="text-xs text-accent-300 flex items-center gap-1.5 bg-accent-500/5 border border-accent-500/20 rounded-xl px-3 py-2"
+                                >
+                                    <Icon name="lock" class="w-3.5 h-3.5 flex-shrink-0" />
+                                    <span>أكمل مشاهدة هذا الدرس ليُفتح الدرس التالي.</span>
+                                </div>
+                                <Link
+                                    v-else
+                                    :href="route('dashboard')"
+                                    class="btn-outline text-white border-surface-600 hover:bg-surface-800"
+                                >
+                                    العودة للداشبورد
+                                </Link>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Tab Content: Booklet & Homework -->
-                    <div v-if="activeTab === 'files'" class="space-y-5">
-
-                        <!-- ملزمة الشرح -->
+                    <!-- Tab Content: Educational Resources (الموارد والمذكرات) -->
+                    <div v-if="activeTab === 'resources'" class="space-y-5">
                         <div class="bg-surface-900 border border-surface-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div class="flex items-start gap-3 min-w-0">
                                 <div class="w-10 h-10 rounded-xl bg-primary-500/10 text-primary-400 flex items-center justify-center flex-shrink-0">
                                     <Icon name="book" class="w-5 h-5" />
                                 </div>
                                 <div class="min-w-0">
-                                    <h4 class="font-bold text-white text-base">ملزمة شرح الدرس</h4>
+                                    <h4 class="font-bold text-white text-base">ملزمة ومذكرة شرح الدرس</h4>
                                     <p class="text-xs text-surface-400 mt-0.5">
-                                        {{ activeLesson.booklet_path ? 'ملف الشرح المكتوب الذي رفعه المدرس لهذا الدرس.' : 'لم يرفع المدرس ملزمة لهذا الدرس بعد.' }}
+                                        {{ activeLesson.booklet_path ? 'ملف الشرح والمذكرة التعليمية المرفوعة من قبل المعلم للدرس.' : 'لم يرفع المعلم ملزمة أو مذكرة لهذا الدرس بعد.' }}
                                     </p>
                                 </div>
                             </div>
@@ -720,13 +759,79 @@ function uploadAnswer(sheetId) {
                                :href="activeLesson.booklet_path"
                                target="_blank"
                                rel="noopener"
-                               class="btn btn-sm bg-surface-800 text-white hover:bg-surface-700 flex-shrink-0">
+                               class="btn btn-sm bg-primary-600 hover:bg-primary-700 text-white font-bold flex-shrink-0 flex items-center gap-1.5">
                                 <Icon name="download" class="w-4 h-4" />
-                                تحميل الملزمة
+                                تحميل المذكرة
                             </a>
                         </div>
 
-                        <!-- الواجب -->
+                        <div v-if="!activeLesson.booklet_path"
+                             class="text-center py-10 text-surface-500 text-sm">
+                            لا توجد مذكرات أو موارد تعليمية مرفقة بهذا الدرس حالياً.
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Evaluations (الواجب والتقييم: كويز الدرس والواجب المنزلي) -->
+                    <div v-if="activeTab === 'evaluations'" class="space-y-6">
+
+                        <!-- 1. كويز الدرس الإلكتروني -->
+                        <div v-if="activeLesson.quiz" class="bg-surface-900 border border-primary-500/30 rounded-2xl p-5 space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                        <span class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-primary-500/10 text-primary-400 border border-primary-500/20">
+                                            كويز الدرس الإلكتروني
+                                        </span>
+                                        <span class="text-[10px] px-2 py-0.5 rounded font-bold"
+                                              :class="activeLesson.quiz.allow_late_submission ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-surface-800 text-surface-400 border border-surface-700'">
+                                            {{ activeLesson.quiz.allow_late_submission ? '✓ مسموح بالدخول المتأخر' : '🚫 مغلق بعد انتهاء الوقت' }}
+                                        </span>
+                                        <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-surface-800 text-surface-300 border border-surface-700">
+                                            المحاولات المتاحة: {{ activeLesson.quiz.max_attempts }}
+                                        </span>
+                                        <span v-if="activeLesson.quiz.is_late_window" class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                            ⚠️ فترة متأخرة
+                                        </span>
+                                    </div>
+                                    <h4 class="font-bold text-white text-base">{{ activeLesson.quiz.title }}</h4>
+                                    <div class="text-xs text-surface-400 mt-1 flex items-center gap-3 flex-wrap">
+                                        <span>عدد الأسئلة: {{ activeLesson.quiz.questions_count }}</span>
+                                        <span>·</span>
+                                        <span>المدة: {{ activeLesson.quiz.time_limit_minutes ? activeLesson.quiz.time_limit_minutes + ' دقيقة' : 'مفتوح' }}</span>
+                                        <span>·</span>
+                                        <span>درجة النجاح: {{ activeLesson.quiz.passing_score }}%</span>
+                                    </div>
+                                </div>
+
+                                <Link
+                                    v-if="activeLesson.quiz.can_start"
+                                    :href="route('student.quiz', { quizId: activeLesson.quiz.id })"
+                                    class="btn btn-sm bg-primary-600 hover:bg-primary-700 text-white font-bold flex-shrink-0 flex items-center gap-1.5"
+                                >
+                                    <span>{{ activeLesson.quiz.best_attempt ? 'إعادة المحاولة' : 'بدء الكويز' }}</span>
+                                    <span>←</span>
+                                </Link>
+                                <span v-else class="text-xs font-bold text-surface-500 bg-surface-800 px-3 py-1.5 rounded-xl self-start">
+                                    {{ activeLesson.quiz.attempts_left <= 0 ? 'استنفدت المحاولات' : 'الكويز غير متاح' }}
+                                </span>
+                            </div>
+
+                            <!-- Best Attempt Info -->
+                            <div v-if="activeLesson.quiz.best_attempt" class="bg-surface-950 border border-surface-800 rounded-xl p-3.5 text-xs flex items-center justify-between flex-wrap gap-2">
+                                <div>
+                                    <span class="text-surface-400">أعلى نتيجة حققتها: </span>
+                                    <strong class="text-green-400 font-bold text-sm">{{ activeLesson.quiz.best_attempt.score }}%</strong>
+                                    <span class="ms-1 font-bold" :class="activeLesson.quiz.best_attempt.passed ? 'text-green-400' : 'text-red-400'">
+                                        ({{ activeLesson.quiz.best_attempt.passed ? 'اجتياز بنجاح' : 'لم يجتز' }})
+                                    </span>
+                                </div>
+                                <span class="text-surface-500 text-[10px]">
+                                    المحاولات المتبقية: {{ activeLesson.quiz.attempts_left }} من {{ activeLesson.quiz.max_attempts }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 2. واجب الدرس -->
                         <div v-if="activeLesson.homework" class="bg-surface-900 border border-surface-800 rounded-2xl p-5 space-y-4">
                             <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                 <div class="min-w-0">
@@ -737,6 +842,13 @@ function uploadAnswer(sheetId) {
                                         <span v-if="activeLesson.homework.requires_submission"
                                               class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-red-500/10 text-red-400 border border-red-500/20">
                                             يتطلب تسليماً
+                                        </span>
+                                        <span class="text-[10px] px-2 py-0.5 rounded font-bold"
+                                              :class="activeLesson.homework.allow_late_submission ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'">
+                                            {{ activeLesson.homework.allow_late_submission ? '✓ مسموح بالتسليم المتأخر' : '🚫 لا يُسمح بالتسليم المتأخر' }}
+                                        </span>
+                                        <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-surface-800 text-surface-300 border border-surface-700">
+                                            المحاولات المتاحة: {{ activeLesson.homework.max_attempts }}
                                         </span>
                                         <span v-if="activeLesson.homework.submission?.is_late"
                                               class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1">
@@ -762,15 +874,21 @@ function uploadAnswer(sheetId) {
                                    rel="noopener"
                                    class="btn btn-sm bg-surface-800 text-white hover:bg-surface-700 flex-shrink-0">
                                     <Icon name="download" class="w-4 h-4" />
-                                    تحميل الواجب
+                                    تحميل ورقة الواجب
                                 </a>
                             </div>
 
                             <!-- Overdue Alert when not submitted yet -->
                             <div v-if="!activeLesson.homework.submission && activeLesson.homework.is_overdue"
-                                 class="p-3 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs flex items-center gap-2">
-                                <Icon name="alert-triangle" class="w-4 h-4 text-red-400 flex-shrink-0" />
-                                <span>⚠️ تنبيه: انتهى الموعد المحدد لتسليم هذا الواجب ({{ formatDate(activeLesson.homework.due_date) }}). يُرجى إرفاق الحل وتسليمه فوراً.</span>
+                                 class="p-3 rounded-xl border text-xs flex items-center gap-2"
+                                 :class="activeLesson.homework.allow_late_submission ? 'bg-amber-950/40 border-amber-800/50 text-amber-300' : 'bg-red-950/40 border-red-800/50 text-red-300'">
+                                <Icon name="alert-triangle" class="w-4 h-4 shrink-0" :class="activeLesson.homework.allow_late_submission ? 'text-amber-400' : 'text-red-400'" />
+                                <span v-if="activeLesson.homework.allow_late_submission">
+                                    ⚠️ تنبيه: انتهى موعد التسليم المحدد ({{ formatDate(activeLesson.homework.due_date) }}). يمكنك إرفاق الحل الآن مع تسجيل تسليم متأخر.
+                                </span>
+                                <span v-else>
+                                    🚫 تنبيه: انتهى موعد التسليم المحدد ولا يُسمح بالتسليم المتأخر لهذا الواجب.
+                                </span>
                             </div>
 
                             <!-- Submission state -->
@@ -788,7 +906,6 @@ function uploadAnswer(sheetId) {
                                     </span>
                                 </div>
 
-                                <!-- Late submission notice -->
                                 <div v-if="activeLesson.homework.submission.is_late"
                                      class="p-2.5 rounded-lg bg-red-950/30 border border-red-900/40 text-red-300 text-[11px] flex items-center gap-1.5">
                                     <Icon name="alert-circle" class="w-3.5 h-3.5 flex-shrink-0 text-red-400" />
@@ -811,7 +928,7 @@ function uploadAnswer(sheetId) {
                             </div>
 
                             <!-- Upload / re-upload -->
-                            <div v-if="activeLesson.homework.requires_submission" class="space-y-2">
+                            <div v-if="activeLesson.homework.requires_submission && activeLesson.homework.can_submit" class="space-y-2">
                                 <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                                     <input
                                         type="file"
@@ -839,11 +956,15 @@ function uploadAnswer(sheetId) {
                                     {{ $page.props.errors.submitted_file }}
                                 </p>
                             </div>
+                            <div v-else-if="activeLesson.homework.requires_submission && !activeLesson.homework.can_submit"
+                                 class="p-3 rounded-xl bg-surface-950 border border-surface-800 text-xs text-surface-400">
+                                🚫 التسليم مغلق لهذا الواجب (انتهى موعد التسليم المحدد أو تم استنفاد المحاولات المتاحة).
+                            </div>
                         </div>
 
-                        <div v-if="!activeLesson.booklet_path && !activeLesson.homework"
+                        <div v-if="!activeLesson.homework && !activeLesson.quiz"
                              class="text-center py-10 text-surface-500 text-sm">
-                            لا توجد ملزمة أو واجب مرفق بهذا الدرس.
+                            لا توجد واجبات أو كويزات تقييمية مرفقة بهذا الدرس.
                         </div>
                     </div>
 

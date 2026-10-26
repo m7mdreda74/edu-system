@@ -28,15 +28,19 @@ class Worksheet extends Model
         'type',
         'requires_submission',
         'due_date',
+        'allow_late_submission',
+        'max_attempts',
         'max_score',
     ];
 
     protected function casts(): array
     {
         return [
-            'requires_submission' => 'boolean',
-            'due_date'            => 'date',
-            'max_score'           => 'integer',
+            'requires_submission'   => 'boolean',
+            'allow_late_submission' => 'boolean',
+            'max_attempts'          => 'integer',
+            'due_date'              => 'date',
+            'max_score'             => 'integer',
         ];
     }
 

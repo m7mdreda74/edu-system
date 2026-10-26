@@ -6,10 +6,11 @@ import Icon from '@/Components/Icon.vue';
 import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
-    quiz:       { type: Object, required: true },
-    unit:       { type: Object, required: true },
-    assignment: { type: Object, required: true },
-    questions:  { type: Array, default: () => [] },
+    quiz:           { type: Object, required: true },
+    unit:           { type: Object, required: true },
+    assignment:     { type: Object, required: true },
+    lessons:        { type: Array, default: () => [] },
+    questions:      { type: Array, default: () => [] },
     bank_questions: { type: Array, default: () => [] },
 });
 
@@ -27,12 +28,15 @@ const curriculumHref = computed(() => route('teacher.curriculum', {
 // ── Quiz settings ─────────────────────────────────────────────────
 
 const settings = useForm({
-    title:              props.quiz.title,
-    time_limit_minutes: props.quiz.time_limit_minutes,
-    available_from:     props.quiz.available_from,
-    available_until:    props.quiz.available_until,
-    passing_score:      props.quiz.passing_score,
-    is_active:          props.quiz.is_active,
+    title:                 props.quiz.title,
+    time_limit_minutes:    props.quiz.time_limit_minutes,
+    available_from:        props.quiz.available_from,
+    available_until:       props.quiz.available_until,
+    passing_score:         props.quiz.passing_score,
+    allow_late_submission: Boolean(props.quiz.allow_late_submission),
+    max_attempts:          props.quiz.max_attempts ?? 3,
+    lesson_id:             props.quiz.lesson_id ?? null,
+    is_active:             props.quiz.is_active,
 });
 
 const availableUntilMin = computed(() => settings.available_from || undefined);
@@ -197,9 +201,12 @@ function toggleCorrect(draft, index) {
 function changeType(draft, type) {
     draft.type = type;
 
-    // Narrowing to a single answer keeps the first tick and drops the rest,
-    // which is what the server would refuse to store anyway.
-    if (type === 'single') {
+    if (type === 'true_false') {
+        draft.options = [
+            makeOption('صواب', true),
+            makeOption('خطأ', false),
+        ];
+    } else if (type === 'single') {
         let taken = false;
 
         draft.options.forEach((option) => {
@@ -209,6 +216,9 @@ function changeType(draft, type) {
                 option.is_correct = false;
             }
         });
+        if (! taken && draft.options.length) {
+            draft.options[0].is_correct = true;
+        }
     }
 
     draft.dirty = true;
@@ -241,8 +251,8 @@ function problemOf(draft) {
         return 'حدد الإجابة الصحيحة أولاً.';
     }
 
-    if (draft.type === 'single' && correct > 1) {
-        return 'سؤال الاختيار الواحد يقبل إجابة صحيحة واحدة فقط.';
+    if ((draft.type === 'single' || draft.type === 'true_false') && correct > 1) {
+        return 'هذا السؤال يقبل إجابة صحيحة واحدة فقط.';
     }
 
     return null;
@@ -504,9 +514,41 @@ function optionError(draft, index) {
                         <p v-if="settings.errors.available_until" class="error-msg">{{ settings.errors.available_until }}</p>
                     </div>
 
+                    <div>
+                        <label for="quiz-attempts" class="input-label">عدد المحاولات المسموح بها للطالب</label>
+                        <input id="quiz-attempts" v-model="settings.max_attempts" type="number" min="1" max="20"
+                               class="input" :class="{ 'input-error': settings.errors.max_attempts }"
+                               placeholder="3" required />
+                        <p class="input-hint">عدد مرات دخول وحل الاختبار لكل طالب (مثلاً 1 للامتحانات الرسمية، أو 3 للتجريبية).</p>
+                        <p v-if="settings.errors.max_attempts" class="error-msg">{{ settings.errors.max_attempts }}</p>
+                    </div>
+
+                    <div>
+                        <label for="quiz-lesson" class="input-label">الارتباط بالدروس (نطاق الاختبار)</label>
+                        <select id="quiz-lesson" v-model="settings.lesson_id" class="input"
+                                :class="{ 'input-error': settings.errors.lesson_id }">
+                            <option :value="null">اختبار شامل للوحدة بأكملها (اختبار الوحدة)</option>
+                            <option v-for="les in lessons" :key="les.id" :value="les.id">
+                                كويز خاص بدرس: {{ les.title }}
+                            </option>
+                        </select>
+                        <p class="input-hint">اربط الاختبار بدرس محدد أو اجعله اختباراً للوحدة ككل.</p>
+                        <p v-if="settings.errors.lesson_id" class="error-msg">{{ settings.errors.lesson_id }}</p>
+                    </div>
+
+                    <div class="sm:col-span-2 space-y-1 rounded-xl bg-surface-50 dark:bg-surface-800/40 p-3.5 border border-surface-200 dark:border-surface-700/50">
+                        <label class="flex items-center gap-2 text-sm text-surface-800 dark:text-surface-100 font-bold cursor-pointer">
+                            <input v-model="settings.allow_late_submission" type="checkbox" class="rounded text-primary-600 focus:ring-primary-500" />
+                            <span>السماح للمتأخرين بحل الاختبار بعد انتهاء الوقت (متاح إلى)</span>
+                        </label>
+                        <p class="text-xs text-surface-500 dark:text-surface-400 ms-6">
+                            عند التفعيل، يمكن للطلاب بدء وحل الاختبار حتى بعد انتهاء نافذة الإتاحة، وسيتم وسم محاولتهم بـ "تسليم متأخر".
+                        </p>
+                    </div>
+
                     <label class="sm:col-span-2 flex items-center gap-2 text-sm text-surface-600 dark:text-surface-300">
                         <input v-model="settings.is_active" type="checkbox" class="rounded" />
-                        <span>تفعيل الاختبار (يظهر للطلاب ضمن الوحدة)</span>
+                        <span>تفعيل الاختبار (يظهر للطلاب ضمن الوحدة والدروس)</span>
                     </label>
                 </div>
 
@@ -582,7 +624,7 @@ function optionError(draft, index) {
                                 {{ draft.question_text.trim() || 'سؤال جديد' }}
                             </div>
                             <div class="text-[11px] text-surface-400 flex items-center gap-2 mt-0.5 flex-wrap">
-                                <span>{{ draft.type === 'single' ? 'اختيار واحد' : 'اختيار متعدد' }}</span>
+                                <span>{{ draft.type === 'single' ? 'اختيار واحد' : (draft.type === 'true_false' ? 'صواب / خطأ' : 'اختيار متعدد') }}</span>
                                 <span>· {{ draft.points }} نقطة</span>
                                 <span>· {{ draft.options.length }} إجابات</span>
                                 <span>· {{ correctCount(draft) }} صحيحة</span>
@@ -641,6 +683,13 @@ function optionError(draft, index) {
                                         @click="changeType(draft, 'multiple')">
                                     أكثر من إجابة صحيحة
                                 </button>
+                                <button type="button" class="btn btn-sm border"
+                                        :class="draft.type === 'true_false'
+                                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200'
+                                            : 'border-surface-200 dark:border-surface-700 text-surface-500'"
+                                        @click="changeType(draft, 'true_false')">
+                                    صواب / خطأ
+                                </button>
                                 </div>
                             </div>
                             <div>
@@ -662,7 +711,7 @@ function optionError(draft, index) {
                             <div class="flex items-center justify-between gap-2 mb-2">
                                 <label class="input-label mb-0">الإجابات</label>
                                 <span class="text-[11px] text-surface-400">
-                                    {{ draft.type === 'single' ? 'اختر الدائرة أمام الإجابة الصحيحة' : 'علّم كل إجابة صحيحة' }}
+                                    {{ draft.type === 'multiple' ? 'علّم كل إجابة صحيحة' : 'اختر الدائرة أمام الإجابة الصحيحة' }}
                                 </span>
                             </div>
 
@@ -673,7 +722,7 @@ function optionError(draft, index) {
                                          ? 'border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950/20'
                                          : 'border-transparent'">
                                     <label class="flex items-center h-10 shrink-0 px-1 cursor-pointer">
-                                        <input v-if="draft.type === 'single'" type="radio"
+                                        <input v-if="draft.type === 'single' || draft.type === 'true_false'" type="radio"
                                                :name="`correct-${draft.key}`" :checked="option.is_correct"
                                                class="w-4 h-4 text-primary-600 border-surface-300 focus:ring-accent-500"
                                                @change="markCorrect(draft, index)" />
@@ -691,7 +740,7 @@ function optionError(draft, index) {
                                     </div>
 
                                     <button type="button" class="btn-ghost btn-sm px-2 h-10 shrink-0 text-red-500"
-                                            :disabled="draft.options.length <= MIN_OPTIONS"
+                                            :disabled="draft.type === 'true_false' || draft.options.length <= MIN_OPTIONS"
                                             :title="draft.options.length <= MIN_OPTIONS ? 'الحد الأدنى إجابتان' : 'حذف الإجابة'"
                                             :aria-label="draft.options.length <= MIN_OPTIONS ? 'الحد الأدنى إجابتان' : 'حذف الإجابة'"
                                             @click="removeOption(draft, index)">
@@ -702,7 +751,7 @@ function optionError(draft, index) {
 
                             <p v-if="draft.errors.options" class="error-msg">{{ draft.errors.options }}</p>
 
-                            <button type="button" class="btn-ghost btn-sm mt-2"
+                            <button v-if="draft.type !== 'true_false'" type="button" class="btn-ghost btn-sm mt-2"
                                     :disabled="draft.options.length >= MAX_OPTIONS"
                                     :title="draft.options.length >= MAX_OPTIONS ? 'الحد الأقصى ست إجابات' : ''"
                                     @click="addOption(draft)">

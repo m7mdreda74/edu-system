@@ -8,6 +8,7 @@ use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\WorksheetSubmission;
+use App\Domain\Quiz\Models\QuizAttempt;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Scheduling\Models\TeachingGroupSchedule;
@@ -168,6 +169,56 @@ class DashboardController extends Controller
 
         $allGroups = $formattedAssignments->flatMap(fn ($a) => $a['groups'])->values();
 
+        // 5 recent pending submissions awaiting grading
+        $pendingSubmissions = WorksheetSubmission::with([
+            'student:id,name,email,avatar',
+            'worksheet:id,title,type,curriculum_unit_id,max_score',
+            'worksheet.unit.assignment.subject:id,name',
+            'worksheet.unit.assignment.groups:id,teaching_assignment_id',
+        ])
+            ->whereNull('graded_at')
+            ->whereHas('worksheet.unit.assignment', fn ($query) => $query->where('teacher_id', $teacherId))
+            ->latest('submitted_at')
+            ->limit(5)
+            ->get()
+            ->map(function ($s) {
+                $group = $s->worksheet?->unit?->assignment?->groups?->first();
+                return [
+                    'id' => $s->id,
+                    'worksheet_id' => $s->worksheet_id,
+                    'worksheet_title' => $s->worksheet?->title ?? 'واجب دراسي',
+                    'subject_name' => $s->worksheet?->unit?->assignment?->subject?->name ?? 'مادة',
+                    'group_id' => $group?->id,
+                    'student_id' => $s->student_id,
+                    'student_name' => $s->student?->name ?? 'طالب',
+                    'student_avatar' => $s->student?->avatar,
+                    'is_late' => (bool) ($s->is_late || $s->isLate()),
+                    'submitted_at_formatted' => $s->submitted_at ? Carbon::parse($s->submitted_at)->locale('ar')->diffForHumans() : 'مؤخراً',
+                ];
+            });
+
+        // Students needing attention (e.g. scored < 50 on recent quizzes)
+        $atRiskStudents = QuizAttempt::with([
+            'user:id,name,email,avatar',
+            'quiz.unit.assignment.subject:id,name',
+        ])
+            ->whereHas('quiz.unit.assignment', fn ($q) => $q->where('teacher_id', $teacherId))
+            ->whereNotNull('submitted_at')
+            ->where('score', '<', 50)
+            ->latest('submitted_at')
+            ->limit(5)
+            ->get()
+            ->map(fn ($attempt) => [
+                'id' => $attempt->id,
+                'student_id' => $attempt->user_id,
+                'student_name' => $attempt->user?->name ?? 'طالب',
+                'student_avatar' => $attempt->user?->avatar,
+                'quiz_title' => $attempt->quiz?->title ?? 'اختبار',
+                'subject_name' => $attempt->quiz?->unit?->assignment?->subject?->name ?? '',
+                'score' => (int) $attempt->score,
+                'submitted_at_formatted' => $attempt->submitted_at ? Carbon::parse($attempt->submitted_at)->locale('ar')->diffForHumans() : '',
+            ]);
+
         return Inertia::render('Teacher/Dashboard', [
             'stats' => [
                 'assignments' => $assignments->count(),
@@ -180,6 +231,8 @@ class DashboardController extends Controller
             'assignments' => $formattedAssignments,
             'groups' => $allGroups,
             'upcoming_sessions' => $upcomingSessions,
+            'pending_submissions' => $pendingSubmissions,
+            'at_risk_students' => $atRiskStudents,
             'terms' => AcademicTerm::orderBy('starts_on')->get(['id', 'name', 'year_label'])->values(),
         ]);
     }

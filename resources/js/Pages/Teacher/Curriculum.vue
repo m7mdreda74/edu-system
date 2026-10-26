@@ -95,19 +95,23 @@ watch(() => props.units, (units) => {
 
     units.forEach((unit) => {
         nextUnits[unit.id] = {
-            title:           unit.title,
-            description:     unit.description ?? '',
-            paper_due_date:  unit.paper_exam?.due_date ?? '',
-            paper_max_score: unit.paper_exam?.max_score ?? '',
+            title:              unit.title,
+            description:        unit.description ?? '',
+            paper_due_date:     unit.paper_exam?.due_date ?? '',
+            paper_max_score:    unit.paper_exam?.max_score ?? '',
+            paper_allow_late:   unit.paper_exam?.allow_late_submission ?? true,
+            paper_max_attempts: unit.paper_exam?.max_attempts ?? 1,
         };
 
         unit.lessons.forEach((lesson) => {
             nextLessons[lesson.id] = {
-                title:            lesson.title,
-                video_url:        lesson.video_url ?? '',
-                duration_seconds: lesson.duration_seconds ?? 0,
-                due_date:         lesson.homework?.due_date ?? '',
-                max_score:        lesson.homework?.max_score ?? '',
+                title:                 lesson.title,
+                video_url:             lesson.video_url ?? '',
+                duration_seconds:      lesson.duration_seconds ?? 0,
+                due_date:              lesson.homework?.due_date ?? '',
+                max_score:             lesson.homework?.max_score ?? '',
+                allow_late_submission: lesson.homework?.allow_late_submission ?? true,
+                max_attempts:          lesson.homework?.max_attempts ?? 1,
             };
         });
     });
@@ -582,7 +586,23 @@ function createQuiz(unit) {
         available_from:     null,
         available_until:    null,
         passing_score:      60,
+        allow_late_submission: false,
+        max_attempts:       3,
         is_active:          false,
+    }, { preserveScroll: true });
+}
+
+function createLessonQuiz(unit, lesson) {
+    router.post(route('teacher.quizzes.store', unit.id), {
+        lesson_id:             lesson.id,
+        title:                 `كويز ${lesson.title}`,
+        time_limit_minutes:    null,
+        available_from:        null,
+        available_until:       null,
+        passing_score:         60,
+        allow_late_submission: false,
+        max_attempts:          3,
+        is_active:             false,
     }, { preserveScroll: true });
 }
 
@@ -1127,8 +1147,8 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                     </button>
                                 </div>
 
-                                <!-- The three slots -->
-                                <div class="grid sm:grid-cols-3 gap-3">
+                                <!-- The four slots -->
+                                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <!-- فيديو الشرح -->
                                     <div class="min-w-0">
                                         <div :class="SLOT_HEAD"><Icon name="video" class="w-3.5 h-3.5" /><span>فيديو الشرح</span></div>
@@ -1247,6 +1267,30 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                                 />
                                             </div>
 
+                                            <div class="flex items-center justify-between gap-1 mt-2 text-[10px] text-surface-600 dark:text-surface-300">
+                                                <label class="flex items-center gap-1 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        v-model="lessonDrafts[lesson.id].allow_late_submission"
+                                                        class="rounded text-primary-600 scale-90"
+                                                        @change="saveHomeworkField(lesson, { allow_late_submission: lessonDrafts[lesson.id].allow_late_submission })"
+                                                    />
+                                                    <span>سماح للمتأخرين</span>
+                                                </label>
+                                                <div class="flex items-center gap-1">
+                                                    <span>المحاولات:</span>
+                                                    <input
+                                                        v-model.number="lessonDrafts[lesson.id].max_attempts"
+                                                        type="number"
+                                                        min="1"
+                                                        max="10"
+                                                        class="input py-0.5 px-1 w-10 text-[10px] text-center"
+                                                        title="عدد المحاولات المسموح بها للطالب"
+                                                        @change="saveHomeworkField(lesson, { max_attempts: lessonDrafts[lesson.id].max_attempts })"
+                                                    />
+                                                </div>
+                                            </div>
+
                                             <p v-if="lesson.homework.submissions_count" class="text-[10px] text-surface-400 mt-1.5">
                                                 {{ lesson.homework.submissions_count }} تسليم من الطلاب
                                             </p>
@@ -1268,6 +1312,36 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                         </label>
 
                                         <p v-if="firstError(`lesson:${lesson.id}:homework`)" class="error-msg">{{ firstError(`lesson:${lesson.id}:homework`) }}</p>
+                                    </div>
+
+                                    <!-- كويز الدرس -->
+                                    <div class="min-w-0">
+                                        <div :class="SLOT_HEAD"><Icon name="calculator" class="w-3.5 h-3.5" /><span>كويز الدرس</span></div>
+
+                                        <div v-if="lesson.quiz" :class="SLOT_BOX">
+                                            <div class="flex items-start justify-between gap-1">
+                                                <h4 class="text-xs font-bold text-surface-900 dark:text-white truncate" :title="lesson.quiz.title">{{ lesson.quiz.title }}</h4>
+                                                <span class="text-[9px] font-bold rounded-full px-1.5 py-0.2 ring-1 shrink-0" :class="lesson.quiz.is_ready ? TONES.ok : TONES.partial">
+                                                    {{ lesson.quiz.is_ready ? 'جاهز' : 'مسودة' }}
+                                                </span>
+                                            </div>
+
+                                            <ul class="text-[10px] text-surface-500 dark:text-surface-400 mt-1 space-y-0.5">
+                                                <li>{{ lesson.quiz.questions_count }} أسئلة · {{ lesson.quiz.max_attempts }} محاولات</li>
+                                                <li>{{ lesson.quiz.allow_late_submission ? '✓ مسموح للمتأخرين' : '✕ غير مسموح بعد الموعد' }}</li>
+                                            </ul>
+
+                                            <Link :href="route('teacher.quizzes.edit', lesson.quiz.id)" class="btn-primary btn-sm w-full mt-2 text-xs py-1">
+                                                <Icon name="edit" class="w-3.5 h-3.5" />
+                                                <span>{{ lesson.quiz.questions_count ? 'تعديل الأسئلة' : 'إضافة أسئلة' }}</span>
+                                            </Link>
+                                        </div>
+
+                                        <button v-else type="button" :class="SLOT_EMPTY" aria-label="إضافة كويز للدرس" @click="createLessonQuiz(unit, lesson)">
+                                            <Icon name="plus" class="w-5 h-5 text-surface-400" />
+                                            <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">أنشئ كويز للدرس</span>
+                                            <span class="text-[10px] text-surface-400">كويز مرتبط بهذا الدرس</span>
+                                        </button>
                                     </div>
                                 </div>
 
@@ -1364,6 +1438,30 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                                 title="الدرجة النهائية"
                                                 @change="savePaperExamField(unit, { max_score: unitDrafts[unit.id].paper_max_score })"
                                             />
+                                        </div>
+
+                                        <div class="flex items-center justify-between gap-1 mt-2 text-[10px] text-surface-600 dark:text-surface-300">
+                                            <label class="flex items-center gap-1 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    v-model="unitDrafts[unit.id].paper_allow_late"
+                                                    class="rounded text-primary-600 scale-90"
+                                                    @change="savePaperExamField(unit, { allow_late_submission: unitDrafts[unit.id].paper_allow_late })"
+                                                />
+                                                <span>سماح للمتأخرين</span>
+                                            </label>
+                                            <div class="flex items-center gap-1">
+                                                <span>المحاولات:</span>
+                                                <input
+                                                    v-model.number="unitDrafts[unit.id].paper_max_attempts"
+                                                    type="number"
+                                                    min="1"
+                                                    max="10"
+                                                    class="input py-0.5 px-1 w-10 text-[10px] text-center"
+                                                    title="عدد المحاولات المسموح بها للطالب"
+                                                    @change="savePaperExamField(unit, { max_attempts: unitDrafts[unit.id].paper_max_attempts })"
+                                                />
+                                            </div>
                                         </div>
 
                                         <p v-if="unit.paper_exam.submissions_count" class="text-[10px] text-surface-400 mt-1.5">

@@ -33,7 +33,7 @@ class QuizQuestionRequest extends FormRequest
     {
         return [
             'question_text'         => ['required', 'string', 'min:3', 'max:1000'],
-            'type'                  => ['required', 'string', 'in:single,multiple'],
+            'type'                  => ['required', 'string', 'in:single,multiple,true_false'],
             'points'                => ['nullable', 'integer', 'min:1', 'max:100'],
             'order'                 => ['nullable', 'integer', 'min:1', 'max:999'],
             'options'               => ['required', 'array', 'min:' . self::MIN_OPTIONS, 'max:' . self::MAX_OPTIONS],
@@ -88,8 +88,8 @@ class QuizQuestionRequest extends FormRequest
                     return;
                 }
 
-                if ($this->input('type') === 'single' && $correct > 1) {
-                    $validator->errors()->add('options', 'سؤال الاختيار الواحد يقبل إجابة صحيحة واحدة فقط.');
+                if (in_array($this->input('type'), ['single', 'true_false'], true) && $correct > 1) {
+                    $validator->errors()->add('options', 'هذا السؤال يقبل إجابة صحيحة واحدة فقط.');
                 }
             },
         ];

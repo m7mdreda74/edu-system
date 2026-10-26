@@ -139,8 +139,7 @@ const menuGroups = computed(() => {
                 links: [
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
                     { label: 'مواد صفي', icon: 'book',      href: route('student.my-grade'),   name: 'student.my-grade' },
-                    { label: 'واجباتي', icon: 'assignment', href: route('student.assignments'), name: 'student.assignments' },
-                    { label: 'مركز الاختبارات', icon: 'chart', href: route('student.assessments'), name: 'student.assessments' },
+                    { label: 'الواجبات والتقييمات', icon: 'assignment', href: route('student.assessments'), name: 'student.assessments' },
                     { label: 'الموارد التعليمية', icon: 'book', href: route('student.resources'), name: 'student.resources' },
                     { label: 'جدول حصصي', icon: 'calendar', href: route('student.schedule'),   name: 'student.schedule' },
                     { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),         name: 'chat.index' },
@@ -157,6 +156,10 @@ const isActive = (name) => {
     
     if (nameLower === 'dashboard') {
         return url === '/dashboard' || compName === 'dashboard' || compName === 'student/dashboard';
+    }
+
+    if (nameLower === 'student.assessments') {
+        return url.includes('assessments') || url.includes('assignments') || compName.includes('assessments') || compName.includes('assignments');
     }
     
     const parts = nameLower.split('.');

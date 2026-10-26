@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
+use App\Application\Learning\Services\StudentAssignmentService;
 use App\Application\Quiz\Services\StudentAssessmentService;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Learning\Models\WorksheetSubmission;
@@ -17,9 +18,20 @@ use Inertia\Response;
 
 class AssessmentController extends Controller
 {
-    public function index(StudentAssessmentService $assessments): Response
+    public function index(Request $request, StudentAssessmentService $assessments, StudentAssignmentService $assignments): Response
     {
-        return Inertia::render('Student/Assessments', $assessments->forStudent(Auth::user()));
+        /** @var User $user */
+        $user = Auth::user();
+        $assessmentData = $assessments->forStudent($user);
+        $assignmentData = $assignments->forStudent($user);
+
+        return Inertia::render('Student/Assessments', [
+            'items' => $assessmentData['items'],
+            'summary' => $assessmentData['summary'],
+            'assignments' => $assignmentData['items'],
+            'assignmentSummary' => $assignmentData['summary'],
+            'initialTab' => $request->query('tab', 'all'),
+        ]);
     }
 
     /**
@@ -49,6 +61,20 @@ class AssessmentController extends Controller
         abort_if(! $worksheet->requires_submission, 403, 'هذا الاختبار لا يتطلب تسليماً.');
 
         $isLate = $worksheet->due_date !== null && now()->startOfDay()->isAfter($worksheet->due_date);
+
+        if ($isLate && ! ($worksheet->allow_late_submission ?? true)) {
+            abort(403, 'عفواً، انتهى موعد التسليم المحدد ولا يُسمح بالتسليم المتأخر لهذا الاختبار.');
+        }
+
+        $existing = WorksheetSubmission::where('worksheet_id', $worksheet->id)
+            ->where('student_id', $user->id)
+            ->first();
+
+        $maxAttempts = (int) ($worksheet->max_attempts > 0 ? $worksheet->max_attempts : 1);
+        if ($existing && $existing->isGraded() && $maxAttempts <= 1) {
+            abort(403, 'تم تصحيح إجابتك بالفعل ولا يمكن إعادة التسليم وفقاً لإعدادات المعلم.');
+        }
+
         $path = $request->file('submitted_file')->store('submissions', 'local');
 
         WorksheetSubmission::updateOrCreate(
