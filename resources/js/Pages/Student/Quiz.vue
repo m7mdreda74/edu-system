@@ -21,11 +21,38 @@ const result         = ref(null);
 const error          = ref('');
 const timeLeft       = ref(null);
 let   timerInterval  = null;
+const flaggedQuestionIds = ref(new Set());
+const showSubmitModal    = ref(false);
 
 const currentQuestion = computed(() => quizQuestions.value[currentIdx.value]);
 
 const isAnswered = (questionId) =>
     (answers.value[questionId]?.length ?? 0) > 0;
+
+function toggleFlag(questionId) {
+    if (!questionId) return;
+    if (flaggedQuestionIds.value.has(questionId)) {
+        flaggedQuestionIds.value.delete(questionId);
+    } else {
+        flaggedQuestionIds.value.add(questionId);
+    }
+}
+
+function isFlagged(questionId) {
+    return flaggedQuestionIds.value.has(questionId);
+}
+
+const answeredCount = computed(() =>
+    quizQuestions.value.filter(q => isAnswered(q.id)).length
+);
+
+const unansweredCount = computed(() =>
+    quizQuestions.value.length - answeredCount.value
+);
+
+const flaggedCount = computed(() =>
+    flaggedQuestionIds.value.size
+);
 
 const allAnswered = computed(() =>
     quizQuestions.value.every(q => isAnswered(q.id))
@@ -158,10 +185,28 @@ function goPrev() {
     }
 }
 
+function jumpToQuestion(idx) {
+    if (idx >= 0 && idx < quizQuestions.value.length) {
+        currentIdx.value = idx;
+    }
+}
+
+function jumpToFirstUnanswered() {
+    showSubmitModal.value = false;
+    const firstIdx = quizQuestions.value.findIndex(q => !isAnswered(q.id));
+    if (firstIdx !== -1) {
+        currentIdx.value = firstIdx;
+    }
+}
+
+const isSubmitting = ref(false);
+
 async function submitQuiz() {
+    showSubmitModal.value = false;
     clearInterval(timerInterval);
     restoreCheatingEvents();
     error.value = '';
+    isSubmitting.value = true;
 
     try {
         const res = await axios.post(route('student.quiz.submit', { quizId: props.quiz.id }), {
@@ -173,6 +218,8 @@ async function submitQuiz() {
         phase.value  = 'result';
     } catch (e) {
         error.value = e.response?.data?.error ?? 'فشل إرسال الاختبار، حاول مجدداً';
+    } finally {
+        isSubmitting.value = false;
     }
 }
 
@@ -260,35 +307,95 @@ onUnmounted(() => {
             <!-- ── Taking Phase ─────────────────────────────── -->
             <div v-if="phase === 'taking'">
 
-                <!-- Header -->
-                <div class="flex items-center justify-between mb-6">
-                    <div class="text-sm text-surface-500 dark:text-surface-400">
-                        سؤال {{ currentIdx + 1 }} / {{ quizQuestions.length }}
+                <!-- Top Header: Progress Counter & Timer & Flag & Quick Finish -->
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="badge-primary text-xs font-bold px-2.5 py-1">
+                            سؤال {{ currentIdx + 1 }} من {{ quizQuestions.length }}
+                        </span>
+                        <button type="button"
+                            @click="toggleFlag(currentQuestion?.id)"
+                            class="px-3 py-1 text-xs rounded-lg font-medium flex items-center gap-1.5 transition-all"
+                            :class="isFlagged(currentQuestion?.id)
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                                : 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300 hover:bg-surface-200 border border-transparent'"
+                            id="flag-question-btn"
+                        >
+                            <span>{{ isFlagged(currentQuestion?.id) ? '🚩 معلم للمراجعة' : '🏳️ تمييز للمراجعة' }}</span>
+                        </button>
                     </div>
 
-                    <!-- Timer -->
-                    <div v-if="timeLeftFormatted"
-                         class="font-mono font-bold px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5"
-                         :class="isTimeRunningOut
-                            ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 animate-pulse'
-                            : 'bg-surface-100 text-surface-700 dark:bg-surface-800 dark:text-surface-300'"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {{ timeLeftFormatted }}
+                    <div class="flex items-center gap-3">
+                        <!-- Timer -->
+                        <div v-if="timeLeftFormatted"
+                             class="font-mono font-bold px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5"
+                             :class="isTimeRunningOut
+                                ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 animate-pulse'
+                                : 'bg-surface-100 text-surface-700 dark:bg-surface-800 dark:text-surface-300'"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {{ timeLeftFormatted }}
+                        </div>
+
+                        <!-- Direct Finish/Submit trigger -->
+                        <button type="button"
+                            @click="showSubmitModal = true"
+                            class="btn-outline btn-sm text-xs font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/50"
+                        >
+                            إنهاء الاختبار 📋
+                        </button>
                     </div>
                 </div>
 
-                <!-- Progress -->
-                <div class="progress-bar mb-6">
+                <!-- Progress bar -->
+                <div class="progress-bar mb-4">
                     <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
                 </div>
 
-                <!-- Question -->
-                <div class="card p-6 mb-4">
+                <!-- Question Palette (شبكة أرقام أسئلة الاختبار) -->
+                <div class="card p-3.5 mb-5 bg-surface-50 dark:bg-surface-800/40 border border-surface-200 dark:border-surface-700">
+                    <div class="flex flex-wrap items-center justify-between text-xs text-surface-500 dark:text-surface-400 mb-2 gap-2">
+                        <span class="font-medium">لوحة التنقل بين الأسئلة:</span>
+                        <div class="flex items-center gap-3 font-medium">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> مجاب ({{ answeredCount }})
+                            </span>
+                            <span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                <span class="w-2 h-2 rounded-full bg-amber-500"></span> مراجعة ({{ flaggedCount }})
+                            </span>
+                            <span class="inline-flex items-center gap-1 text-surface-500">
+                                <span class="w-2 h-2 rounded-full bg-surface-300 dark:bg-surface-600"></span> متبقي ({{ unansweredCount }})
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button"
+                            v-for="(q, idx) in quizQuestions"
+                            :key="q.id"
+                            @click="jumpToQuestion(idx)"
+                            class="w-9 h-9 rounded-xl text-xs font-bold transition-all relative flex items-center justify-center border"
+                            :class="[
+                                idx === currentIdx ? 'ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-surface-900 scale-105' : '',
+                                isFlagged(q.id)
+                                    ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                                    : (isAnswered(q.id)
+                                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                                        : 'bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-300 border-surface-200 dark:border-surface-700 hover:border-primary-400')
+                            ]"
+                            :title="`سؤال ${idx + 1} (${isAnswered(q.id) ? 'مجاب' : 'غير مجاب'}${isFlagged(q.id) ? ' - معلَم للمراجعة' : ''})`"
+                        >
+                            {{ idx + 1 }}
+                            <span v-if="isFlagged(q.id) && isAnswered(q.id)" class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 ring-1 ring-white"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Current Question Card -->
+                <div class="card p-6 mb-5">
                     <div class="text-xs text-primary-600 dark:text-primary-400 font-semibold mb-2">
-                        {{ currentQuestion?.type === 'multiple' ? 'اختر أكثر من إجابة' : 'اختر الإجابة الصحيحة' }}
+                        {{ currentQuestion?.type === 'multiple' ? 'اختر أكثر من إجابة' : (currentQuestion?.type === 'true_false' ? 'حدد صحة العبارة (صواب أم خطأ)' : 'اختر الإجابة الصحيحة') }}
                         · {{ currentQuestion?.points }} نقطة
                     </div>
                     <h2 class="text-lg font-bold text-surface-900 dark:text-white leading-relaxed mb-6">
@@ -322,7 +429,7 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- Navigation -->
+                <!-- Navigation Controls -->
                 <div class="flex items-center justify-between gap-3">
                     <button type="button"
                         @click="goPrev"
@@ -332,22 +439,6 @@ onUnmounted(() => {
                     >
                         ← السابق
                     </button>
-
-                    <!-- Question dots -->
-                    <div class="flex gap-1.5 flex-wrap justify-center">
-                        <button type="button"
-                            v-for="(q, idx) in questions"
-                            :key="q.id"
-                            @click="currentIdx = idx"
-                            class="w-3 h-3 rounded-full transition-all duration-150"
-                            :class="idx === currentIdx
-                                ? 'bg-primary-600 scale-125'
-                                : isAnswered(q.id)
-                                    ? 'bg-primary-300 dark:bg-primary-700'
-                                    : 'bg-surface-300 dark:bg-surface-600'"
-                            :title="`سؤال ${idx + 1}`"
-                        />
-                    </div>
 
                     <button type="button"
                         v-if="currentIdx < quizQuestions.length - 1"
@@ -359,18 +450,87 @@ onUnmounted(() => {
                     </button>
                     <button type="button"
                         v-else
-                        @click="submitQuiz"
-                        :disabled="!allAnswered"
+                        @click="showSubmitModal = true"
                         class="btn-accent"
-                        :class="{ 'opacity-50 cursor-not-allowed': !allAnswered }"
                         id="submit-quiz-btn"
                     >
-                        إرسال الاختبار
+                        مراجعة وتسليم الاختبار ✓
                     </button>
                 </div>
 
                 <div v-if="error" class="alert-error mt-4">
                     {{ error }}
+                </div>
+            </div>
+
+            <!-- ── Pre-Submission Confirmation Modal ───────────────── -->
+            <div v-if="showSubmitModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                <div class="card p-6 max-w-lg w-full bg-white dark:bg-surface-900 shadow-2xl border border-surface-200 dark:border-surface-700">
+                    <div class="flex items-center justify-between mb-4 border-b border-surface-100 dark:border-surface-800 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">📋</span>
+                            <h3 class="text-lg font-bold text-surface-900 dark:text-white">تأكيد تسليم الاختبار</h3>
+                        </div>
+                        <button type="button" @click="showSubmitModal = false" class="text-surface-400 hover:text-surface-600 text-xl font-bold">✕</button>
+                    </div>
+
+                    <p class="text-sm text-surface-600 dark:text-surface-300 mb-4">
+                        يرجى مراجعة ملخص إجاباتك قبل التسليم النهائي. بمجرد التسليم، لن تتمكن من تعديل الإجابات.
+                    </p>
+
+                    <!-- Breakdown Cards -->
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="p-3 rounded-xl bg-surface-50 dark:bg-surface-800 text-center border border-surface-200 dark:border-surface-700">
+                            <div class="text-xs text-surface-500 mb-1">الأسئلة الإجمالية</div>
+                            <div class="text-xl font-bold text-surface-900 dark:text-white">{{ quizQuestions.length }}</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-center border border-emerald-200 dark:border-emerald-800">
+                            <div class="text-xs text-emerald-700 dark:text-emerald-400 mb-1">تمت إجابتها</div>
+                            <div class="text-xl font-bold text-emerald-700 dark:text-emerald-400">{{ answeredCount }}</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-center border border-amber-200 dark:border-amber-800">
+                            <div class="text-xs text-amber-700 dark:text-amber-400 mb-1">غير مجابة</div>
+                            <div class="text-xl font-bold text-amber-700 dark:text-amber-400">{{ unansweredCount }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Warning for unanswered questions -->
+                    <div v-if="unansweredCount > 0" class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs mb-4 flex items-start gap-2">
+                        <span class="text-base">⚠️</span>
+                        <div>
+                            <strong>انتباه:</strong> لديك {{ unansweredCount }} سؤال لم تقم بالإجابة عليه بعد. الأسئلة المتروكة ستحتسب درجاتها صفراً.
+                        </div>
+                    </div>
+
+                    <div v-if="flaggedCount > 0" class="p-2.5 rounded-xl bg-surface-100 dark:bg-surface-800 text-xs text-surface-600 dark:text-surface-300 mb-4 flex items-center gap-2">
+                        <span>🚩</span>
+                        <span>لديك {{ flaggedCount }} سؤال معلَم للمراجعة.</span>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col sm:flex-row gap-2.5 justify-end">
+                        <button type="button"
+                            v-if="unansweredCount > 0"
+                            @click="jumpToFirstUnanswered"
+                            class="btn-outline text-xs py-2 px-3 order-2 sm:order-1"
+                        >
+                            الذهاب للأسئلة المتبقية 🔍
+                        </button>
+                        <button type="button"
+                            @click="showSubmitModal = false"
+                            class="btn-ghost text-xs py-2 px-3 order-3 sm:order-2"
+                        >
+                            الرجوع للاختبار
+                        </button>
+                        <button type="button"
+                            @click="submitQuiz"
+                            :disabled="isSubmitting"
+                            class="btn-accent text-xs py-2.5 px-4 font-bold order-1 sm:order-3"
+                        >
+                            <span v-if="isSubmitting">جاري الإرسال...</span>
+                            <span v-else>تأكيد التسليم الآن ✓</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
