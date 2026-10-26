@@ -307,6 +307,50 @@ class UserController extends Controller
         return back()->with('success', "تم حذف كافر بروفايل المعلم {$user->name}.");
     }
 
+    public function updateIntroVideo(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'intro_video_url' => ['nullable', 'url', 'max:2048'],
+            'intro_video_thumbnail' => ['nullable', 'url', 'max:2048'],
+        ], [
+            'intro_video_url.url' => 'رابط الفيديو التعريفي يجب أن يكون رابطاً صالحاً (URL).',
+            'intro_video_thumbnail.url' => 'رابط صورة الفيديو يجب أن يكون رابطاً صالحاً (URL).',
+        ]);
+
+        $user = User::findOrFail($id);
+        abort_unless($user->hasRole('teacher'), 422, 'يُدار الفيديو التعريفي للمعلمين فقط.');
+
+        $user->update([
+            'intro_video_url' => $validated['intro_video_url'] ?: null,
+            'intro_video_thumbnail' => $validated['intro_video_thumbnail'] ?: null,
+        ]);
+
+        AuditLogger::record('admin.user.intro_video_updated', $user, [
+            'intro_video_url' => $user->intro_video_url,
+        ]);
+
+        $this->forgetTeacherCaches();
+
+        return back()->with('success', "تم تحديث الفيديو التعريفي للمعلم {$user->name} بنجاح.");
+    }
+
+    public function deleteIntroVideo(int $id): RedirectResponse
+    {
+        $user = User::findOrFail($id);
+        abort_unless($user->hasRole('teacher'), 422, 'يُدار الفيديو التعريفي للمعلمين فقط.');
+
+        $user->update([
+            'intro_video_url' => null,
+            'intro_video_thumbnail' => null,
+        ]);
+
+        AuditLogger::record('admin.user.intro_video_deleted', $user);
+
+        $this->forgetTeacherCaches();
+
+        return back()->with('success', "تم حذف الفيديو التعريفي للمعلم {$user->name}.");
+    }
+
     /** User images are stored on the public disk under a /storage/ prefix. */
     private function deleteStoredImage(?string $path): void
     {

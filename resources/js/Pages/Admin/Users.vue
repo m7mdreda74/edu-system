@@ -257,6 +257,57 @@ async function removeMedia() {
         onSuccess: () => { mediaModalOpen.value = false; },
     });
 }
+
+// ── Teacher Intro Video ──────────────────────────────────────────
+const introVideoModalOpen = ref(false);
+const introVideoUser = ref(null);
+const introVideoForm = useForm({
+    intro_video_url: '',
+    intro_video_thumbnail: '',
+});
+
+function openIntroVideoModal(user) {
+    introVideoUser.value = user;
+    introVideoForm.intro_video_url = user.intro_video_url ?? '';
+    introVideoForm.intro_video_thumbnail = user.intro_video_thumbnail ?? '';
+    introVideoForm.clearErrors();
+    introVideoModalOpen.value = true;
+}
+
+function saveIntroVideo() {
+    introVideoForm.post(route('admin.users.intro-video', { id: introVideoUser.value.id }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            introVideoModalOpen.value = false;
+        },
+    });
+}
+
+async function removeIntroVideo() {
+    const ok = await confirm({
+        title: 'حذف الفيديو التعريفي',
+        message: 'هل أنت متأكد من حذف الفيديو التعريفي الخاص بالمعلم ' + introVideoUser.value?.name + '؟',
+        confirmLabel: 'حذف الفيديو',
+        variant: 'danger',
+    });
+    if (!ok) return;
+
+    router.delete(route('admin.users.intro-video.delete', { id: introVideoUser.value.id }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            introVideoModalOpen.value = false;
+        },
+    });
+}
+
+function getEmbedVideoUrl(url) {
+    if (!url) return '';
+    const youtubeMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+    if (youtubeMatch) return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+    const vimeoMatch = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/[^\/]*\/videos\/|album\/(?:\d+\/)?video\/|video\/|)(\d+)/);
+    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    return url;
+}
 </script>
 
 <template>
@@ -348,22 +399,35 @@ async function removeMedia() {
                                         <div>
                                             <div class="font-semibold text-surface-800 dark:text-white">{{ user.name }}</div>
                                             <div class="text-xs text-surface-400">{{ user.email }}</div>
-                                            <button
-                                                v-if="isTeacher(user)"
-                                                type="button"
-                                                class="block text-[10px] font-bold text-primary-600 dark:text-primary-400 mt-0.5"
-                                                @click="openMediaModal(user, 'cover')"
-                                            >
-                                                {{ user.profile_cover ? 'تعديل الغلاف' : 'إضافة غلاف البروفايل' }}
-                                            </button>
-                                            <button
-                                                v-if="isTeacher(user) && !user.avatar"
-                                                type="button"
-                                                class="text-[10px] font-bold text-accent-600 dark:text-accent-400 mt-0.5"
-                                                @click="openMediaModal(user, 'avatar')"
-                                            >
-                                                بدون صورة — أضفها
-                                            </button>
+                                            <div v-if="isTeacher(user)" class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                                                <button
+                                                    type="button"
+                                                    class="text-[10px] font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                                                    @click="openMediaModal(user, 'cover')"
+                                                >
+                                                    {{ user.profile_cover ? 'تعديل الغلاف' : '+ غلاف' }}
+                                                </button>
+                                                <button
+                                                    v-if="!user.avatar"
+                                                    type="button"
+                                                    class="text-[10px] font-bold text-accent-600 dark:text-accent-400 hover:underline"
+                                                    @click="openMediaModal(user, 'avatar')"
+                                                >
+                                                    + صورة
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors"
+                                                    :class="user.intro_video_url
+                                                        ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800'
+                                                        : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-800 dark:text-surface-300'"
+                                                    @click="openIntroVideoModal(user)"
+                                                    :title="user.intro_video_url ? 'فيديو تعريفي مضاف — انقر للمشاهدة والتعديل' : 'إضافة فيديو تعريفي للمعلم'"
+                                                >
+                                                    <span>🎬</span>
+                                                    <span>{{ user.intro_video_url ? 'الفيديو التعريفي' : '+ فيديو تعريفي' }}</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </td>
@@ -702,6 +766,106 @@ async function removeMedia() {
                             <button type="button" class="btn-ghost btn-sm" @click="mediaModalOpen = false">إلغاء</button>
                             <button type="submit" class="btn-primary btn-sm" :disabled="mediaForm.processing || !selectedMediaFile">
                                 {{ mediaForm.processing ? 'جارٍ الرفع...' : (mediaIsCover ? 'حفظ الغلاف' : 'حفظ الصورة') }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ── Teacher Intro Video Modal ─────────────────────────────── -->
+        <div v-if="introVideoModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="إدارة الفيديو التعريفي للمعلم">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="introVideoModalOpen = false"></div>
+
+            <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-xl w-full max-w-lg">
+                <form @submit.prevent="saveIntroVideo">
+                    <div class="p-6">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-2xl">🎬</span>
+                            <h3 class="text-lg font-bold text-surface-900 dark:text-white">الفيديو التعريفي للمعلم</h3>
+                        </div>
+                        <p class="text-xs text-surface-500 mb-5">
+                            المعلم: <strong class="text-surface-700 dark:text-surface-200">{{ introVideoUser?.name }}</strong> — يُعرض هذا الفيديو في صفحة بروفايل المعلم وبطاقات التصفح لتعريف الطلاب به وبخبراته.
+                        </p>
+
+                        <!-- Video Preview if URL is present -->
+                        <div v-if="introVideoForm.intro_video_url" class="mb-4">
+                            <div class="text-xs font-semibold text-surface-600 dark:text-surface-300 mb-1.5 flex items-center justify-between">
+                                <span>معاينة الفيديو:</span>
+                                <a :href="introVideoForm.intro_video_url" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 text-[11px]">
+                                    فتح في نافذة جديدة ↗
+                                </a>
+                            </div>
+                            <div class="aspect-video w-full rounded-xl overflow-hidden bg-black border border-surface-200 dark:border-surface-700 shadow-inner">
+                                <iframe
+                                    v-if="introVideoForm.intro_video_url.includes('youtube.com') || introVideoForm.intro_video_url.includes('youtu.be') || introVideoForm.intro_video_url.includes('vimeo.com')"
+                                    :src="getEmbedVideoUrl(introVideoForm.intro_video_url)"
+                                    class="w-full h-full border-0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowfullscreen
+                                ></iframe>
+                                <video
+                                    v-else
+                                    :src="introVideoForm.intro_video_url"
+                                    controls
+                                    class="w-full h-full object-contain"
+                                ></video>
+                            </div>
+                        </div>
+
+                        <!-- Form Inputs -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="input-label block text-xs font-semibold mb-1" for="intro_video_url">
+                                    رابط الفيديو التعريفي (YouTube / Vimeo / MP4 / Cloudflare Stream)
+                                </label>
+                                <input
+                                    id="intro_video_url"
+                                    type="url"
+                                    v-model="introVideoForm.intro_video_url"
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    class="input text-sm w-full font-mono text-xs"
+                                    dir="ltr"
+                                />
+                                <p v-if="introVideoForm.errors.intro_video_url" class="text-xs text-red-500 mt-1">
+                                    {{ introVideoForm.errors.intro_video_url }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label class="input-label block text-xs font-semibold mb-1" for="intro_video_thumbnail">
+                                    رابط الصورة المصغرة (Thumbnail) — اختياري
+                                </label>
+                                <input
+                                    id="intro_video_thumbnail"
+                                    type="url"
+                                    v-model="introVideoForm.intro_video_thumbnail"
+                                    placeholder="https://example.com/thumbnail.jpg"
+                                    class="input text-sm w-full font-mono text-xs"
+                                    dir="ltr"
+                                />
+                                <p v-if="introVideoForm.errors.intro_video_thumbnail" class="text-xs text-red-500 mt-1">
+                                    {{ introVideoForm.errors.intro_video_thumbnail }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-2 px-6 py-4 bg-surface-50 dark:bg-surface-950/50 border-t border-surface-100 dark:border-surface-800">
+                        <button
+                            v-if="introVideoUser?.intro_video_url"
+                            type="button"
+                            class="btn-ghost btn-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40"
+                            @click="removeIntroVideo"
+                        >
+                            حذف الفيديو
+                        </button>
+                        <span v-else></span>
+
+                        <div class="flex gap-2">
+                            <button type="button" class="btn-ghost btn-sm" @click="introVideoModalOpen = false">إلغاء</button>
+                            <button type="submit" class="btn-primary btn-sm" :disabled="introVideoForm.processing">
+                                {{ introVideoForm.processing ? 'جارٍ الحفظ...' : 'حفظ وتحديث الفيديو' }}
                             </button>
                         </div>
                     </div>

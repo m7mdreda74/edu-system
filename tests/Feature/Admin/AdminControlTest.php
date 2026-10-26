@@ -100,6 +100,25 @@ it('prints the complete admin report datasets without pagination', function () {
             ->has('groups', $groupCount));
 });
 
+it('filters admin reports by category, student, session type, and group', function () {
+    /** @var AdminControlTestCase $this */
+    $this->actingAs($this->admin)
+        ->get(route('admin.reports', [
+            'report_type' => 'attendance',
+            'student_id' => $this->student->id,
+            'session_type' => 'group',
+            'group_id' => $this->group->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('filters.report_type', 'attendance')
+            ->where('filters.student_id', $this->student->id)
+            ->where('filters.session_type', 'group')
+            ->where('filters.group_id', $this->group->id)
+            ->has('students')
+        );
+});
+
 it('treats stale active subscriptions as expired in admin screens', function () {
     /** @var AdminControlTestCase $this */
     $activeBefore = Subscription::active()->count();
@@ -554,6 +573,26 @@ it('lets an admin set and clear a teacher profile cover', function () {
         ->assertRedirect();
 
     expect($this->teacher->fresh()->profile_cover)->toBeNull();
+});
+
+it('lets an admin set and clear a teacher intro video', function () {
+    /** @var AdminControlTestCase $this */
+    $this->actingAs($this->admin)
+        ->post(route('admin.users.intro-video', ['id' => $this->teacher->id]), [
+            'intro_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            'intro_video_thumbnail' => 'https://example.com/thumb.jpg',
+        ])
+        ->assertRedirect();
+
+    expect($this->teacher->fresh()->intro_video_url)->toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+        ->and($this->teacher->fresh()->intro_video_thumbnail)->toBe('https://example.com/thumb.jpg');
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.users.intro-video.delete', ['id' => $this->teacher->id]))
+        ->assertRedirect();
+
+    expect($this->teacher->fresh()->intro_video_url)->toBeNull()
+        ->and($this->teacher->fresh()->intro_video_thumbnail)->toBeNull();
 });
 
 it('manages photos for teachers only', function () {

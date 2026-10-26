@@ -24,15 +24,22 @@ class ReportController extends Controller
     public function index(Request $request): Response
     {
         $filters = $request->validate([
-            'start_date' => ['nullable', 'date', 'date_format:Y-m-d'],
-            'end_date' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
-            'teacher_id' => ['nullable', 'integer', 'min:1', 'exists:users,id'],
-            'status' => ['nullable', 'in:scheduled,live,ended,cancelled'],
-            'print' => ['nullable', 'boolean'],
+            'report_type'  => ['nullable', 'string', 'in:all,teachers,attendance,sessions,groups'],
+            'start_date'   => ['nullable', 'date', 'date_format:Y-m-d'],
+            'end_date'     => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'teacher_id'   => ['nullable', 'integer', 'min:1', 'exists:users,id'],
+            'student_id'   => ['nullable', 'integer', 'min:1', 'exists:users,id'],
+            'session_type' => ['nullable', 'string', 'in:all,private,free,group'],
+            'group_id'     => ['nullable', 'integer', 'min:1', 'exists:teaching_groups,id'],
+            'status'       => ['nullable', 'in:scheduled,live,ended,cancelled'],
+            'print'        => ['nullable', 'boolean'],
         ]);
 
         $print = $request->boolean('print');
-        $teacherId = $filters['teacher_id'] ?? null;
+        $teacherId = isset($filters['teacher_id']) ? (int) $filters['teacher_id'] : null;
+        $studentId = isset($filters['student_id']) ? (int) $filters['student_id'] : null;
+        $sessionType = $filters['session_type'] ?? null;
+        $groupId = isset($filters['group_id']) ? (int) $filters['group_id'] : null;
         $start = $filters['start_date'] ?? null;
         $end = $filters['end_date'] ?? null;
         $startAt = $start ? CarbonImmutable::parse($start)->startOfDay() : null;
@@ -53,6 +60,11 @@ class ReportController extends Controller
             ->orderBy('name')
             ->get();
 
+        $students = User::role('student')
+            ->select(['id', 'name', 'email'])
+            ->orderBy('name')
+            ->get();
+
         $groups = TeachingGroup::query()
             ->with([
                 'assignment:id,teacher_id,subject_id,grade_level_id',
@@ -66,6 +78,7 @@ class ReportController extends Controller
                 'assignment',
                 fn (Builder $assignment) => $assignment->where('teacher_id', $teacherId),
             ))
+            ->when($groupId, fn (Builder $query) => $query->where('id', $groupId))
             ->orderByDesc('is_active')
             ->orderBy('name')
             ->get();
@@ -79,9 +92,19 @@ class ReportController extends Controller
             ])
             ->withCount('attendees')
             ->when($teacherId, fn (Builder $query) => $query->where('teacher_id', $teacherId))
+            ->when($groupId, fn (Builder $query) => $query->where('teaching_group_id', $groupId))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($startAt, fn (Builder $query) => $query->where('scheduled_at', '>=', $startAt))
             ->when($endAt, fn (Builder $query) => $query->where('scheduled_at', '<=', $endAt));
+
+        if ($sessionType === 'private') {
+            $sessionQuery->whereNotNull('private_session_slot_id');
+        } elseif ($sessionType === 'free') {
+            $sessionQuery->where('is_free', true);
+        } elseif ($sessionType === 'group') {
+            $sessionQuery->whereNotNull('teaching_group_id')
+                ->where(fn (Builder $q) => $q->where('is_free', false)->orWhereNull('is_free'));
+        }
 
         if ($print) {
             $sessionRows = $sessionQuery->latest('scheduled_at')->limit(self::MAX_PRINT_ROWS)->get();
@@ -112,12 +135,23 @@ class ReportController extends Controller
                 'session.privateSessionSlot.assignment.subject:id,name',
             ])
             ->whereHas('user', fn (Builder $query) => $query->role('student'))
-            ->whereHas('session', function (Builder $query) use ($teacherId, $startAt, $endAt, $filters): void {
+            ->when($studentId, fn (Builder $query) => $query->where('user_id', $studentId))
+            ->whereHas('session', function (Builder $query) use ($teacherId, $groupId, $sessionType, $startAt, $endAt, $filters): void {
                 $query
                     ->when($teacherId, fn (Builder $q, int $id) => $q->where('teacher_id', $id))
+                    ->when($groupId, fn (Builder $q, int $id) => $q->where('teaching_group_id', $id))
                     ->when($filters['status'] ?? null, fn (Builder $q, string $status) => $q->where('status', $status))
                     ->when($startAt, fn (Builder $q) => $q->where('scheduled_at', '>=', $startAt))
                     ->when($endAt, fn (Builder $q) => $q->where('scheduled_at', '<=', $endAt));
+
+                if ($sessionType === 'private') {
+                    $query->whereNotNull('private_session_slot_id');
+                } elseif ($sessionType === 'free') {
+                    $query->where('is_free', true);
+                } elseif ($sessionType === 'group') {
+                    $query->whereNotNull('teaching_group_id')
+                        ->where(fn (Builder $q) => $q->where('is_free', false)->orWhereNull('is_free'));
+                }
             });
 
         if ($print) {
@@ -204,15 +238,20 @@ class ReportController extends Controller
         return Inertia::render('Admin/Reports', [
             'printMode' => $print,
             'filters' => [
-                'start_date' => $start,
-                'end_date' => $end,
-                'teacher_id' => $teacherId,
-                'status' => $filters['status'] ?? '',
-                'print' => $print,
+                'report_type'  => $filters['report_type'] ?? 'all',
+                'start_date'   => $start,
+                'end_date'     => $end,
+                'teacher_id'   => $teacherId,
+                'student_id'   => $studentId,
+                'session_type' => $sessionType ?? 'all',
+                'group_id'     => $groupId,
+                'status'       => $filters['status'] ?? '',
+                'print'        => $print,
             ],
-            'teachers' => $teachers,
-            'groups' => $groups,
-            'sessions' => $sessions,
+            'teachers'   => $teachers,
+            'students'   => $students,
+            'groups'     => $groups,
+            'sessions'   => $sessions,
             'attendance' => $attendance,
             'summary' => [
                 'teachers' => $teachers->count(),
