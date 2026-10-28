@@ -473,3 +473,49 @@ it('does not report a subscription as active after its paid day ends', function 
     expect($subscription->fresh()->isActive())->toBeFalse()
         ->and($subscription->fresh()->effectiveStatus())->toBe(Subscription::STATUS_EXPIRED);
 });
+
+it('stores intro sessions in accurate UTC time based on teacher timezone and matches student view without hour offset', function (): void {
+    $teacher = $this->assignment->teacher;
+
+    // Teacher selects 18:00 (6:00 PM) Qatar Time (UTC+3)
+    $this->actingAs($teacher)
+        ->post(route('teacher.free-intro-sessions.store'), [
+            'teaching_assignment_id' => $this->assignment->id,
+            'starts_at' => '2026-11-10 18:00:00',
+            'ends_at' => '2026-11-10 19:00:00',
+            'timezone' => 'Asia/Qatar',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $slot = PrivateSessionSlot::query()
+        ->where('teaching_assignment_id', $this->assignment->id)
+        ->where('is_free_intro', true)
+        ->latest('id')
+        ->firstOrFail();
+
+    // 18:00 in Asia/Qatar (UTC+3) must be normalized to 15:00 UTC in database
+    expect($slot->starts_at->timezoneName)->toBe('UTC')
+        ->and($slot->starts_at->format('H:i:s'))->toBe('15:00:00')
+        ->and($slot->timezone)->toBe('Asia/Qatar');
+
+    // When viewed in Asia/Qatar, it must be exactly 18:00
+    $qatarTime = $slot->starts_at->copy()->setTimezone('Asia/Qatar');
+    expect($qatarTime->format('H:i:s'))->toBe('18:00:00');
+
+    // On the student profile view, the slot exposes the ISO string with correct timezone
+    $profileRoute = route('teachers.show', [
+        'id' => $teacher->id,
+        'grade' => $this->assignment->gradeLevel->key,
+        'subject' => $this->assignment->subject_id,
+    ]);
+
+    $this->actingAs($this->student)
+        ->get($profileRoute)
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('assignments.0.free_intro_slots.0.id', $slot->id)
+            ->where('assignments.0.free_intro_slots.0.starts_at', $slot->starts_at->toIso8601String())
+            ->where('assignments.0.free_intro_slots.0.timezone', 'Asia/Qatar'));
+});
+

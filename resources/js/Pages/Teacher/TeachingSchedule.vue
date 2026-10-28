@@ -138,11 +138,20 @@ function cancelPrivateSlot(slotId) {
     router.delete(route('teacher.private-slots.destroy', slotId), { preserveScroll: true });
 }
 
-function formatDate(value) {
-    return new Date(value).toLocaleString('ar-EG', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    });
+function formatDate(value, timeZone = 'Asia/Qatar') {
+    if (!value) return '—';
+    try {
+        return new Date(value).toLocaleString('ar-QA', {
+            timeZone: timeZone || 'Asia/Qatar',
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        });
+    } catch {
+        return new Date(value).toLocaleString('ar-EG', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        });
+    }
 }
 </script>
 
@@ -184,9 +193,9 @@ function formatDate(value) {
 
                 <div class="rounded-2xl border border-accent-500/25 bg-accent-500/5 p-5 space-y-4">
                     <div>
-                        <h3 class="font-black text-surface-900 dark:text-white">الحصة التجريبية المجانية</h3>
+                        <h3 class="font-black text-surface-900 dark:text-white">الحصة التجريبية المجانية (توقيت الدوحة)</h3>
                         <p class="text-xs text-surface-500 mt-1">
-                            انشر مواعيد متاحة ليحجز الطالب حصة واحدة معك مسبقًا وبدون أي رسوم.
+                            انشر مواعيد متاحة ليحجز الطالب حصة واحدة معك مسبقًا وبدون أي رسوم (تُحسب الأوقات بتوقيت الدوحة GMT+3).
                         </p>
                     </div>
 
@@ -203,9 +212,9 @@ function formatDate(value) {
                             class="rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-3 flex items-center justify-between gap-3"
                         >
                             <div>
-                                <p class="text-sm font-bold">{{ formatDate(slot.starts_at) }}</p>
+                                <p class="text-sm font-bold">{{ formatDate(slot.starts_at, slot.timezone) }}</p>
                                 <p class="text-xs mt-1" :class="slot.status === 'booked' ? 'text-green-600' : 'text-surface-500'">
-                                    {{ slot.status === 'booked' ? `محجوزة بواسطة ${slot.booking?.student?.name ?? 'طالب'}` : 'متاحة للحجز' }}
+                                    {{ slot.status === 'booked' ? `محجوزة بواسطة ${slot.booking?.student?.name ?? 'طالب'}` : 'متاحة للحجز (بتوقيت الدوحة)' }}
                                 </p>
                             </div>
                             <button
@@ -222,7 +231,7 @@ function formatDate(value) {
 
                 <div v-if="assignment.accepts_private" class="rounded-2xl border border-primary-500/25 bg-primary-500/5 p-5 space-y-4">
                     <div>
-                        <h3 class="font-black text-surface-900 dark:text-white">مواعيد البرايفيت</h3>
+                        <h3 class="font-black text-surface-900 dark:text-white">مواعيد البرايفيت (توقيت الدوحة)</h3>
                         <p class="text-xs text-surface-500 mt-1">كل موعد متاح لطالب واحد فقط، ويُغلق تلقائيًا بمجرد حجزه.</p>
                     </div>
 
@@ -239,9 +248,9 @@ function formatDate(value) {
                             class="rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-3 flex items-center justify-between gap-3"
                         >
                             <div>
-                                <p class="text-sm font-bold">{{ formatDate(slot.starts_at) }}</p>
+                                <p class="text-sm font-bold">{{ formatDate(slot.starts_at, slot.timezone) }}</p>
                                 <p class="text-xs mt-1" :class="slot.status === 'booked' ? 'text-green-600' : 'text-surface-500'">
-                                    {{ slot.status === 'booked' ? `محجوز بواسطة ${slot.booking?.student?.name ?? 'طالب'}` : 'متاح لطالب واحد' }}
+                                    {{ slot.status === 'booked' ? `محجوز بواسطة ${slot.booking?.student?.name ?? 'طالب'}` : 'متاح لطالب واحد (بتوقيت الدوحة)' }}
                                 </p>
                             </div>
                             <button v-if="slot.status !== 'booked'" type="button" class="btn-ghost btn-sm text-red-500" @click="cancelPrivateSlot(slot.id)">إلغاء</button>

@@ -63,6 +63,19 @@ function formatQAR(halala) {
     return formatMoney(halala ?? 0);
 }
 
+function formatSlotDateTime(value, timeZone = 'Asia/Qatar') {
+    if (!value) return '';
+    try {
+        return new Date(value).toLocaleString('ar-QA', {
+            timeZone: timeZone || 'Asia/Qatar',
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        });
+    } catch {
+        return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+}
+
 function subscriptionStatusLabel(subscription) {
     if (subscription.is_active) return 'نشط';
     if (subscription.status === 'pending') return 'بانتظار الدفع';
@@ -643,7 +656,7 @@ function payForRequest(requestId) {
                                 <div v-for="slot in selectedStudent.freeIntroSlots" :key="slot.id" class="rounded-xl border border-accent-500/30 bg-accent-500/5 p-4 flex items-center justify-between gap-3">
                                     <div>
                                         <p class="font-bold">{{ slot.teacher?.name }}</p>
-                                        <p class="text-xs text-surface-500">{{ slot.subject }} · {{ new Date(slot.starts_at).toLocaleString('ar-EG') }}</p>
+                                        <p class="text-xs text-surface-500">{{ slot.subject }} · {{ formatSlotDateTime(slot.starts_at, slot.timezone) }} (توقيت الدوحة)</p>
                                     </div>
                                     <button type="button" class="btn-accent btn-sm" @click="bookFreeIntro(slot.id)">احجز مجانًا</button>
                                 </div>
@@ -659,7 +672,7 @@ function payForRequest(requestId) {
                                     <p class="font-black text-primary-600 mt-2">{{ formatQAR(assignment.monthly_price) }} شهريًا</p>
                                     <div v-if="assignment.private_slots?.length" class="space-y-2 mt-3">
                                         <div v-for="slot in assignment.private_slots" :key="slot.id" class="flex items-center justify-between gap-2 rounded-lg bg-surface-50 dark:bg-surface-900/50 px-3 py-2">
-                                            <span class="text-xs">{{ new Date(slot.starts_at).toLocaleString('ar-EG') }}</span>
+                                            <span class="text-xs">{{ formatSlotDateTime(slot.starts_at, slot.timezone) }} (توقيت الدوحة)</span>
                                             <button v-if="assignment.has_active_subscription" type="button" class="btn-outline btn-sm" @click="bookPrivateSlot(slot.id)">احجز الموعد</button>
                                             <span v-else class="text-[11px] text-surface-400">بعد الاشتراك</span>
                                         </div>

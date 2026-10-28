@@ -20,7 +20,15 @@ const slotType = ref('private'); // 'private' or 'free_intro'
 const slotDate = ref(defaultDate);
 const startTime = ref('18:00');
 const durationMinutes = ref(60);
+const timezone = ref('Asia/Qatar');
 const processing = ref(false);
+
+const timezones = [
+    { value: 'Asia/Qatar', label: 'توقيت الدوحة / مكة (GMT+3)' },
+    { value: 'Africa/Cairo', label: 'توقيت القاهرة (GMT+2 / GMT+3)' },
+    { value: 'Asia/Dubai', label: 'توقيت مسقط / دبي (GMT+4)' },
+    { value: 'Africa/Tripoli', label: 'توقيت طرابلس / الخرطوم (GMT+2)' },
+];
 
 const computedEndTime = computed(() => {
     if (!startTime.value) return '';
@@ -40,7 +48,8 @@ const previewText = computed(() => {
     const start12 = formatTime12(startTime.value);
     const end12 = formatTime12(computedEndTime.value);
     const typeLabel = slotType.value === 'free_intro' ? 'حصة تجريبية مجانية' : 'موعد برايفيت';
-    return `${typeLabel} · تاريخ: ${slotDate.value} · من ${start12} إلى ${end12} (${durationMinutes.value} دقيقة)`;
+    const tzLabel = timezones.find(t => t.value === timezone.value)?.label || timezone.value;
+    return `${typeLabel} · تاريخ: ${slotDate.value} · من ${start12} إلى ${end12} (${durationMinutes.value} دقيقة) · ${tzLabel}`;
 });
 
 function submitSlot() {
@@ -61,7 +70,7 @@ function submitSlot() {
             starts_at: startsAt,
             ends_at: endsAt,
             duration_minutes: durationMinutes.value,
-            timezone: 'Asia/Qatar',
+            timezone: timezone.value || 'Asia/Qatar',
         },
         {
             preserveScroll: true,
@@ -165,6 +174,19 @@ function close() {
                             المعاينة: {{ formatTime12(startTime) || '—' }}
                         </p>
                     </div>
+                </div>
+
+                <!-- Timezone Selector -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-surface-800 dark:text-surface-200 flex items-center justify-between">
+                        <span>المنطقة الزمنية المرجعية:</span>
+                        <span class="text-[11px] font-normal text-surface-400">تُضبط الحصة بموجب هذا التوقيت</span>
+                    </label>
+                    <select v-model="timezone" class="input text-xs font-bold w-full bg-surface-50 dark:bg-surface-800">
+                        <option v-for="tz in timezones" :key="tz.value" :value="tz.value">
+                            {{ tz.label }}
+                        </option>
+                    </select>
                 </div>
 
                 <!-- Duration -->

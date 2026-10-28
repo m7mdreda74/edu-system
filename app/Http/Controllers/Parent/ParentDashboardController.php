@@ -225,6 +225,7 @@ class ParentDashboardController extends Controller
                     'id' => $slot->id,
                     'starts_at' => $slot->starts_at?->toIso8601String(),
                     'ends_at' => $slot->ends_at?->toIso8601String(),
+                    'timezone' => $slot->timezone ?? 'Asia/Qatar',
                     'teacher' => $slot->assignment?->teacher?->only(['id', 'name', 'avatar']),
                     'subject' => $slot->assignment?->subject?->name,
                 ])->values();
@@ -287,6 +288,7 @@ class ParentDashboardController extends Controller
                                 'id' => $slot->id,
                                 'starts_at' => $slot->starts_at?->toIso8601String(),
                                 'ends_at' => $slot->ends_at?->toIso8601String(),
+                                'timezone' => $slot->timezone ?? 'Asia/Qatar',
                             ])->values(),
                     ];
                 })->values();

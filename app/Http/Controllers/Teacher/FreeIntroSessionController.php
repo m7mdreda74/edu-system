@@ -19,17 +19,32 @@ class FreeIntroSessionController extends Controller
     {
         $data = $request->validate([
             'teaching_assignment_id' => ['required', 'integer', 'min:1', 'exists:teaching_assignments,id'],
-            'starts_at' => ['required', 'date', 'after:now'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
-            'timezone' => ['nullable', 'timezone'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date'],
+            'timezone' => ['nullable', 'string', 'timezone'],
         ]);
 
         $assignment = TeachingAssignment::where('teacher_id', Auth::id())
             ->where('is_active', true)
             ->findOrFail($data['teaching_assignment_id']);
 
-        $startsAt = Carbon::parse($data['starts_at']);
-        $endsAt = Carbon::parse($data['ends_at']);
+        $timezone = $data['timezone'] ?? 'Asia/Qatar';
+
+        $startsAt = Carbon::parse($data['starts_at'], $timezone)->utc();
+        $endsAt = Carbon::parse($data['ends_at'], $timezone)->utc();
+
+        if ($startsAt->isPast()) {
+            throw ValidationException::withMessages([
+                'starts_at' => 'موعد الحصة التجريبية يجب أن يكون في المستقبل.',
+            ]);
+        }
+
+        if ($endsAt->lte($startsAt)) {
+            throw ValidationException::withMessages([
+                'ends_at' => 'وقت انتهاء الحصة يجب أن يكون بعد وقت البدء.',
+            ]);
+        }
+
         $duration = $startsAt->diffInMinutes($endsAt);
 
         if ($duration < 15 || $duration > 180) {
@@ -57,7 +72,7 @@ class FreeIntroSessionController extends Controller
             'teaching_assignment_id' => $assignment->id,
             'starts_at' => $startsAt,
             'ends_at' => $endsAt,
-            'timezone' => $data['timezone'] ?? 'Asia/Qatar',
+            'timezone' => $timezone,
             'is_free_intro' => true,
             'status' => 'available',
         ]);
@@ -95,11 +110,13 @@ class FreeIntroSessionController extends Controller
         [$startsAt, $endsAt] = $this->slotTimes($data, 'مدة حصة البرايفيت يجب أن تكون بين 15 دقيقة و8 ساعات.', 480);
         $this->assertNoOverlap($startsAt, $endsAt);
 
+        $timezone = $data['timezone'] ?? 'Asia/Qatar';
+
         PrivateSessionSlot::create([
             'teaching_assignment_id' => $assignment->id,
             'starts_at' => $startsAt,
             'ends_at' => $endsAt,
-            'timezone' => $data['timezone'] ?? 'Asia/Qatar',
+            'timezone' => $timezone,
             'is_free_intro' => false,
             'status' => 'available',
         ]);
@@ -127,17 +144,31 @@ class FreeIntroSessionController extends Controller
     {
         return $request->validate([
             'teaching_assignment_id' => ['required', 'integer', 'min:1', 'exists:teaching_assignments,id'],
-            'starts_at' => ['required', 'date', 'after:now'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
-            'timezone' => ['nullable', 'timezone'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date'],
+            'timezone' => ['nullable', 'string', 'timezone'],
         ]);
     }
 
     /** @return array{0: Carbon, 1: Carbon} */
     private function slotTimes(array $data, string $message, int $maximumMinutes): array
     {
-        $startsAt = Carbon::parse($data['starts_at']);
-        $endsAt = Carbon::parse($data['ends_at']);
+        $timezone = $data['timezone'] ?? 'Asia/Qatar';
+        $startsAt = Carbon::parse($data['starts_at'], $timezone)->utc();
+        $endsAt = Carbon::parse($data['ends_at'], $timezone)->utc();
+
+        if ($startsAt->isPast()) {
+            throw ValidationException::withMessages([
+                'starts_at' => 'موعد الحصة يجب أن يكون في المستقبل.',
+            ]);
+        }
+
+        if ($endsAt->lte($startsAt)) {
+            throw ValidationException::withMessages([
+                'ends_at' => 'وقت انتهاء الحصة يجب أن يكون بعد وقت البدء.',
+            ]);
+        }
+
         $duration = $startsAt->diffInMinutes($endsAt);
 
         if ($duration < 15 || $duration > $maximumMinutes) {

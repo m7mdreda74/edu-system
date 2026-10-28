@@ -157,8 +157,17 @@ function bookPrivateSlot(slotId) {
     });
 }
 
-function formatDateTime(value) {
-    return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+function formatDateTime(value, timezone = 'Asia/Qatar') {
+    if (!value) return '';
+    try {
+        return new Date(value).toLocaleString('ar-QA', {
+            timeZone: timezone || 'Asia/Qatar',
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        });
+    } catch {
+        return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+    }
 }
 
 function formatDuration(seconds) {
@@ -325,7 +334,7 @@ const otherTeachersUrl = computed(() => (
                         </div>
 
                         <div v-if="activeAssignment.free_intro_booking" class="mt-4 rounded-xl bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-300">
-                            حجزك مؤكد: {{ formatDateTime(activeAssignment.free_intro_booking.starts_at) }}
+                            حجزك مؤكد: {{ formatDateTime(activeAssignment.free_intro_booking.starts_at) }} (توقيت الدوحة)
                         </div>
 
                         <div v-else-if="activeAssignment.free_intro_used" class="mt-4 rounded-xl bg-surface-100 dark:bg-surface-800 p-3 text-xs text-surface-500 dark:text-surface-300">
@@ -337,11 +346,12 @@ const otherTeachersUrl = computed(() => (
                                 v-for="slot in activeAssignment.free_intro_slots"
                                 :key="slot.id"
                                 type="button"
-                                class="btn-outline btn-sm"
+                                class="btn-outline btn-sm flex items-center gap-1.5"
                                 :disabled="subscribing === `free-${slot.id}`"
                                 @click="bookFreeIntro(slot.id)"
                             >
-                                {{ subscribing === `free-${slot.id}` ? 'جارٍ الحجز...' : formatDateTime(slot.starts_at) }}
+                                <span>{{ subscribing === `free-${slot.id}` ? 'جارٍ الحجز...' : formatDateTime(slot.starts_at, slot.timezone) }}</span>
+                                <span class="text-[10px] text-surface-400 font-normal">(توقيت الدوحة)</span>
                             </button>
                         </div>
 
@@ -638,7 +648,7 @@ const otherTeachersUrl = computed(() => (
                                         <div>
                                             <div class="flex items-center gap-2 mb-2">
                                                 <span class="w-2.5 h-2.5 rounded-full bg-accent-500"></span>
-                                                <span class="text-xs font-black text-surface-900 dark:text-white">{{ formatDateTime(slot.starts_at) }}</span>
+                                                <span class="text-xs font-black text-surface-900 dark:text-white">{{ formatDateTime(slot.starts_at, slot.timezone) }} (توقيت الدوحة)</span>
                                             </div>
                                             <p class="text-[11px] text-surface-500">جلسة خاصة لطالب واحد مباشرة عبر المنصة</p>
                                         </div>
