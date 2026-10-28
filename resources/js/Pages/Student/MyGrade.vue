@@ -196,19 +196,18 @@ function subscribe(groupId) {
                                             <template v-if="teacher.is_subscribed">
                                                 <Link
                                                     v-if="subject.learn_group_id"
-                                                    :href="route('student.learn', { groupId: subject.learn_group_id, progress: 1 })"
+                                                    :href="route('student.learn', { groupId: subject.learn_group_id })"
                                                     class="btn-primary btn-sm justify-center gap-1.5 shadow-sm"
                                                 >
-                                                    <Icon name="chart" class="w-4 h-4" />
-                                                    <span>تابع تقدمك</span>
+                                                    <span>دخول الحصة</span>
+                                                    <span>←</span>
                                                 </Link>
                                                 <Link
                                                     v-else
                                                     :href="route('student.resources')"
                                                     class="btn-primary btn-sm justify-center gap-1.5 shadow-sm"
                                                 >
-                                                    <Icon name="chart" class="w-4 h-4" />
-                                                    <span>تابع تقدمك</span>
+                                                    <span>المحتوى التعليمي</span>
                                                 </Link>
                                             </template>
 

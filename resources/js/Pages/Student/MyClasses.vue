@@ -132,10 +132,10 @@ async function cancel(id) {
                             {{ scheduleText(sub.group) }}
                         </p>
 
-                        <!-- Content progress -->
+                        <!-- Content progress / مستوى الإنجاز -->
                         <div v-if="sub.progress !== null" class="mb-3">
                             <div class="flex items-center justify-between text-[11px] text-surface-400 mb-1">
-                                <span>تقدمك في المحتوى</span>
+                                <span class="font-bold text-surface-600 dark:text-surface-300">مستوى الإنجاز</span>
                                 <span class="font-bold text-primary-600 dark:text-primary-400">{{ sub.progress }}%</span>
                             </div>
                             <div class="h-1.5 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
@@ -156,9 +156,9 @@ async function cancel(id) {
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2">
-                            <Link v-if="sub.group" :href="route('student.learn', { groupId: sub.group.id, progress: 1 })" class="btn-primary btn-sm flex items-center gap-1.5 shadow-sm">
-                                <Icon name="chart" class="w-4 h-4" />
-                                <span>تابع تقدمك</span>
+                            <Link v-if="sub.group" :href="route('student.learn', { groupId: sub.group.id })" class="btn-primary btn-sm flex items-center gap-1.5 shadow-sm">
+                                <span>دخول الحصة</span>
+                                <span>←</span>
                             </Link>
 
                             <Link

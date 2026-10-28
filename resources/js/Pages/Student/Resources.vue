@@ -703,7 +703,7 @@ const iconFor = (icon) => (KNOWN_ICONS.includes(icon) ? icon : 'book');
                                             class="btn-outline btn-xs flex items-center gap-1.5 font-bold text-primary-600 dark:text-primary-400 border-primary-200 dark:border-primary-800 hover:bg-primary-50 dark:hover:bg-primary-950/40"
                                         >
                                             <Icon name="chart" class="w-3.5 h-3.5" />
-                                            <span>تابع تقدمك في خريطة المنهج</span>
+                                            <span>خريطة المنهج ومستوى الإنجاز</span>
                                         </Link>
                                     </div>
                                 </div>

@@ -544,23 +544,19 @@ function uploadAnswer(sheetId) {
                 </div>
             </div>
 
-            <!-- Overall progress & Progress Roadmap trigger -->
+            <!-- Overall progress & Level of achievement -->
             <div class="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
-                <div class="hidden sm:flex items-center gap-3">
-                    <div class="w-28 md:w-32 progress-bar bg-surface-700">
-                        <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
-                    </div>
-                    <span class="text-primary-400 font-bold text-sm">{{ progressPercent }}%</span>
-                </div>
-
                 <button
                     type="button"
                     @click="openProgressModal"
-                    class="btn-primary btn-xs sm:btn-sm flex items-center gap-1.5 font-bold shadow-md shadow-primary-500/20"
-                    title="افتح خريطة تقدمك في المنهج والدروس"
+                    class="flex items-center gap-2 sm:gap-2.5 px-3 py-1.5 rounded-xl bg-surface-800/90 hover:bg-surface-800 border border-surface-700/60 transition-colors cursor-pointer text-xs"
+                    title="مستوى الإنجاز — اضغط لعرض تفاصيل خريطة المنهج"
                 >
-                    <Icon name="chart" class="w-3.5 h-3.5" />
-                    <span>تابع تقدمك</span>
+                    <span class="text-surface-300 font-bold">مستوى الإنجاز:</span>
+                    <div class="w-20 sm:w-28 md:w-32 progress-bar bg-surface-700">
+                        <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
+                    </div>
+                    <span class="text-primary-400 font-black text-xs sm:text-sm">{{ progressPercent }}%</span>
                 </button>
 
                 <button type="button" @click="treeOpen = !treeOpen"
@@ -1397,7 +1393,7 @@ function uploadAnswer(sheetId) {
             </aside>
         </div>
 
-        <!-- ── Progress Roadmap Modal (تابع تقدمك) ────────────────── -->
+        <!-- ── Progress Roadmap Modal (مستوى الإنجاز) ────────────────── -->
         <Transition enter-active-class="transition duration-200 ease-out"
                     enter-from-class="opacity-0"
                     enter-to-class="opacity-100"
@@ -1416,7 +1412,7 @@ function uploadAnswer(sheetId) {
                                 <Icon name="chart" class="w-5 h-5" />
                             </div>
                             <div>
-                                <h3 class="text-base sm:text-lg font-black text-white">تابع تقدمك في المنهج الدراسي</h3>
+                                <h3 class="text-base sm:text-lg font-black text-white">خريطة المنهج ومستوى الإنجاز</h3>
                                 <p class="text-xs text-surface-400 mt-0.5">
                                     {{ group.subject?.name }} — {{ group.name }} · {{ group.teacher?.name }}
                                 </p>
