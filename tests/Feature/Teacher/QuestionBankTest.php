@@ -195,3 +195,56 @@ it('keeps private questions isolated and allows explicit shared-library reuse', 
 
     expect($otherQuiz->questions()->where('question_bank_question_id', $bankQuestion->id)->exists())->toBeTrue();
 });
+
+it('creates an essay question with model answer and file upload in question bank and attaches it to quiz', function (): void {
+    Role::findOrCreate('teacher', 'web');
+    $teacher = User::factory()->create();
+    $teacher->assignRole('teacher');
+    $subject = Subject::query()->firstOrFail();
+    $assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $assignment->id,
+        'academic_term_id' => AcademicTerm::currentOrNext()?->id,
+    ]);
+    $quiz = Quiz::factory()->create(['curriculum_unit_id' => $unit->id]);
+
+    $this->actingAs($teacher)
+        ->post(route('teacher.question-bank.store'), [
+            'subject_id' => $subject->id,
+            'curriculum_unit_id' => $unit->id,
+            'difficulty' => 'medium',
+            'visibility' => 'private',
+            'question_text' => '<p><strong>اشرح</strong> دورة حياة الخلية بالتفصيل مدعماً إجابتك برسم توضيحي.</p>',
+            'type' => 'essay',
+            'points' => 10,
+            'allow_file_upload' => true,
+            'model_answer' => '<p>النموذج: يجب ذكر الطور البيني، والانقسام المتساوي، والانقسام السيتوبلازمي.</p>',
+            'tags' => ['biology', 'essay'],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $bankQuestion = QuestionBankQuestion::query()->where('type', 'essay')->firstOrFail();
+    expect($bankQuestion->points)->toBe(10)
+        ->and($bankQuestion->allow_file_upload)->toBeTrue()
+        ->and($bankQuestion->model_answer)->toContain('الطور البيني');
+
+    $this->actingAs($teacher)
+        ->post(route('teacher.quizzes.questions.from-bank', [
+            'quiz' => $quiz->id,
+            'bankQuestion' => $bankQuestion->id,
+        ]))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $quizQuestion = $quiz->questions()->where('question_bank_question_id', $bankQuestion->id)->firstOrFail();
+    expect($quizQuestion->type)->toBe('essay')
+        ->and($quizQuestion->points)->toBe(10)
+        ->and($quizQuestion->allow_file_upload)->toBeTrue()
+        ->and($quizQuestion->model_answer)->toBe($bankQuestion->model_answer);
+});
+

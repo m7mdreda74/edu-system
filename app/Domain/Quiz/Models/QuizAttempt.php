@@ -14,6 +14,9 @@ class QuizAttempt extends Model
 {
     use HasFactory;
 
+    public const STATUS_GRADED = 'graded';
+    public const STATUS_NEEDS_GRADING = 'needs_grading';
+
     protected static function newFactory(): QuizAttemptFactory
     {
         return new QuizAttemptFactory;
@@ -22,12 +25,15 @@ class QuizAttempt extends Model
     protected $fillable = [
         'user_id',
         'quiz_id',
+        'answers',
         'score',
         'earned_points',
         'total_points',
         'passed',
+        'status',
         'started_at',
         'submitted_at',
+        'graded_at',
         'violations',
         'teacher_feedback',
     ];
@@ -35,14 +41,21 @@ class QuizAttempt extends Model
     protected function casts(): array
     {
         return [
+            'answers' => 'array',
             'score' => 'integer', // computed server-side ONLY
             'earned_points' => 'integer',
             'total_points' => 'integer',
             'passed' => 'boolean',
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'graded_at' => 'datetime',
             'violations' => 'integer',
         ];
+    }
+
+    public function needsGrading(): bool
+    {
+        return $this->status === 'needs_grading';
     }
 
     public function user(): BelongsTo

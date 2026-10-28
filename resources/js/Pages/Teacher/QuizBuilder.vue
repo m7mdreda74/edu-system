@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import RichTextEditor from '@/Components/RichTextEditor.vue';
 import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
@@ -71,13 +72,15 @@ function makeOption(text = '', isCorrect = false) {
 
 function makeDraft(question = null) {
     return {
-        key:           question ? `q${question.id}` : `new-${++draftSeq}`,
-        id:            question?.id ?? null,
-        question_text: question?.question_text ?? '',
-        type:          question?.type ?? 'single',
-        points:        question?.points ?? 1,
-        order:         question?.order ?? null,
-        options:       question?.options?.length
+        key:               question ? `q${question.id}` : `new-${++draftSeq}`,
+        id:                question?.id ?? null,
+        question_text:     question?.question_text ?? '',
+        type:              question?.type ?? 'single',
+        points:            question?.points ?? 1,
+        order:             question?.order ?? null,
+        allow_file_upload: Boolean(question?.allow_file_upload),
+        model_answer:      question?.model_answer ?? '',
+        options:           question?.options?.length
             ? question.options.map((option) => makeOption(option.option_text, !!option.is_correct))
             : [makeOption(), makeOption()],
         dirty:  question === null,
@@ -201,12 +204,17 @@ function toggleCorrect(draft, index) {
 function changeType(draft, type) {
     draft.type = type;
 
-    if (type === 'true_false') {
+    if (type === 'essay') {
+        draft.options = [];
+    } else if (type === 'true_false') {
         draft.options = [
             makeOption('صواب', true),
             makeOption('خطأ', false),
         ];
     } else if (type === 'single') {
+        if (! draft.options.length) {
+            draft.options = [makeOption(), makeOption()];
+        }
         let taken = false;
 
         draft.options.forEach((option) => {
@@ -219,6 +227,8 @@ function changeType(draft, type) {
         if (! taken && draft.options.length) {
             draft.options[0].is_correct = true;
         }
+    } else if (type === 'multiple' && ! draft.options.length) {
+        draft.options = [makeOption(), makeOption()];
     }
 
     draft.dirty = true;
@@ -229,12 +239,17 @@ function changeType(draft, type) {
  * teacher spends a round trip on them.
  */
 function problemOf(draft) {
-    if (! draft.question_text.trim()) {
+    const textPlain = draft.question_text.replace(/<[^>]+>/g, '').trim();
+    if (! textPlain && ! draft.question_text.trim()) {
         return 'اكتب نص السؤال أولاً.';
     }
 
     if (Number(draft.points) < 1) {
         return 'حدد نقطة واحدة على الأقل للسؤال.';
+    }
+
+    if (draft.type === 'essay') {
+        return null;
     }
 
     if (draft.options.length < MIN_OPTIONS) {
@@ -260,11 +275,13 @@ function problemOf(draft) {
 
 function questionPayload(draft, order = null) {
     return {
-        question_text: draft.question_text,
-        type:          draft.type,
-        points:        draft.points,
-        order:         order ?? draft.order,
-        options:       draft.options.map((option) => ({
+        question_text:     draft.question_text,
+        type:              draft.type,
+        points:            draft.points,
+        order:             order ?? draft.order,
+        allow_file_upload: draft.allow_file_upload,
+        model_answer:      draft.model_answer,
+        options:           draft.type === 'essay' ? [] : draft.options.map((option) => ({
             option_text: option.option_text,
             is_correct:  option.is_correct,
         })),
@@ -621,13 +638,17 @@ function optionError(draft, index) {
 
                         <button type="button" class="flex-1 min-w-0 text-start" @click="toggleOpen(draft)">
                             <div class="font-bold text-sm text-surface-900 dark:text-white line-clamp-2">
-                                {{ draft.question_text.trim() || 'سؤال جديد' }}
+                                <span v-if="draft.question_text.trim()" v-html="draft.question_text"></span>
+                                <span v-else>سؤال جديد</span>
                             </div>
                             <div class="text-[11px] text-surface-400 flex items-center gap-2 mt-0.5 flex-wrap">
-                                <span>{{ draft.type === 'single' ? 'اختيار واحد' : (draft.type === 'true_false' ? 'صواب / خطأ' : 'اختيار متعدد') }}</span>
+                                <span>{{ draft.type === 'single' ? 'اختيار واحد' : (draft.type === 'true_false' ? 'صواب / خطأ' : (draft.type === 'essay' ? 'سؤال مقالي' : 'اختيار متعدد')) }}</span>
                                 <span>· {{ draft.points }} نقطة</span>
-                                <span>· {{ draft.options.length }} إجابات</span>
-                                <span>· {{ correctCount(draft) }} صحيحة</span>
+                                <span v-if="draft.type === 'essay'">· {{ draft.allow_file_upload ? 'يقبل حل ورقي' : 'حل كتابي' }}</span>
+                                <template v-else>
+                                    <span>· {{ draft.options.length }} إجابات</span>
+                                    <span>· {{ correctCount(draft) }} صحيحة</span>
+                                </template>
                                 <span v-if="draft.dirty" class="text-accent-600 dark:text-accent-400 font-bold">· غير محفوظ</span>
                             </div>
                         </button>
@@ -657,11 +678,12 @@ function optionError(draft, index) {
                     <!-- Question editor -->
                     <div v-show="isOpen(draft)" class="space-y-4">
                         <div>
-                            <label class="input-label">نص السؤال</label>
-                            <textarea v-model="draft.question_text" rows="2" minlength="3" maxlength="1000" class="input"
-                                      :class="{ 'input-error': draft.errors.question_text }"
-                                      placeholder="اكتب السؤال كما يقرأه الطالب"
-                                      @input="draft.dirty = true"></textarea>
+                            <RichTextEditor
+                                v-model="draft.question_text"
+                                label="نص السؤال (محرر نصي متقدم بتنسيقات Word)"
+                                placeholder="اكتب السؤال ونسقه بالخطوط، الألوان، التظليل، الجداول، والقوائم..."
+                                @update:modelValue="draft.dirty = true"
+                            />
                             <p v-if="draft.errors.question_text" class="error-msg">{{ draft.errors.question_text }}</p>
                         </div>
 
@@ -671,24 +693,31 @@ function optionError(draft, index) {
                                 <div class="flex flex-wrap gap-2">
                                 <button type="button" class="btn btn-sm border"
                                         :class="draft.type === 'single'
-                                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200'
+                                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200 font-bold'
                                             : 'border-surface-200 dark:border-surface-700 text-surface-500'"
                                         @click="changeType(draft, 'single')">
                                     إجابة صحيحة واحدة
                                 </button>
                                 <button type="button" class="btn btn-sm border"
                                         :class="draft.type === 'multiple'
-                                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200'
+                                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200 font-bold'
                                             : 'border-surface-200 dark:border-surface-700 text-surface-500'"
                                         @click="changeType(draft, 'multiple')">
                                     أكثر من إجابة صحيحة
                                 </button>
                                 <button type="button" class="btn btn-sm border"
                                         :class="draft.type === 'true_false'
-                                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200'
+                                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200 font-bold'
                                             : 'border-surface-200 dark:border-surface-700 text-surface-500'"
                                         @click="changeType(draft, 'true_false')">
                                     صواب / خطأ
+                                </button>
+                                <button type="button" class="btn btn-sm border"
+                                        :class="draft.type === 'essay'
+                                            ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-200 font-bold'
+                                            : 'border-surface-200 dark:border-surface-700 text-surface-500'"
+                                        @click="changeType(draft, 'essay')">
+                                    سؤال مقالي / تحريري 📝
                                 </button>
                                 </div>
                             </div>
@@ -707,7 +736,32 @@ function optionError(draft, index) {
                             </div>
                         </div>
 
-                        <div>
+                        <!-- Essay Question Setup -->
+                        <div v-if="draft.type === 'essay'" class="space-y-4 rounded-xl border border-primary-200 bg-primary-50/20 p-4 dark:border-primary-900/50 dark:bg-primary-950/10">
+                            <div class="flex items-center gap-3">
+                                <input :id="`allow-file-upload-${draft.key}`" v-model="draft.allow_file_upload" type="checkbox"
+                                       class="h-4 w-4 rounded text-primary-600 focus:ring-primary-500"
+                                       @change="draft.dirty = true" />
+                                <label :for="`allow-file-upload-${draft.key}`" class="text-sm font-bold text-surface-800 dark:text-surface-100 cursor-pointer">
+                                    إتاحة رفع ملف إجابة ورقية مصورة من الطالب (صور حلول دفترية أو PDF) 📎
+                                </label>
+                            </div>
+                            <p class="text-xs text-surface-400 ms-7">
+                                يتيح للطالب تصوير ورقة إجابته ورفعها أثناء الاختبار ليقوم المعلم بتصحيحها ورصد الدرجة لاحقاً.
+                            </p>
+
+                            <div class="mt-4">
+                                <RichTextEditor
+                                    v-model="draft.model_answer"
+                                    label="نموذج الإجابة الاسترشادي ودليل التصحيح (للمعلم)"
+                                    placeholder="اكتب عناصر الإجابة والدرجات المستحقة لكل عنصر لتسهيل التصحيح السريع لاحقاً..."
+                                    @update:modelValue="draft.dirty = true"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Objective Questions Options -->
+                        <div v-else>
                             <div class="flex items-center justify-between gap-2 mb-2">
                                 <label class="input-label mb-0">الإجابات</label>
                                 <span class="text-[11px] text-surface-400">

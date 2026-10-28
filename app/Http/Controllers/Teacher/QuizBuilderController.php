@@ -82,6 +82,8 @@ class QuizBuilderController extends Controller
                 'type' => $question->type,
                 'points' => $question->points,
                 'order' => $question->order,
+                'allow_file_upload' => (bool) $question->allow_file_upload,
+                'model_answer' => $question->model_answer,
                 'options' => $question->options->map(fn (QuizOption $option): array => [
                     'id' => $option->id,
                     'option_text' => $option->option_text,
@@ -147,16 +149,21 @@ class QuizBuilderController extends Controller
     public function storeQuestion(QuizQuestionRequest $request, int $quizId): RedirectResponse
     {
         $quiz = $this->ownedQuizOrFail($quizId);
+        $isEssay = $request->validated('type') === 'essay';
 
-        DB::transaction(function () use ($quiz, $request): void {
+        DB::transaction(function () use ($quiz, $request, $isEssay): void {
             $question = $quiz->questions()->create([
                 'question_text' => $request->validated('question_text'),
                 'type' => $request->validated('type'),
                 'points' => $request->integer('points', 1),
                 'order' => $request->integer('order') ?: (int) $quiz->questions()->max('order') + 1,
+                'allow_file_upload' => $request->boolean('allow_file_upload'),
+                'model_answer' => $request->validated('model_answer'),
             ]);
 
-            $this->replaceOptions($question, $request->validated('options'));
+            if (! $isEssay) {
+                $this->replaceOptions($question, $request->validated('options', []));
+            }
         });
 
         return back()->with('success', 'تمت إضافة السؤال بنجاح.');
@@ -165,16 +172,23 @@ class QuizBuilderController extends Controller
     public function updateQuestion(QuizQuestionRequest $request, int $questionId): RedirectResponse
     {
         $question = $this->ownedQuestionOrFail($questionId);
+        $isEssay = $request->validated('type') === 'essay';
 
-        DB::transaction(function () use ($question, $request): void {
+        DB::transaction(function () use ($question, $request, $isEssay): void {
             $question->update([
                 'question_text' => $request->validated('question_text'),
                 'type' => $request->validated('type'),
                 'points' => $request->integer('points', 1),
                 'order' => $request->integer('order') ?: $question->order,
+                'allow_file_upload' => $request->boolean('allow_file_upload'),
+                'model_answer' => $request->validated('model_answer'),
             ]);
 
-            $this->replaceOptions($question, $request->validated('options'));
+            if (! $isEssay) {
+                $this->replaceOptions($question, $request->validated('options', []));
+            } else {
+                $question->options()->delete();
+            }
         });
 
         return back()->with('success', 'تم حفظ السؤال بنجاح.');

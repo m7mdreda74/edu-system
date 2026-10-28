@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import RichTextEditor from '@/Components/RichTextEditor.vue';
 import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
@@ -32,6 +33,7 @@ const typeLabels = {
     single: 'اختيار واحد',
     multiple: 'اختيارات متعددة',
     true_false: 'صواب / خطأ',
+    essay: 'سؤال مقالي / تحريري',
 };
 
 const visibilityLabels = {
@@ -54,6 +56,8 @@ function blankForm() {
         question_text: '',
         type: 'single',
         points: 1,
+        allow_file_upload: false,
+        model_answer: '',
         explanation: '',
         tags: '',
         options: [makeOption(), makeOption()],
@@ -114,6 +118,8 @@ function editQuestion(question) {
     form.question_text = question.question_text ?? '';
     form.type = question.type ?? 'single';
     form.points = question.points ?? 1;
+    form.allow_file_upload = Boolean(question.allow_file_upload);
+    form.model_answer = question.model_answer ?? '';
     form.explanation = question.explanation ?? '';
     form.tags = (question.tags ?? []).join(', ');
     form.options = (question.options ?? []).map((option) => makeOption(option.option_text, !!option.is_correct));
@@ -164,12 +170,17 @@ function toggleCorrect(index) {
 function changeType(type) {
     form.type = type;
 
-    if (type === 'true_false') {
+    if (type === 'essay') {
+        form.options = [];
+    } else if (type === 'true_false') {
         form.options = [
             makeOption('صواب', true),
             makeOption('خطأ', false),
         ];
     } else if (type === 'single') {
+        if (! form.options.length) {
+            form.options = [makeOption(), makeOption()];
+        }
         let found = false;
         form.options.forEach((option) => {
             if (option.is_correct && ! found) {
@@ -181,6 +192,8 @@ function changeType(type) {
         if (! found && form.options.length) {
             form.options[0].is_correct = true;
         }
+    } else if (type === 'multiple' && ! form.options.length) {
+        form.options = [makeOption(), makeOption()];
     }
 }
 
@@ -189,7 +202,14 @@ function correctCount() {
 }
 
 function problemOf() {
-    if (! form.question_text.trim()) return 'اكتب نص السؤال أولاً.';
+    const textPlain = form.question_text.replace(/<[^>]+>/g, '').trim();
+    if (! textPlain && ! form.question_text.trim()) return 'اكتب نص السؤال أولاً.';
+    if (Number(form.points) < 1) return 'حدد نقطة واحدة على الأقل للسؤال.';
+
+    if (form.type === 'essay') {
+        return null;
+    }
+
     if (form.options.length < MIN_OPTIONS) return 'أضف إجابتين على الأقل.';
     if (form.options.some((option) => ! option.option_text.trim())) return 'اكتب نص كل إجابة.';
     if (correctCount() === 0) return 'حدد إجابة صحيحة واحدة على الأقل.';
@@ -304,38 +324,67 @@ async function deleteQuestion(question) {
                 </div>
 
                 <div>
-                    <label class="input-label">نص السؤال</label>
-                    <textarea v-model="form.question_text" rows="3" maxlength="1000" class="input" :class="{ 'input-error': form.errors.question_text }" placeholder="اكتب السؤال كما سيظهر للطالب"></textarea>
+                    <RichTextEditor
+                        v-model="form.question_text"
+                        label="نص السؤال (محرر نصي متقدم بتنسيقات Word)"
+                        placeholder="اكتب نص السؤال ونسقه بالخطوط، الألوان، التظليل، الجداول، والقوائم..."
+                    />
                     <p v-if="form.errors.question_text" class="error-msg">{{ form.errors.question_text }}</p>
                 </div>
 
-                <div class="grid gap-4 lg:grid-cols-[1fr_280px]">
-                    <div>
-                        <div class="mb-2 flex flex-wrap items-center gap-2">
-                            <label class="input-label mb-0">نوع السؤال</label>
-                            <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'single' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-surface-200 text-surface-500'" @click="changeType('single')">إجابة واحدة</button>
-                            <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'multiple' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-surface-200 text-surface-500'" @click="changeType('multiple')">إجابات متعددة</button>
-                            <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'true_false' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-surface-200 text-surface-500'" @click="changeType('true_false')">صواب / خطأ</button>
-                        </div>
-                        <div class="space-y-2">
-                            <div v-for="(option, index) in form.options" :key="index" class="flex items-center gap-2 rounded-xl border border-surface-100 p-2 dark:border-surface-800">
-                                <input v-if="form.type === 'single' || form.type === 'true_false'" type="radio" :name="`bank-correct-${editingId ?? 'new'}`" :checked="option.is_correct" @change="markCorrect(index)" />
-                                <input v-else v-model="option.is_correct" type="checkbox" class="rounded" />
-                                <input v-model="option.option_text" type="text" class="input" maxlength="500" :placeholder="`الإجابة ${index + 1}`" />
-                                <button type="button" class="btn-ghost btn-sm px-2 text-red-500" :disabled="form.type === 'true_false' || form.options.length <= MIN_OPTIONS" @click="removeOption(index)">
-                                    <Icon name="close" class="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
-                        <p v-if="form.errors.options" class="error-msg">{{ form.errors.options }}</p>
-                        <button v-if="form.type !== 'true_false'" type="button" class="btn-ghost btn-sm mt-2" :disabled="form.options.length >= MAX_OPTIONS" @click="addOption">
-                            <Icon name="plus" class="h-4 w-4" />
-                            <span>إضافة إجابة</span>
-                        </button>
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <label class="input-label mb-0">نوع السؤال:</label>
+                        <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'single' ? 'border-primary-500 bg-primary-50 text-primary-700 font-bold' : 'border-surface-200 text-surface-500'" @click="changeType('single')">إجابة واحدة</button>
+                        <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'multiple' ? 'border-primary-500 bg-primary-50 text-primary-700 font-bold' : 'border-surface-200 text-surface-500'" @click="changeType('multiple')">إجابات متعددة</button>
+                        <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'true_false' ? 'border-primary-500 bg-primary-50 text-primary-700 font-bold' : 'border-surface-200 text-surface-500'" @click="changeType('true_false')">صواب / خطأ</button>
+                        <button type="button" class="btn-sm rounded-lg border px-3" :class="form.type === 'essay' ? 'border-primary-500 bg-primary-50 text-primary-700 font-bold' : 'border-surface-200 text-surface-500'" @click="changeType('essay')">سؤال مقالي / تحريري 📝</button>
                     </div>
-                    <div>
-                        <label class="input-label">شرح الإجابة للمعلم</label>
-                        <textarea v-model="form.explanation" rows="7" maxlength="2000" class="input" placeholder="اختياري؛ لا يظهر للطالب من بنك الأسئلة"></textarea>
+
+                    <!-- Essay Specific Settings -->
+                    <div v-if="form.type === 'essay'" class="space-y-4 rounded-xl border border-primary-200 bg-primary-50/20 p-4 dark:border-primary-900/50 dark:bg-primary-950/10">
+                        <div class="flex items-center gap-3">
+                            <input id="allow-file-upload-bank" v-model="form.allow_file_upload" type="checkbox" class="h-4 w-4 rounded text-primary-600 focus:ring-primary-500" />
+                            <label for="allow-file-upload-bank" class="text-sm font-bold text-surface-800 dark:text-surface-100 cursor-pointer">
+                                إتاحة رفع ملف إجابة ورقية من الطالب (صور حلول دفترية أو PDF) 📎
+                            </label>
+                        </div>
+                        <p class="text-xs text-surface-400 ms-7">
+                            سيتمكن الطالب أثناء الاختبار من تصوير إجابته الورقية ورفعها مع إمكانية كتابة نص الإجابة في المحرر.
+                        </p>
+
+                        <div class="mt-4">
+                            <RichTextEditor
+                                v-model="form.model_answer"
+                                label="نموذج الإجابة الاسترشادي ومعايير التصحيح (خاص بالمعلم)"
+                                placeholder="اكتب عناصر الإجابة والدرجة المستحقة لكل عنصر لتسهيل التصحيح السريع لاحقاً..."
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Objective Options Table -->
+                    <div v-else class="grid gap-4 lg:grid-cols-[1fr_280px]">
+                        <div>
+                            <div class="space-y-2">
+                                <div v-for="(option, index) in form.options" :key="index" class="flex items-center gap-2 rounded-xl border border-surface-100 p-2 dark:border-surface-800">
+                                    <input v-if="form.type === 'single' || form.type === 'true_false'" type="radio" :name="`bank-correct-${editingId ?? 'new'}`" :checked="option.is_correct" @change="markCorrect(index)" />
+                                    <input v-else v-model="option.is_correct" type="checkbox" class="rounded" />
+                                    <input v-model="option.option_text" type="text" class="input" maxlength="500" :placeholder="`الإجابة ${index + 1}`" />
+                                    <button type="button" class="btn-ghost btn-sm px-2 text-red-500" :disabled="form.type === 'true_false' || form.options.length <= MIN_OPTIONS" @click="removeOption(index)">
+                                        <Icon name="close" class="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                            <p v-if="form.errors.options" class="error-msg">{{ form.errors.options }}</p>
+                            <button v-if="form.type !== 'true_false'" type="button" class="btn-ghost btn-sm mt-2" :disabled="form.options.length >= MAX_OPTIONS" @click="addOption">
+                                <Icon name="plus" class="h-4 w-4" />
+                                <span>إضافة إجابة</span>
+                            </button>
+                        </div>
+                        <div>
+                            <label class="input-label">شرح الإجابة للمعلم</label>
+                            <textarea v-model="form.explanation" rows="7" maxlength="2000" class="input" placeholder="اختياري؛ لا يظهر للطالب من بنك الأسئلة"></textarea>
+                        </div>
                     </div>
                 </div>
 
@@ -364,6 +413,7 @@ async function deleteQuestion(question) {
                     <option value="single">اختيار واحد</option>
                     <option value="multiple">اختيارات متعددة</option>
                     <option value="true_false">صواب / خطأ</option>
+                    <option value="essay">سؤال مقالي</option>
                 </select>
                 <div class="flex gap-2">
                     <select v-model="visibilityFilter" class="input min-w-0 flex-1">
@@ -383,13 +433,16 @@ async function deleteQuestion(question) {
             <section v-if="questions.data?.length" class="grid gap-4 lg:grid-cols-2">
                 <article v-for="question in questions.data" :key="question.id" class="card flex flex-col gap-4 p-5">
                     <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
+                        <div class="min-w-0 flex-1">
                             <div class="mb-2 flex flex-wrap gap-1.5 text-[10px]">
-                                <span class="badge-primary">{{ typeLabels[question.type] }}</span>
+                                <span class="badge-primary">{{ typeLabels[question.type] || question.type }}</span>
                                 <span class="badge-gray">{{ difficultyLabels[question.difficulty] }}</span>
                                 <span :class="question.visibility === 'shared' ? 'badge-green' : 'badge-accent'">{{ visibilityLabels[question.visibility] }}</span>
+                                <span v-if="question.allow_file_upload" class="rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                                    📎 يقبل حل ورقي
+                                </span>
                             </div>
-                            <h2 class="line-clamp-3 font-black text-surface-900 dark:text-white">{{ question.question_text }}</h2>
+                            <div class="prose prose-sm dark:prose-invert line-clamp-3 font-bold text-surface-900 dark:text-white" v-html="question.question_text"></div>
                         </div>
                         <Icon name="courses" class="h-5 w-5 shrink-0 text-primary-500" />
                     </div>
@@ -398,7 +451,8 @@ async function deleteQuestion(question) {
                         <span>{{ question.subject?.name ?? 'بدون مادة' }}</span>
                         <span>{{ question.topic || 'بدون موضوع' }}</span>
                         <span>{{ question.points }} نقطة</span>
-                        <span>{{ question.options?.length ?? 0 }} إجابات</span>
+                        <span v-if="question.type === 'essay'">{{ question.allow_file_upload ? 'يقبل حل ورقي مصور' : 'حل كتابي تحريري' }}</span>
+                        <span v-else>{{ question.options?.length ?? 0 }} إجابات</span>
                     </div>
 
                     <div class="flex flex-wrap gap-1" v-if="question.tags?.length">

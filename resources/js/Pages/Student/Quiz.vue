@@ -26,8 +26,64 @@ const showSubmitModal    = ref(false);
 
 const currentQuestion = computed(() => quizQuestions.value[currentIdx.value]);
 
-const isAnswered = (questionId) =>
-    (answers.value[questionId]?.length ?? 0) > 0;
+const isAnswered = (questionId) => {
+    const ans = answers.value[questionId];
+    if (! ans) return false;
+    if (Array.isArray(ans)) return ans.length > 0;
+    if (typeof ans === 'object') {
+        return Boolean(ans.text?.trim() || ans.file_path);
+    }
+    return false;
+};
+
+function getEssayAnswer(questionId) {
+    if (! answers.value[questionId] || Array.isArray(answers.value[questionId])) {
+        answers.value[questionId] = { type: 'essay', text: '', file_path: null, file_name: null };
+    }
+    return answers.value[questionId];
+}
+
+function updateEssayText(questionId, text) {
+    const ans = getEssayAnswer(questionId);
+    ans.text = text;
+}
+
+const uploadingQuestionId = ref(null);
+const uploadError = ref({});
+
+async function handleEssayFileUpload(event, questionId) {
+    const file = event.target.files?.[0];
+    if (! file) return;
+
+    uploadingQuestionId.value = questionId;
+    uploadError.value[questionId] = '';
+
+    const formData = new FormData();
+    formData.append('attempt_id', attemptId.value);
+    formData.append('question_id', questionId);
+    formData.append('file', file);
+
+    try {
+        const res = await axios.post(route('student.quiz.upload-essay-file', { quizId: props.quiz.id }), formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        const ans = getEssayAnswer(questionId);
+        ans.file_path = res.data.file_path;
+        ans.file_name = res.data.file_name;
+    } catch (e) {
+        uploadError.value[questionId] = e.response?.data?.message || e.response?.data?.error || 'فشل رفع الملف، تأكد من أن حجمه أقل من 10 ميجابايت وبصيغة صحيحة (PDF أو صور)';
+    } finally {
+        uploadingQuestionId.value = null;
+        event.target.value = '';
+    }
+}
+
+function removeEssayFile(questionId) {
+    const ans = getEssayAnswer(questionId);
+    ans.file_path = null;
+    ans.file_name = null;
+}
 
 function toggleFlag(questionId) {
     if (!questionId) return;
@@ -394,16 +450,90 @@ onUnmounted(() => {
 
                 <!-- Current Question Card -->
                 <div class="card p-6 mb-5">
-                    <div class="text-xs text-primary-600 dark:text-primary-400 font-semibold mb-2">
-                        {{ currentQuestion?.type === 'multiple' ? 'اختر أكثر من إجابة' : (currentQuestion?.type === 'true_false' ? 'حدد صحة العبارة (صواب أم خطأ)' : 'اختر الإجابة الصحيحة') }}
-                        · {{ currentQuestion?.points }} نقطة
+                    <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                        <span class="text-xs font-bold px-2 py-0.5 rounded"
+                              :class="currentQuestion?.type === 'essay'
+                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                                  : 'bg-primary-100 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300'">
+                            {{ currentQuestion?.type === 'multiple' ? 'اختيار متعدد' : (currentQuestion?.type === 'true_false' ? 'صواب / خطأ' : (currentQuestion?.type === 'essay' ? 'سؤال مقالي / تحريري 📝' : 'اختيار من متعدد')) }}
+                        </span>
+                        <span class="text-xs text-surface-500 font-bold">
+                            {{ currentQuestion?.points }} {{ currentQuestion?.points === 1 ? 'نقطة' : 'نقاط' }}
+                        </span>
                     </div>
-                    <h2 class="text-lg font-bold text-surface-900 dark:text-white leading-relaxed mb-6">
-                        {{ currentQuestion?.text }}
-                    </h2>
 
-                    <!-- Options -->
-                    <div class="space-y-3">
+                    <!-- Teacher formatted Rich HTML question text -->
+                    <div class="prose prose-base dark:prose-invert max-w-none text-surface-900 dark:text-white leading-relaxed mb-6 font-semibold"
+                         v-html="currentQuestion?.text"></div>
+
+                    <!-- Essay Answer Section -->
+                    <div v-if="currentQuestion?.type === 'essay'" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-surface-700 dark:text-surface-300 mb-2">
+                                إجابتك التحريرية:
+                            </label>
+                            <textarea
+                                :value="getEssayAnswer(currentQuestion.id).text"
+                                @input="updateEssayText(currentQuestion.id, $event.target.value)"
+                                rows="6"
+                                class="input w-full leading-relaxed text-sm"
+                                placeholder="اكتب إجابتك التحريرية بالتفصيل هنا..."
+                            ></textarea>
+                        </div>
+
+                        <!-- Paper Solution File Upload (If Allowed by Teacher) -->
+                        <div v-if="currentQuestion.allow_file_upload"
+                             class="rounded-2xl border-2 border-dashed border-primary-300 bg-primary-50/20 p-5 dark:border-primary-800 dark:bg-primary-950/20">
+                            <div class="flex items-start justify-between gap-4 flex-wrap">
+                                <div>
+                                    <div class="flex items-center gap-2 font-black text-surface-900 dark:text-white text-sm">
+                                        <span>📎 إرفاق حل ورقي مصور (اختياري)</span>
+                                    </div>
+                                    <p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
+                                        يمكنك حل السؤال في كراستك وتصوير الورقة ورفعها كملف (صور أو PDF حتى 10 ميجابايت).
+                                    </p>
+                                </div>
+
+                                <div v-if="getEssayAnswer(currentQuestion.id).file_path" class="flex items-center gap-2">
+                                    <span class="badge-green text-xs flex items-center gap-1.5 py-1 px-2.5">
+                                        <span>✓ تم إرفاق:</span>
+                                        <span class="font-bold underline max-w-[180px] truncate">{{ getEssayAnswer(currentQuestion.id).file_name || 'ملف الحل الورقي' }}</span>
+                                    </span>
+                                    <button
+                                        type="button"
+                                        class="btn-ghost btn-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                        @click="removeEssayFile(currentQuestion.id)"
+                                    >
+                                        حذف الملف
+                                    </button>
+                                </div>
+                                <div v-else class="relative">
+                                    <input
+                                        type="file"
+                                        accept="image/*,application/pdf"
+                                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        :disabled="uploadingQuestionId === currentQuestion.id"
+                                        @change="handleEssayFileUpload($event, currentQuestion.id)"
+                                    />
+                                    <button
+                                        type="button"
+                                        class="btn-outline btn-sm font-bold"
+                                        :disabled="uploadingQuestionId === currentQuestion.id"
+                                    >
+                                        <span v-if="uploadingQuestionId === currentQuestion.id">جارٍ رفع الملف... ⏳</span>
+                                        <span v-else>📎 اختيار ملف الحل الورقي</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p v-if="uploadError[currentQuestion.id]" class="text-xs text-red-500 mt-2.5 font-bold flex items-center gap-1">
+                                ⚠️ {{ uploadError[currentQuestion.id] }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Objective Options -->
+                    <div v-else class="space-y-3">
                         <button type="button"
                             v-for="option in currentQuestion?.options"
                             :key="option.id"
@@ -537,34 +667,62 @@ onUnmounted(() => {
             <!-- ── Result Phase ──────────────────────────────── -->
             <div v-if="phase === 'result' && result">
                 <div class="card p-10 text-center flex flex-col items-center justify-center">
-                    <div class="p-4 bg-surface-100 dark:bg-surface-800 rounded-full text-primary-500 mb-4">
-                        <Icon :name="result.passed ? 'success' : 'error'" class="w-12 h-12" />
-                    </div>
+                    <!-- Needs grading for essay questions -->
+                    <template v-if="result.needs_grading || result.status === 'needs_grading'">
+                        <div class="p-5 bg-amber-100 dark:bg-amber-950/50 rounded-full text-amber-600 dark:text-amber-400 mb-4 text-3xl">
+                            📝
+                        </div>
 
-                    <h2 class="text-3xl font-black mb-2"
-                        :class="result.passed
-                            ? 'text-green-700 dark:text-green-400'
-                            : 'text-red-700 dark:text-red-400'"
-                    >
-                        {{ result.passed ? 'نجحت!' : 'لم تنجح هذه المرة' }}
-                    </h2>
+                        <h2 class="text-2xl font-black mb-2 text-surface-900 dark:text-white">
+                            تم تسليم الاختبار بنجاح! 🎉
+                        </h2>
 
-                    <div class="text-6xl font-black my-6"
-                         :class="result.passed
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-red-600 dark:text-red-400'"
-                    >
-                        {{ result.score }}%
-                    </div>
+                        <p class="text-surface-600 dark:text-surface-300 text-sm max-w-md my-3 leading-relaxed">
+                            يحتوي هذا الاختبار على أسئلة مقالية / تحريرية. سيقوم معلم المادة بمراجعة وتصحيح إجاباتك ورصد الدرجة النهائية والتقييم قريباً.
+                        </p>
 
-                    <p class="text-surface-500 dark:text-surface-400 text-sm mb-8">
-                        جمعت {{ result.earned_points }} من {{ result.total_points }} نقطة
-                        · درجة النجاح: {{ result.passing_score }}%
-                    </p>
+                        <div class="card p-5 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 max-w-sm w-full my-5">
+                            <div class="text-xs text-surface-500 mb-1">نقاط الأسئلة الموضوعية المحسوبة:</div>
+                            <div class="text-3xl font-black text-primary-600 dark:text-primary-400">
+                                {{ result.earned_points }} <span class="text-sm font-normal text-surface-400">/ {{ result.total_points }} نقطة إجمالية</span>
+                            </div>
+                            <div class="text-xs text-amber-600 dark:text-amber-400 font-bold mt-2">
+                                ⏳ بانتظار تصحيح ورصد درجات الأسئلة المقالية
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Fully graded objective quiz -->
+                    <template v-else>
+                        <div class="p-4 bg-surface-100 dark:bg-surface-800 rounded-full text-primary-500 mb-4">
+                            <Icon :name="result.passed ? 'success' : 'error'" class="w-12 h-12" />
+                        </div>
+
+                        <h2 class="text-3xl font-black mb-2"
+                            :class="result.passed
+                                ? 'text-green-700 dark:text-green-400'
+                                : 'text-red-700 dark:text-red-400'"
+                        >
+                            {{ result.passed ? 'نجحت!' : 'لم تنجح هذه المرة' }}
+                        </h2>
+
+                        <div class="text-6xl font-black my-6"
+                             :class="result.passed
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-red-600 dark:text-red-400'"
+                        >
+                            {{ result.score }}%
+                        </div>
+
+                        <p class="text-surface-500 dark:text-surface-400 text-sm mb-8">
+                            جمعت {{ result.earned_points }} من {{ result.total_points }} نقطة
+                            · درجة النجاح: {{ result.passing_score }}%
+                        </p>
+                    </template>
 
                     <div class="flex flex-col sm:flex-row gap-3 justify-center">
                         <button type="button"
-                            v-if="remainingAttempts > 0"
+                            v-if="remainingAttempts > 0 && !result.needs_grading"
                             @click="phase = 'intro'"
                             class="btn-primary"
                         >

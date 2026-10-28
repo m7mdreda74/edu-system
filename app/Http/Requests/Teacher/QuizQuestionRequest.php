@@ -31,15 +31,24 @@ class QuizQuestionRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'question_text'         => ['required', 'string', 'min:3', 'max:1000'],
-            'type'                  => ['required', 'string', 'in:single,multiple,true_false'],
-            'points'                => ['nullable', 'integer', 'min:1', 'max:100'],
-            'order'                 => ['nullable', 'integer', 'min:1', 'max:999'],
-            'options'               => ['required', 'array', 'min:' . self::MIN_OPTIONS, 'max:' . self::MAX_OPTIONS],
-            'options.*.option_text' => ['required', 'string', 'min:1', 'max:500'],
-            'options.*.is_correct'  => ['required', 'boolean'],
+        $rules = [
+            'question_text'     => ['required', 'string', 'min:3', 'max:50000'],
+            'type'              => ['required', 'string', 'in:single,multiple,true_false,essay'],
+            'points'            => ['nullable', 'integer', 'min:1', 'max:100'],
+            'order'             => ['nullable', 'integer', 'min:1', 'max:999'],
+            'allow_file_upload' => ['nullable', 'boolean'],
+            'model_answer'      => ['nullable', 'string', 'max:50000'],
         ];
+
+        if ($this->input('type') === 'essay') {
+            $rules['options'] = ['nullable', 'array'];
+        } else {
+            $rules['options'] = ['required', 'array', 'min:' . self::MIN_OPTIONS, 'max:' . self::MAX_OPTIONS];
+            $rules['options.*.option_text'] = ['required', 'string', 'min:1', 'max:500'];
+            $rules['options.*.is_correct'] = ['required', 'boolean'];
+        }
+
+        return $rules;
     }
 
     public function messages(): array
@@ -74,6 +83,10 @@ class QuizQuestionRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
+                if ($this->input('type') === 'essay') {
+                    return;
+                }
+
                 // The shape is already wrong; a second complaint about it would
                 // only bury the first.
                 if ($validator->errors()->hasAny(['type', 'options', 'options.*.is_correct'])) {

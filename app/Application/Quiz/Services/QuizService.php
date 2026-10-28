@@ -95,40 +95,72 @@ class QuizService
 
         $earnedPoints = 0;
         $totalPoints = (int) $questions->sum(fn ($question): int => max(1, (int) $question->points));
+        $hasEssay = false;
+        $storedAnswers = [];
 
         foreach ($questions as $question) {
-            $submittedOptionIds = collect($answers[$question->id] ?? [])
-                ->map(fn($id) => (int) $id)
-                ->toArray();
+            $questionPoints = max(1, (int) $question->points);
 
-            $correctOptionIds = $question->correctOptions
-                ->pluck('id')
-                ->map(fn($id) => (int) $id)
-                ->toArray();
+            if ($question->type === \App\Domain\Quiz\Models\QuizQuestion::TYPE_ESSAY) {
+                $hasEssay = true;
+                $raw = $answers[$question->id] ?? null;
 
-            // For single/true-false: exact match
-            // For multiple: ALL correct options must be selected, no wrong ones
-            $isCorrect = count($submittedOptionIds) > 0
-                && empty(array_diff($submittedOptionIds, $correctOptionIds))
-                && empty(array_diff($correctOptionIds, $submittedOptionIds));
+                $storedAnswers[$question->id] = [
+                    'type' => 'essay',
+                    'text' => is_array($raw) ? trim((string) ($raw['text'] ?? '')) : (is_string($raw) ? trim($raw) : ''),
+                    'file_path' => is_array($raw) ? ($raw['file_path'] ?? null) : null,
+                    'file_name' => is_array($raw) ? ($raw['file_name'] ?? null) : null,
+                    'max_points' => $questionPoints,
+                    'earned_points' => null, // Waiting for teacher grading
+                    'feedback' => null,
+                ];
+            } else {
+                $submitted = $answers[$question->id] ?? [];
+                if (! is_array($submitted)) {
+                    $submitted = $submitted !== null && $submitted !== '' ? [(int) $submitted] : [];
+                }
 
-            if ($isCorrect) {
-                $earnedPoints += max(1, (int) $question->points);
+                $submittedOptionIds = collect($submitted)
+                    ->map(fn($id) => (int) $id)
+                    ->toArray();
+
+                $correctOptionIds = $question->correctOptions
+                    ->pluck('id')
+                    ->map(fn($id) => (int) $id)
+                    ->toArray();
+
+                // For single/true-false: exact match
+                // For multiple: ALL correct options must be selected, no wrong ones
+                $isCorrect = count($submittedOptionIds) > 0
+                    && empty(array_diff($submittedOptionIds, $correctOptionIds))
+                    && empty(array_diff($correctOptionIds, $submittedOptionIds));
+
+                $qEarned = $isCorrect ? $questionPoints : 0;
+                $earnedPoints += $qEarned;
+
+                $storedAnswers[$question->id] = [
+                    'type' => $question->type,
+                    'selected_options' => $submittedOptionIds,
+                    'is_correct' => $isCorrect,
+                    'max_points' => $questionPoints,
+                    'earned_points' => $qEarned,
+                ];
             }
         }
 
-        // The student earns each question's configured points. The percentage
-        // remains the stable value used by the passing-score rule.
-        $scorePercent = (int) round(($earnedPoints / $totalPoints) * 100);
-        $passed       = $scorePercent >= $quiz->passing_score;
+        $status = $hasEssay ? QuizAttempt::STATUS_NEEDS_GRADING : QuizAttempt::STATUS_GRADED;
+        $scorePercent = $hasEssay ? 0 : (int) round(($earnedPoints / max(1, $totalPoints)) * 100);
+        $passed = ! $hasEssay && ($scorePercent >= $quiz->passing_score);
 
-        return DB::transaction(function () use ($attempt, $scorePercent, $passed, $earnedPoints, $totalPoints) {
+        return DB::transaction(function () use ($attempt, $scorePercent, $passed, $earnedPoints, $totalPoints, $status, $storedAnswers) {
             $attempt->update([
-                'score'        => $scorePercent,
+                'score'         => $scorePercent,
                 'earned_points' => $earnedPoints,
                 'total_points'  => $totalPoints,
-                'passed'       => $passed,
-                'submitted_at' => now(),
+                'passed'        => $passed,
+                'status'        => $status,
+                'answers'       => $storedAnswers,
+                'submitted_at'  => now(),
             ]);
 
             return $attempt->fresh();

@@ -105,10 +105,8 @@ class QuizController extends Controller
         $this->authorizeAccess($user, $quiz);
 
         $validated = $request->validate([
-            'attempt_id'          => ['required', 'integer', 'min:1'],
-            'answers'             => ['required', 'array', 'max:200'],
-            'answers.*'           => ['array', 'max:6'],
-            'answers.*.*'         => ['integer', 'min:1'],
+            'attempt_id' => ['required', 'integer', 'min:1'],
+            'answers'    => ['required', 'array', 'max:200'],
         ]);
 
         $attempt = \App\Domain\Quiz\Models\QuizAttempt::where('id', $validated['attempt_id'])
@@ -119,14 +117,25 @@ class QuizController extends Controller
         try {
             $result = $this->quizService->submitAttempt($attempt, $validated['answers']);
 
-            $this->parentStudentLinks->notifyLinkedParents(
-                $user,
-                new GenericDatabaseNotification([
-                    'title' => 'نتيجة اختبار جديدة',
-                    'message' => "ابنكم الطالب {$user->name} حصل على {$result->score}% في اختبار '{$quiz->title}' ({$result->earned_points}/{$result->total_points}).",
-                    'link' => route('parent.dashboard', ['student_id' => $user->id]),
-                ]),
-            );
+            if ($result->needsGrading()) {
+                $this->parentStudentLinks->notifyLinkedParents(
+                    $user,
+                    new GenericDatabaseNotification([
+                        'title' => 'تسليم اختبار جديد 📝',
+                        'message' => "ابنكم الطالب {$user->name} سلم اختبار '{$quiz->title}' وبانتظار تصحيح الأسئلة المقالية من المعلم.",
+                        'link' => route('parent.dashboard', ['student_id' => $user->id]),
+                    ]),
+                );
+            } else {
+                $this->parentStudentLinks->notifyLinkedParents(
+                    $user,
+                    new GenericDatabaseNotification([
+                        'title' => 'نتيجة اختبار جديدة',
+                        'message' => "ابنكم الطالب {$user->name} حصل على {$result->score}% في اختبار '{$quiz->title}' ({$result->earned_points}/{$result->total_points}).",
+                        'link' => route('parent.dashboard', ['student_id' => $user->id]),
+                    ]),
+                );
+            }
 
             return response()->json([
                 'score'         => $result->score,
@@ -134,10 +143,81 @@ class QuizController extends Controller
                 'passing_score' => $attempt->quiz->passing_score,
                 'earned_points' => $result->earned_points,
                 'total_points'  => $result->total_points,
+                'status'        => $result->status,
+                'needs_grading' => $result->needsGrading(),
             ]);
         } catch (LogicException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+    }
+
+    public function uploadEssayFile(Request $request, int $quizId): JsonResponse
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $quiz = Quiz::with('unit:id,teaching_assignment_id')->findOrFail($quizId);
+        $this->authorizeAccess($user, $quiz);
+
+        $validated = $request->validate([
+            'attempt_id'  => ['required', 'integer', 'min:1'],
+            'question_id' => ['required', 'integer', 'min:1'],
+            'file'        => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
+        ]);
+
+        $attempt = \App\Domain\Quiz\Models\QuizAttempt::where('id', $validated['attempt_id'])
+            ->where('user_id', $user->id)
+            ->where('quiz_id', $quiz->id)
+            ->firstOrFail();
+
+        abort_if($attempt->isSubmitted(), 422, 'تم تسليم الاختبار مسبقاً.');
+
+        $question = $quiz->questions()->whereKey($validated['question_id'])->firstOrFail();
+        abort_unless($question->allow_file_upload, 422, 'هذا السؤال لا يقبل رفع ملفات.');
+
+        $file = $request->file('file');
+        $path = $file->store("quiz_essays/{$attempt->id}/q{$question->id}", 'local');
+
+        return response()->json([
+            'file_path' => 'private://' . $path,
+            'file_name' => $file->getClientOriginalName(),
+            'file_size' => $file->getSize(),
+        ]);
+    }
+
+    public function downloadEssayFile(int $attemptId, int $questionId): \Symfony\Component\HttpFoundation\Response
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $attempt = \App\Domain\Quiz\Models\QuizAttempt::with(['quiz.unit.assignment', 'user'])->findOrFail($attemptId);
+
+        $isStudent = $attempt->user_id === $user->id;
+        $isTeacher = $attempt->quiz?->unit?->assignment?->teacher_id === $user->id;
+        $isAdmin = $user->isAdmin();
+        $isParent = \App\Domain\User\Models\ParentStudentLink::query()
+            ->where('parent_user_id', $user->id)
+            ->where('student_user_id', $attempt->user_id)
+            ->whereNotNull('verified_at')
+            ->exists();
+
+        abort_unless($isStudent || $isTeacher || $isAdmin || $isParent, 403, 'غير مصرح لك بعرض هذا الملف.');
+
+        $answers = $attempt->answers ?? [];
+        $questionAnswer = $answers[$questionId] ?? null;
+        $storedPath = is_array($questionAnswer) ? ($questionAnswer['file_path'] ?? null) : null;
+
+        abort_unless(filled($storedPath), 404, 'الملف غير موجود.');
+
+        $relativePath = str_starts_with((string) $storedPath, 'private://')
+            ? substr((string) $storedPath, strlen('private://'))
+            : (string) $storedPath;
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        abort_unless($disk->exists($relativePath), 404, 'الملف غير موجود في التخزين.');
+
+        $fullPath = $disk->path($relativePath);
+        $filename = basename($relativePath);
+
+        return response()->download($fullPath, $filename);
     }
 
     public function recordViolation(Request $request, int $quizId): JsonResponse
@@ -190,11 +270,12 @@ class QuizController extends Controller
     private function presentQuestions(Quiz $quiz): array
     {
         return $quiz->questions->map(fn ($question): array => [
-            'id'   => $question->id,
-            'text' => $question->question_text,
-            'type' => $question->type,
-            'points' => max(1, (int) $question->points),
-            'options' => $question->options->map(fn ($option): array => [
+            'id'                => $question->id,
+            'text'              => $question->question_text,
+            'type'              => $question->type,
+            'points'            => max(1, (int) $question->points),
+            'allow_file_upload' => (bool) $question->allow_file_upload,
+            'options'           => $question->options->map(fn ($option): array => [
                 'id'   => $option->id,
                 'text' => $option->option_text,
             ])->values()->all(),

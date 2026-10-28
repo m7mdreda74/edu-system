@@ -22,6 +22,10 @@ class QuestionBankQuestion extends Model
 
     public const TYPE_MULTIPLE = 'multiple';
 
+    public const TYPE_TRUE_FALSE = 'true_false';
+
+    public const TYPE_ESSAY = 'essay';
+
     public const DIFFICULTY_EASY = 'easy';
 
     public const DIFFICULTY_MEDIUM = 'medium';
@@ -40,9 +44,11 @@ class QuestionBankQuestion extends Model
         'question_text',
         'type',
         'points',
+        'allow_file_upload',
         'topic',
         'difficulty',
         'explanation',
+        'model_answer',
         'tags',
         'visibility',
     ];
@@ -51,6 +57,7 @@ class QuestionBankQuestion extends Model
     {
         return [
             'points' => 'integer',
+            'allow_file_upload' => 'boolean',
             'tags' => 'array',
         ];
     }

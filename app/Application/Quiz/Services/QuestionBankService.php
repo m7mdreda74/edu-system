@@ -105,7 +105,9 @@ class QuestionBankService
                 'teacher_id' => $teacher->id,
             ]);
 
-            $this->replaceOptions($question, $data['options']);
+            if ($question->type !== QuestionBankQuestion::TYPE_ESSAY) {
+                $this->replaceOptions($question, $data['options']);
+            }
 
             return $question->load('options');
         });
@@ -118,7 +120,12 @@ class QuestionBankService
 
         return DB::transaction(function () use ($question, $data): QuestionBankQuestion {
             $question->update($this->attributesFromData($data));
-            $this->replaceOptions($question, $data['options']);
+
+            if ($question->type !== QuestionBankQuestion::TYPE_ESSAY) {
+                $this->replaceOptions($question, $data['options']);
+            } else {
+                $question->options()->delete();
+            }
 
             return $question->fresh('options');
         });
@@ -153,12 +160,16 @@ class QuestionBankService
                 'type' => $question->type,
                 'points' => $question->points,
                 'order' => (int) $quiz->questions()->max('order') + 1,
+                'allow_file_upload' => (bool) $question->allow_file_upload,
+                'model_answer' => $question->model_answer,
             ]);
 
-            $copy->options()->createMany($question->options->map(fn ($option): array => [
-                'option_text' => $option->option_text,
-                'is_correct' => $option->is_correct,
-            ])->all());
+            if ($question->type !== QuestionBankQuestion::TYPE_ESSAY) {
+                $copy->options()->createMany($question->options->map(fn ($option): array => [
+                    'option_text' => $option->option_text,
+                    'is_correct' => $option->is_correct,
+                ])->all());
+            }
 
             return $copy->load('options');
         });
@@ -169,7 +180,7 @@ class QuestionBankService
     {
         return match ($filter) {
             'difficulty' => ['easy', 'medium', 'hard'],
-            'type' => ['single', 'multiple'],
+            'type' => ['single', 'multiple', 'true_false', 'essay'],
             'visibility' => ['private', 'shared'],
             default => [],
         };
@@ -200,6 +211,8 @@ class QuestionBankService
             'explanation' => $question->explanation,
             'tags' => $question->tags ?? [],
             'visibility' => $question->visibility,
+            'allow_file_upload' => (bool) $question->allow_file_upload,
+            'model_answer' => $question->model_answer,
             'teacher' => $question->teacher?->only(['id', 'name']),
             'subject' => $question->subject?->only(['id', 'name']),
             'unit' => $question->unit?->only(['id', 'title']),
@@ -312,7 +325,9 @@ class QuestionBankService
             'explanation' => $this->nullableString($data['explanation'] ?? null),
             'tags' => $this->normalizeTags($data['tags'] ?? []),
             'visibility' => (string) ($data['visibility'] ?? QuestionBankQuestion::VISIBILITY_PRIVATE),
-            'options' => array_values($data['options']),
+            'allow_file_upload' => (bool) ($data['allow_file_upload'] ?? false),
+            'model_answer' => $this->nullableString($data['model_answer'] ?? null),
+            'options' => ($data['type'] ?? '') === 'essay' ? [] : array_values($data['options'] ?? []),
         ];
     }
 

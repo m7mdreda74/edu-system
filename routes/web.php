@@ -205,6 +205,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('learning.worksheet.download');
     Route::get('/learning/submissions/{submission}/file', [ProtectedFileController::class, 'submission'])
         ->name('learning.submission.download');
+    Route::get('/quizzes/attempts/{attemptId}/essay-file/{questionId}', [QuizController::class, 'downloadEssayFile'])
+        ->name('quizzes.attempts.essay-file')
+        ->whereNumber('attemptId')
+        ->whereNumber('questionId');
     Route::get('/chat/attachments/{message}', [ProtectedFileController::class, 'chatAttachment'])
         ->name('chat.attachment.download');
 });
@@ -256,6 +260,7 @@ Route::middleware(['auth', 'active', 'verified', 'role:student'])->group(functio
     Route::post('/quiz/{quizId}/start', [QuizController::class, 'start'])->name('student.quiz.start');
     Route::post('/quiz/{quizId}/submit', [QuizController::class, 'submit'])->name('student.quiz.submit');
     Route::post('/quiz/{quizId}/violation', [QuizController::class, 'recordViolation'])->name('student.quiz.violation');
+    Route::post('/quiz/{quizId}/upload-essay-file', [QuizController::class, 'uploadEssayFile'])->name('student.quiz.upload-essay-file');
 
     // Certificate — earned per group
     Route::get('/certificate/{groupId}', [CertificateController::class, 'show'])->name('student.certificate');
@@ -318,6 +323,12 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::get('/gradebook/export', [GradebookController::class, 'export'])->name('gradebook.export');
     Route::post('/gradebook/quiz-attempts/{attemptId}/feedback', [GradebookController::class, 'updateQuizFeedback'])
         ->name('gradebook.quiz-feedback')
+        ->whereNumber('attemptId');
+    Route::get('/gradebook/quiz-attempts/{attemptId}/details', [GradebookController::class, 'quizAttemptDetails'])
+        ->name('gradebook.quiz-details')
+        ->whereNumber('attemptId');
+    Route::post('/gradebook/quiz-attempts/{attemptId}/grade', [GradebookController::class, 'gradeQuizAttempt'])
+        ->name('gradebook.quiz-grade')
         ->whereNumber('attemptId');
     Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook');
     Route::get('/analytics', [PerformanceAnalyticsController::class, 'index'])->name('analytics');

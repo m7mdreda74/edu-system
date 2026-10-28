@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import axios from 'axios';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
@@ -92,6 +93,105 @@ function submitGradingModal() {
 
 function applyFeedbackPreset(preset) {
     gradeForm.teacher_feedback = preset;
+}
+
+// ── Interactive Quiz Attempt Grading Modal (Essay & Review) ──
+const quizGradingModal = ref({
+    isOpen: false,
+    loading: false,
+    saving: false,
+    row: null,
+    attempt: null,
+    questions: [],
+    error: '',
+});
+
+const quizGradeForm = ref({
+    scores: {},
+    question_feedback: {},
+    teacher_feedback: '',
+});
+
+async function openQuizGradingModal(row) {
+    quizGradingModal.value.row = row;
+    quizGradingModal.value.isOpen = true;
+    quizGradingModal.value.loading = true;
+    quizGradingModal.value.error = '';
+
+    try {
+        const res = await axios.get(route('teacher.gradebook.quiz-details', { attemptId: row.attempt_id }));
+        quizGradingModal.value.attempt = res.data.attempt;
+        quizGradingModal.value.questions = res.data.questions;
+
+        const scores = {};
+        const qFeedback = {};
+        res.data.questions.forEach((q) => {
+            scores[q.id] = q.earned_points !== null ? q.earned_points : (q.is_essay ? 0 : (q.student_answer?.earned_points ?? 0));
+            qFeedback[q.id] = q.teacher_feedback || '';
+        });
+
+        quizGradeForm.value = {
+            scores,
+            question_feedback: qFeedback,
+            teacher_feedback: res.data.attempt.teacher_feedback || '',
+        };
+    } catch (e) {
+        quizGradingModal.value.error = 'فشل تحميل بيانات الاختبار، حاول مجدداً.';
+    } finally {
+        quizGradingModal.value.loading = false;
+    }
+}
+
+function closeQuizGradingModal() {
+    quizGradingModal.value.isOpen = false;
+    quizGradingModal.value.row = null;
+    quizGradingModal.value.attempt = null;
+    quizGradingModal.value.questions = [];
+}
+
+const quizTotalEarned = computed(() => {
+    if (! quizGradingModal.value.questions?.length) return 0;
+    return quizGradingModal.value.questions.reduce((sum, q) => {
+        const score = Number(quizGradeForm.value.scores[q.id] ?? 0);
+        return sum + (isNaN(score) ? 0 : score);
+    }, 0);
+});
+
+const quizTotalMax = computed(() => {
+    if (! quizGradingModal.value.questions?.length) return 0;
+    return quizGradingModal.value.questions.reduce((sum, q) => sum + Number(q.points || 0), 0);
+});
+
+const quizPercentage = computed(() => {
+    if (! quizTotalMax.value) return 0;
+    return Math.round((quizTotalEarned.value / quizTotalMax.value) * 100);
+});
+
+function submitQuizGrading() {
+    if (quizGradingModal.value.saving) return;
+
+    for (const q of quizGradingModal.value.questions) {
+        const score = Number(quizGradeForm.value.scores[q.id] ?? 0);
+        if (score < 0 || score > q.points) {
+            alert(`درجة السؤال ${q.order} يجب أن تكون بين 0 و ${q.points} نقطة.`);
+            return;
+        }
+    }
+
+    quizGradingModal.value.saving = true;
+    router.post(route('teacher.gradebook.quiz-grade', { attemptId: quizGradingModal.value.attempt.id }), {
+        scores: quizGradeForm.value.scores,
+        question_feedback: quizGradeForm.value.question_feedback,
+        teacher_feedback: quizGradeForm.value.teacher_feedback,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeQuizGradingModal();
+        },
+        onFinish: () => {
+            quizGradingModal.value.saving = false;
+        },
+    });
 }
 
 const statusLabels = {
@@ -217,16 +317,34 @@ const statusClasses = {
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-xs text-surface-500">{{ formatDate(row.assessed_at) }}</td>
                                 <td class="px-5 py-4 text-end">
-                                    <!-- Quiz Feedback -->
-                                    <div v-if="row.kind === 'quiz' && row.attempt_id" class="min-w-[220px] space-y-2 text-start">
-                                        <textarea
-                                            :value="feedbackDraft(row)"
-                                            class="input min-h-16 w-full text-xs"
-                                            maxlength="1000"
-                                            placeholder="ملاحظات للطالب"
-                                            @input="feedbackDrafts[row.id] = $event.target.value"
-                                        ></textarea>
-                                        <button type="button" class="btn-primary btn-sm" @click="saveQuizFeedback(row)">حفظ الملاحظة</button>
+                                    <!-- Quiz Feedback & Grading Action -->
+                                    <div v-if="row.kind === 'quiz' && row.attempt_id" class="flex flex-col items-end gap-1.5 min-w-[150px]">
+                                        <button
+                                            type="button"
+                                            @click="openQuizGradingModal(row)"
+                                            class="btn-primary btn-sm flex items-center gap-1.5 font-bold w-full justify-center"
+                                            :class="row.status === 'needs_grading' ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse' : ''"
+                                        >
+                                            <Icon name="edit" class="w-3.5 h-3.5" />
+                                            <span>{{ row.status === 'needs_grading' ? '✍️ تصحيح المقالي' : 'مراجعة وتعديل الدرجات' }}</span>
+                                        </button>
+                                        <div class="w-full flex items-center gap-1">
+                                            <input
+                                                :value="feedbackDraft(row)"
+                                                type="text"
+                                                class="input text-[11px] h-7 px-2 flex-1"
+                                                placeholder="ملاحظة سريعة..."
+                                                @input="feedbackDrafts[row.id] = $event.target.value"
+                                            />
+                                            <button
+                                                type="button"
+                                                class="btn-ghost btn-xs text-primary-600 h-7 px-1.5"
+                                                title="حفظ الملاحظة"
+                                                @click="saveQuizFeedback(row)"
+                                            >
+                                                حفظ
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <!-- Worksheet / Paper Exam Grading Action -->
@@ -412,6 +530,303 @@ const statusClasses = {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </Transition>
+
+            <!-- Interactive Quiz Attempt Grading Modal (Essay & Review) -->
+            <Transition
+                enter-active-class="transition duration-200 ease-out"
+                enter-from-class="opacity-0"
+                enter-to-class="opacity-100"
+                leave-active-class="transition duration-150 ease-in"
+                leave-from-class="opacity-100"
+                leave-to-class="opacity-0"
+            >
+                <div v-if="quizGradingModal.isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div class="bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-scale-in">
+                        <!-- Modal Header -->
+                        <div class="px-6 py-4 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50/50 dark:bg-surface-900/50">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-2xl bg-primary-100 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 flex items-center justify-center font-bold text-lg shadow-sm">
+                                    📝
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="font-black text-lg text-surface-900 dark:text-surface-100">
+                                            تصحيح ومراجعة إجابات الاختبار
+                                        </h3>
+                                        <span
+                                            v-if="quizGradingModal.attempt"
+                                            :class="quizGradingModal.attempt.status === 'needs_grading'
+                                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'"
+                                            class="text-xs px-2.5 py-0.5 rounded-full font-bold"
+                                        >
+                                            {{ quizGradingModal.attempt.status === 'needs_grading' ? 'يحتاج تصحيح' : 'تم التصحيح' }}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+                                        الطالب: <span class="font-bold text-surface-700 dark:text-surface-200">{{ quizGradingModal.row?.student_name }}</span>
+                                        • الاختبار: <span class="font-bold text-surface-700 dark:text-surface-200">{{ quizGradingModal.row?.assessment_title }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                @click="closeQuizGradingModal"
+                                class="w-9 h-9 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 flex items-center justify-center transition-colors"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <!-- Modal Body -->
+                        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                            <!-- Loading State -->
+                            <div v-if="quizGradingModal.loading" class="py-16 text-center space-y-3">
+                                <div class="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                <p class="text-sm text-surface-500">جارٍ جلب إجابات الطالب والملفات المرفوعة...</p>
+                            </div>
+
+                            <!-- Error State -->
+                            <div v-else-if="quizGradingModal.error" class="p-6 text-center bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-2xl">
+                                <p class="text-rose-600 dark:text-rose-400 text-sm font-bold">{{ quizGradingModal.error }}</p>
+                                <button
+                                    type="button"
+                                    @click="openQuizGradingModal(quizGradingModal.row)"
+                                    class="mt-3 px-4 py-1.5 text-xs rounded-xl bg-rose-600 text-white font-bold hover:bg-rose-700 transition"
+                                >
+                                    إعادة المحاولة
+                                </button>
+                            </div>
+
+                            <!-- Main Content -->
+                            <div v-else class="space-y-6">
+                                <!-- Score & Status Live Bar -->
+                                <div class="bg-gradient-to-r from-primary-50 via-surface-50 to-primary-50 dark:from-primary-950/30 dark:via-surface-900 dark:to-primary-950/30 border border-primary-200/60 dark:border-primary-900/50 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-12 h-12 rounded-2xl bg-primary-600 text-white flex items-center justify-center font-black text-xl shadow-md shadow-primary-500/20">
+                                            {{ quizPercentage }}%
+                                        </div>
+                                        <div>
+                                            <div class="text-xs text-surface-500 dark:text-surface-400 font-bold">الدرجة المحسوبة الحالية</div>
+                                            <div class="text-lg font-black text-surface-900 dark:text-surface-100">
+                                                {{ quizTotalEarned }} <span class="text-sm font-normal text-surface-400">/ {{ quizTotalMax }} نقطة</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-3">
+                                        <div class="text-right">
+                                            <span class="text-xs text-surface-400 block">نسبة النجاح المطلوبة</span>
+                                            <span class="text-xs font-bold text-surface-600 dark:text-surface-300">
+                                                {{ quizGradingModal.attempt?.passing_score || 50 }}%
+                                            </span>
+                                        </div>
+                                        <div
+                                            :class="quizPercentage >= (quizGradingModal.attempt?.passing_score || 50)
+                                                ? 'bg-emerald-500 text-white'
+                                                : 'bg-rose-500 text-white'"
+                                            class="px-3.5 py-1.5 rounded-xl font-black text-xs shadow-sm flex items-center gap-1.5"
+                                        >
+                                            <span>{{ quizPercentage >= (quizGradingModal.attempt?.passing_score || 50) ? 'ناجح' : 'راسب / لم يجتز' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Questions List -->
+                                <div class="space-y-5">
+                                    <div
+                                        v-for="q in quizGradingModal.questions"
+                                        :key="q.id"
+                                        class="bg-surface-50/70 dark:bg-surface-800/40 border rounded-2xl p-5 transition-all space-y-4"
+                                        :class="q.is_essay ? 'border-primary-300 dark:border-primary-800/60 shadow-sm' : 'border-surface-200 dark:border-surface-800'"
+                                    >
+                                        <!-- Question Header -->
+                                        <div class="flex items-center justify-between flex-wrap gap-2 border-b border-surface-200/60 dark:border-surface-800 pb-3">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-7 h-7 rounded-xl bg-surface-200 dark:bg-surface-700 text-surface-800 dark:text-surface-200 font-black text-xs flex items-center justify-center">
+                                                    {{ q.order }}
+                                                </span>
+                                                <span
+                                                    v-if="q.is_essay"
+                                                    class="text-xs px-2.5 py-0.5 rounded-lg font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 flex items-center gap-1"
+                                                >
+                                                    ✍️ سؤال مقالي حر
+                                                </span>
+                                                <span
+                                                    v-else
+                                                    class="text-xs px-2.5 py-0.5 rounded-lg font-bold bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-300"
+                                                >
+                                                    {{ q.type === 'single' ? 'اختيار من متعدد' : (q.type === 'multiple' ? 'اختيارات متعددة' : 'صح أو خطأ') }}
+                                                </span>
+                                            </div>
+
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs text-surface-500 font-bold">الدرجة القصوى:</span>
+                                                <span class="text-xs font-black px-2 py-0.5 bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 rounded-lg">
+                                                    {{ q.points }} درجات
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Question Rich HTML Content (Formulation from Teacher) -->
+                                        <div
+                                            class="prose prose-sm dark:prose-invert max-w-none text-surface-900 dark:text-surface-100 leading-relaxed font-medium bg-surface-0 dark:bg-surface-900/60 p-4 rounded-xl border border-surface-200/50 dark:border-surface-800/80"
+                                            v-html="q.question_text"
+                                        ></div>
+
+                                        <!-- Model Answer Box (If Teacher Provided) -->
+                                        <div v-if="q.model_answer" class="bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-xl p-3.5 space-y-1">
+                                            <div class="text-[11px] font-black text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                                                <span>💡 نموذج الإجابة الاسترشادي / معايير التصحيح:</span>
+                                            </div>
+                                            <div
+                                                class="prose prose-xs dark:prose-invert max-w-none text-xs text-blue-900 dark:text-blue-200"
+                                                v-html="q.model_answer"
+                                            ></div>
+                                        </div>
+
+                                        <!-- Student's Submission Section -->
+                                        <div class="bg-surface-0 dark:bg-surface-900 p-4 rounded-xl border border-surface-200 dark:border-surface-800 space-y-3">
+                                            <div class="text-xs font-black text-surface-700 dark:text-surface-300 flex items-center gap-1.5">
+                                                <span>👤 إجابة الطالب:</span>
+                                            </div>
+
+                                            <!-- For Essay Questions -->
+                                            <div v-if="q.is_essay" class="space-y-3">
+                                                <!-- Written Text Answer -->
+                                                <div v-if="q.student_answer && (q.student_answer.written_answer || q.student_answer.text)" class="p-3 bg-surface-50 dark:bg-surface-800/50 rounded-lg text-sm text-surface-800 dark:text-surface-200 whitespace-pre-line border border-surface-200/60 dark:border-surface-700/60">
+                                                    {{ q.student_answer.written_answer || q.student_answer.text }}
+                                                </div>
+                                                <div v-else class="text-xs text-surface-400 italic">
+                                                    لم يتم إدخال إجابة نصية مكتوبة.
+                                                </div>
+
+                                                <!-- Paper Solution Attachment (If uploaded) -->
+                                                <div v-if="q.has_paper_file && q.file_download_url" class="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 rounded-xl">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <span class="text-xl">📎</span>
+                                                        <div>
+                                                            <div class="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                                                                {{ q.fileName || 'ملف الحل الورقي المرفوع من الطالب' }}
+                                                            </div>
+                                                            <span class="text-[11px] text-emerald-600 dark:text-emerald-400">ملف ورقي مرفوع للمراجعة والتصحيح</span>
+                                                        </div>
+                                                    </div>
+                                                    <a
+                                                        :href="q.file_download_url"
+                                                        target="_blank"
+                                                        download
+                                                        class="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                                                    >
+                                                        <span>تحميل / معاينة الملف</span>
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                    </a>
+                                                </div>
+                                            </div>
+
+                                            <!-- For Objective Questions (MCQ / True-False) -->
+                                            <div v-else class="space-y-2">
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                                    <div
+                                                        v-for="opt in q.options"
+                                                        :key="opt.id"
+                                                        class="p-2.5 rounded-lg border flex items-center justify-between"
+                                                        :class="[
+                                                            opt.is_correct ? 'bg-emerald-50/80 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200' : 'bg-surface-50 dark:bg-surface-800/40 border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400',
+                                                            (Array.isArray(q.student_answer?.selected_option_ids) ? q.student_answer.selected_option_ids.includes(opt.id) : q.student_answer?.selected_option_id == opt.id) ? 'ring-2 ring-primary-500 font-bold' : ''
+                                                        ]"
+                                                    >
+                                                        <span>{{ opt.text }}</span>
+                                                        <span v-if="Array.isArray(q.student_answer?.selected_option_ids) ? q.student_answer.selected_option_ids.includes(opt.id) : q.student_answer?.selected_option_id == opt.id" class="text-[10px] px-1.5 py-0.5 rounded bg-primary-600 text-white">
+                                                            اختيار الطالب
+                                                        </span>
+                                                        <span v-else-if="opt.is_correct" class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                                                            ✓ الإجابة الصحيحة
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Grading Controls For this Question -->
+                                        <div class="pt-2 border-t border-surface-200/60 dark:border-surface-800 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                                            <div>
+                                                <label class="block text-xs font-bold text-surface-700 dark:text-surface-300 mb-1">
+                                                    الدرجة المستحقة (من {{ q.points }}):
+                                                </label>
+                                                <div class="relative">
+                                                    <input
+                                                        type="number"
+                                                        v-model.number="quizGradeForm.scores[q.id]"
+                                                        min="0"
+                                                        :max="q.points"
+                                                        step="0.5"
+                                                        class="input text-base font-black w-full"
+                                                        :class="quizGradeForm.scores[q.id] > q.points ? 'border-rose-500 focus:border-rose-500' : ''"
+                                                    />
+                                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-surface-400">
+                                                        / {{ q.points }}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div class="sm:col-span-2">
+                                                <label class="block text-xs font-bold text-surface-700 dark:text-surface-300 mb-1">
+                                                    ملاحظات المعلم على هذا السؤال (اختياري):
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    v-model="quizGradeForm.question_feedback[q.id]"
+                                                    placeholder="مثال: أحسنت في صياغة الفكرة الأولى، ركز على التعليل..."
+                                                    class="input text-xs w-full"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Overall Teacher Feedback -->
+                                <div class="bg-surface-50 dark:bg-surface-800/40 border border-surface-200 dark:border-surface-800 rounded-2xl p-4 space-y-2">
+                                    <label class="block text-xs font-bold text-surface-800 dark:text-surface-200">
+                                        💬 التقييم والملاحظة العامة للطالب (تظهر له ولولي أمره):
+                                    </label>
+                                    <textarea
+                                        v-model="quizGradeForm.teacher_feedback"
+                                        rows="3"
+                                        placeholder="اكتب توجيهاتك أو تشجيعك للطالب بناءً على أدائه العام في الاختبار..."
+                                        class="input text-sm w-full"
+                                    ></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal Footer -->
+                        <div class="px-6 py-4 border-t border-surface-200 dark:border-surface-800 flex items-center justify-between gap-4 bg-surface-50/50 dark:bg-surface-900/50">
+                            <div class="text-sm font-bold text-surface-700 dark:text-surface-300">
+                                المجموع الكلي: <span class="font-black text-primary-600 dark:text-primary-400 text-lg">{{ quizTotalEarned }}</span> / {{ quizTotalMax }} نقطة ({{ quizPercentage }}%)
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    @click="closeQuizGradingModal"
+                                    class="btn-ghost py-2.5 px-4 text-xs font-bold"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="submitQuizGrading"
+                                    :disabled="quizGradingModal.saving || quizGradingModal.loading"
+                                    class="btn-primary py-2.5 px-6 text-xs font-bold flex items-center gap-2 shadow-lg shadow-primary-500/25"
+                                >
+                                    <svg v-if="quizGradingModal.saving" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                    <span>{{ quizGradingModal.saving ? 'جارٍ الحفظ والاعتماد...' : 'اعتماد ورصد الدرجة وإشعار الطالب' }}</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </Transition>

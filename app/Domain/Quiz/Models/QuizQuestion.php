@@ -13,6 +13,11 @@ class QuizQuestion extends Model
 {
     use HasFactory;
 
+    public const TYPE_SINGLE = 'single';
+    public const TYPE_MULTIPLE = 'multiple';
+    public const TYPE_TRUE_FALSE = 'true_false';
+    public const TYPE_ESSAY = 'essay';
+
     protected $fillable = [
         'quiz_id',
         'question_bank_question_id',
@@ -20,6 +25,8 @@ class QuizQuestion extends Model
         'type',
         'points',
         'order',
+        'allow_file_upload',
+        'model_answer',
     ];
 
     protected function casts(): array
@@ -27,7 +34,13 @@ class QuizQuestion extends Model
         return [
             'order' => 'integer',
             'points' => 'integer',
+            'allow_file_upload' => 'boolean',
         ];
+    }
+
+    public function isEssay(): bool
+    {
+        return $this->type === 'essay';
     }
 
     public function quiz(): BelongsTo

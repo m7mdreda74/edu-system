@@ -293,3 +293,120 @@ it('lets only the owning teacher save feedback on a submitted quiz attempt', fun
         ])
         ->assertNotFound();
 });
+
+it('fetches quiz attempt details and allows teacher to grade essay questions within points limit', function (): void {
+    Role::findOrCreate('teacher', 'web');
+    $teacher = User::factory()->create(['email_verified_at' => now()]);
+    $teacher->assignRole('teacher');
+    $student = User::factory()->create();
+    $assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $assignment->id,
+        'academic_term_id' => AcademicTerm::currentOrNext()?->id,
+    ]);
+    $quiz = Quiz::factory()->create([
+        'curriculum_unit_id' => $unit->id,
+        'passing_score' => 60,
+    ]);
+
+    $mcq = \App\Domain\Quiz\Models\QuizQuestion::create([
+        'quiz_id' => $quiz->id,
+        'order' => 1,
+        'points' => 4,
+        'type' => 'single',
+        'question_text' => 'سؤال موضوعي',
+    ]);
+    $mcqOpt = \App\Domain\Quiz\Models\QuizOption::create([
+        'question_id' => $mcq->id,
+        'option_text' => 'صواب',
+        'is_correct' => true,
+    ]);
+
+    $essay = \App\Domain\Quiz\Models\QuizQuestion::create([
+        'quiz_id' => $quiz->id,
+        'order' => 2,
+        'points' => 6,
+        'type' => 'essay',
+        'question_text' => 'سؤال مقالي حر',
+        'allow_file_upload' => true,
+        'model_answer' => 'النموذج المثالي',
+    ]);
+
+    $attempt = QuizAttempt::create([
+        'user_id' => $student->id,
+        'quiz_id' => $quiz->id,
+        'attempt_number' => 1,
+        'answers' => [
+            $mcq->id => [
+                'selected_option_id' => $mcqOpt->id,
+                'is_correct' => true,
+                'earned_points' => 4,
+            ],
+            $essay->id => [
+                'type' => 'essay',
+                'written_answer' => 'هذه إجابتي المقالية المفصلة.',
+                'file_path' => null,
+            ],
+        ],
+        'score' => 40,
+        'earned_points' => 4,
+        'total_points' => 10,
+        'passed' => false,
+        'status' => QuizAttempt::STATUS_NEEDS_GRADING,
+        'started_at' => now()->subMinutes(15),
+        'submitted_at' => now(),
+    ]);
+
+    // 1. Fetch details
+    $response = $this->actingAs($teacher)
+        ->getJson(route('teacher.gradebook.quiz-details', ['attemptId' => $attempt->id]));
+
+    $response->assertOk()
+        ->assertJsonPath('attempt.id', $attempt->id)
+        ->assertJsonPath('attempt.status', 'needs_grading')
+        ->assertJsonPath('questions.1.is_essay', true)
+        ->assertJsonPath('questions.1.points', 6);
+
+    // 2. Try to award points exceeding max points (e.g. 8 > 6)
+    $this->actingAs($teacher)
+        ->post(route('teacher.gradebook.quiz-grade', ['attemptId' => $attempt->id]), [
+            'scores' => [
+                $mcq->id => 4,
+                $essay->id => 8, // exceeding 6
+            ],
+            'teacher_feedback' => 'ممتاز',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($attempt->fresh()->status)->toBe(QuizAttempt::STATUS_NEEDS_GRADING);
+
+    // 3. Award valid points (5 out of 6 for essay, 4 for mcq -> total 9/10 = 90%)
+    $this->actingAs($teacher)
+        ->post(route('teacher.gradebook.quiz-grade', ['attemptId' => $attempt->id]), [
+            'scores' => [
+                $mcq->id => 4,
+                $essay->id => 5,
+            ],
+            'question_feedback' => [
+                $essay->id => 'تحليل ممتاز وواضح.',
+            ],
+            'teacher_feedback' => 'أداء متميز وتفكير نقدي رائع.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $updated = $attempt->fresh();
+    expect($updated->status)->toBe(QuizAttempt::STATUS_GRADED)
+        ->and($updated->earned_points)->toBe(9)
+        ->and($updated->total_points)->toBe(10)
+        ->and($updated->score)->toBe(90)
+        ->and($updated->passed)->toBeTrue()
+        ->and($updated->teacher_feedback)->toBe('أداء متميز وتفكير نقدي رائع.')
+        ->and($updated->answers[$essay->id]['earned_points'])->toEqual(5)
+        ->and($updated->answers[$essay->id]['feedback'])->toBe('تحليل ممتاز وواضح.');
+});
+
