@@ -39,9 +39,10 @@ class GroupAnnouncementService
                 ->unique()
                 ->values();
 
+            $subjectName = $group->assignment?->subject?->name ?? 'المادة';
             $notification = fn (string $link): GenericDatabaseNotification => new GenericDatabaseNotification([
-                'title' => 'إعلان جديد من المعلم',
-                'message' => $group->name.' — '.$title,
+                'title' => 'إعلان جديد من المعلم ' . $teacher->name,
+                'message' => "المعلم: {$teacher->name} · مادة: {$subjectName} · مجموعة: {$group->name} — {$title}",
                 'link' => $link,
             ]);
 
@@ -119,7 +120,12 @@ class GroupAnnouncementService
         return GroupAnnouncement::query()
             ->whereIn('teaching_group_id', $groupIds)
             ->whereNotNull('published_at')
-            ->with('group:id,name')
+            ->with([
+                'teacher:id,name,avatar',
+                'group:id,name,teaching_assignment_id',
+                'group.assignment.subject:id,name,icon',
+                'group.assignment.teacher:id,name,avatar',
+            ])
             ->latest('published_at')
             ->limit(20)
             ->get()
@@ -130,11 +136,27 @@ class GroupAnnouncementService
     /** @return array<string, mixed> */
     private function present(GroupAnnouncement $announcement): array
     {
+        $teacher = $announcement->teacher ?? $announcement->group?->assignment?->teacher;
+        $subject = $announcement->group?->assignment?->subject;
+
         return [
             'id' => $announcement->id,
             'title' => $announcement->title,
             'body' => $announcement->body,
-            'group' => $announcement->group?->only(['id', 'name']),
+            'teacher' => $teacher ? [
+                'id' => $teacher->id,
+                'name' => $teacher->name,
+                'avatar' => $teacher->avatar,
+            ] : null,
+            'subject' => $subject ? [
+                'id' => $subject->id,
+                'name' => $subject->name,
+                'icon' => $subject->icon,
+            ] : null,
+            'group' => $announcement->group ? [
+                'id' => $announcement->group->id,
+                'name' => $announcement->group->name,
+            ] : null,
             'published_at' => $announcement->published_at?->toIso8601String(),
         ];
     }

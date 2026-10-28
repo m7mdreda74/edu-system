@@ -396,21 +396,66 @@ const greetingTime = computed(() => {
             <!-- ── Teacher Announcements ──────────────────────────── -->
             <section v-if="announcements.length" class="space-y-3">
                 <div class="flex items-center justify-between gap-3">
-                    <h2 class="flex items-center gap-2 text-sm font-black text-surface-800 dark:text-surface-100">
-                        <Icon name="bell" class="h-4 w-4 text-primary-500" />
-                        <span>إعلانات معلميك</span>
-                    </h2>
+                    <div>
+                        <h2 class="flex items-center gap-2 text-base font-black text-surface-900 dark:text-white">
+                            <Icon name="bell" class="h-4 w-4 text-primary-500" />
+                            <span>إعلانات وتنبيهات المعلمين</span>
+                        </h2>
+                        <p class="text-xs text-surface-400">آخر الإعلانات والتنبيهات المنشورة من معلميك في مجموعاتك الدراسية.</p>
+                    </div>
                 </div>
-                <div class="card divide-y divide-surface-100 dark:divide-surface-800">
-                    <article v-for="announcement in announcements" :key="announcement.id" class="p-4">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <h3 class="text-sm font-black text-surface-900 dark:text-white">{{ announcement.title }}</h3>
-                                <p class="mt-0.5 text-[11px] text-surface-400">{{ announcement.group?.name }}</p>
+
+                <div class="space-y-3">
+                    <article
+                        v-for="announcement in announcements"
+                        :key="announcement.id"
+                        class="card p-5 border border-surface-200 dark:border-surface-800 hover:border-primary-500/30 transition-all shadow-sm space-y-3"
+                    >
+                        <!-- Announcement Header with Teacher, Subject & Group badges -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-100 dark:border-surface-800 pb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-2xl bg-primary-500/10 text-primary-600 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-primary-500/20">
+                                    <img v-if="announcement.teacher?.avatar" :src="announcement.teacher.avatar" :alt="announcement.teacher.name" class="w-full h-full object-cover" />
+                                    <span v-else>{{ announcement.teacher?.name?.charAt(0) || 'م' }}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h4 class="font-black text-sm text-surface-900 dark:text-white">
+                                            المعلم: {{ announcement.teacher?.name || 'معلم المادة' }}
+                                        </h4>
+                                        <span v-if="announcement.subject?.name" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-500/10 text-primary-700 dark:text-primary-300 border border-primary-500/20">
+                                            مادة: {{ announcement.subject.name }}
+                                        </span>
+                                        <span v-if="announcement.group?.name" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300">
+                                            المجموعة: {{ announcement.group.name }}
+                                        </span>
+                                    </div>
+                                    <time class="text-[11px] text-surface-400 mt-0.5 block">
+                                        {{ formatDateTime(announcement.published_at) }}
+                                    </time>
+                                </div>
                             </div>
-                            <time class="shrink-0 text-[10px] text-surface-400">{{ new Date(announcement.published_at).toLocaleDateString('ar-QA') }}</time>
+
+                            <Link
+                                v-if="announcement.group?.id"
+                                :href="route('student.learn', { groupId: announcement.group.id })"
+                                class="btn-ghost btn-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 self-start sm:self-center font-bold"
+                            >
+                                <span>دخول المجموعة</span>
+                                <span>←</span>
+                            </Link>
                         </div>
-                        <p class="mt-2.5 whitespace-pre-line text-xs sm:text-sm leading-relaxed text-surface-300">{{ announcement.body }}</p>
+
+                        <!-- Announcement Content -->
+                        <div>
+                            <h3 class="text-sm sm:text-base font-black text-surface-900 dark:text-white mb-1.5 flex items-center gap-1.5">
+                                <span>📢</span>
+                                <span>{{ announcement.title }}</span>
+                            </h3>
+                            <p class="whitespace-pre-line text-xs sm:text-sm leading-relaxed text-surface-600 dark:text-surface-300">
+                                {{ announcement.body }}
+                            </p>
+                        </div>
                     </article>
                 </div>
             </section>

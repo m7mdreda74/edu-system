@@ -182,3 +182,50 @@ it('keeps gamification disabled by default and computes scoped non-repeat achiev
 
     Config::set('learning.gamification_enabled', false);
 });
+
+it('exposes teacher, subject, and group details for announcements on student dashboard', function (): void {
+    Role::findOrCreate('student', 'web');
+    Role::findOrCreate('teacher', 'web');
+
+    $student = User::factory()->create(['email_verified_at' => now()]);
+    $student->assignRole('student');
+    $teacher = User::factory()->create(['name' => 'أحمد المحمدي', 'email_verified_at' => now()]);
+    $teacher->assignRole('teacher');
+
+    $subject = Subject::factory()->create(['name' => 'الفيزياء الحديثة']);
+    $assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $group = TeachingGroup::factory()->create([
+        'teaching_assignment_id' => $assignment->id,
+        'name' => 'مجموعة العباقرة',
+    ]);
+
+    Subscription::factory()->active()->create([
+        'student_id' => $student->id,
+        'teaching_group_id' => $group->id,
+        'teaching_assignment_id' => $assignment->id,
+    ]);
+
+    \App\Domain\Communication\Models\GroupAnnouncement::create([
+        'teaching_group_id' => $group->id,
+        'teacher_id' => $teacher->id,
+        'title' => 'ميعاد الاختبار التجريبي',
+        'body' => 'يرجى مراجعة الوحدة الأولى.',
+        'published_at' => now(),
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('announcements', 1)
+            ->where('announcements.0.teacher.name', 'أحمد المحمدي')
+            ->where('announcements.0.subject.name', 'الفيزياء الحديثة')
+            ->where('announcements.0.group.name', 'مجموعة العباقرة')
+            ->where('announcements.0.title', 'ميعاد الاختبار التجريبي')
+        );
+});
+
