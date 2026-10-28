@@ -191,14 +191,27 @@ class TeacherProfileController extends Controller
                     'timezone' => $slot->timezone,
                 ])->values(),
                 'groups' => $assignment->groups
-                    ->filter(fn (TeachingGroup $group) => $group->active_bookings_count < $group->capacity
-                        || ($student?->hasActiveSubscriptionTo($group) ?? false))
+                    ->filter(fn (TeachingGroup $group) => (! $group->is_private) && ($group->active_bookings_count < $group->capacity
+                        || ($student?->hasActiveSubscriptionTo($group) ?? false)))
                     ->map(fn (TeachingGroup $group) => [
                         'id' => $group->id,
                         'name' => $group->name,
                         'monthly_price' => $group->monthly_price,
                         'currency' => $group->currency,
                         'capacity' => $group->capacity,
+                        'seats_left' => max(0, $group->capacity - $group->active_bookings_count),
+                        'timezone' => $group->timezone,
+                        'schedules' => $this->formatSchedules($group),
+                        'is_subscribed' => $student?->hasActiveSubscriptionTo($group) ?? false,
+                    ])->values(),
+                'private_groups' => $assignment->groups
+                    ->filter(fn (TeachingGroup $group) => (bool) $group->is_private)
+                    ->map(fn (TeachingGroup $group) => [
+                        'id' => $group->id,
+                        'name' => $group->name,
+                        'monthly_price' => $group->monthly_price ?: $assignment->private_monthly_price,
+                        'currency' => $group->currency,
+                        'capacity' => 1,
                         'seats_left' => max(0, $group->capacity - $group->active_bookings_count),
                         'timezone' => $group->timezone,
                         'schedules' => $this->formatSchedules($group),

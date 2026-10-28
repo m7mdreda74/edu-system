@@ -112,3 +112,79 @@ it('publishes a quick lesson with video material seamlessly', function () {
         'video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     ]);
 });
+
+it('lets teacher create a 2-day weekly private group with capacity 1 and monthly price', function () {
+    $response = $this->actingAs($this->teacher)
+        ->post(route('teacher.teaching-schedule.private-groups.store', $this->assignment->id), [
+            'days' => [6, 2], // Saturday & Tuesday
+            'start_time' => '16:00',
+            'duration_minutes' => 60,
+        ]);
+
+    $response->assertRedirect();
+
+    $privateGroup = TeachingGroup::where('teaching_assignment_id', $this->assignment->id)
+        ->where('is_private', true)
+        ->first();
+
+    expect($privateGroup)->not->toBeNull();
+    expect($privateGroup->capacity)->toBe(1);
+    expect($privateGroup->isPrivate())->toBeTrue();
+    expect($privateGroup->monthly_price)->toBe($this->assignment->private_monthly_price);
+
+    $this->assertDatabaseHas('teaching_group_schedules', [
+        'teaching_group_id' => $privateGroup->id,
+        'day_of_week' => 6,
+        'start_time' => '16:00',
+        'end_time' => '17:00',
+    ]);
+
+    $this->assertDatabaseHas('teaching_group_schedules', [
+        'teaching_group_id' => $privateGroup->id,
+        'day_of_week' => 2,
+        'start_time' => '16:00',
+        'end_time' => '17:00',
+    ]);
+});
+
+it('exposes the 2-day weekly private group on the public teacher profile and prevents second student booking', function () {
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.teaching-schedule.private-groups.store', $this->assignment->id), [
+            'days' => [0, 3], // Sunday & Wednesday
+            'start_time' => '18:00',
+            'duration_minutes' => 60,
+        ]);
+
+    $privateGroup = TeachingGroup::where('teaching_assignment_id', $this->assignment->id)
+        ->where('is_private', true)
+        ->first();
+
+    $this->get(route('teachers.show', $this->teacher->id))
+        ->assertInertia(fn ($page) => $page
+            ->has('assignments.0.private_groups', 1)
+            ->where('assignments.0.private_groups.0.id', $privateGroup->id)
+            ->where('assignments.0.private_groups.0.capacity', 1)
+            ->where('assignments.0.private_groups.0.seats_left', 1)
+        );
+
+    $student = User::factory()->create();
+    $student->assignRole('student');
+
+    $subService = app(\App\Application\Subscription\Services\SubscriptionService::class);
+    $sub = $subService->openForGroup($student, $privateGroup);
+    $subService->activate($sub);
+
+    // Now private group is full (1/1)
+    $this->get(route('teachers.show', $this->teacher->id))
+        ->assertInertia(fn ($page) => $page
+            ->where('assignments.0.private_groups.0.seats_left', 0)
+        );
+
+    // Another student cannot subscribe because capacity is 1
+    $otherStudent = User::factory()->create();
+    $otherStudent->assignRole('student');
+
+    expect(fn () => $subService->openForGroup($otherStudent, $privateGroup))
+        ->toThrow(\LogicException::class, 'اكتمل عدد طلاب هذه المجموعة.');
+});
+

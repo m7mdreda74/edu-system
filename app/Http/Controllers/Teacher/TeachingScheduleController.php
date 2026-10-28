@@ -416,4 +416,104 @@ class TeachingScheduleController extends Controller
 
         return $candidate?->utc();
     }
+
+    public function storePrivateGroup(Request $request, ?int $assignmentId = null): RedirectResponse
+    {
+        $targetAssignmentId = $assignmentId ?? (int) $request->input('teaching_assignment_id');
+
+        $data = $request->validate([
+            'teaching_assignment_id' => ['nullable', 'integer', 'exists:teaching_assignments,id'],
+            'days' => ['required', 'array', 'min:1', 'max:7'],
+            'days.*' => ['integer', 'between:0,6'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'duration_minutes' => ['nullable', 'integer', 'between:15,480'],
+            'name' => ['nullable', 'string', 'max:100'],
+            'timezone' => ['nullable', 'string', 'timezone'],
+        ]);
+
+        $assignment = TeachingAssignment::where('teacher_id', Auth::id())
+            ->where('is_active', true)
+            ->findOrFail($targetAssignmentId);
+
+        abort_unless($assignment->offersPrivate(), 422, 'الحصص البرايفت غير مفعلة لهذا الصف.');
+
+        $days = array_values(array_unique(array_map('intval', $data['days'])));
+        if (count($days) < 2) {
+            return back()->withErrors(['days' => 'يرجى تحديد يومين لموعد البرايفيت الأسبوعي مثل المجموعة.']);
+        }
+
+        $startTime = Carbon::createFromFormat('H:i', $data['start_time']);
+        $duration = (int) ($data['duration_minutes'] ?? 60);
+        $endTime = $startTime->copy()->addMinutes($duration);
+
+        $dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        $daysLabels = array_map(fn ($d) => $dayNames[$d] ?? "يوم {$d}", $days);
+        $defaultName = 'برايفت (' . implode(' و ', $daysLabels) . ')';
+        $name = !empty($data['name']) ? $data['name'] : $defaultName;
+
+        $startTimeStr = $startTime->format('H:i');
+        $endTimeStr = $endTime->format('H:i');
+
+        // Check conflicts for teacher
+        foreach ($days as $day) {
+            $conflict = TeachingGroupSchedule::whereHas(
+                'group.assignment',
+                fn ($q) => $q->where('teacher_id', Auth::id())
+            )
+                ->where('day_of_week', $day)
+                ->where('start_time', '<', $endTimeStr)
+                ->where('end_time', '>', $startTimeStr)
+                ->exists();
+
+            if ($conflict) {
+                $dayLabel = $dayNames[$day] ?? "يوم {$day}";
+                return back()->withErrors(['start_time' => "الموعد في ({$dayLabel}) يتعارض مع حصة أو مجموعة أخرى في جدولك."]);
+            }
+        }
+
+        $term = AcademicTerm::currentOrNext();
+
+        $group = TeachingGroup::create([
+            'teaching_assignment_id' => $assignment->id,
+            'academic_term_id' => $term?->id,
+            'name' => $name,
+            'capacity' => 1,
+            'is_private' => true,
+            'monthly_price' => $assignment->private_monthly_price,
+            'currency' => $assignment->currency ?? 'QAR',
+            'day_of_week' => $days[0],
+            'start_time' => $startTimeStr,
+            'end_time' => $endTimeStr,
+            'duration_minutes' => $duration,
+            'timezone' => $data['timezone'] ?? 'Asia/Qatar',
+            'is_active' => true,
+        ]);
+
+        foreach ($days as $day) {
+            $group->schedules()->create([
+                'day_of_week' => $day,
+                'start_time' => $startTimeStr,
+                'end_time' => $endTimeStr,
+                'duration_minutes' => $duration,
+            ]);
+        }
+
+        return back()->with('success', 'تم حفظ ونشر موعد البرايفيت بنجاح (' . implode(' و ', $daysLabels) . ') وهو متاح لطالب واحد فقط باشتراك شهري.');
+    }
+
+    public function destroyPrivateGroup(int $id): RedirectResponse
+    {
+        $group = TeachingGroup::with('assignment')->findOrFail($id);
+        abort_if($group->assignment->teacher_id !== Auth::id(), 403);
+        abort_if(! $group->is_private && $group->capacity > 1, 403);
+
+        if ($group->activeBookings()->exists() || $group->subscriptions()->where('status', 'active')->exists()) {
+            return back()->with('error', 'لا يمكن حذف موعد البرايفيت بعد اشتراك طالب فيه.');
+        }
+
+        $group->schedules()->delete();
+        $group->delete();
+
+        return back()->with('success', 'تم إلغاء موعد البرايفيت بنجاح.');
+    }
 }

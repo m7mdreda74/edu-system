@@ -440,6 +440,8 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
     Route::delete('/free-intro-sessions/{id}', [TeacherFreeIntroSessionController::class, 'destroy'])->name('free-intro-sessions.destroy');
     Route::post('/private-session-slots', [TeacherFreeIntroSessionController::class, 'storePrivate'])->name('private-slots.store');
     Route::delete('/private-session-slots/{id}', [TeacherFreeIntroSessionController::class, 'destroyPrivate'])->name('private-slots.destroy');
+    Route::post('/teaching-schedule/assignments/{assignmentId}/private-group', [TeachingScheduleController::class, 'storePrivateGroup'])->name('teaching-schedule.private-groups.store');
+    Route::delete('/teaching-schedule/private-groups/{id}', [TeachingScheduleController::class, 'destroyPrivateGroup'])->name('teaching-schedule.private-groups.destroy');
     Route::post('/teaching-schedule/groups/{id}/lessons', [TeachingScheduleController::class, 'storeGroupLesson'])->name('teaching-schedule.groups.lessons.store');
     Route::post('/teaching-schedule/group-lessons/{id}/schedule', [TeachingScheduleController::class, 'scheduleGroupLesson'])->name('teaching-schedule.group-lessons.schedule');
     Route::get('/teaching-schedule/group-lessons/{id}/schedule', [TeachingScheduleController::class, 'redirectGroupLessonSchedule'])->name('teaching-schedule.group-lessons.schedule-link');

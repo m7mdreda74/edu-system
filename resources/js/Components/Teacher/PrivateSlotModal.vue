@@ -23,6 +23,30 @@ const durationMinutes = ref(60);
 const timezone = ref('Asia/Qatar');
 const processing = ref(false);
 
+const daysList = [
+    { value: 6, label: 'السبت' },
+    { value: 0, label: 'الأحد' },
+    { value: 1, label: 'الإثنين' },
+    { value: 2, label: 'الثلاثاء' },
+    { value: 3, label: 'الأربعاء' },
+    { value: 4, label: 'الخميس' },
+    { value: 5, label: 'الجمعة' },
+];
+
+// Default: 2 days like group (Saturday & Tuesday)
+const selectedDays = ref([6, 2]);
+
+function toggleDay(dayVal) {
+    const idx = selectedDays.value.indexOf(dayVal);
+    if (idx > -1) {
+        if (selectedDays.value.length > 2) {
+            selectedDays.value.splice(idx, 1);
+        }
+    } else {
+        selectedDays.value.push(dayVal);
+    }
+}
+
 const timezones = [
     { value: 'Asia/Qatar', label: 'توقيت الدوحة / مكة (GMT+3)' },
     { value: 'Africa/Cairo', label: 'توقيت القاهرة (GMT+2 / GMT+3)' },
@@ -44,45 +68,85 @@ const computedEndTime = computed(() => {
 });
 
 const previewText = computed(() => {
-    if (!slotDate.value || !startTime.value) return '';
+    if (!startTime.value) return '';
     const start12 = formatTime12(startTime.value);
     const end12 = formatTime12(computedEndTime.value);
-    const typeLabel = slotType.value === 'free_intro' ? 'حصة تجريبية مجانية' : 'موعد برايفيت';
     const tzLabel = timezones.find(t => t.value === timezone.value)?.label || timezone.value;
-    return `${typeLabel} · تاريخ: ${slotDate.value} · من ${start12} إلى ${end12} (${durationMinutes.value} دقيقة) · ${tzLabel}`;
+
+    if (slotType.value === 'private') {
+        const dayNames = selectedDays.value
+            .map(d => daysList.find(item => item.value === d)?.label)
+            .filter(Boolean)
+            .join(' و ');
+        return `حصة برايفيت أسبوعية يومي (${dayNames}) · من ${start12} إلى ${end12} (${durationMinutes.value} دقيقة) · متاح لطالب واحد فقط باشتراك شهري · ${tzLabel}`;
+    }
+
+    if (!slotDate.value) return '';
+    return `حصة تجريبية مجانية · تاريخ: ${slotDate.value} · من ${start12} إلى ${end12} (${durationMinutes.value} دقيقة) · ${tzLabel}`;
 });
 
 function submitSlot() {
-    if (!props.assignment?.id || !slotDate.value || !startTime.value) return;
+    if (!props.assignment?.id || !startTime.value) return;
 
     processing.value = true;
-    const startsAt = `${slotDate.value}T${startTime.value}:00`;
-    const endsAt = `${slotDate.value}T${computedEndTime.value}:00`;
 
-    const targetRoute = slotType.value === 'free_intro'
-        ? route('teacher.free-intro-sessions.store')
-        : route('teacher.private-slots.store');
-
-    router.post(
-        targetRoute,
-        {
-            teaching_assignment_id: props.assignment.id,
-            starts_at: startsAt,
-            ends_at: endsAt,
-            duration_minutes: durationMinutes.value,
-            timezone: timezone.value || 'Asia/Qatar',
-        },
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                emit('update:modelValue', false);
-                emit('saved');
-            },
-            onFinish: () => {
-                processing.value = false;
-            },
+    if (slotType.value === 'private') {
+        if (selectedDays.value.length < 2) {
+            alert('يرجى اختيار يومين للحصة الأسبوعية مثل المجموعة.');
+            processing.value = false;
+            return;
         }
-    );
+
+        router.post(
+            route('teacher.teaching-schedule.private-groups.store', props.assignment.id),
+            {
+                teaching_assignment_id: props.assignment.id,
+                days: selectedDays.value,
+                start_time: startTime.value,
+                duration_minutes: durationMinutes.value,
+                timezone: timezone.value || 'Asia/Qatar',
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    emit('update:modelValue', false);
+                    emit('saved');
+                },
+                onFinish: () => {
+                    processing.value = false;
+                },
+            }
+        );
+    } else {
+        if (!slotDate.value) {
+            processing.value = false;
+            return;
+        }
+
+        const startsAt = `${slotDate.value}T${startTime.value}:00`;
+        const endsAt = `${slotDate.value}T${computedEndTime.value}:00`;
+
+        router.post(
+            route('teacher.free-intro-sessions.store'),
+            {
+                teaching_assignment_id: props.assignment.id,
+                starts_at: startsAt,
+                ends_at: endsAt,
+                duration_minutes: durationMinutes.value,
+                timezone: timezone.value || 'Asia/Qatar',
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    emit('update:modelValue', false);
+                    emit('saved');
+                },
+                onFinish: () => {
+                    processing.value = false;
+                },
+            }
+        );
+    }
 }
 
 function close() {
@@ -132,7 +196,7 @@ function close() {
                             ]"
                         >
                             <Icon name="student" class="w-4 h-4" />
-                            <span>حصة برايفيت (طالب فردي)</span>
+                            <span>حصة برايفيت (يومين زي المجموعة)</span>
                         </button>
                         <button
                             type="button"
@@ -150,30 +214,61 @@ function close() {
                     </div>
                 </div>
 
-                <!-- Date & Start Time -->
-                <div class="grid sm:grid-cols-2 gap-3">
-                    <div class="space-y-1.5">
-                        <label class="block text-xs font-bold text-surface-800 dark:text-surface-200">اليوم / التاريخ:</label>
-                        <input
-                            v-model="slotDate"
-                            type="date"
-                            :min="defaultDate"
-                            class="input text-sm font-bold"
-                            required
-                        />
+                <!-- Days Selector for Private (2 days like group) -->
+                <div v-if="slotType === 'private'" class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-surface-800 dark:text-surface-200">
+                            أيام الحصة في الأسبوع (اختر يومين مثل المجموعة):
+                        </label>
+                        <span class="text-[11px] font-bold text-primary-600">
+                            تم تحديد {{ selectedDays.length }} يوم
+                        </span>
                     </div>
-                    <div class="space-y-1.5">
-                        <label class="block text-xs font-bold text-surface-800 dark:text-surface-200">وقت البدء:</label>
-                        <input
-                            v-model="startTime"
-                            type="time"
-                            class="input text-sm font-bold"
-                            required
-                        />
-                        <p class="text-[11px] text-primary-600 font-medium">
-                            المعاينة: {{ formatTime12(startTime) || '—' }}
-                        </p>
+                    <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                        <button
+                            v-for="d in daysList"
+                            :key="d.value"
+                            type="button"
+                            @click="toggleDay(d.value)"
+                            :class="[
+                                'py-2 px-1 rounded-xl text-xs font-bold transition-all border text-center',
+                                selectedDays.includes(d.value)
+                                    ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                                    : 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300 border-transparent hover:border-surface-300'
+                            ]"
+                        >
+                            {{ d.label }}
+                        </button>
                     </div>
+                    <p v-if="selectedDays.length < 2" class="text-[11px] text-amber-500 font-bold">
+                        ⚠️ يرجى اختيار يومين لموعد البرايفيت الأسبوعي.
+                    </p>
+                </div>
+
+                <!-- Date for Free Intro Only -->
+                <div v-else class="space-y-1.5">
+                    <label class="block text-xs font-bold text-surface-800 dark:text-surface-200">تاريخ الحصة التجريبية:</label>
+                    <input
+                        v-model="slotDate"
+                        type="date"
+                        :min="defaultDate"
+                        class="input text-sm font-bold"
+                        required
+                    />
+                </div>
+
+                <!-- Start Time -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-surface-800 dark:text-surface-200">وقت البدء:</label>
+                    <input
+                        v-model="startTime"
+                        type="time"
+                        class="input text-sm font-bold"
+                        required
+                    />
+                    <p class="text-[11px] text-primary-600 font-medium">
+                        المعاينة: {{ formatTime12(startTime) || '—' }}
+                    </p>
                 </div>
 
                 <!-- Timezone Selector -->
@@ -226,9 +321,9 @@ function close() {
                 <!-- Actions -->
                 <div class="flex items-center justify-end gap-3 pt-2">
                     <button type="button" class="btn-ghost" @click="close" :disabled="processing">إلغاء</button>
-                    <button type="submit" class="btn-primary flex items-center gap-2" :disabled="processing || !slotDate || !startTime">
+                    <button type="submit" class="btn-primary flex items-center gap-2" :disabled="processing || (slotType === 'private' ? selectedDays.length < 2 : !slotDate) || !startTime">
                         <Icon name="check" class="w-4 h-4" />
-                        <span>{{ processing ? 'جاري النشر...' : 'نشر الموعد للطلاب' }}</span>
+                        <span>{{ processing ? 'جاري النشر...' : (slotType === 'private' ? 'نشر موعد البرايفيت (يومان أسبوعياً)' : 'نشر الموعد المجاني') }}</span>
                     </button>
                 </div>
             </form>

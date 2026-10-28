@@ -38,6 +38,7 @@ class TeachingGroup extends Model
         'academic_term_id',
         'name',
         'capacity',
+        'is_private',
         'monthly_price',
         'currency',
         'day_of_week',
@@ -52,6 +53,7 @@ class TeachingGroup extends Model
     {
         return [
             'capacity'         => 'integer',
+            'is_private'       => 'boolean',
             'monthly_price'    => 'integer',
             'day_of_week'      => 'integer',
             'duration_minutes' => 'integer',
@@ -134,6 +136,11 @@ class TeachingGroup extends Model
     }
 
     // ─── Domain Helpers ────────────────────────────────────────────
+
+    public function isPrivate(): bool
+    {
+        return (bool) ($this->is_private || $this->capacity === 1);
+    }
 
     public function hasCapacity(): bool
     {

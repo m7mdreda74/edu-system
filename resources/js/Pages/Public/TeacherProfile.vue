@@ -50,10 +50,16 @@ const subscribeStep = ref(1);
 const selectedType = ref('group'); // 'group' | 'private'
 const selectedGroupId = ref(null);
 const selectedPrivateSlotId = ref(null);
+const selectedPrivateGroupId = ref(null);
 
 const selectedGroup = computed(() => {
     if (!activeAssignment.value) return null;
     return activeAssignment.value.groups?.find((g) => g.id === selectedGroupId.value) ?? null;
+});
+
+const selectedPrivateGroup = computed(() => {
+    if (!activeAssignment.value) return null;
+    return activeAssignment.value.private_groups?.find((g) => g.id === selectedPrivateGroupId.value) ?? null;
 });
 
 const selectedPrivateSlot = computed(() => {
@@ -66,19 +72,26 @@ const chosenPrice = computed(() => {
     if (selectedType.value === 'group') {
         return selectedGroup.value?.monthly_price ?? 0;
     }
-    return activeAssignment.value.private_monthly_price ?? 0;
+    return selectedPrivateGroup.value?.monthly_price || activeAssignment.value.private_monthly_price || 0;
 });
 
 function selectType(type) {
     selectedType.value = type;
     selectedGroupId.value = null;
     selectedPrivateSlotId.value = null;
+    selectedPrivateGroupId.value = null;
     subscribeStep.value = 2;
 }
 
 function selectGroup(group) {
     if (group.seats_left <= 0 && !group.is_subscribed) return;
     selectedGroupId.value = group.id;
+    subscribeStep.value = 3;
+}
+
+function selectPrivateGroup(group) {
+    if (group.seats_left <= 0 && !group.is_subscribed) return;
+    selectedPrivateGroupId.value = group.id;
     subscribeStep.value = 3;
 }
 
@@ -92,8 +105,11 @@ function confirmAndPay() {
         if (!selectedGroup.value) return;
         subscribeToGroup(selectedGroup.value.id);
     } else {
-        if (!activeAssignment.value) return;
-        subscribeToPrivate(activeAssignment.value.id);
+        if (selectedPrivateGroup.value) {
+            subscribeToGroup(selectedPrivateGroup.value.id);
+        } else if (activeAssignment.value) {
+            subscribeToPrivate(activeAssignment.value.id);
+        }
     }
 }
 
@@ -101,6 +117,7 @@ watch(activeAssignmentId, () => {
     subscribeStep.value = 1;
     selectedGroupId.value = null;
     selectedPrivateSlotId.value = null;
+    selectedPrivateGroupId.value = null;
 });
 
 function subscribeToGroup(groupId) {
@@ -445,8 +462,8 @@ const otherTeachersUrl = computed(() => (
                                 <!-- Step 3 pill -->
                                 <button
                                     type="button"
-                                    @click="(selectedGroup || (selectedType === 'private' && selectedPrivateSlotId)) ? subscribeStep = 3 : null"
-                                    :disabled="!(selectedGroup || (selectedType === 'private' && selectedPrivateSlotId))"
+                                    @click="(selectedGroup || (selectedType === 'private' && (selectedPrivateGroupId || selectedPrivateSlotId))) ? subscribeStep = 3 : null"
+                                    :disabled="!(selectedGroup || (selectedType === 'private' && (selectedPrivateGroupId || selectedPrivateSlotId)))"
                                     class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
                                     :class="subscribeStep === 3
                                         ? 'bg-accent-500 text-surface-950 font-black shadow-md'
@@ -534,7 +551,7 @@ const otherTeachersUrl = computed(() => (
 
                                         <div class="flex items-center gap-2 text-xs font-semibold text-accent-700 dark:text-accent-300 bg-accent-50 dark:bg-accent-950/40 p-2.5 rounded-xl">
                                             <Icon name="calendar" class="w-4 h-4 text-accent-500 shrink-0" />
-                                            <span>{{ activeAssignment.private_slots?.length || 0 }} مواعيد خاصة منشورة متاحة</span>
+                                            <span>{{ (activeAssignment.private_groups?.length || activeAssignment.private_slots?.length || 0) }} مواعيد خاصة منشورة متاحة</span>
                                         </div>
                                     </div>
 
@@ -633,9 +650,73 @@ const otherTeachersUrl = computed(() => (
                                 </div>
                             </div>
 
-                            <!-- Private Slots Selection -->
+                            <!-- Private Groups / Slots Selection -->
                             <div v-else class="space-y-4">
-                                <div v-if="activeAssignment.private_slots?.length" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <!-- 2-Day Weekly Private Groups -->
+                                <div v-if="activeAssignment.private_groups?.length" class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-xs font-bold text-surface-700 dark:text-surface-300">
+                                            مواعيد الحصص الخاصة الأسبوعية (يومان أسبوعياً - اشتراك شهري):
+                                        </h4>
+                                        <span class="text-[11px] text-accent-600 dark:text-accent-400 font-semibold bg-accent-500/10 px-2 py-0.5 rounded-full">
+                                            طالب واحد فقط لكل موعد
+                                        </span>
+                                    </div>
+                                    <div class="grid sm:grid-cols-2 gap-4">
+                                        <div
+                                            v-for="pGroup in activeAssignment.private_groups"
+                                            :key="pGroup.id"
+                                            @click="selectPrivateGroup(pGroup)"
+                                            class="card p-5 cursor-pointer border-2 transition-all flex flex-col justify-between"
+                                            :class="[
+                                                pGroup.seats_left <= 0 && !pGroup.is_subscribed
+                                                    ? 'opacity-60 cursor-not-allowed bg-surface-100 dark:bg-surface-900 border-surface-200'
+                                                    : selectedPrivateGroupId === pGroup.id
+                                                        ? 'border-accent-500 bg-accent-500/5 shadow-md ring-2 ring-accent-500/20'
+                                                        : 'border-surface-200 dark:border-surface-800 hover:border-accent-400'
+                                            ]"
+                                        >
+                                            <div>
+                                                <div class="flex items-start justify-between gap-3 mb-2">
+                                                    <div>
+                                                        <span class="badge-accent text-[10px] mb-1 inline-block">حصة خاصة 1-on-1 (فردي)</span>
+                                                        <h4 class="font-bold text-surface-900 dark:text-white text-base">
+                                                            {{ pGroup.name }}
+                                                        </h4>
+                                                    </div>
+                                                    <span v-if="pGroup.is_subscribed" class="badge-green text-[10px]">مشترك بالفعل</span>
+                                                    <span v-else-if="pGroup.seats_left > 0" class="badge-primary text-[10px]">متاح للحجز</span>
+                                                    <span v-else class="badge-red text-[10px]">محجوز لطالب</span>
+                                                </div>
+
+                                                <div class="space-y-2 mt-3 text-xs">
+                                                    <div class="flex items-center gap-2 text-surface-700 dark:text-surface-200">
+                                                        <Icon name="calendar" class="w-4 h-4 text-accent-500 shrink-0" />
+                                                        <span class="font-bold">{{ formatSchedule(pGroup.schedules) || 'الموعد بالتنسيق' }}</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-surface-500">
+                                                        <Icon name="student" class="w-4 h-4 text-surface-400 shrink-0" />
+                                                        <span>طالب واحد فقط (مقعد فردي مخصص)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-5 pt-3 border-t border-surface-200 dark:border-surface-800 flex items-center justify-between">
+                                                <span class="text-xs text-surface-400 font-medium">حصة خاصة أسبوعية</span>
+                                                <button
+                                                    type="button"
+                                                    class="btn-accent btn-sm"
+                                                    :disabled="pGroup.seats_left <= 0 && !pGroup.is_subscribed"
+                                                >
+                                                    {{ selectedPrivateGroupId === pGroup.id ? 'تم الاختيار ✅' : 'اختيار ومتابعة ←' }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Legacy Single Slots Fallback -->
+                                <div v-else-if="activeAssignment.private_slots?.length" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                     <div
                                         v-for="slot in activeAssignment.private_slots"
                                         :key="slot.id"
@@ -737,7 +818,7 @@ const otherTeachersUrl = computed(() => (
                                                     {{ selectedType === 'group' ? 'المجموعة' : 'نمط الجلسة' }}
                                                 </span>
                                                 <span class="font-bold text-surface-900 dark:text-white">
-                                                    {{ selectedType === 'group' ? selectedGroup?.name : 'متابعة فردية 1-on-1' }}
+                                                    {{ selectedType === 'group' ? selectedGroup?.name : (selectedPrivateGroup?.name || 'متابعة فردية 1-on-1') }}
                                                 </span>
                                             </div>
 
@@ -746,7 +827,9 @@ const otherTeachersUrl = computed(() => (
                                                 <span class="font-bold text-primary-600 dark:text-primary-400">
                                                     {{ selectedType === 'group'
                                                         ? (formatSchedule(selectedGroup?.schedules) || 'الموعد المعتمد')
-                                                        : (selectedPrivateSlot ? formatDateTime(selectedPrivateSlot.starts_at) : 'موعد مرن بالتنسيق مع المعلم')
+                                                        : (selectedPrivateGroup
+                                                            ? (formatSchedule(selectedPrivateGroup.schedules) || 'يومان أسبوعياً')
+                                                            : (selectedPrivateSlot ? formatDateTime(selectedPrivateSlot.starts_at) : 'موعد مرن بالتنسيق مع المعلم'))
                                                     }}
                                                 </span>
                                             </div>
@@ -754,7 +837,7 @@ const otherTeachersUrl = computed(() => (
                                             <div class="py-2.5 flex items-center justify-between">
                                                 <span class="text-surface-500">المقاعد المتبقية</span>
                                                 <span class="font-bold text-surface-800 dark:text-surface-200">
-                                                    {{ selectedType === 'group' ? selectedGroup?.seats_left + ' مقعد' : 'مقعد فردي مخصص لك' }}
+                                                    {{ selectedType === 'group' ? selectedGroup?.seats_left + ' مقعد' : 'مقعد فردي مخصص لك (طالب واحد فقط)' }}
                                                 </span>
                                             </div>
                                         </div>
@@ -784,9 +867,9 @@ const otherTeachersUrl = computed(() => (
                                         </div>
 
                                         <div class="space-y-3 pt-4 border-t border-surface-200 dark:border-surface-800">
-                                            <template v-if="selectedGroup?.is_subscribed">
+                                            <template v-if="(selectedType === 'group' && selectedGroup?.is_subscribed) || (selectedType === 'private' && selectedPrivateGroup?.is_subscribed)">
                                                 <div class="p-3 bg-green-500/10 border border-green-500/25 rounded-2xl text-center text-xs font-bold text-green-700 dark:text-green-300">
-                                                    أنت مشترك بالفعل في هذه المجموعة ✅
+                                                    أنت مشترك بالفعل في هذا الموعد ✅
                                                 </div>
                                                 <Link :href="route('student.my-classes')" class="btn-primary w-full py-3 text-sm justify-center">
                                                     الانتقال إلى حصصي
@@ -816,10 +899,10 @@ const otherTeachersUrl = computed(() => (
 
                                                 <!-- Student Option: Ask parent to pay -->
                                                 <button
-                                                    v-if="isStudent && selectedType === 'group' && selectedGroup"
+                                                    v-if="isStudent && ((selectedType === 'group' && selectedGroup) || (selectedType === 'private' && selectedPrivateGroup))"
                                                     type="button"
                                                     class="btn-ghost w-full py-2.5 text-xs text-surface-600 dark:text-surface-300 justify-center"
-                                                    @click="askParentToPay(selectedGroup.id)"
+                                                    @click="askParentToPay(selectedType === 'group' ? selectedGroup.id : selectedPrivateGroup.id)"
                                                 >
                                                     اطلب من ولي الأمر الدفع 👨‍👦
                                                 </button>

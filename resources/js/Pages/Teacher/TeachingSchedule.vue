@@ -49,6 +49,8 @@ function localDateTimeValue(date = new Date()) {
 
 const minSlotDateTime = localDateTimeValue();
 
+const privateGroupDrafts = ref({});
+
 watch(() => props.assignments, (assignments) => {
     assignments.flatMap((item) => item.groups || []).forEach((group) => {
         lessonDrafts.value[group.id] ??= { title: '', description: '' };
@@ -57,8 +59,61 @@ watch(() => props.assignments, (assignments) => {
     assignments.forEach((assignment) => {
         freeSlotDrafts.value[assignment.id] ??= { starts_at: '', ends_at: '' };
         privateSlotDrafts.value[assignment.id] ??= { starts_at: '', ends_at: '' };
+        privateGroupDrafts.value[assignment.id] ??= { days: [6, 2], start_time: '18:00', duration_minutes: 60 };
     });
 }, { immediate: true });
+
+function togglePrivateDay(assignmentId, dayVal) {
+    if (!privateGroupDrafts.value[assignmentId]) {
+        privateGroupDrafts.value[assignmentId] = { days: [6, 2], start_time: '18:00', duration_minutes: 60 };
+    }
+    const daysArr = privateGroupDrafts.value[assignmentId].days;
+    const idx = daysArr.indexOf(dayVal);
+    if (idx > -1) {
+        if (daysArr.length > 2) {
+            daysArr.splice(idx, 1);
+        }
+    } else {
+        daysArr.push(dayVal);
+    }
+}
+
+function publishPrivateGroup(assignmentId) {
+    const draft = privateGroupDrafts.value[assignmentId];
+    if (!draft || draft.days.length < 2 || !draft.start_time) {
+        alert('يرجى اختيار يومين للحصة الأسبوعية ووقت البدء.');
+        return;
+    }
+
+    router.post(
+        route('teacher.teaching-schedule.private-groups.store', assignmentId),
+        {
+            teaching_assignment_id: assignmentId,
+            days: draft.days,
+            start_time: draft.start_time,
+            duration_minutes: draft.duration_minutes || 60,
+            timezone: 'Asia/Qatar',
+        },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                privateGroupDrafts.value[assignmentId] = { days: [6, 2], start_time: '18:00', duration_minutes: 60 };
+            },
+        }
+    );
+}
+
+function removePrivateGroup(groupId) {
+    if (!confirm('هل أنت متأكد من حذف موعد البرايفيت هذا؟')) return;
+    router.delete(route('teacher.teaching-schedule.private-groups.destroy', groupId), {
+        preserveScroll: true,
+    });
+}
+
+function formatGroupSchedules(group) {
+    if (!group?.schedules?.length) return 'الموعد بالتنسيق';
+    return group.schedules.map(s => `${days[s.day_of_week]} (${formatTime12(s.start_time)} إلى ${formatTime12(s.end_time)})`).join(' و ');
+}
 
 function addLesson(groupId) {
     const draft = lessonDrafts.value[groupId] || {};
@@ -229,38 +284,136 @@ function formatDate(value, timeZone = 'Asia/Qatar') {
                     </div>
                 </div>
 
+                <!-- Private Section (2 days like group) -->
                 <div v-if="assignment.accepts_private" class="rounded-2xl border border-primary-500/25 bg-primary-500/5 p-5 space-y-4">
-                    <div>
-                        <h3 class="font-black text-surface-900 dark:text-white">مواعيد البرايفيت (توقيت الدوحة)</h3>
-                        <p class="text-xs text-surface-500 mt-1">كل موعد متاح لطالب واحد فقط، ويُغلق تلقائيًا بمجرد حجزه.</p>
-                    </div>
-
-                    <form class="grid md:grid-cols-3 gap-3" @submit.prevent="publishPrivateSlot(assignment.id)">
-                        <input v-model="privateSlotDrafts[assignment.id].starts_at" type="datetime-local" :min="minSlotDateTime" class="input" required />
-                        <input v-model="privateSlotDrafts[assignment.id].ends_at" type="datetime-local" :min="minSlotDateTime" class="input" required />
-                        <button type="submit" class="btn-primary">نشر موعد برايفيت</button>
-                    </form>
-
-                    <div v-if="assignment.private_slots?.some(item => !item.is_free_intro)" class="grid md:grid-cols-2 gap-3">
-                        <div
-                            v-for="slot in assignment.private_slots.filter(item => !item.is_free_intro)"
-                            :key="slot.id"
-                            class="rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-3 flex items-center justify-between gap-3"
-                        >
-                            <div>
-                                <p class="text-sm font-bold">{{ formatDate(slot.starts_at, slot.timezone) }}</p>
-                                <p class="text-xs mt-1" :class="slot.status === 'booked' ? 'text-green-600' : 'text-surface-500'">
-                                    {{ slot.status === 'booked' ? `محجوز بواسطة ${slot.booking?.student?.name ?? 'طالب'}` : 'متاح لطالب واحد (بتوقيت الدوحة)' }}
-                                </p>
-                            </div>
-                            <button v-if="slot.status !== 'booked'" type="button" class="btn-ghost btn-sm text-red-500" @click="cancelPrivateSlot(slot.id)">إلغاء</button>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h3 class="font-black text-surface-900 dark:text-white flex items-center gap-2">
+                                <span>مواعيد البرايفيت الأسبوعية (يومين زي المجموعة)</span>
+                                <span class="badge-primary text-[10px]">اشتراك شهري · طالب واحد فقط</span>
+                            </h3>
+                            <p class="text-xs text-surface-500 mt-1">
+                                حدد يومين في الأسبوع والتوقيت لحصة البرايفيت. كل موعد متاح لطالب واحد فقط ويُحجز باشتراك شهري.
+                            </p>
                         </div>
                     </div>
-                    <p v-else class="text-xs text-surface-400">لم تنشر مواعيد برايفيت بعد.</p>
+
+                    <form class="space-y-3 p-4 rounded-xl bg-white dark:bg-surface-900 border border-primary-500/20" @submit.prevent="publishPrivateGroup(assignment.id)">
+                        <!-- Days of week (Select 2 days) -->
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-surface-800 dark:text-surface-200">
+                                    أيام الحصة (اختر يومين مثل المجموعة):
+                                </label>
+                                <span class="text-[11px] font-bold text-primary-600">
+                                    المحدد: {{ (privateGroupDrafts[assignment.id]?.days || []).map(d => days[d]).join(' و ') || 'اختر يومين' }}
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                                <button
+                                    v-for="(dayName, dIdx) in days"
+                                    :key="dIdx"
+                                    type="button"
+                                    @click="togglePrivateDay(assignment.id, dIdx)"
+                                    :class="[
+                                        'py-2 px-1 rounded-xl text-xs font-bold transition-all border text-center',
+                                        privateGroupDrafts[assignment.id]?.days?.includes(dIdx)
+                                            ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                                            : 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300 border-transparent hover:border-surface-300'
+                                    ]"
+                                >
+                                    {{ dayName }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Time & Duration -->
+                        <div class="grid sm:grid-cols-3 gap-3 pt-1">
+                            <div>
+                                <label class="block text-xs font-bold text-surface-800 dark:text-surface-200 mb-1">وقت البدء (توقيت الدوحة):</label>
+                                <input v-model="privateGroupDrafts[assignment.id].start_time" type="time" class="input text-sm font-bold" required />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-surface-800 dark:text-surface-200 mb-1">المدة:</label>
+                                <select v-model.number="privateGroupDrafts[assignment.id].duration_minutes" class="input text-sm font-bold">
+                                    <option :value="30">30 دقيقة</option>
+                                    <option :value="45">45 دقيقة</option>
+                                    <option :value="60">ساعة (60 دقيقة)</option>
+                                    <option :value="90">ساعة ونصف (90 دقيقة)</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button type="submit" class="btn-primary w-full h-[42px] flex items-center justify-center gap-1.5 font-bold" :disabled="(privateGroupDrafts[assignment.id]?.days?.length || 0) < 2">
+                                    <Icon name="check" class="w-4 h-4" />
+                                    <span>نشر موعد برايفيت (يومان أسبوعياً)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Published Private Appointments (Groups with capacity 1) -->
+                    <div v-if="assignment.groups?.some(g => g.is_private || g.capacity === 1)" class="grid md:grid-cols-2 gap-3">
+                        <div
+                            v-for="pGroup in assignment.groups.filter(g => g.is_private || g.capacity === 1)"
+                            :key="pGroup.id"
+                            class="rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-4 flex flex-col justify-between gap-3 shadow-sm"
+                        >
+                            <div>
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <h4 class="font-bold text-sm text-surface-900 dark:text-white flex items-center gap-1.5">
+                                            <span>👤</span>
+                                            <span>{{ pGroup.name }}</span>
+                                        </h4>
+                                        <p class="text-xs text-primary-600 font-bold mt-1">
+                                            {{ formatGroupSchedules(pGroup) }}
+                                        </p>
+                                    </div>
+                                    <span v-if="pGroup.students?.length" class="badge-green text-[10px]">
+                                        محجوز (طالب مشترك)
+                                    </span>
+                                    <span v-else class="badge-primary text-[10px]">
+                                        متاح للحجز (طالب واحد)
+                                    </span>
+                                </div>
+
+                                <div v-if="pGroup.students?.length" class="mt-3 pt-2.5 border-t border-surface-100 dark:border-surface-800 flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-full bg-primary-500/10 text-primary-600 flex items-center justify-center font-bold text-xs overflow-hidden shrink-0">
+                                        <img v-if="pGroup.students[0].avatar" :src="pGroup.students[0].avatar" :alt="pGroup.students[0].name" class="w-full h-full object-cover" />
+                                        <span v-else>{{ pGroup.students[0].name?.charAt(0) }}</span>
+                                    </div>
+                                    <div class="text-xs truncate">
+                                        <span class="text-surface-500">الطالب: </span>
+                                        <strong class="text-surface-900 dark:text-white">{{ pGroup.students[0].name }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-2 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between gap-2">
+                                <button
+                                    type="button"
+                                    class="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1"
+                                    @click="openScheduleModal(pGroup)"
+                                >
+                                    <Icon name="calendar" class="w-3.5 h-3.5" />
+                                    <span>تعديل المواعيد</span>
+                                </button>
+                                <button
+                                    v-if="!pGroup.students?.length"
+                                    type="button"
+                                    class="btn-ghost btn-xs text-red-500"
+                                    @click="removePrivateGroup(pGroup.id)"
+                                >
+                                    إلغاء الموعد
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else class="text-xs text-surface-400">لم تنشر مواعيد برايفيت أسبوعية بعد.</p>
                 </div>
 
                 <article
-                    v-for="group in assignment.groups"
+                    v-for="group in (assignment.groups || []).filter(g => !g.is_private && g.capacity > 1)"
                     :key="group.id"
                     class="rounded-2xl border border-surface-200 dark:border-surface-700 p-5 space-y-4"
                 >
@@ -420,8 +573,8 @@ function formatDate(value, timeZone = 'Asia/Qatar') {
                     </div>
                 </article>
 
-                <div v-if="!assignment.groups.length" class="rounded-xl bg-surface-50 dark:bg-surface-900 p-6 text-center text-sm text-surface-500">
-                    لم تنشئ الإدارة مجموعة لهذا الإسناد بعد.
+                <div v-if="!assignment.groups?.some(g => !g.is_private && g.capacity > 1)" class="rounded-xl bg-surface-50 dark:bg-surface-900 p-6 text-center text-sm text-surface-500">
+                    لم تنشئ الإدارة مجموعة دراسية لهذا الإسناد بعد.
                 </div>
             </section>
 

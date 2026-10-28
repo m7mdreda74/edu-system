@@ -100,6 +100,10 @@ class FreeIntroSessionController extends Controller
 
     public function storePrivate(Request $request): RedirectResponse
     {
+        if ($request->has('days')) {
+            return app(\App\Http\Controllers\Teacher\TeachingScheduleController::class)->storePrivateGroup($request);
+        }
+
         $data = $this->validatedSlot($request);
         $assignment = TeachingAssignment::where('teacher_id', Auth::id())
             ->where('is_active', true)
