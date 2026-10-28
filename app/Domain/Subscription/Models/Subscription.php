@@ -85,6 +85,11 @@ class Subscription extends Model
         return $this->belongsTo(TeachingGroup::class, 'teaching_group_id');
     }
 
+    public function teachingGroup(): BelongsTo
+    {
+        return $this->group();
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);

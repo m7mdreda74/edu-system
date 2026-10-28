@@ -9,9 +9,11 @@ use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\WorksheetSubmission;
 use App\Domain\Quiz\Models\QuizAttempt;
+use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
 use App\Domain\Scheduling\Models\TeachingGroupSchedule;
+use App\Domain\Subscription\Models\Subscription;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -100,6 +102,7 @@ class DashboardController extends Controller
                     'students' => $students,
                     'materials_count' => (int) ($materialCounts[$group->teaching_assignment_id] ?? 0),
                     'is_active' => (bool) $group->is_active,
+                    'is_private' => (bool) ($group->is_private || $group->capacity === 1),
                     'schedules' => $schedules,
                     'lessons_count' => $lessons->count(),
                     'pending_lessons_count' => $lessons->where('status', 'pending')->count(),
@@ -219,6 +222,117 @@ class DashboardController extends Controller
                 'submitted_at_formatted' => $attempt->submitted_at ? Carbon::parse($attempt->submitted_at)->locale('ar')->diffForHumans() : '',
             ]);
 
+        // Recent student subscriptions & session bookings for this teacher
+        $recentSubscriptions = Subscription::with([
+            'student:id,name,email,avatar',
+            'assignment.subject:id,name',
+            'assignment.gradeLevel:id,key,name',
+            'teachingGroup.schedules',
+            'teachingGroup.assignment.subject:id,name',
+            'teachingGroup.assignment.gradeLevel:id,key,name',
+        ])
+            ->where(function ($query) use ($assignmentIds) {
+                $query->whereIn('teaching_assignment_id', $assignmentIds)
+                    ->orWhereHas('teachingGroup', fn ($q) => $q->whereIn('teaching_assignment_id', $assignmentIds));
+            })
+            ->where('status', Subscription::STATUS_ACTIVE)
+            ->latest('updated_at')
+            ->limit(10)
+            ->get();
+
+        $recentBookings = SessionBooking::with([
+            'student:id,name,email,avatar',
+            'group.schedules',
+            'group.assignment.subject:id,name',
+            'group.assignment.gradeLevel:id,key,name',
+            'privateSlot.assignment.subject:id,name',
+            'privateSlot.assignment.gradeLevel:id,key,name',
+        ])
+            ->where(function ($query) use ($assignmentIds) {
+                $query->whereHas('group', fn ($q) => $q->whereIn('teaching_assignment_id', $assignmentIds))
+                    ->orWhereHas('privateSlot', fn ($q) => $q->whereIn('teaching_assignment_id', $assignmentIds));
+            })
+            ->where('status', 'confirmed')
+            ->latest('created_at')
+            ->limit(10)
+            ->get();
+
+        $unifiedEnrollments = collect();
+
+        foreach ($recentSubscriptions as $sub) {
+            if (! $sub->student) {
+                continue;
+            }
+            $group = $sub->teachingGroup;
+            $isPrivate = (bool) ($sub->type === Subscription::TYPE_PRIVATE || $group?->is_private || $group?->capacity === 1);
+            $subjectName = $sub->assignment?->subject?->name ?? $group?->assignment?->subject?->name ?? 'مادة دراسية';
+            $gradeName = $sub->assignment?->gradeLevel?->name ?? $group?->assignment?->gradeLevel?->name ?? '';
+
+            $scheduleText = $group ? $group->formattedSchedule() : '';
+
+            $unifiedEnrollments->push([
+                'id' => 'sub-' . $sub->id,
+                'student_id' => $sub->student->id,
+                'student_name' => $sub->student->name,
+                'student_email' => $sub->student->email,
+                'student_avatar' => $sub->student->avatar,
+                'is_private' => $isPrivate,
+                'type_label' => $isPrivate ? 'حصة خاصة (برايفت)' : 'مجموعة دراسية',
+                'subject_name' => $subjectName,
+                'grade_name' => $gradeName,
+                'group_name' => $group?->name ?? ($isPrivate ? 'حصة خاصة' : 'مجموعة'),
+                'schedule_text' => $scheduleText,
+                'enrolled_at' => $sub->updated_at,
+                'enrolled_at_formatted' => Carbon::parse($sub->updated_at)->locale('ar')->diffForHumans(),
+                'status' => 'نشط ومؤكد',
+            ]);
+        }
+
+        foreach ($recentBookings as $b) {
+            if (! $b->student) {
+                continue;
+            }
+            $group = $b->group;
+            $slot = $b->privateSlot;
+            $isPrivate = (bool) ($slot !== null || $group?->is_private || $group?->capacity === 1);
+            $subjectName = $group?->assignment?->subject?->name ?? $slot?->assignment?->subject?->name ?? 'مادة دراسية';
+            $gradeName = $group?->assignment?->gradeLevel?->name ?? $slot?->assignment?->gradeLevel?->name ?? '';
+
+            $scheduleText = '';
+            if ($group) {
+                $scheduleText = $group->formattedSchedule();
+            } elseif ($slot) {
+                $scheduleText = Carbon::parse($slot->starts_at)->locale('ar')->translatedFormat('l d M · h:i A');
+            }
+
+            $exists = $unifiedEnrollments->contains(fn ($item) => $item['student_id'] === $b->student_id && $item['group_name'] === ($group?->name ?? 'جلسة خاصة'));
+            if ($exists) {
+                continue;
+            }
+
+            $unifiedEnrollments->push([
+                'id' => 'booking-' . $b->id,
+                'student_id' => $b->student->id,
+                'student_name' => $b->student->name,
+                'student_email' => $b->student->email,
+                'student_avatar' => $b->student->avatar,
+                'is_private' => $isPrivate,
+                'type_label' => $slot?->is_free_intro ? 'حصة تجريبية مجانية' : ($isPrivate ? 'حصة خاصة (برايفت)' : 'مجموعة دراسية'),
+                'subject_name' => $subjectName,
+                'grade_name' => $gradeName,
+                'group_name' => $group?->name ?? ($slot?->is_free_intro ? 'تجريبية مجانية' : 'جلسة خاصة'),
+                'schedule_text' => $scheduleText,
+                'enrolled_at' => $b->created_at,
+                'enrolled_at_formatted' => Carbon::parse($b->created_at)->locale('ar')->diffForHumans(),
+                'status' => 'مؤكد',
+            ]);
+        }
+
+        $recentEnrollments = $unifiedEnrollments
+            ->sortByDesc('enrolled_at')
+            ->values()
+            ->take(6);
+
         return Inertia::render('Teacher/Dashboard', [
             'stats' => [
                 'assignments' => $assignments->count(),
@@ -230,6 +344,7 @@ class DashboardController extends Controller
             ],
             'assignments' => $formattedAssignments,
             'groups' => $allGroups,
+            'recent_enrollments' => $recentEnrollments,
             'upcoming_sessions' => $upcomingSessions,
             'pending_submissions' => $pendingSubmissions,
             'at_risk_students' => $atRiskStudents,

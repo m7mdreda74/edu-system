@@ -117,10 +117,6 @@ class PaymentService
 
         $student?->notify(new SubscriptionActivatedNotification($subscription));
 
-        $subscription->assignment?->teacher?->notify(
-            new StudentSubscribedNotification($subscription, $student)
-        );
-
         foreach (User::role('admin')->get() as $admin) {
             $admin->notify(new PaymentReceivedNotification($subscription, $student, $payment->amount));
         }

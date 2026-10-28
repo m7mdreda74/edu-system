@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Subscription\Services;
 
 use App\Domain\Communication\Notifications\AdminSessionBookingNotification;
+use App\Domain\Communication\Notifications\StudentSubscribedNotification;
 use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
@@ -189,6 +190,23 @@ class SubscriptionService
                     $admin->notify(new AdminSessionBookingNotification($booking));
                 }
             }
+        }
+
+        // Notify the teacher about student enrollment and schedule
+        $activated->loadMissing([
+            'student',
+            'assignment.teacher',
+            'assignment.subject',
+            'teachingGroup.schedules',
+            'teachingGroup.assignment.teacher',
+            'teachingGroup.assignment.subject',
+        ]);
+
+        $teacher = $activated->assignment?->teacher ?? $activated->teachingGroup?->assignment?->teacher;
+        $student = $activated->student;
+
+        if ($teacher && $student) {
+            $teacher->notify(new StudentSubscribedNotification($activated, $student));
         }
 
         return $activated;

@@ -73,8 +73,24 @@ class SessionBookingService
             'student:id,name',
             'group.assignment.subject:id,name',
             'group.assignment.teacher:id,name',
+            'group.schedules',
         ]);
         $this->notifyAdmins($booking);
+
+        $groupTeacher = $booking->group?->assignment?->teacher;
+        if ($groupTeacher) {
+            $scheduleText = $booking->group->formattedSchedule();
+            $subjectName = $booking->group->assignment?->subject?->name ?? 'المادة';
+            $isPrivate = $booking->group->is_private || $booking->group->capacity === 1;
+            $typeStr = $isPrivate ? 'حصة خاصة (برايفت 1-on-1)' : "مجموعة '{$booking->group->name}'";
+            $titleStr = $isPrivate ? 'حجز حصة خاصة (برايفت) 🎯' : 'اشتراك وحجز مقعد في المجموعة 👥';
+
+            $groupTeacher->notify(new GenericDatabaseNotification([
+                'title' => $titleStr,
+                'message' => "اشترك وحجز معك الطالب '{$student->name}' في {$typeStr} لمادة {$subjectName}" . ($scheduleText ? " - موعد {$scheduleText}" : '') . '.',
+                'link' => route('teacher.dashboard'),
+            ]));
+        }
 
         return $booking;
     }
@@ -117,6 +133,17 @@ class SessionBookingService
             'privateSlot.assignment.teacher:id,name',
         ]);
         $this->notifyAdmins($booking);
+
+        $privateTeacher = $booking->privateSlot?->assignment?->teacher;
+        if ($privateTeacher && $booking->privateSlot) {
+            $slotTime = \Illuminate\Support\Carbon::parse($booking->privateSlot->starts_at)->locale('ar')->translatedFormat('l d F · h:i A');
+            $subjectName = $booking->privateSlot->assignment?->subject?->name ?? 'المادة';
+            $privateTeacher->notify(new GenericDatabaseNotification([
+                'title' => 'حجز جلسة خاصة (برايفت) 🎯',
+                'message' => "حجز معك الطالب '{$student->name}' جلسة خاصة (برايفت) لمادة {$subjectName} - موعد {$slotTime}.",
+                'link' => route('teacher.dashboard'),
+            ]));
+        }
 
         return $booking;
     }
@@ -173,10 +200,12 @@ class SessionBookingService
             'privateSlot.assignment.teacher:id,name',
         ]);
 
+        $slotTime = \Illuminate\Support\Carbon::parse($booking->privateSlot?->starts_at)->locale('ar')->translatedFormat('l d F · h:i A');
+        $subjectName = $booking->privateSlot?->assignment?->subject?->name ?? 'المادة';
         $booking->privateSlot?->assignment?->teacher?->notify(new GenericDatabaseNotification([
-            'title' => 'تم حجز حصة تجريبية مجانية',
-            'message' => "{$student->name} حجز الحصة التجريبية المجانية في {$booking->privateSlot?->assignment?->subject?->name}.",
-            'link' => route('teacher.live-sessions'),
+            'title' => 'حجز حصة تجريبية مجانية 🎁',
+            'message' => "حجز معك الطالب '{$student->name}' الحصة التجريبية المجانية لمادة {$subjectName}" . ($slotTime ? " - موعد {$slotTime}" : '') . '.',
+            'link' => route('teacher.dashboard'),
         ]));
 
         return $booking;

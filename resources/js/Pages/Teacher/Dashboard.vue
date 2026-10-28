@@ -13,6 +13,7 @@ const props = defineProps({
     stats:               { type: Object, default: () => ({}) },
     assignments:         { type: Array,  default: () => [] },
     groups:              { type: Array,  default: () => [] },
+    recent_enrollments:  { type: Array,  default: () => [] },
     upcoming_sessions:   { type: Array,  default: () => [] },
     pending_submissions: { type: Array,  default: () => [] },
     at_risk_students:    { type: Array,  default: () => [] },
@@ -167,6 +168,76 @@ function autoScheduleGroup(groupId) {
                             <Icon name="live" class="w-3.5 h-3.5" />
                             <span>دخول</span>
                         </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Recent Student Enrollments & Bookings (الاشتراكات والحجوزات الأخيرة) ── -->
+            <section v-if="recent_enrollments?.length" class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-extrabold text-sm text-surface-800 dark:text-surface-200 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>الاشتراكات والحجوزات الجديدة لطلابك:</span>
+                    </h2>
+                    <Link :href="route('teacher.students.index')" class="text-xs font-bold text-primary-600 hover:underline">
+                        عرض قائمة جميع الطلاب ←
+                    </Link>
+                </div>
+
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    <div
+                        v-for="enrollment in recent_enrollments"
+                        :key="enrollment.id"
+                        class="card p-4 flex flex-col justify-between border transition-all hover:shadow-md"
+                        :class="enrollment.is_private
+                            ? 'border-accent-500/30 bg-accent-500/[0.03] dark:bg-accent-950/20'
+                            : 'border-surface-200 dark:border-surface-800'"
+                    >
+                        <div class="space-y-2.5">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <div
+                                        class="w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden"
+                                        :class="enrollment.is_private ? 'bg-accent-500/15 text-accent-700 dark:text-accent-300' : 'bg-primary-500/15 text-primary-700 dark:text-primary-300'"
+                                    >
+                                        <img v-if="enrollment.student_avatar" :src="enrollment.student_avatar" :alt="enrollment.student_name" class="w-full h-full object-cover" />
+                                        <span v-else>{{ enrollment.student_name?.charAt(0) }}</span>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h4 class="font-black text-sm text-surface-900 dark:text-white truncate">
+                                            {{ enrollment.student_name }}
+                                        </h4>
+                                        <p class="text-[11px] text-surface-400 truncate">
+                                            {{ enrollment.grade_name }} · {{ enrollment.subject_name }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0"
+                                    :class="enrollment.is_private
+                                        ? 'bg-accent-500/15 text-accent-700 dark:text-accent-300 border border-accent-500/25'
+                                        : 'bg-primary-500/15 text-primary-700 dark:text-primary-300 border border-primary-500/25'"
+                                >
+                                    {{ enrollment.type_label }}
+                                </span>
+                            </div>
+
+                            <div class="p-2.5 rounded-xl bg-surface-100/70 dark:bg-surface-850 border border-surface-200/50 dark:border-surface-800/60 text-xs space-y-1">
+                                <div class="flex items-center gap-1.5 text-surface-700 dark:text-surface-300 font-semibold truncate">
+                                    <Icon name="calendar" class="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                                    <span class="truncate">{{ enrollment.schedule_text || enrollment.group_name }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 pt-2.5 border-t border-surface-200/60 dark:border-surface-800 flex items-center justify-between text-[11px]">
+                            <span class="text-surface-400 font-mono">{{ enrollment.enrolled_at_formatted }}</span>
+                            <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <span>{{ enrollment.status }}</span>
+                                <span>✓</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -361,11 +432,28 @@ function autoScheduleGroup(groupId) {
                                     <!-- Group Info -->
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
-                                            <h5 class="font-extrabold text-base text-surface-900 dark:text-white">
-                                                {{ group.name }}
-                                            </h5>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <h5 class="font-extrabold text-base text-surface-900 dark:text-white">
+                                                    {{ group.name }}
+                                                </h5>
+                                                <span
+                                                    v-if="group.is_private"
+                                                    class="px-2 py-0.5 rounded-full text-[10px] font-black bg-accent-500/10 text-accent-700 dark:text-accent-300 border border-accent-500/20"
+                                                >
+                                                    حصة خاصة 1-on-1 (فردي) 🎯
+                                                </span>
+                                            </div>
                                             <p class="text-xs text-surface-400 mt-0.5">
-                                                سعة المجموعة: {{ group.capacity }} مقعد · المشتركون: {{ group.students_count }} طالب
+                                                <template v-if="group.is_private">
+                                                    سعة المقعد: طالب واحد فقط ·
+                                                    <span v-if="group.students?.length" class="text-accent-600 dark:text-accent-400 font-bold">
+                                                        المقعد محجوز للطالب: {{ group.students[0].name }}
+                                                    </span>
+                                                    <span v-else class="text-surface-400">المقعد متاح للحجز</span>
+                                                </template>
+                                                <template v-else>
+                                                    سعة المجموعة: {{ group.capacity }} مقعد · المشتركون: {{ group.students_count }} طالب
+                                                </template>
                                             </p>
                                         </div>
 
