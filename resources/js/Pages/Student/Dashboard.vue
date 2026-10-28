@@ -114,7 +114,7 @@ const greetingTime = computed(() => {
             </section>
 
             <!-- ── Continue Learning Hero (متابعة التعلم) ─────────── -->
-            <section v-if="continueLearning" class="card p-5 sm:p-6 border-primary-500/30 bg-gradient-to-r from-primary-950/40 via-surface-900 to-surface-900 shadow-lg">
+            <section v-if="continueLearning && continueLearning.group_id" class="card p-5 sm:p-6 border-primary-500/30 bg-gradient-to-r from-primary-950/40 via-surface-900 to-surface-900 shadow-lg">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-5">
                     <div class="min-w-0 space-y-1.5">
                         <div class="flex items-center gap-2 flex-wrap">
@@ -237,7 +237,7 @@ const greetingTime = computed(() => {
                                     </div>
                                     <div class="min-w-0">
                                         <h3 class="font-bold text-white text-sm truncate">{{ sub.subject?.name }}</h3>
-                                        <p class="text-[11px] text-surface-400 truncate">{{ sub.group?.name }} · {{ sub.teacher?.name }}</p>
+                                        <p class="text-[11px] text-surface-400 truncate">{{ sub.group?.name ? sub.group.name + ' · ' : (sub.type === 'private' ? 'متابعة فردية · ' : '') }}{{ sub.teacher?.name }}</p>
                                     </div>
                                 </div>
 
@@ -266,21 +266,35 @@ const greetingTime = computed(() => {
 
                         <!-- Card Action -->
                         <div class="pt-3 border-t border-surface-800/80 flex items-center justify-between gap-2">
-                            <Link
-                                :href="route('student.learn', { groupId: sub.group?.id, progress: 1 })"
-                                class="text-xs text-surface-400 hover:text-white font-bold flex items-center gap-1"
-                            >
-                                <Icon name="chart" class="w-3.5 h-3.5" />
-                                <span>الخريطة</span>
-                            </Link>
-                            <Link
-                                v-if="sub.group"
-                                :href="route('student.learn', { groupId: sub.group.id })"
-                                class="btn-primary btn-xs font-bold flex items-center gap-1"
-                            >
-                                <span>دخول غرفة الشرح</span>
-                                <span>←</span>
-                            </Link>
+                            <template v-if="sub.group?.id">
+                                <Link
+                                    :href="route('student.learn', { groupId: sub.group.id, progress: 1 })"
+                                    class="text-xs text-surface-400 hover:text-white font-bold flex items-center gap-1"
+                                >
+                                    <Icon name="chart" class="w-3.5 h-3.5" />
+                                    <span>الخريطة</span>
+                                </Link>
+                                <Link
+                                    :href="route('student.learn', { groupId: sub.group.id })"
+                                    class="btn-primary btn-xs font-bold flex items-center gap-1"
+                                >
+                                    <span>دخول غرفة الشرح</span>
+                                    <span>←</span>
+                                </Link>
+                            </template>
+                            <template v-else>
+                                <span class="text-xs text-surface-400 font-bold flex items-center gap-1">
+                                    <Icon name="courses" class="w-3.5 h-3.5" />
+                                    <span>{{ sub.type === 'private' ? 'متابعة فردية (برايفت)' : 'اشتراك مفعل' }}</span>
+                                </span>
+                                <Link
+                                    :href="route('student.schedule')"
+                                    class="btn-primary btn-xs font-bold flex items-center gap-1"
+                                >
+                                    <span>مواعيد الحصص</span>
+                                    <span>←</span>
+                                </Link>
+                            </template>
                         </div>
                     </div>
                 </div>
