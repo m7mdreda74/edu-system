@@ -805,9 +805,9 @@ function chipsFor(unit) {
     const quiz = unit.electronic_exam;
 
     return [
-        { key: 'video',    label: 'فيديو',    icon: 'video',      tone: unit.readiness.video ? 'ok' : 'off',    title: 'فيديو الشرح في كل درس' },
+        { key: 'video',    label: 'فيديو',    icon: 'video',      tone: unit.readiness.video ? 'ok' : 'off',    title: 'الشرح والمشاهدة في كل درس' },
         { key: 'booklet',  label: 'ملزمة',    icon: 'book',       tone: unit.readiness.booklet ? 'ok' : 'off',  title: 'ملزمة الشرح في كل درس' },
-        { key: 'homework', label: 'واجب',     icon: 'attachment', tone: unit.readiness.homework ? 'ok' : 'off', title: 'واجب لكل درس' },
+        { key: 'homework', label: 'تقييم',    icon: 'attachment', tone: unit.readiness.homework ? 'ok' : 'off', title: 'تقييم لكل درس' },
         {
             key: 'quiz', label: 'إلكتروني', icon: 'calculator',
             tone:  quiz ? (quiz.is_ready ? 'ok' : 'partial') : 'off',
@@ -919,7 +919,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                 <div>
                     <h2 class="font-bold text-lg text-surface-900 dark:text-white">إنشاء هيكل الفصل</h2>
                     <p class="input-hint">
-                        يُنشئ الوحدات ودروسها فارغة ومرقّمة، ومعها نموذج اختبار إلكتروني لكل وحدة، ثم ترفع أنت الفيديو والملزمة والواجب في كل درس.
+                        يُنشئ الوحدات ودروسها فارغة ومرقّمة، ومعها نموذج اختبار إلكتروني لكل وحدة، ثم ترفع أنت الشرح والمشاهدة وملزمة الشرح والتقييم في كل درس.
                     </p>
                 </div>
 
@@ -1149,9 +1149,9 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
 
                                 <!-- The four slots -->
                                 <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <!-- فيديو الشرح -->
+                                    <!-- الشرح والمشاهدة -->
                                     <div class="min-w-0">
-                                        <div :class="SLOT_HEAD"><Icon name="video" class="w-3.5 h-3.5" /><span>فيديو الشرح</span></div>
+                                        <div :class="SLOT_HEAD"><Icon name="video" class="w-3.5 h-3.5" /><span>الشرح والمشاهدة</span></div>
 
                                         <div v-if="editingVideo[lesson.id]" :class="SLOT_BOX">
                                             <input
@@ -1237,9 +1237,9 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                         <p v-if="firstError(`lesson:${lesson.id}:booklet`)" class="error-msg">{{ firstError(`lesson:${lesson.id}:booklet`) }}</p>
                                     </div>
 
-                                    <!-- الواجب -->
+                                    <!-- التقييم الدوري -->
                                     <div class="min-w-0">
-                                        <div :class="SLOT_HEAD"><Icon name="attachment" class="w-3.5 h-3.5" /><span>الواجب</span></div>
+                                        <div :class="SLOT_HEAD"><Icon name="attachment" class="w-3.5 h-3.5" /><span>التقييم الدوري</span></div>
 
                                         <div v-if="lesson.homework" :class="SLOT_BOX">
                                             <a :href="lesson.homework.file_path" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-xs text-primary-600 dark:text-primary-400 hover:underline min-w-0">
@@ -1300,14 +1300,14 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                                                     <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" class="hidden" @change="uploadHomework(lesson, $event)" />
                                                     <span>استبدال</span>
                                                 </label>
-                                                <button type="button" class="btn-ghost btn-sm text-red-500" @click="removeSheet(lesson.homework, 'حذف واجب هذا الدرس؟')">حذف</button>
+                                                <button type="button" class="btn-ghost btn-sm text-red-500" @click="removeSheet(lesson.homework, 'حذف تقييم هذا الدرس؟')">حذف</button>
                                             </div>
                                         </div>
 
                                         <label v-else :class="SLOT_EMPTY">
                                             <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.zip,.png,.jpg,.jpeg,application/pdf,application/msword,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg" class="hidden" @change="uploadHomework(lesson, $event)" />
                                             <Icon name="plus" class="w-5 h-5 text-surface-400" />
-                                            <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">ارفع ملف الواجب</span>
+                                            <span class="text-[11px] font-semibold text-surface-500 dark:text-surface-400">ارفع ملف التقييم</span>
                                             <span class="text-[10px] text-surface-400">الموعد والدرجة بعد الرفع</span>
                                         </label>
 

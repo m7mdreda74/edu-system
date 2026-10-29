@@ -68,6 +68,7 @@ use App\Http\Controllers\Teacher\PerformanceAnalyticsController;
 use App\Http\Controllers\Teacher\QuestionBankController;
 use App\Http\Controllers\Teacher\QuizBuilderController;
 use App\Http\Controllers\Teacher\ResourceLibraryController as TeacherResourceLibraryController;
+use App\Http\Controllers\Teacher\TeacherAssessmentController;
 use App\Http\Controllers\Teacher\TeacherGroupController;
 use App\Http\Controllers\Teacher\TeacherStudentController;
 use App\Http\Controllers\Teacher\TeachingScheduleController;
@@ -320,6 +321,13 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
         ->name('groups.roster')
         ->middleware('throttle:60,1');
     Route::get('/my-students', [TeacherStudentController::class, 'index'])->name('students.index');
+    Route::get('/assessments', [TeacherAssessmentController::class, 'index'])->name('assessments.index');
+    Route::post('/assessments', [TeacherAssessmentController::class, 'store'])->name('assessments.store');
+    Route::put('/assessments/{worksheet}', [TeacherAssessmentController::class, 'update'])->name('assessments.update');
+    Route::post('/assessments/{worksheet}/toggle-status', [TeacherAssessmentController::class, 'toggleStatus'])->name('assessments.toggle-status');
+    Route::delete('/assessments/{worksheet}', [TeacherAssessmentController::class, 'destroy'])->name('assessments.destroy');
+    Route::post('/assessments/quizzes/{quiz}/toggle-status', [TeacherAssessmentController::class, 'toggleQuizStatus'])->name('assessments.quizzes.toggle-status');
+    Route::post('/assessments/submissions/{submission}/grade', [TeacherAssessmentController::class, 'gradeSubmission'])->name('assessments.grade');
     Route::get('/gradebook/export', [GradebookController::class, 'export'])->name('gradebook.export');
     Route::post('/gradebook/quiz-attempts/{attemptId}/feedback', [GradebookController::class, 'updateQuizFeedback'])
         ->name('gradebook.quiz-feedback')

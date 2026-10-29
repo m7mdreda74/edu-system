@@ -61,7 +61,7 @@ const greetingTime = computed(() => {
                         مرحباً، {{ $page.props.auth.user?.name }} 👋
                     </h1>
                     <p class="text-xs sm:text-sm text-surface-500 dark:text-surface-400 mt-0.5">
-                        تابع دراستك، أنجز واجباتك، واستعد لحصصك واختباراتك القادمة بكل ثقة.
+                        تابع دراستك، أنجز تقييماتك، واستعد لحصصك واختباراتك القادمة بكل ثقة.
                     </p>
                 </div>
 
@@ -71,7 +71,7 @@ const greetingTime = computed(() => {
                         class="btn-primary btn-sm flex items-center gap-1.5 font-bold shadow-md shadow-primary-500/20"
                     >
                         <Icon name="assignment" class="w-4 h-4" />
-                        <span>الواجبات والتقييمات</span>
+                        <span>التقييمات والاختبارات</span>
                         <span
                             v-if="stats.totalPendingEvaluations > 0"
                             class="ms-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-red-600 text-white"
@@ -132,7 +132,7 @@ const greetingTime = computed(() => {
                             {{ continueLearning.lesson_title }}
                         </h2>
                         <p class="text-xs text-surface-400">
-                            {{ continueLearning.watched_seconds > 0 ? 'استأنف مشاهدة الشرح وحل الواجبات المرتبطة به.' : 'ابدأ دراسة هذا الدرس واستكشف المذكرة والكويز.' }}
+                            {{ continueLearning.watched_seconds > 0 ? 'استأنف مشاهدة الشرح وحل التقييمات المرتبطة به.' : 'ابدأ دراسة هذا الدرس واستكشف المذكرة والكويز.' }}
                         </p>
                     </div>
 
@@ -169,17 +169,17 @@ const greetingTime = computed(() => {
                     <div class="mt-1 text-[10px] text-surface-400">مجموعات وفصول نشطة</div>
                 </Link>
 
-                <!-- الواجبات والتقييمات المطلوبة -->
+                <!-- التقييمات والاختبارات المطلوبة -->
                 <Link :href="route('student.assessments')" class="card p-4 transition-all hover:border-amber-500/40">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] text-surface-400 font-bold">واجبات وتقييمات مطلوبة</span>
+                        <span class="text-[11px] text-surface-400 font-bold">تقييمات واختبارات مطلوبة</span>
                         <div class="p-2 rounded-xl bg-amber-500/10 text-amber-400">
                             <Icon name="assignment" class="w-4 h-4" />
                         </div>
                     </div>
                     <div class="mt-2 text-2xl font-black text-amber-500">{{ stats.totalPendingEvaluations ?? 0 }}</div>
                     <div class="mt-1 text-[10px] text-surface-400">
-                        {{ stats.pendingAssignments ?? 0 }} واجب · {{ stats.pendingAssessments ?? 0 }} اختبار متاح
+                        {{ stats.pendingAssignments ?? 0 }} تقييم · {{ stats.pendingAssessments ?? 0 }} اختبار متاح
                     </div>
                 </Link>
 
@@ -367,7 +367,7 @@ const greetingTime = computed(() => {
                         📝
                     </div>
                     <div class="min-w-0">
-                        <div class="text-xs font-bold text-white truncate">الواجبات والتقييمات</div>
+                        <div class="text-xs font-bold text-white truncate">التقييمات والاختبارات</div>
                         <div class="text-[10px] text-surface-400">مركز التقييم</div>
                     </div>
                 </Link>

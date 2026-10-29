@@ -112,6 +112,7 @@ const menuGroups = computed(() => {
                     { label: 'تحديد المواعيد', icon: 'calendar', href: route('teacher.teaching-schedule'), name: 'teacher.teaching-schedule' },
                     { label: 'مجموعاتي',     icon: 'courses',   href: route('teacher.groups.index'), name: 'teacher.groups.index' },
                     { label: 'طلابي',        icon: 'student',   href: route('teacher.students.index'), name: 'teacher.students.index' },
+                    { label: 'التقييمات والاختبارات', icon: 'assignment', href: route('teacher.assessments.index'), name: 'teacher.assessments' },
                     { label: 'دفتر الدرجات', icon: 'assignment', href: route('teacher.gradebook'), name: 'teacher.gradebook' },
                     { label: 'تحليل الأداء', icon: 'chart', href: route('teacher.analytics'), name: 'teacher.analytics' },
                     { label: 'الإعلانات', icon: 'chat', href: route('teacher.announcements'), name: 'teacher.announcements' },
@@ -139,7 +140,7 @@ const menuGroups = computed(() => {
                 links: [
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
                     { label: 'مواد صفي', icon: 'book',      href: route('student.my-grade'),   name: 'student.my-grade' },
-                    { label: 'الواجبات والتقييمات', icon: 'assignment', href: route('student.assessments'), name: 'student.assessments' },
+                    { label: 'التقييمات', icon: 'assignment', href: route('student.assessments'), name: 'student.assessments' },
                     { label: 'الموارد التعليمية', icon: 'book', href: route('student.resources'), name: 'student.resources' },
                     { label: 'جدول حصصي', icon: 'calendar', href: route('student.schedule'),   name: 'student.schedule' },
                     { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),         name: 'chat.index' },
@@ -160,6 +161,10 @@ const isActive = (name) => {
 
     if (nameLower === 'student.assessments') {
         return url.includes('assessments') || url.includes('assignments') || compName.includes('assessments') || compName.includes('assignments');
+    }
+
+    if (nameLower === 'teacher.assessments') {
+        return url.includes('teacher/assessments') || compName.includes('teacher/assessments');
     }
     
     const parts = nameLower.split('.');

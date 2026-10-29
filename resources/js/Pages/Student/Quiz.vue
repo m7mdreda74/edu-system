@@ -729,7 +729,7 @@ onUnmounted(() => {
                             إعادة المحاولة (متبقي {{ remainingAttempts }})
                         </button>
                         <Link :href="route('student.assessments')" class="btn-primary shadow-glow-primary">
-                            العودة للواجبات والتقييمات
+                            العودة إلى التقييمات والاختبارات
                         </Link>
                         <Link :href="route('dashboard')" class="btn-outline">
                             اللوحة الرئيسية

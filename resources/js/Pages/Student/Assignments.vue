@@ -58,13 +58,13 @@ function formatDate(value) {
 </script>
 
 <template>
-    <Head title="واجباتي" />
+    <Head title="التقييمات" />
 
     <DashboardLayout>
         <div class="space-y-7">
             <header>
-                <h1 class="text-2xl font-black text-surface-900 dark:text-white">مركز واجباتي</h1>
-                <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">كل الواجبات المرتبطة باشتراكاتك الفعّالة وحالتها الحالية.</p>
+                <h1 class="text-2xl font-black text-surface-900 dark:text-white">التقييمات</h1>
+                <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">كل التقييمات المرتبطة باشتراكاتك الفعّالة وحالتها الحالية.</p>
             </header>
 
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -113,20 +113,14 @@ function formatDate(value) {
 
                         <div class="flex shrink-0 flex-wrap items-center gap-2">
                             <a v-if="assignment.worksheet_file" :href="assignment.worksheet_file" class="btn-outline btn-sm" target="_blank" rel="noopener">
-                                ورقة الواجب
+                                ورقة الأسئلة
                             </a>
                             <Link
-                                v-if="assignment.group_id"
-                                :href="route('student.learn', {
-                                    groupId: assignment.group_id,
-                                    worksheet: assignment.id,
-                                    term: assignment.term_id,
-                                })"
-                                class="btn-primary btn-sm"
+                                :href="route('student.assessments')"
+                                class="btn-primary btn-sm font-bold"
                             >
-                                فتح الواجب
+                                تسليم التقييم
                             </Link>
-                            <Link v-else :href="route('student.my-classes')" class="btn-primary btn-sm">فتح الحصص</Link>
                         </div>
                     </div>
 
@@ -152,7 +146,7 @@ function formatDate(value) {
                             class="mt-2 flex items-center gap-1.5 rounded-lg bg-red-500/10 px-2.5 py-1.5 text-[11px] font-medium text-red-600 dark:text-red-400 border border-red-500/20"
                         >
                             <Icon name="alert-triangle" class="h-3.5 w-3.5 flex-shrink-0" />
-                            <span>{{ assignment.late_notice || 'تنبيه: تم تسليم هذا الواجب بعد انتهاء الموعد المحدد (تأخر في التسليم).' }}</span>
+                            <span>{{ assignment.late_notice || 'تنبيه: تم تسليم هذا التقييم بعد انتهاء الموعد المحدد (تأخر في التسليم).' }}</span>
                         </div>
 
                         <p v-if="assignment.submission.teacher_feedback" class="mt-2 text-surface-700 dark:text-surface-200">
@@ -167,8 +161,8 @@ function formatDate(value) {
 
             <div v-else class="card p-10 text-center">
                 <Icon name="book" class="mx-auto mb-3 h-10 w-10 text-surface-300" />
-                <h2 class="font-bold text-surface-800 dark:text-surface-100">لا توجد واجبات في هذا التصنيف</h2>
-                <p class="mt-1 text-sm text-surface-400">ستظهر الواجبات المنشورة هنا بعد وجود اشتراك فعّال.</p>
+                <h2 class="font-bold text-surface-800 dark:text-surface-100">لا توجد تقييمات في هذا التصنيف</h2>
+                <p class="mt-1 text-sm text-surface-400">ستظهر التقييمات المنشورة هنا بعد وجود اشتراك فعّال.</p>
             </div>
         </div>
     </DashboardLayout>

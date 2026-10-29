@@ -46,24 +46,27 @@ class AssessmentController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $worksheet = Worksheet::where('type', Worksheet::TYPE_PAPER_EXAM)
-            ->with('unit')
-            ->findOrFail($worksheetId);
+        $worksheet = Worksheet::with('unit')->findOrFail($worksheetId);
 
         $assignmentId = $worksheet->unit?->teaching_assignment_id;
 
         abort_if(
             ! $assignmentId || ! $user->hasActiveSubscriptionToAssignment((int) $assignmentId),
             403,
-            'غير مصرح لك بتسليم هذا الاختبار.'
+            'غير مصرح لك بتسليم هذا التقييم.'
         );
 
-        abort_if(! $worksheet->requires_submission, 403, 'هذا الاختبار لا يتطلب تسليماً.');
+        abort_if(! $worksheet->requires_submission, 403, 'هذا التقييم لا يتطلب تسليماً.');
+        abort_if($worksheet->is_active === false, 403, 'هذا التقييم معلق حالياً.');
+
+        if ($worksheet->available_from !== null && now()->isBefore($worksheet->available_from)) {
+            abort(403, 'عفواً، لم يحن موعد بدء هذا التقييم بعد (يبدأ في ' . $worksheet->available_from->format('Y-m-d H:i') . ').');
+        }
 
         $isLate = $worksheet->due_date !== null && now()->startOfDay()->isAfter($worksheet->due_date);
 
         if ($isLate && ! ($worksheet->allow_late_submission ?? true)) {
-            abort(403, 'عفواً، انتهى موعد التسليم المحدد ولا يُسمح بالتسليم المتأخر لهذا الاختبار.');
+            abort(403, 'عفواً، انتهى موعد التسليم المحدد ولا يُسمح بالتسليم بعد انتهاء الوقت.');
         }
 
         $existing = WorksheetSubmission::where('worksheet_id', $worksheet->id)
@@ -72,7 +75,7 @@ class AssessmentController extends Controller
 
         $maxAttempts = (int) ($worksheet->max_attempts > 0 ? $worksheet->max_attempts : 1);
         if ($existing && $existing->isGraded() && $maxAttempts <= 1) {
-            abort(403, 'تم تصحيح إجابتك بالفعل ولا يمكن إعادة التسليم وفقاً لإعدادات المعلم.');
+            abort(403, 'تم رصد وتصحيح درجتك بالفعل ولا يمكن إعادة التسليم وفقاً لإعدادات المعلم.');
         }
 
         $path = $request->file('submitted_file')->store('submissions', 'local');
@@ -90,8 +93,8 @@ class AssessmentController extends Controller
         );
 
         $message = $isLate
-            ? 'تم تسليم إجابة الاختبار بنجاح (ملاحظة: تم التسليم متأخراً بعد انتهاء الموعد المحدد).'
-            : 'تم تسليم إجابة الاختبار المقالي بنجاح.';
+            ? 'تم التسليم بنجاح (ملاحظة: تم التسليم بعد الموعد المحدد).'
+            : 'تم التسليم بنجاح.';
 
         return back()->with('success', $message);
     }

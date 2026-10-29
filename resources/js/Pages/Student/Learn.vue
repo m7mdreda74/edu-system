@@ -627,7 +627,7 @@ function uploadAnswer(sheetId) {
                             <div class="text-center flex flex-col items-center justify-center">
                                 <Icon name="video" class="w-16 h-16 text-surface-500 mb-4" />
                                 <p v-if="!activeLesson">لم يُنشر محتوى هذا الفصل بعد.</p>
-                                <p v-else-if="!activeLesson.has_video">لا يوجد فيديو شرح لهذا الدرس — راجع الملزمة والواجب.</p>
+                                <p v-else-if="!activeLesson.has_video">لا يوجد شرح مسجل لهذا الدرس — راجع ملزمة الشرح.</p>
                                 <p v-else>الفيديو غير متاح حالياً</p>
                             </div>
                         </div>
@@ -674,13 +674,13 @@ function uploadAnswer(sheetId) {
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
                                 :class="activeTab === 'resources' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
                         >
-                            الموارد والمذكرات ({{ resourceCount }})
+                            ملزمة الشرح وموارد الدرس ({{ resourceCount }})
                         </button>
                         <button type="button" @click="activeTab = 'evaluations'"
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
                                 :class="activeTab === 'evaluations' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
                         >
-                            الواجب والتقييم ({{ evaluationCount }})
+                            التقييمات والاختبارات ({{ evaluationCount }})
                         </button>
                         <button type="button" @click="activeTab = 'questions'"
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
@@ -767,7 +767,7 @@ function uploadAnswer(sheetId) {
                         </div>
                     </div>
 
-                    <!-- Tab Content: Evaluations (الواجب والتقييم: كويز الدرس والواجب المنزلي) -->
+                    <!-- Tab Content: Evaluations (التقييمات والاختبارات) -->
                     <div v-if="activeTab === 'evaluations'" class="space-y-6">
 
                         <!-- 1. كويز الدرس الإلكتروني -->
@@ -827,13 +827,13 @@ function uploadAnswer(sheetId) {
                             </div>
                         </div>
 
-                        <!-- 2. واجب الدرس -->
+                        <!-- 2. تقييم الدرس الدوري -->
                         <div v-if="activeLesson.homework" class="bg-surface-900 border border-surface-800 rounded-2xl p-5 space-y-4">
                             <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2 mb-2 flex-wrap">
                                         <span class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                            واجب الدرس
+                                            تقييم الدرس الدوري
                                         </span>
                                         <span v-if="activeLesson.homework.requires_submission"
                                               class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-red-500/10 text-red-400 border border-red-500/20">
@@ -846,54 +846,41 @@ function uploadAnswer(sheetId) {
                                         <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-surface-800 text-surface-300 border border-surface-700">
                                             المحاولات المتاحة: {{ activeLesson.homework.max_attempts }}
                                         </span>
-                                        <span v-if="activeLesson.homework.submission?.is_late"
-                                              class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1">
-                                            <span>⚠️</span>
-                                            <span>تأخر في التسليم</span>
-                                        </span>
-                                        <span v-else-if="!activeLesson.homework.submission && activeLesson.homework.is_overdue"
-                                              class="text-[10px] px-2.5 py-0.5 rounded font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1">
-                                            <span>⚠️</span>
-                                            <span>متأخر عن موعد التسليم</span>
-                                        </span>
                                     </div>
                                     <h4 class="font-bold text-white text-base">{{ activeLesson.homework.title }}</h4>
                                     <div class="text-xs text-surface-400 mt-1 flex items-center gap-3 flex-wrap">
-                                        <span v-if="activeLesson.homework.due_date" :class="activeLesson.homework.is_overdue && !activeLesson.homework.submission ? 'text-red-400 font-bold' : ''">
+                                        <span v-if="activeLesson.homework.due_date">
                                             آخر موعد: {{ formatDate(activeLesson.homework.due_date) }}
                                         </span>
                                         <span v-if="activeLesson.homework.max_score">الدرجة الكاملة: {{ activeLesson.homework.max_score }}</span>
                                     </div>
                                 </div>
-                                <a :href="activeLesson.homework.file_path"
-                                   target="_blank"
-                                   rel="noopener"
-                                   class="btn btn-sm bg-surface-800 text-white hover:bg-surface-700 flex-shrink-0">
-                                    <Icon name="download" class="w-4 h-4" />
-                                    تحميل ورقة الواجب
-                                </a>
+                                <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                                    <a v-if="activeLesson.homework.file_path"
+                                       :href="activeLesson.homework.file_path"
+                                       target="_blank"
+                                       rel="noopener"
+                                       class="btn btn-sm bg-surface-800 text-white hover:bg-surface-700">
+                                        <Icon name="download" class="w-4 h-4" />
+                                        تحميل ورقة الأسئلة
+                                    </a>
+                                    <Link
+                                        :href="route('student.assessments')"
+                                        class="btn btn-sm bg-amber-600 hover:bg-amber-700 text-white font-bold flex items-center gap-1.5"
+                                    >
+                                        <span>الانتقال لمركز التقييمات للتسليم</span>
+                                        <span>←</span>
+                                    </Link>
+                                </div>
                             </div>
 
-                            <!-- Overdue Alert when not submitted yet -->
-                            <div v-if="!activeLesson.homework.submission && activeLesson.homework.is_overdue"
-                                 class="p-3 rounded-xl border text-xs flex items-center gap-2"
-                                 :class="activeLesson.homework.allow_late_submission ? 'bg-amber-950/40 border-amber-800/50 text-amber-300' : 'bg-red-950/40 border-red-800/50 text-red-300'">
-                                <Icon name="alert-triangle" class="w-4 h-4 shrink-0" :class="activeLesson.homework.allow_late_submission ? 'text-amber-400' : 'text-red-400'" />
-                                <span v-if="activeLesson.homework.allow_late_submission">
-                                    ⚠️ تنبيه: انتهى موعد التسليم المحدد ({{ formatDate(activeLesson.homework.due_date) }}). يمكنك إرفاق الحل الآن مع تسجيل تسليم متأخر.
-                                </span>
-                                <span v-else>
-                                    🚫 تنبيه: انتهى موعد التسليم المحدد ولا يُسمح بالتسليم المتأخر لهذا الواجب.
-                                </span>
-                            </div>
-
-                            <!-- Submission state -->
+                            <!-- Submission state summary -->
                             <div v-if="activeLesson.homework.submission"
                                  class="bg-surface-950 border border-surface-800 rounded-xl p-4 text-xs space-y-2">
                                 <div class="flex items-center justify-between flex-wrap gap-2">
                                     <div class="font-bold flex items-center gap-1.5" :class="activeLesson.homework.submission.is_late ? 'text-amber-400' : 'text-green-400'">
                                         <Icon :name="activeLesson.homework.submission.is_late ? 'alert-triangle' : 'success'" class="w-4 h-4" />
-                                        <span>{{ activeLesson.homework.submission.is_late ? 'تم تسليم الحل (متأخر)' : 'تم تسليم الحل' }}</span>
+                                        <span>{{ activeLesson.homework.submission.is_late ? 'تم التسليم (متأخر)' : 'تم التسليم' }}</span>
                                         <span class="text-surface-500 font-normal">{{ formatDateTime(activeLesson.homework.submission.submitted_at) }}</span>
                                     </div>
                                     <span v-if="activeLesson.homework.submission.is_late"
@@ -902,65 +889,26 @@ function uploadAnswer(sheetId) {
                                     </span>
                                 </div>
 
-                                <div v-if="activeLesson.homework.submission.is_late"
-                                     class="p-2.5 rounded-lg bg-red-950/30 border border-red-900/40 text-red-300 text-[11px] flex items-center gap-1.5">
-                                    <Icon name="alert-circle" class="w-3.5 h-3.5 flex-shrink-0 text-red-400" />
-                                    <span>ملاحظة: تم تسليم هذا الواجب بعد انتهاء الموعد المحدد (ديدلاين الواجب).</span>
-                                </div>
-
-                                <a :href="activeLesson.homework.submission.file_path" target="_blank" rel="noopener"
-                                   class="text-primary-400 hover:text-primary-300 inline-flex items-center gap-1">
-                                    <Icon name="file" class="w-3.5 h-3.5" />
-                                    عرض الملف الذي سلّمته
-                                </a>
                                 <div v-if="activeLesson.homework.submission.is_graded" class="font-bold text-primary-400 pt-1">
                                     الدرجة المرصودة: {{ activeLesson.homework.submission.score }}
                                     <span v-if="activeLesson.homework.max_score">/ {{ activeLesson.homework.max_score }}</span>
                                 </div>
-                                <div v-else class="text-surface-400 pt-1">في انتظار تصحيح المدرس.</div>
+                                <div v-else class="text-surface-400 pt-1">في انتظار مراجعة وتصحيح المعلم.</div>
                                 <div v-if="activeLesson.homework.submission.teacher_feedback" class="text-surface-400 italic">
-                                    تعليق المدرس: "{{ activeLesson.homework.submission.teacher_feedback }}"
+                                    تعليق المعلم: "{{ activeLesson.homework.submission.teacher_feedback }}"
                                 </div>
                             </div>
-
-                            <!-- Upload / re-upload -->
-                            <div v-if="activeLesson.homework.requires_submission && activeLesson.homework.can_submit" class="space-y-2">
-                                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                                    <input
-                                        type="file"
-                                        accept=".pdf,.docx,.png,.jpg,.jpeg"
-                                        :key="`hw-${activeLesson.homework.id}-${activeLesson.homework.submission?.submitted_at ?? 'new'}`"
-                                        @change="onFileChange($event, activeLesson.homework.id)"
-                                        class="text-xs text-surface-400 bg-surface-950 border border-surface-800 rounded-xl px-3 py-2 flex-1 min-w-0"
-                                    />
-                                    <button type="button" @click="uploadAnswer(activeLesson.homework.id)"
-                                            :disabled="uploadingSheet === activeLesson.homework.id"
-                                            class="btn-primary btn-sm flex-shrink-0">
-                                        {{ uploadingSheet === activeLesson.homework.id
-                                            ? 'جارٍ الرفع...'
-                                            : (activeLesson.homework.submission ? 'إعادة التسليم' : 'تسليم الحل') }}
-                                    </button>
-                                </div>
-                                <p class="text-[11px] text-surface-500">
-                                    PDF أو Word أو صورة، بحد أقصى 10 ميجابايت.
-                                    <span v-if="activeLesson.homework.submission" class="text-accent-300">إعادة التسليم تلغي الدرجة والتعليق السابقين.</span>
-                                </p>
-                                <p v-if="uploadNotices[activeLesson.homework.id]" class="text-[11px] text-red-400">
-                                    {{ uploadNotices[activeLesson.homework.id] }}
-                                </p>
-                                <p v-if="$page.props.errors?.submitted_file" class="text-[11px] text-red-400">
-                                    {{ $page.props.errors.submitted_file }}
-                                </p>
-                            </div>
-                            <div v-else-if="activeLesson.homework.requires_submission && !activeLesson.homework.can_submit"
-                                 class="p-3 rounded-xl bg-surface-950 border border-surface-800 text-xs text-surface-400">
-                                🚫 التسليم مغلق لهذا الواجب (انتهى موعد التسليم المحدد أو تم استنفاد المحاولات المتاحة).
+                            <div v-else class="p-3 rounded-xl bg-surface-950 border border-surface-800 text-xs text-surface-400 flex items-center justify-between gap-3">
+                                <span>يتم رفع ملف الإجابة والتسليم عبر صفحة التقييمات المخصصة.</span>
+                                <Link :href="route('student.assessments')" class="text-primary-400 hover:underline font-bold shrink-0">
+                                    تسليم الإجابة ←
+                                </Link>
                             </div>
                         </div>
 
                         <div v-if="!activeLesson.homework && !activeLesson.quiz"
                              class="text-center py-10 text-surface-500 text-sm">
-                            لا توجد واجبات أو كويزات تقييمية مرفقة بهذا الدرس.
+                            لا توجد تقييمات أو اختبارات مرفقة بهذا الدرس.
                         </div>
                     </div>
 
@@ -1207,7 +1155,7 @@ function uploadAnswer(sheetId) {
                                                 <span v-if="lesson.homework" class="flex items-center gap-0.5"
                                                       :class="lesson.homework.submission ? 'text-green-400/80' : 'text-amber-400/80'">
                                                     <Icon name="file" class="w-3 h-3" />
-                                                    {{ lesson.homework.submission ? 'واجب مُسلَّم' : 'واجب' }}
+                                                    {{ lesson.homework.submission ? 'تقييم مُسلَّم' : 'تقييم' }}
                                                 </span>
                                                 <span v-if="lesson.is_free_preview" class="text-accent-400/90 font-medium">معاينة مجانية</span>
                                             </div>
@@ -1537,7 +1485,7 @@ function uploadAnswer(sheetId) {
                                                 </span>
                                                 <span v-if="lesson.homework" :class="lesson.homework.submission ? 'text-green-400' : 'text-amber-400'" class="flex items-center gap-1">
                                                     <Icon name="file" class="w-3 h-3" />
-                                                    {{ lesson.homework.submission ? 'واجب مُسلَّم' : 'واجب' }}
+                                                    {{ lesson.homework.submission ? 'تقييم مُسلَّم' : 'تقييم' }}
                                                 </span>
                                             </div>
                                         </div>

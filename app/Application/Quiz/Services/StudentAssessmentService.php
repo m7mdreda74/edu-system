@@ -22,12 +22,12 @@ class StudentAssessmentService
      */
     public function forStudent(User $student): array
     {
-        $assignmentIds = Subscription::active()
+        $subscriptions = Subscription::active()
             ->where('student_id', $student->id)
-            ->pluck('teaching_assignment_id')
-            ->filter()
-            ->unique()
-            ->values();
+            ->get(['teaching_assignment_id', 'teaching_group_id']);
+
+        $assignmentIds = $subscriptions->pluck('teaching_assignment_id')->filter()->unique()->values();
+        $groupIds = $subscriptions->pluck('teaching_group_id')->filter()->unique()->values();
 
         if ($assignmentIds->isEmpty()) {
             return ['items' => collect(), 'summary' => $this->emptySummary()];
@@ -35,7 +35,10 @@ class StudentAssessmentService
 
         // 1. Electronic Quizzes / Exams
         $quizzes = Quiz::query()
-            ->where('is_active', true)
+            ->where(fn ($q) => $q->where('is_active', true)->orWhereNull('is_active'))
+            ->where(function ($q) use ($groupIds) {
+                $q->whereNull('teaching_group_id')->orWhereIn('teaching_group_id', $groupIds);
+            })
             ->whereHas('unit', fn ($query) => $query
                 ->whereIn('teaching_assignment_id', $assignmentIds)
                 ->where('is_published', true))
@@ -43,6 +46,7 @@ class StudentAssessmentService
                 'unit:id,teaching_assignment_id,title,order',
                 'unit.assignment.subject:id,name',
                 'unit.assignment.teacher:id,name',
+                'group:id,name',
                 'material:id,title',
                 'questions:id,quiz_id,points',
                 'attempts' => fn ($query) => $query
@@ -56,9 +60,13 @@ class StudentAssessmentService
         $quizItems = $quizzes
             ->map(fn (Quiz $quiz): array => $this->presentQuiz($quiz));
 
-        // 2. Paper / Essay Exams (اختبارات مقالية / ورقية)
+        // 2. Paper / Essay & Homework Assessments (تقييمات مقالية ودورية)
         $paperExams = Worksheet::query()
-            ->where('type', Worksheet::TYPE_PAPER_EXAM)
+            ->whereIn('type', [Worksheet::TYPE_PAPER_EXAM, Worksheet::TYPE_HOMEWORK])
+            ->where(fn ($q) => $q->where('is_active', true)->orWhereNull('is_active'))
+            ->where(function ($q) use ($groupIds) {
+                $q->whereNull('teaching_group_id')->orWhereIn('teaching_group_id', $groupIds);
+            })
             ->whereHas('unit', fn ($query) => $query
                 ->whereIn('teaching_assignment_id', $assignmentIds)
                 ->where('is_published', true))
@@ -66,6 +74,7 @@ class StudentAssessmentService
                 'unit:id,teaching_assignment_id,title,order',
                 'unit.assignment.subject:id,name',
                 'unit.assignment.teacher:id,name',
+                'group:id,name',
                 'material:id,title',
                 'submissions' => fn ($query) => $query
                     ->where('student_id', $student->id)
@@ -126,6 +135,8 @@ class StudentAssessmentService
             'subject' => $quiz->unit?->assignment?->subject?->only(['id', 'name']),
             'teacher' => $quiz->unit?->assignment?->teacher?->only(['id', 'name']),
             'unit' => $quiz->unit?->only(['id', 'title', 'order']),
+            'group' => $quiz->group?->only(['id', 'name']),
+            'teaching_group_id' => $quiz->teaching_group_id,
             'lesson' => $quiz->material?->only(['id', 'title']),
             'lesson_id' => $quiz->lesson_id,
             'allow_late_submission' => (bool) $quiz->allow_late_submission,
@@ -159,38 +170,50 @@ class StudentAssessmentService
         $isPastDue = $exam->due_date?->isPast() ?? false;
         $allowLate = (bool) ($exam->allow_late_submission ?? true);
         $maxAttempts = (int) ($exam->max_attempts > 0 ? $exam->max_attempts : 1);
+        $isUpcoming = $exam->available_from !== null && $exam->available_from->isFuture();
 
         $status = match (true) {
             $isGraded => 'completed',
             $hasSubmitted => 'in_progress',
+            $isUpcoming => 'upcoming',
             $isPastDue && ! $allowLate => 'closed',
             $isPastDue && $allowLate => 'available',
             default => 'available',
         };
 
-        $canSubmit = (bool) $exam->requires_submission && (! $isPastDue || $allowLate);
+        $canSubmit = (bool) $exam->requires_submission && ! $isUpcoming && (! $isPastDue || $allowLate);
+        $canStart = ! $isUpcoming && (! $isPastDue || $allowLate);
+
+        $typeLabel = match ($exam->type) {
+            Worksheet::TYPE_PAPER_EXAM => 'تقييم مقالي / ورقي',
+            Worksheet::TYPE_HOMEWORK => 'تقييم دوري',
+            default => 'تقييم دراسي',
+        };
 
         return [
             'id' => $exam->id,
-            'mode' => 'paper',
-            'type_label' => 'اختبار مقالي / ورقي',
+            'mode' => $exam->type === Worksheet::TYPE_PAPER_EXAM ? 'paper' : 'homework',
+            'type_label' => $typeLabel,
             'scope' => $scope['key'],
             'scope_label' => $scope['label'],
             'title' => $exam->title,
             'subject' => $exam->unit?->assignment?->subject?->only(['id', 'name']),
             'teacher' => $exam->unit?->assignment?->teacher?->only(['id', 'name']),
             'unit' => $exam->unit?->only(['id', 'title', 'order']),
+            'group' => $exam->group?->only(['id', 'name']),
+            'teaching_group_id' => $exam->teaching_group_id,
             'lesson' => $exam->material?->only(['id', 'title']),
             'lesson_id' => $exam->lesson_id,
             'allow_late_submission' => $allowLate,
             'max_attempts' => $maxAttempts,
             'file_url' => filled($exam->file_path) ? route('learning.worksheet.download', $exam->id) : null,
-            'due_date' => $exam->due_date?->toIso8601String(),
+            'available_from' => $exam->available_from?->toIso8601String(),
+            'due_date' => $exam->due_date?->toDateString(),
             'max_score' => (int) ($exam->max_score ?? 100),
             'requires_submission' => (bool) $exam->requires_submission,
             'status' => $status,
             'is_late' => $submission?->isLate() ?? false,
-            'can_start' => true,
+            'can_start' => $canStart,
             'can_submit' => $canSubmit,
             'submission' => $submission === null ? null : [
                 'id' => $submission->id,

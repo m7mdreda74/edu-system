@@ -25,6 +25,7 @@ class Quiz extends Model
     protected $fillable = [
         'curriculum_unit_id',
         'lesson_id',
+        'teaching_group_id',
         'title',
         'passing_score',
         'time_limit_minutes',
@@ -45,12 +46,18 @@ class Quiz extends Model
             'allow_late_submission' => 'boolean',
             'max_attempts'          => 'integer',
             'is_active'             => 'boolean',
+            'teaching_group_id'     => 'integer',
         ];
     }
 
     public function unit(): BelongsTo
     {
         return $this->belongsTo(CurriculumUnit::class, 'curriculum_unit_id');
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domain\Scheduling\Models\TeachingGroup::class, 'teaching_group_id');
     }
 
     public function material(): BelongsTo

@@ -94,7 +94,7 @@ function formatDueDate(dueDate) {
                         <span>التقويم الدراسي والجدول الأسبوعي</span>
                     </h1>
                     <p class="mt-1.5 text-sm text-surface-500 dark:text-surface-400">
-                        متابعة مواعيد الحصص المباشرة، المواعيد النهائية لتسليم الواجبات، وأوقات الاختبارات المقررة.
+                        متابعة مواعيد الحصص المباشرة، المواعيد النهائية لتسليم التقييمات، وأوقات الاختبارات المقررة.
                     </p>
                 </div>
 
@@ -122,7 +122,7 @@ function formatDueDate(dueDate) {
                         :class="activeFilter === 'homework' ? 'bg-primary-600 text-white shadow-glow-primary' : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200'"
                         @click="activeFilter = 'homework'"
                     >
-                        الواجبات ({{ homework.length }})
+                        التقييمات الدورية ({{ homework.length }})
                     </button>
                     <button
                         type="button"
@@ -215,9 +215,9 @@ function formatDueDate(dueDate) {
                 <div class="flex items-center justify-between">
                     <h2 class="text-lg font-black text-surface-900 dark:text-white flex items-center gap-2">
                         <Icon name="edit" class="w-5 h-5 text-accent-500" />
-                        <span>مواعيد تسليم الواجبات والتطبيقات</span>
+                        <span>مواعيد تسليم التقييمات والتطبيقات</span>
                     </h2>
-                    <span class="text-xs font-bold text-surface-400">{{ homework.length }} واجب</span>
+                    <span class="text-xs font-bold text-surface-400">{{ homework.length }} تقييم</span>
                 </div>
 
                 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -255,7 +255,7 @@ function formatDueDate(dueDate) {
                                 :href="route('student.assessments')"
                                 class="btn-accent btn-xs px-3 py-1 font-bold"
                             >
-                                حل الواجب ←
+                                تسليم التقييم ←
                             </Link>
                         </div>
                     </div>
@@ -329,7 +329,7 @@ function formatDueDate(dueDate) {
                 </div>
                 <h3 class="text-base font-black text-surface-800 dark:text-surface-100">لا توجد مواعيد مسجلة حالياً</h3>
                 <p class="text-xs text-surface-500 dark:text-surface-400 max-w-sm">
-                    فور أن يقوم معلموك بجدولة حصص جديدة أو إضافة واجبات واختبارات بمواعيد تسليم، ستظهر في تقويمك فوراً.
+                    فور أن يقوم معلموك بجدولة حصص جديدة أو إضافة تقييمات واختبارات بمواعيد تسليم، ستظهر في تقويمك فوراً.
                 </p>
             </div>
         </div>

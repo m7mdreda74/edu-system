@@ -138,7 +138,7 @@ function close() {
                             :class="['flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5', activeTab === 'video' ? 'bg-white dark:bg-surface-900 text-primary-600 shadow-sm' : 'text-surface-600 dark:text-surface-400']"
                         >
                             <Icon name="video" class="w-4 h-4" />
-                            <span>فيديو الشرح</span>
+                            <span>الشرح والمشاهدة</span>
                         </button>
                         <button
                             type="button"
@@ -146,7 +146,7 @@ function close() {
                             :class="['flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5', activeTab === 'booklet' ? 'bg-white dark:bg-surface-900 text-primary-600 shadow-sm' : 'text-surface-600 dark:text-surface-400']"
                         >
                             <Icon name="book" class="w-4 h-4" />
-                            <span>المذكرة / الملزمة (PDF)</span>
+                            <span>ملزمة الشرح (PDF)</span>
                         </button>
                         <button
                             type="button"
@@ -154,7 +154,7 @@ function close() {
                             :class="['flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5', activeTab === 'homework' ? 'bg-white dark:bg-surface-900 text-primary-600 shadow-sm' : 'text-surface-600 dark:text-surface-400']"
                         >
                             <Icon name="check" class="w-4 h-4" />
-                            <span>واجب منزلي</span>
+                            <span>تقييم دوري</span>
                         </button>
                     </div>
 
