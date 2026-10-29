@@ -36,20 +36,27 @@ class TeacherAssessmentController extends Controller
 
         $selectedGroupId = $request->query('group_id') ? (int) $request->query('group_id') : null;
 
+        $hasWorksheetGroup = \Illuminate\Support\Facades\Schema::hasColumn('worksheets', 'teaching_group_id');
+        $hasQuizGroup = \Illuminate\Support\Facades\Schema::hasColumn('quizzes', 'teaching_group_id');
+
         // 1. Fetch Assessments (Worksheets: paper exams, homework, study sheets)
+        $worksheetWith = [
+            'material:id,title',
+            'unit:id,title,teaching_assignment_id',
+            'unit.assignment.subject:id,name',
+        ];
+        if ($hasWorksheetGroup) {
+            $worksheetWith[] = 'group:id,name';
+        }
+
         $worksheetsQuery = Worksheet::query()
             ->whereHas('unit', fn ($query) => $query->whereIn('teaching_assignment_id', $assignmentIds))
-            ->with([
-                'material:id,title',
-                'unit:id,title,teaching_assignment_id',
-                'unit.assignment.subject:id,name',
-                'group:id,name',
-            ])
+            ->with($worksheetWith)
             ->withCount(['submissions as total_submissions', 'submissions as graded_submissions' => function ($q) {
                 $q->whereNotNull('graded_at');
             }]);
 
-        if ($selectedGroupId) {
+        if ($selectedGroupId && $hasWorksheetGroup) {
             $worksheetsQuery->where(function ($q) use ($selectedGroupId) {
                 $q->where('teaching_group_id', $selectedGroupId)
                     ->orWhereNull('teaching_group_id');
@@ -58,6 +65,7 @@ class TeacherAssessmentController extends Controller
 
         $worksheets = $worksheetsQuery->latest('created_at')->get()
             ->map(function (Worksheet $sheet): array {
+                $isActive = (bool) ($sheet->getAttribute('is_active') ?? true);
                 return [
                     'id' => $sheet->id,
                     'title' => $sheet->title,
@@ -67,8 +75,8 @@ class TeacherAssessmentController extends Controller
                         Worksheet::TYPE_HOMEWORK => 'تقييم دوري',
                         default => 'ملزمة / شيت',
                     },
-                    'teaching_group_id' => $sheet->teaching_group_id,
-                    'group' => $sheet->group ? ['id' => $sheet->group->id, 'name' => $sheet->group->name] : null,
+                    'teaching_group_id' => $sheet->getAttribute('teaching_group_id'),
+                    'group' => $sheet->relationLoaded('group') && $sheet->group ? ['id' => $sheet->group->id, 'name' => $sheet->group->name] : null,
                     'lesson' => $sheet->material ? ['id' => $sheet->material->id, 'title' => $sheet->material->title] : null,
                     'unit' => $sheet->unit ? ['id' => $sheet->unit->id, 'title' => $sheet->unit->title] : null,
                     'subject' => $sheet->unit?->assignment?->subject ? ['id' => $sheet->unit->assignment->subject->id, 'name' => $sheet->unit->assignment->subject->name] : null,
@@ -78,8 +86,8 @@ class TeacherAssessmentController extends Controller
                     'max_attempts' => $sheet->max_attempts ?? 1,
                     'allow_late_submission' => (bool) $sheet->allow_late_submission,
                     'requires_submission' => (bool) $sheet->requires_submission,
-                    'is_active' => (bool) $sheet->is_active,
-                    'status_label' => $sheet->is_active ? 'منشور' : 'معلق / مسودة',
+                    'is_active' => $isActive,
+                    'status_label' => $isActive ? 'منشور' : 'معلق / مسودة',
                     'file_url' => filled($sheet->file_path) ? route('learning.worksheet.download', $sheet->id) : null,
                     'total_submissions' => $sheet->total_submissions,
                     'graded_submissions' => $sheet->graded_submissions,
@@ -88,17 +96,21 @@ class TeacherAssessmentController extends Controller
             });
 
         // 2. Fetch Quizzes (Electronic exams)
+        $quizWith = [
+            'material:id,title',
+            'unit:id,title,teaching_assignment_id',
+            'unit.assignment.subject:id,name',
+        ];
+        if ($hasQuizGroup) {
+            $quizWith[] = 'group:id,name';
+        }
+
         $quizzesQuery = Quiz::query()
             ->whereHas('unit', fn ($query) => $query->whereIn('teaching_assignment_id', $assignmentIds))
-            ->with([
-                'material:id,title',
-                'unit:id,title,teaching_assignment_id',
-                'unit.assignment.subject:id,name',
-                'group:id,name',
-            ])
+            ->with($quizWith)
             ->withCount(['questions', 'attempts']);
 
-        if ($selectedGroupId) {
+        if ($selectedGroupId && $hasQuizGroup) {
             $quizzesQuery->where(function ($q) use ($selectedGroupId) {
                 $q->where('teaching_group_id', $selectedGroupId)
                     ->orWhereNull('teaching_group_id');
@@ -107,13 +119,14 @@ class TeacherAssessmentController extends Controller
 
         $quizzes = $quizzesQuery->latest('created_at')->get()
             ->map(function (Quiz $quiz): array {
+                $isActive = (bool) ($quiz->getAttribute('is_active') ?? true);
                 return [
                     'id' => $quiz->id,
                     'title' => $quiz->title,
                     'mode' => 'electronic',
                     'type_label' => 'اختبار إلكتروني',
-                    'teaching_group_id' => $quiz->teaching_group_id,
-                    'group' => $quiz->group ? ['id' => $quiz->group->id, 'name' => $quiz->group->name] : null,
+                    'teaching_group_id' => $quiz->getAttribute('teaching_group_id'),
+                    'group' => $quiz->relationLoaded('group') && $quiz->group ? ['id' => $quiz->group->id, 'name' => $quiz->group->name] : null,
                     'lesson' => $quiz->material ? ['id' => $quiz->material->id, 'title' => $quiz->material->title] : null,
                     'unit' => $quiz->unit ? ['id' => $quiz->unit->id, 'title' => $quiz->unit->title] : null,
                     'subject' => $quiz->unit?->assignment?->subject ? ['id' => $quiz->unit->assignment->subject->id, 'name' => $quiz->unit->assignment->subject->name] : null,
@@ -123,8 +136,8 @@ class TeacherAssessmentController extends Controller
                     'passing_score' => $quiz->passing_score,
                     'max_attempts' => $quiz->max_attempts ?? 3,
                     'allow_late_submission' => (bool) $quiz->allow_late_submission,
-                    'is_active' => (bool) $quiz->is_active,
-                    'status_label' => $quiz->is_active ? 'منشور' : 'معلق / مسودة',
+                    'is_active' => $isActive,
+                    'status_label' => $isActive ? 'منشور' : 'معلق / مسودة',
                     'questions_count' => $quiz->questions_count,
                     'attempts_count' => $quiz->attempts_count,
                     'edit_url' => route('teacher.quizzes.edit', $quiz->id),
@@ -168,10 +181,16 @@ class TeacherAssessmentController extends Controller
             ->get(['id', 'teaching_assignment_id', 'title', 'order']);
 
         // 5. Library resources for direct linking
-        $libraryResources = LearningResource::where('uploaded_by_id', $teacher->id)
+        $libraryResources = LearningResource::where('owner_teacher_id', $teacher->id)
             ->latest('created_at')
             ->limit(50)
-            ->get(['id', 'title', 'file_path', 'type']);
+            ->get(['id', 'title', 'file_path', 'category'])
+            ->map(fn ($res) => [
+                'id' => $res->id,
+                'title' => $res->title,
+                'file_path' => $res->file_path,
+                'type' => $res->category ?? 'ملف مورد',
+            ]);
 
         return Inertia::render('Teacher/Assessments', [
             'worksheets' => $worksheets,

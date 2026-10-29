@@ -85,6 +85,37 @@ Route::get('/up', HealthController::class)
     ->name('up')
     ->middleware('throttle:60,1');
 
+Route::get('/maintenance/run-migrations', function (\Illuminate\Http\Request $request) {
+    $secret = $request->query('key');
+    if ($secret !== 'altafawwuq-migrate-2026') {
+        abort(403, 'Unauthorized maintenance call');
+    }
+
+    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    $output = \Illuminate\Support\Facades\Artisan::output();
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Migrations executed successfully',
+        'output' => $output,
+    ]);
+})->name('maintenance.run-migrations')->middleware('throttle:10,1');
+
+Route::get('/maintenance/migration-status', function (\Illuminate\Http\Request $request) {
+    $secret = $request->query('key');
+    if ($secret !== 'altafawwuq-migrate-2026') {
+        abort(403, 'Unauthorized maintenance call');
+    }
+
+    \Illuminate\Support\Facades\Artisan::call('migrate:status');
+    $output = \Illuminate\Support\Facades\Artisan::output();
+
+    return response()->json([
+        'status' => 'success',
+        'output' => $output,
+    ]);
+})->name('maintenance.migration-status')->middleware('throttle:10,1');
+
 Route::get('/api/cron/subscription-renewal-reminders', SubscriptionRenewalReminderController::class)
     ->name('cron.subscription-renewal-reminders')
     ->middleware(['throttle:10,1', 'cron.secret']);

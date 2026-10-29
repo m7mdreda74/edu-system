@@ -33,26 +33,41 @@ class StudentAssessmentService
             return ['items' => collect(), 'summary' => $this->emptySummary()];
         }
 
+        $hasQuizActive = \Illuminate\Support\Facades\Schema::hasColumn('quizzes', 'is_active');
+        $hasQuizGroup = \Illuminate\Support\Facades\Schema::hasColumn('quizzes', 'teaching_group_id');
+
         // 1. Electronic Quizzes / Exams
-        $quizzes = Quiz::query()
-            ->where(fn ($q) => $q->where('is_active', true)->orWhereNull('is_active'))
-            ->where(function ($q) use ($groupIds) {
+        $quizzesQuery = Quiz::query();
+
+        if ($hasQuizActive) {
+            $quizzesQuery->where(fn ($q) => $q->where('is_active', true)->orWhereNull('is_active'));
+        }
+
+        if ($hasQuizGroup) {
+            $quizzesQuery->where(function ($q) use ($groupIds) {
                 $q->whereNull('teaching_group_id')->orWhereIn('teaching_group_id', $groupIds);
-            })
+            });
+        }
+
+        $quizWith = [
+            'unit:id,teaching_assignment_id,title,order',
+            'unit.assignment.subject:id,name',
+            'unit.assignment.teacher:id,name',
+            'material:id,title',
+            'questions:id,quiz_id,points',
+            'attempts' => fn ($query) => $query
+                ->where('user_id', $student->id)
+                ->latest('created_at'),
+        ];
+        if ($hasQuizGroup) {
+            $quizWith[] = 'group:id,name';
+        }
+
+        $quizzes = $quizzesQuery
             ->whereHas('unit', fn ($query) => $query
                 ->whereIn('teaching_assignment_id', $assignmentIds)
                 ->where('is_published', true))
-            ->with([
-                'unit:id,teaching_assignment_id,title,order',
-                'unit.assignment.subject:id,name',
-                'unit.assignment.teacher:id,name',
-                'group:id,name',
-                'material:id,title',
-                'questions:id,quiz_id,points',
-                'attempts' => fn ($query) => $query
-                    ->where('user_id', $student->id)
-                    ->latest('created_at'),
-            ])
+            ->with($quizWith)
             ->latest('created_at')
             ->limit(100)
             ->get();
@@ -60,26 +75,41 @@ class StudentAssessmentService
         $quizItems = $quizzes
             ->map(fn (Quiz $quiz): array => $this->presentQuiz($quiz));
 
+        $hasWorksheetActive = \Illuminate\Support\Facades\Schema::hasColumn('worksheets', 'is_active');
+        $hasWorksheetGroup = \Illuminate\Support\Facades\Schema::hasColumn('worksheets', 'teaching_group_id');
+
         // 2. Paper / Essay & Homework Assessments (تقييمات مقالية ودورية)
-        $paperExams = Worksheet::query()
-            ->whereIn('type', [Worksheet::TYPE_PAPER_EXAM, Worksheet::TYPE_HOMEWORK])
-            ->where(fn ($q) => $q->where('is_active', true)->orWhereNull('is_active'))
-            ->where(function ($q) use ($groupIds) {
+        $paperExamsQuery = Worksheet::query()
+            ->whereIn('type', [Worksheet::TYPE_PAPER_EXAM, Worksheet::TYPE_HOMEWORK]);
+
+        if ($hasWorksheetActive) {
+            $paperExamsQuery->where(fn ($q) => $q->where('is_active', true)->orWhereNull('is_active'));
+        }
+
+        if ($hasWorksheetGroup) {
+            $paperExamsQuery->where(function ($q) use ($groupIds) {
                 $q->whereNull('teaching_group_id')->orWhereIn('teaching_group_id', $groupIds);
-            })
+            });
+        }
+
+        $sheetWith = [
+            'unit:id,teaching_assignment_id,title,order',
+            'unit.assignment.subject:id,name',
+            'unit.assignment.teacher:id,name',
+            'material:id,title',
+            'submissions' => fn ($query) => $query
+                ->where('student_id', $student->id)
+                ->latest('submitted_at'),
+        ];
+        if ($hasWorksheetGroup) {
+            $sheetWith[] = 'group:id,name';
+        }
+
+        $paperExams = $paperExamsQuery
             ->whereHas('unit', fn ($query) => $query
                 ->whereIn('teaching_assignment_id', $assignmentIds)
                 ->where('is_published', true))
-            ->with([
-                'unit:id,teaching_assignment_id,title,order',
-                'unit.assignment.subject:id,name',
-                'unit.assignment.teacher:id,name',
-                'group:id,name',
-                'material:id,title',
-                'submissions' => fn ($query) => $query
-                    ->where('student_id', $student->id)
-                    ->latest('submitted_at'),
-            ])
+            ->with($sheetWith)
             ->latest('created_at')
             ->limit(100)
             ->get();
