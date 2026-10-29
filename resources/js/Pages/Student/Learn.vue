@@ -668,7 +668,7 @@ function uploadAnswer(sheetId) {
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"
                                 :class="activeTab === 'description' ? 'border-primary-500 text-primary-400' : 'border-transparent text-surface-400 hover:text-white'"
                         >
-                            الشرح والمشاهدة
+                            فيديو الشرح
                         </button>
                         <button type="button" @click="activeTab = 'resources'"
                                 class="px-4 py-2 text-sm font-bold border-b-2 transition-all whitespace-nowrap"

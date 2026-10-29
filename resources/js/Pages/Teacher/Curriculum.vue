@@ -805,7 +805,7 @@ function chipsFor(unit) {
     const quiz = unit.electronic_exam;
 
     return [
-        { key: 'video',    label: 'فيديو',    icon: 'video',      tone: unit.readiness.video ? 'ok' : 'off',    title: 'الشرح والمشاهدة في كل درس' },
+        { key: 'video',    label: 'فيديو',    icon: 'video',      tone: unit.readiness.video ? 'ok' : 'off',    title: 'فيديو الشرح في كل درس' },
         { key: 'booklet',  label: 'ملزمة',    icon: 'book',       tone: unit.readiness.booklet ? 'ok' : 'off',  title: 'ملزمة الشرح في كل درس' },
         { key: 'homework', label: 'تقييم',    icon: 'attachment', tone: unit.readiness.homework ? 'ok' : 'off', title: 'تقييم لكل درس' },
         {
@@ -919,7 +919,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                 <div>
                     <h2 class="font-bold text-lg text-surface-900 dark:text-white">إنشاء هيكل الفصل</h2>
                     <p class="input-hint">
-                        يُنشئ الوحدات ودروسها فارغة ومرقّمة، ومعها نموذج اختبار إلكتروني لكل وحدة، ثم ترفع أنت الشرح والمشاهدة وملزمة الشرح والتقييم في كل درس.
+                        يُنشئ الوحدات ودروسها فارغة ومرقّمة، ومعها نموذج اختبار إلكتروني لكل وحدة، ثم ترفع أنت فيديو الشرح وملزمة الشرح والتقييم في كل درس.
                     </p>
                 </div>
 
@@ -1149,9 +1149,9 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
 
                                 <!-- The four slots -->
                                 <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <!-- الشرح والمشاهدة -->
+                                    <!-- فيديو الشرح -->
                                     <div class="min-w-0">
-                                        <div :class="SLOT_HEAD"><Icon name="video" class="w-3.5 h-3.5" /><span>الشرح والمشاهدة</span></div>
+                                        <div :class="SLOT_HEAD"><Icon name="video" class="w-3.5 h-3.5" /><span>فيديو الشرح</span></div>
 
                                         <div v-if="editingVideo[lesson.id]" :class="SLOT_BOX">
                                             <input

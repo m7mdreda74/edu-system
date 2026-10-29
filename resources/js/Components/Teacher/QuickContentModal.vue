@@ -138,7 +138,7 @@ function close() {
                             :class="['flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5', activeTab === 'video' ? 'bg-white dark:bg-surface-900 text-primary-600 shadow-sm' : 'text-surface-600 dark:text-surface-400']"
                         >
                             <Icon name="video" class="w-4 h-4" />
-                            <span>الشرح والمشاهدة</span>
+                            <span>فيديو الشرح</span>
                         </button>
                         <button
                             type="button"
