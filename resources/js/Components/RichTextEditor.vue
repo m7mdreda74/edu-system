@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
+import axios from 'axios';
 
 const props = defineProps({
     modelValue:  { type: String,  default: '' },
@@ -157,7 +158,7 @@ function closeImageModal() {
     imageError.value = '';
 }
 
-function optimizeImage(file, maxDimension = 1200, quality = 0.85) {
+function optimizeImage(file, maxDimension = 900, quality = 0.8) {
     return new Promise((resolve, reject) => {
         if (!file.type || !file.type.startsWith('image/')) {
             reject(new Error('الملف المختار ليس صورة مدعومة.'));
@@ -187,9 +188,12 @@ function optimizeImage(file, maxDimension = 1200, quality = 0.85) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                const isPng = file.type === 'image/png';
-                const outputMime = isPng ? 'image/png' : 'image/jpeg';
-                const dataUrl = canvas.toDataURL(outputMime, quality);
+                // Try exporting WebP first for optimal ~40KB file sizes
+                let dataUrl = canvas.toDataURL('image/webp', quality);
+                if (!dataUrl || !dataUrl.startsWith('data:image/webp')) {
+                    const isPng = file.type === 'image/png';
+                    dataUrl = canvas.toDataURL(isPng ? 'image/png' : 'image/jpeg', quality);
+                }
                 resolve(dataUrl);
             };
             img.onerror = () => reject(new Error('تعذر تحميل الصورة'));
@@ -211,8 +215,33 @@ async function processSelectedFile(file) {
     isProcessingImage.value = true;
     try {
         selectedFile.value = file;
-        const optimized = await optimizeImage(file);
-        previewDataUrl.value = optimized;
+
+        // 1. Try server storage upload first to avoid database base64 bloating
+        let uploadedUrl = null;
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            const uploadEndpoint = typeof route === 'function' && route().has('teacher.question-bank.upload-image')
+                ? route('teacher.question-bank.upload-image')
+                : '/teacher/question-bank/upload-image';
+
+            const res = await axios.post(uploadEndpoint, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            if (res.data?.url) {
+                uploadedUrl = res.data.url;
+            }
+        } catch {
+            // Upload endpoint not reachable or unauthorized; proceed smoothly to local fallback
+        }
+
+        if (uploadedUrl) {
+            previewDataUrl.value = uploadedUrl;
+        } else {
+            // 2. High-efficiency local WebP compression fallback
+            const optimized = await optimizeImage(file);
+            previewDataUrl.value = optimized;
+        }
     } catch (err) {
         imageError.value = err.message || 'حدث خطأ أثناء معالجة الصورة';
     } finally {

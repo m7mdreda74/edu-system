@@ -58,4 +58,29 @@ class QuestionBankController extends Controller
 
         return back()->with('success', 'تم نسخ السؤال إلى الاختبار مع حفظ نسخته داخله.');
     }
+
+    public function uploadImage(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $request->validate([
+            'image' => ['required', 'file', 'image', 'max:8192'],
+        ], [
+            'image.required' => 'يرجى اختيار ملف الصورة.',
+            'image.image' => 'الملف يجب أن يكون صورة صالحة.',
+            'image.max' => 'حجم الصورة يجب ألا يتجاوز 8 ميجابايت.',
+        ]);
+
+        try {
+            $url = \App\Services\ImageUploadService::uploadAndConvertToWebp(
+                $request->file('image'),
+                'quiz_images',
+                82,
+            );
+
+            return response()->json(['url' => $url]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'تعذر معالجة الصورة: ' . $e->getMessage(),
+            ], 422);
+        }
+    }
 }

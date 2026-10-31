@@ -267,3 +267,32 @@ Artisan::command('audit:payment-reconciliation', function (): int {
 
     return 0;
 })->purpose('Read-only reconciliation of paid payment snapshots, splits, and invoices');
+
+Artisan::command('audit:prune-old-logs {--days=365 : Number of days of audit logs to keep}', function (): int {
+    $days = (int) $this->option('days');
+    $retentionDays = max(30, $days);
+    $cutoff = now()->subDays($retentionDays);
+
+    $deleted = \App\Models\AuditEvent::where('created_at', '<', $cutoff)->delete();
+
+    $this->info("Pruned {$deleted} audit event(s) older than {$retentionDays} days.");
+
+    return 0;
+})->purpose('Safely prune obsolete audit logs older than the retention window');
+
+Artisan::command('sessions:prune-expired', function (): int {
+    if (config('session.driver') === 'database') {
+        $lifetime = (int) config('session.lifetime', 120);
+        $cutoff = now()->subMinutes($lifetime * 2)->timestamp;
+        $deleted = \Illuminate\Support\Facades\DB::table(config('session.table', 'sessions'))
+            ->where('last_activity', '<', $cutoff)
+            ->delete();
+        $this->info("Pruned {$deleted} expired session(s).");
+    }
+
+    return 0;
+})->purpose('Prune expired database sessions to prevent database session table bloat');
+
+\Illuminate\Support\Facades\Schedule::command('audit:prune-old-logs')->weekly();
+\Illuminate\Support\Facades\Schedule::command('sessions:prune-expired')->daily();
+

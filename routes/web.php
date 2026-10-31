@@ -391,6 +391,7 @@ Route::middleware(['auth', 'active', 'role:teacher'])->prefix('teacher')->name('
         ->name('resource-library.destroy');
     Route::get('/question-bank', [QuestionBankController::class, 'index'])->name('question-bank');
     Route::post('/question-bank', [QuestionBankController::class, 'store'])->name('question-bank.store');
+    Route::post('/question-bank/upload-image', [QuestionBankController::class, 'uploadImage'])->name('question-bank.upload-image');
     Route::put('/question-bank/{question}', [QuestionBankController::class, 'update'])->name('question-bank.update');
     Route::delete('/question-bank/{question}', [QuestionBankController::class, 'destroy'])->name('question-bank.destroy');
     Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements');
