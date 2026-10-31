@@ -546,6 +546,15 @@ function uploadAnswer(sheetId) {
 
             <!-- Overall progress & Level of achievement -->
             <div class="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
+                <Link
+                    :href="route('student.my-grade')"
+                    class="btn-primary btn-xs sm:btn-sm flex items-center gap-1.5 font-bold shadow-sm whitespace-nowrap"
+                    title="العودة لصفحة مواد صفي"
+                >
+                    <span>←</span>
+                    <span>العودة لمواد صفي</span>
+                </Link>
+
                 <button
                     type="button"
                     @click="openProgressModal"

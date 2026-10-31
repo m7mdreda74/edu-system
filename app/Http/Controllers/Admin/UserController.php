@@ -309,35 +309,87 @@ class UserController extends Controller
 
     public function updateIntroVideo(Request $request, int $id): RedirectResponse
     {
-        $validated = $request->validate([
-            'intro_video_url' => ['nullable', 'url', 'max:2048'],
-            'intro_video_thumbnail' => ['nullable', 'url', 'max:2048'],
+        $request->validate([
+            'intro_video_file' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm,video/ogg,video/quicktime', 'max:102400'],
+            'intro_video_url' => ['nullable', 'string', 'max:2048'],
+            'intro_video_thumbnail_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
+            'intro_video_thumbnail' => ['nullable', 'string', 'max:2048'],
+            'delete_video' => ['nullable', 'boolean'],
+            'delete_thumbnail' => ['nullable', 'boolean'],
         ], [
-            'intro_video_url.url' => 'رابط الفيديو التعريفي يجب أن يكون رابطاً صالحاً (URL).',
-            'intro_video_thumbnail.url' => 'رابط صورة الفيديو يجب أن يكون رابطاً صالحاً (URL).',
+            'intro_video_file.mimetypes' => 'صيغة الفيديو يجب أن تكون MP4 أو WebM أو MOV.',
+            'intro_video_file.max' => 'الحد الأقصى لحجم ملف الفيديو هو 100 ميجابايت.',
+            'intro_video_thumbnail_file.image' => 'يجب أن يكون ملف الصورة المصغرة صورة صالحة.',
+            'intro_video_thumbnail_file.max' => 'الحد الأقصى لحجم صورة الغلاف هو 8 ميجابايت.',
         ]);
 
         $user = User::findOrFail($id);
         abort_unless($user->hasRole('teacher'), 422, 'يُدار الفيديو التعريفي للمعلمين فقط.');
 
-        $user->update([
-            'intro_video_url' => $validated['intro_video_url'] ?: null,
-            'intro_video_thumbnail' => $validated['intro_video_thumbnail'] ?: null,
-        ]);
+        $updates = [];
 
-        AuditLogger::record('admin.user.intro_video_updated', $user, [
-            'intro_video_url' => $user->intro_video_url,
-        ]);
+        // 1. Direct video file upload
+        if ($request->hasFile('intro_video_file')) {
+            $file = $request->file('intro_video_file');
+            $extension = strtolower($file->getClientOriginalExtension() ?: 'mp4');
+            $filename = uniqid('intro_video_') . '.' . $extension;
+            $storedPath = Storage::disk('public')->putFileAs('teacher-intro-videos', $file, $filename);
 
-        $this->forgetTeacherCaches();
+            // Clean previous stored video if locally uploaded
+            $this->deleteStoredImage($user->intro_video_url);
 
-        return back()->with('success', "تم تحديث الفيديو التعريفي للمعلم {$user->name} بنجاح.");
+            $updates['intro_video_url'] = '/storage/' . $storedPath;
+        } elseif ($request->filled('intro_video_url')) {
+            $url = trim((string) $request->input('intro_video_url'));
+            if ($user->intro_video_url !== $url) {
+                $this->deleteStoredImage($user->intro_video_url);
+            }
+            $updates['intro_video_url'] = $url;
+        } elseif ($request->boolean('delete_video')) {
+            $this->deleteStoredImage($user->intro_video_url);
+            $updates['intro_video_url'] = null;
+        }
+
+        // 2. Thumbnail image upload or URL
+        if ($request->hasFile('intro_video_thumbnail_file')) {
+            try {
+                $thumbnailPath = ImageUploadService::uploadAndConvertToWebp(
+                    $request->file('intro_video_thumbnail_file'),
+                    'teacher-intro-thumbnails'
+                );
+                $this->deleteStoredImage($user->intro_video_thumbnail);
+                $updates['intro_video_thumbnail'] = $thumbnailPath;
+            } catch (\Throwable $e) {
+                return back()->with('error', 'تعذّرت معالجة صورة الفيديو المصغرة. تأكد من سلامة صيغة الصورة.');
+            }
+        } elseif ($request->filled('intro_video_thumbnail')) {
+            $updates['intro_video_thumbnail'] = trim((string) $request->input('intro_video_thumbnail'));
+        } elseif ($request->boolean('delete_thumbnail')) {
+            $this->deleteStoredImage($user->intro_video_thumbnail);
+            $updates['intro_video_thumbnail'] = null;
+        }
+
+        if (! empty($updates)) {
+            $user->update($updates);
+
+            AuditLogger::record('admin.user.intro_video_updated', $user, [
+                'intro_video_url' => $user->intro_video_url,
+                'intro_video_thumbnail' => $user->intro_video_thumbnail,
+            ]);
+
+            $this->forgetTeacherCaches();
+        }
+
+        return back()->with('success', "تم تحديث ورفع الفيديو التعريفي للمعلم {$user->name} بنجاح.");
     }
 
     public function deleteIntroVideo(int $id): RedirectResponse
     {
         $user = User::findOrFail($id);
         abort_unless($user->hasRole('teacher'), 422, 'يُدار الفيديو التعريفي للمعلمين فقط.');
+
+        $this->deleteStoredImage($user->intro_video_url);
+        $this->deleteStoredImage($user->intro_video_thumbnail);
 
         $user->update([
             'intro_video_url' => null,

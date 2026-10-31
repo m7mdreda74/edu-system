@@ -32,6 +32,11 @@ function embed(url) {
     return url;
 }
 
+function isDirectVideo(url) {
+    if (!url) return false;
+    return url.startsWith('/storage/') || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+}
+
 const subscribing = ref(null);
 
 function subscribe(groupId) {
@@ -199,7 +204,7 @@ function subscribe(groupId) {
                                                     :href="route('student.learn', { groupId: subject.learn_group_id })"
                                                     class="btn-primary btn-sm justify-center gap-1.5 shadow-sm"
                                                 >
-                                                    <span>دخول الحصة</span>
+                                                    <span>الاطلاع على الدروس</span>
                                                     <span>←</span>
                                                 </Link>
                                                 <Link
@@ -261,10 +266,17 @@ function subscribe(groupId) {
                         </button>
                     </div>
                     <div class="aspect-video rounded-2xl overflow-hidden bg-black">
+                        <video
+                            v-if="isDirectVideo(playing.intro_video_url)"
+                            :src="playing.intro_video_url"
+                            controls
+                            autoplay
+                            class="w-full h-full object-contain"
+                        ></video>
                         <iframe
+                            v-else
                             :src="embed(playing.intro_video_url)"
-                            class="w-full h-full"
-                            frameborder="0"
+                            class="w-full h-full border-0"
                             referrerpolicy="strict-origin-when-cross-origin"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowfullscreen

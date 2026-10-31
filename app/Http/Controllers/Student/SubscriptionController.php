@@ -89,6 +89,7 @@ class SubscriptionController extends Controller
                     'period_end' => $subscription->period_end?->toDateString(),
                     'days_remaining' => $subscription->daysRemaining(),
                     'is_active' => $subscription->isActive(),
+                    'teaching_assignment_id' => $assignmentId,
                     'subject' => $subscription->assignment?->subject?->only(['id', 'name', 'icon']),
                     'grade' => $subscription->assignment?->gradeLevel?->only(['key', 'name']),
                     'teacher' => $subscription->assignment?->teacher?->only(['id', 'name', 'avatar']),

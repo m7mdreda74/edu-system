@@ -8,14 +8,15 @@ import DataTablePagination from '@/Components/DataTablePagination.vue';
 import { useClientPagination } from '@/composables/useClientPagination';
 
 const props = defineProps({
-    filters:    { type: Object,  default: () => ({}) },
-    printMode:  { type: Boolean, default: false },
-    teachers:   { type: Array,   default: () => [] },
-    students:   { type: Array,   default: () => [] },
-    groups:     { type: Array,   default: () => [] },
-    sessions:   { type: Object,  default: () => ({ data: [], links: [] }) },
-    attendance: { type: Object,  default: () => ({ data: [], links: [] }) },
-    summary:    { type: Object,  default: () => ({}) },
+    filters:       { type: Object,  default: () => ({}) },
+    filterSummary: { type: String,  default: '' },
+    printMode:     { type: Boolean, default: false },
+    teachers:      { type: Array,   default: () => [] },
+    students:      { type: Array,   default: () => [] },
+    groups:        { type: Array,   default: () => [] },
+    sessions:      { type: Object,  default: () => ({ data: [], links: [] }) },
+    attendance:    { type: Object,  default: () => ({ data: [], links: [] }) },
+    summary:       { type: Object,  default: () => ({}) },
 });
 
 // Category Tabs
@@ -24,7 +25,8 @@ const activeCategory = ref(props.filters.report_type || 'all');
 const categories = [
     { key: 'all',        label: 'التقرير الشامل',            icon: 'chart',   badge: null },
     { key: 'teachers',   label: 'ملخص المدرسين',             icon: 'users',   badge: props.summary.teachers ?? props.teachers.length },
-    { key: 'attendance', label: 'تقرير حضور الطلاب',         icon: 'student', badge: props.attendance?.meta?.total ?? props.attendance?.data?.length },
+    { key: 'students',   label: 'بيانات ومتابعة الطلاب',     icon: 'student', badge: props.summary.students_registered ?? props.students.length },
+    { key: 'attendance', label: 'تقرير حضور الطلاب',         icon: 'clock',   badge: props.attendance?.meta?.total ?? props.attendance?.data?.length },
     { key: 'sessions',   label: 'تقرير الحصص المباشرة',      icon: 'live',    badge: props.summary.sessions ?? props.sessions?.meta?.total },
     { key: 'groups',     label: 'تقرير المجموعات والدورات',  icon: 'courses', badge: props.summary.groups ?? props.groups.length },
 ];
@@ -34,6 +36,12 @@ const {
     pagination: teachersPagination,
     setPage: setTeachersPage,
 } = useClientPagination(computed(() => props.teachers));
+
+const {
+    data: paginatedStudents,
+    pagination: studentsPagination,
+    setPage: setStudentsPage,
+} = useClientPagination(computed(() => props.students));
 
 const {
     data: paginatedGroups,
@@ -96,25 +104,44 @@ function sessionTypeBadge(session) {
     return 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
 }
 
+// Generate URL for direct Excel export with current filter parameters
+const exportExcelUrl = computed(() => {
+    const params = new URLSearchParams();
+    params.set('report_type', activeCategory.value);
+    if (props.filters.start_date) params.set('start_date', props.filters.start_date);
+    if (props.filters.end_date) params.set('end_date', props.filters.end_date);
+    if (props.filters.teacher_id) params.set('teacher_id', String(props.filters.teacher_id));
+    if (props.filters.student_id) params.set('student_id', String(props.filters.student_id));
+    if (props.filters.session_type && props.filters.session_type !== 'all') params.set('session_type', props.filters.session_type);
+    if (props.filters.group_id) params.set('group_id', String(props.filters.group_id));
+    if (props.filters.status) params.set('status', props.filters.status);
+
+    return route('admin.reports.export.excel') + '?' + params.toString();
+});
+
+// Open dedicated standalone PDF printable view in new window with print dialog
+function openPdfExport() {
+    const params = new URLSearchParams();
+    params.set('report_type', activeCategory.value);
+    if (props.filters.start_date) params.set('start_date', props.filters.start_date);
+    if (props.filters.end_date) params.set('end_date', props.filters.end_date);
+    if (props.filters.teacher_id) params.set('teacher_id', String(props.filters.teacher_id));
+    if (props.filters.student_id) params.set('student_id', String(props.filters.student_id));
+    if (props.filters.session_type && props.filters.session_type !== 'all') params.set('session_type', props.filters.session_type);
+    if (props.filters.group_id) params.set('group_id', String(props.filters.group_id));
+    if (props.filters.status) params.set('status', props.filters.status);
+    params.set('auto', '1');
+
+    window.open(route('admin.reports.export.pdf') + '?' + params.toString(), '_blank');
+}
+
 function printReport() {
-    router.get(route('admin.reports'), {
-        report_type:  activeCategory.value,
-        start_date:   props.filters.start_date || '',
-        end_date:     props.filters.end_date || '',
-        teacher_id:   props.filters.teacher_id || '',
-        student_id:   props.filters.student_id || '',
-        session_type: props.filters.session_type || 'all',
-        group_id:     props.filters.group_id || '',
-        status:       props.filters.status || '',
-        print:        1,
-    }, {
-        preserveState: true,
-        replace:       true,
-        onSuccess:     () => nextTick(() => window.print()),
-    });
+    openPdfExport();
 }
 
 const printFilterSummary = computed(() => {
+    if (props.filterSummary) return props.filterSummary;
+
     const teacher = props.teachers.find((item) => String(item.id) === String(props.filters.teacher_id || ''));
     const student = props.students.find((item) => String(item.id) === String(props.filters.student_id || ''));
     const group   = props.groups.find((item) => String(item.id) === String(props.filters.group_id || ''));
@@ -129,6 +156,7 @@ const printFilterSummary = computed(() => {
     if (activeCategory.value && activeCategory.value !== 'all') {
         const catMap = {
             teachers:   'ملخص المدرسين',
+            students:   'بيانات ومتابعة الطلاب',
             attendance: 'تقرير حضور الطلاب',
             sessions:   'تقرير الحصص المباشرة',
             groups:     'تقرير المجموعات والدورات',
@@ -151,10 +179,11 @@ const printFilterSummary = computed(() => {
 const activeCategoryTitle = computed(() => {
     switch (activeCategory.value) {
         case 'teachers':   return 'تقرير ملخص المدرسين والتكليفات';
+        case 'students':   return 'تقرير بيانات ومتابعة الطلاب الشاملة';
         case 'attendance': return 'تقرير سجل حضور وغياب الطلاب الفعلي';
         case 'sessions':   return 'تقرير الحصص المباشرة (مرافقة - مجانية - مجموعات)';
         case 'groups':     return 'تقرير المجموعات الدراسية والدورات';
-        default:           return 'التقرير الشامل لبوابة المجد التعليمية';
+        default:           return 'التقرير الشامل لمنصة التفوق التعليمية';
     }
 });
 </script>
@@ -165,10 +194,10 @@ const activeCategoryTitle = computed(() => {
 
         <div class="dashboard-data-page" dir="rtl">
 
-            <!-- Print Header -->
+            <!-- Print Header (fallback) -->
             <div v-if="printMode" class="print-only report-print-header">
                 <h1>{{ activeCategoryTitle }}</h1>
-                <p>بوابة المجد التعليمية — نظام إدارة التعلم والتقارير</p>
+                <p>منصة التفوق التعليمية — نظام إدارة التعلم والتقارير</p>
                 <p>الفلاتر المطبقة: {{ printFilterSummary }}</p>
                 <p>تاريخ ووقت الطباعة: {{ formatDate(new Date().toISOString()) }}</p>
             </div>
@@ -181,13 +210,29 @@ const activeCategoryTitle = computed(() => {
                         <span>تقارير المنصة والاستخراج المخصص</span>
                     </h1>
                     <p class="mt-1 text-sm text-surface-500">
-                        استخراج وطباعة تقارير دقيقة ومفصلة حسب كل فئة (مدرسين، حضور طلاب، حصص مباشرة، ومجموعات).
+                        استخراج وتصدير تقارير دقيقة ومفصلة لجميع المدرسين والطلاب على المنصة بصيغ Excel و PDF معتمدة.
                     </p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button type="button" class="btn-primary flex items-center gap-2" @click="printReport()">
-                        <Icon name="download" class="h-4 w-4" />
-                        <span>طباعة / تصدير PDF للفئة المحددة</span>
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <!-- Excel Export Button -->
+                    <a
+                        :href="exportExcelUrl"
+                        class="btn-outline flex items-center gap-2 bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-bold transition-all shadow-sm"
+                        title="تنزيل ملف إكسيل كامل مع تبويبات لكل البيانات"
+                    >
+                        <Icon name="download" class="h-4 w-4 text-emerald-600" />
+                        <span>تصدير إلى Excel (.xls)</span>
+                    </a>
+
+                    <!-- PDF Standalone Export Button -->
+                    <button
+                        type="button"
+                        class="btn-primary flex items-center gap-2 bg-primary-600 hover:bg-primary-700 shadow-sm font-bold"
+                        @click="openPdfExport()"
+                        title="فتح وطباعة تقرير PDF منسق ومعتمد A4 بالعرض"
+                    >
+                        <Icon name="file" class="h-4 w-4" />
+                        <span>تصدير PDF منسق (A4)</span>
                     </button>
                 </div>
             </header>
@@ -209,7 +254,7 @@ const activeCategoryTitle = computed(() => {
                         <span>{{ cat.label }}</span>
                         <span
                             v-if="cat.badge !== null"
-                            class="px-1.5 py-0.5 rounded-full text-xs"
+                            class="px-1.5 py-0.5 rounded-full text-xs font-mono"
                             :class="activeCategory === cat.key
                                 ? 'bg-primary-600 text-white'
                                 : 'bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-300'"
@@ -229,7 +274,7 @@ const activeCategoryTitle = computed(() => {
 
                 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 
-                    <!-- Filter: Teacher (All, Teachers, Attendance, Sessions, Groups) -->
+                    <!-- Filter: Teacher (All, Teachers, Attendance, Sessions, Groups, Students) -->
                     <div>
                         <label class="input-label">المدرس</label>
                         <select name="teacher_id" class="input">
@@ -245,8 +290,8 @@ const activeCategoryTitle = computed(() => {
                         </select>
                     </div>
 
-                    <!-- Filter: Student (Attendance & All) -->
-                    <div v-if="activeCategory === 'attendance' || activeCategory === 'all'">
+                    <!-- Filter: Student (Attendance, Students, All) -->
+                    <div v-if="activeCategory === 'attendance' || activeCategory === 'students' || activeCategory === 'all'">
                         <label class="input-label">الطالب (اختيار الطالب)</label>
                         <select name="student_id" class="input">
                             <option value="">كل الطلاب</option>
@@ -272,8 +317,8 @@ const activeCategoryTitle = computed(() => {
                         </select>
                     </div>
 
-                    <!-- Filter: Group / Course (Groups, Sessions, All) -->
-                    <div v-if="activeCategory === 'groups' || activeCategory === 'sessions' || activeCategory === 'all'">
+                    <!-- Filter: Group / Course (Groups, Sessions, Students, All) -->
+                    <div v-if="activeCategory === 'groups' || activeCategory === 'sessions' || activeCategory === 'students' || activeCategory === 'all'">
                         <label class="input-label">المجموعة / الدورة</label>
                         <select name="group_id" class="input">
                             <option value="">كل المجموعات</option>
@@ -331,11 +376,11 @@ const activeCategoryTitle = computed(() => {
             <!-- ── Summary Statistics Cards ──────────────────────── -->
             <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6 mb-6">
                 <StatCard label="المدرسون" :value="summary.teachers || 0" icon="users" tone="primary" />
-                <StatCard label="المجموعات" :value="summary.groups || 0" icon="courses" tone="accent" />
-                <StatCard label="الطلاب المحجوزون" :value="summary.students || 0" icon="student" tone="green" />
-                <StatCard label="كل الحصص" :value="summary.sessions || 0" icon="live" tone="blue" />
-                <StatCard label="مباشرة الآن" :value="summary.live_sessions || 0" icon="live" tone="red" />
-                <StatCard label="حصص منتهية" :value="summary.ended_sessions || 0" icon="success" tone="green" />
+                <StatCard label="الطلاب المسجلون" :value="summary.students_registered ?? summary.students ?? 0" icon="student" tone="green" />
+                <StatCard label="اشتراكات فعالة" :value="summary.active_subscriptions || 0" icon="payments" tone="accent" />
+                <StatCard label="المجموعات" :value="summary.groups || 0" icon="courses" tone="blue" />
+                <StatCard label="كل الحصص" :value="summary.sessions || 0" icon="live" tone="red" />
+                <StatCard label="ساعات الحضور" :value="`${summary.total_attendance_hours || 0} س`" icon="clock" tone="green" />
             </div>
 
             <!-- ────────────────────────────────────────────────── -->
@@ -348,9 +393,11 @@ const activeCategoryTitle = computed(() => {
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-surface-100 dark:border-surface-800 pb-3">
                     <div class="flex items-center gap-2">
                         <span class="text-xl">👨‍🏫</span>
-                        <h2 class="section-title">ملخص المدرسين</h2>
+                        <h2 class="section-title">ملخص المدرسين والتكليفات الأكاديمية</h2>
                     </div>
-                    <span class="badge-primary text-xs">{{ teachers.length }} مدرس مسجل</span>
+                    <div class="flex items-center gap-2">
+                        <span class="badge-primary text-xs">{{ teachers.length }} مدرس مسجل</span>
+                    </div>
                 </div>
 
                 <div class="table-wrap">
@@ -358,18 +405,30 @@ const activeCategoryTitle = computed(() => {
                         <thead>
                             <tr>
                                 <th>المدرس</th>
+                                <th>بيانات الاتصال</th>
                                 <th>المادة</th>
+                                <th>المراحل المغطاة</th>
                                 <th>الفيديو التعريفي</th>
-                                <th>التكليفات الأكاديمية</th>
                                 <th>المجموعات الدراسية</th>
                                 <th>الطلاب الفعليون</th>
                                 <th>الحصص المنعقدة</th>
+                                <th>نسبة العمولة</th>
+                                <th>الحالة</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="teacher in (printMode ? teachers : paginatedTeachers)" :key="teacher.id">
                                 <td class="font-bold text-surface-900 dark:text-white">{{ teacher.name }}</td>
+                                <td>
+                                    <div class="font-mono text-xs text-surface-600 dark:text-surface-400">{{ teacher.email }}</div>
+                                    <div class="font-mono text-xs text-surface-500">{{ teacher.phone || '—' }}</div>
+                                </td>
                                 <td>{{ teacher.subject?.name || '—' }}</td>
+                                <td>
+                                    <div class="text-xs text-surface-600 dark:text-surface-300 max-w-xs">
+                                        {{ teacher.teaching_assignments?.map(ta => ta.grade_level?.name).filter(Boolean).join('، ') || '—' }}
+                                    </div>
+                                </td>
                                 <td>
                                     <span v-if="teacher.intro_video_url" class="badge-green text-[10px]">
                                         🎬 متوفر
@@ -378,13 +437,20 @@ const activeCategoryTitle = computed(() => {
                                         بدون فيديو
                                     </span>
                                 </td>
-                                <td>{{ teacher.teaching_assignments_count || 0 }}</td>
-                                <td>{{ teacher.groups_count || 0 }}</td>
-                                <td>{{ teacher.students_count || 0 }} طالب</td>
-                                <td>{{ teacher.sessions_count || 0 }} حصة</td>
+                                <td class="font-bold text-center">{{ teacher.groups_count || 0 }}</td>
+                                <td class="font-bold text-primary-700 dark:text-primary-300 text-center">{{ teacher.students_count || 0 }} طالب</td>
+                                <td class="font-bold text-center">{{ teacher.sessions_count || 0 }} حصة</td>
+                                <td class="font-mono text-xs text-center">
+                                    {{ teacher.commission_percent ? `${teacher.commission_percent}%` : 'الافتراضية' }}
+                                </td>
+                                <td>
+                                    <span :class="teacher.is_active ? 'badge-green' : 'badge-red'">
+                                        {{ teacher.is_active ? 'نشط' : 'معطل' }}
+                                    </span>
+                                </td>
                             </tr>
                             <tr v-if="!teachers.length">
-                                <td colspan="7" class="empty-cell">لا توجد بيانات مطابقة لفلاتر المدرسين.</td>
+                                <td colspan="10" class="empty-cell">لا توجد بيانات مطابقة لفلاتر المدرسين.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -399,7 +465,105 @@ const activeCategoryTitle = computed(() => {
             </section>
 
             <!-- ────────────────────────────────────────────────── -->
-            <!-- 2. Student Attendance Report Section               -->
+            <!-- 2. Students Summary & Tracking Section             -->
+            <!-- ────────────────────────────────────────────────── -->
+            <section
+                v-if="activeCategory === 'all' || activeCategory === 'students'"
+                class="report-section mb-6"
+            >
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-surface-100 dark:border-surface-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">🎓</span>
+                        <div>
+                            <h2 class="section-title">بيانات ومتابعة الطلاب الشاملة</h2>
+                            <p class="text-xs text-surface-400 mt-0.5">تفاصيل أولياء الأمور، الاشتراكات الفعالة، وساعات الحضور الفعلي في المنصة</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="badge-green text-xs">{{ students.length }} طالب</span>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="report-table data-table">
+                        <thead>
+                            <tr>
+                                <th>الطالب</th>
+                                <th>بيانات الاتصال</th>
+                                <th>المرحلة والصف الدراسي</th>
+                                <th>ولي الأمر وهاتفه</th>
+                                <th>الاشتراكات الفعالة</th>
+                                <th>تفاصيل المواد والمعلمين</th>
+                                <th>الحصص المحضورة</th>
+                                <th>إجمالي مدة الحضور</th>
+                                <th>الحالة</th>
+                                <th>تاريخ الانضمام</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="student in (printMode ? students : paginatedStudents)" :key="student.id">
+                                <td>
+                                    <div class="font-bold text-surface-900 dark:text-white">{{ student.name }}</div>
+                                </td>
+                                <td>
+                                    <div class="font-mono text-xs text-surface-600 dark:text-surface-400">{{ student.email }}</div>
+                                    <div class="font-mono text-xs text-surface-500">{{ student.phone || '—' }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge-gray text-xs font-semibold">{{ student.grade_name || 'غير محدد' }}</span>
+                                </td>
+                                <td>
+                                    <div class="font-medium text-surface-800 dark:text-surface-200">{{ student.parent_name || '—' }}</div>
+                                    <div class="font-mono text-xs text-surface-400">{{ student.parent_phone || '—' }}</div>
+                                </td>
+                                <td class="text-center">
+                                    <span v-if="student.active_subscriptions_count > 0" class="badge-green font-bold text-xs">
+                                        {{ student.active_subscriptions_count }} اشتراك
+                                    </span>
+                                    <span v-else class="text-surface-400 text-xs">0 اشتراك</span>
+                                </td>
+                                <td>
+                                    <div class="max-w-xs text-xs text-surface-600 dark:text-surface-300 truncate" :title="student.active_subscriptions_details">
+                                        {{ student.active_subscriptions_details || 'لا توجد' }}
+                                    </div>
+                                </td>
+                                <td class="font-bold text-center">
+                                    {{ student.sessions_attended_count || 0 }}
+                                </td>
+                                <td>
+                                    <div class="font-bold font-mono text-emerald-600 dark:text-emerald-400 text-xs">
+                                        {{ student.attendance_hours || 0 }} ساعة
+                                    </div>
+                                    <div class="text-[10px] text-surface-400 font-mono">
+                                        ({{ student.attendance_minutes || 0 }} دقيقة)
+                                    </div>
+                                </td>
+                                <td>
+                                    <span :class="student.is_active ? 'badge-green' : 'badge-red'">
+                                        {{ student.is_active ? 'نشط' : 'معطل' }}
+                                    </span>
+                                </td>
+                                <td class="font-mono text-xs text-surface-500">
+                                    {{ formatDate(student.created_at) }}
+                                </td>
+                            </tr>
+                            <tr v-if="!students.length">
+                                <td colspan="10" class="empty-cell">لا توجد بيانات مطابقة لفلاتر الطلاب.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <DataTablePagination
+                    v-if="activeCategory === 'students' || activeCategory === 'all'"
+                    class="print-hidden"
+                    :paginator="studentsPagination"
+                    item-label="طالب"
+                    @page-change="setStudentsPage"
+                />
+            </section>
+
+            <!-- ────────────────────────────────────────────────── -->
+            <!-- 3. Student Attendance Report Section               -->
             <!-- ────────────────────────────────────────────────── -->
             <section
                 v-if="activeCategory === 'all' || activeCategory === 'attendance'"
@@ -407,9 +571,9 @@ const activeCategoryTitle = computed(() => {
             >
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-surface-100 dark:border-surface-800 pb-3">
                     <div class="flex items-center gap-2">
-                        <span class="text-xl">🎓</span>
+                        <span class="text-xl">⏱️</span>
                         <div>
-                            <h2 class="section-title">تقرير حضور الطلاب</h2>
+                            <h2 class="section-title">تقرير سجل حضور وغياب الطلاب الفعلي</h2>
                             <p class="text-xs text-surface-400 mt-0.5">تسجيل دقيق لوقت الدخول والخروج الفعلي والمدة لكل حصة</p>
                         </div>
                     </div>
@@ -461,7 +625,7 @@ const activeCategoryTitle = computed(() => {
             </section>
 
             <!-- ────────────────────────────────────────────────── -->
-            <!-- 3. Live Sessions Report (مرافقة - مجانية - مجموعات)  -->
+            <!-- 4. Live Sessions Report (مرافقة - مجانية - مجموعات)  -->
             <!-- ────────────────────────────────────────────────── -->
             <section
                 v-if="activeCategory === 'all' || activeCategory === 'sessions'"
@@ -524,7 +688,7 @@ const activeCategoryTitle = computed(() => {
             </section>
 
             <!-- ────────────────────────────────────────────────── -->
-            <!-- 4. Groups & Courses Report                          -->
+            <!-- 5. Groups & Courses Report                          -->
             <!-- ────────────────────────────────────────────────── -->
             <section
                 v-if="activeCategory === 'all' || activeCategory === 'groups'"

@@ -48,6 +48,24 @@ class QuestionBankService
             fn (QuestionBankQuestion $question): array => $this->present($question, $teacher),
         ));
 
+        $units = $this->unitsFor($teacher);
+
+        $stages = $units->filter(fn (array $u): bool => ! empty($u['stage']))->map(fn (array $u): array => [
+            'key' => $u['stage'],
+            'name' => $u['stage_name'],
+        ])->unique('key')->values();
+
+        $grades = $units->filter(fn (array $u): bool => ! empty($u['grade_level_id']))->map(fn (array $u): array => [
+            'id' => $u['grade_level_id'],
+            'name' => $u['grade_name'],
+            'stage' => $u['stage'],
+        ])->unique('id')->values();
+
+        $terms = $units->filter(fn (array $u): bool => ! empty($u['academic_term_id']))->map(fn (array $u): array => [
+            'id' => $u['academic_term_id'],
+            'name' => $u['term_name'],
+        ])->unique('id')->values();
+
         return [
             'questions' => $questions,
             'filters' => [
@@ -57,7 +75,10 @@ class QuestionBankService
                 'visibility' => (string) ($filters['visibility'] ?? ''),
             ],
             'subjects' => $this->subjectsFor($teacher),
-            'units' => $this->unitsFor($teacher),
+            'units' => $units,
+            'stages' => $stages,
+            'grades' => $grades,
+            'terms' => $terms,
         ];
     }
 
@@ -192,7 +213,10 @@ class QuestionBankService
         return [
             'teacher:id,name',
             'subject:id,name',
-            'unit:id,title',
+            'unit:id,teaching_assignment_id,academic_term_id,title',
+            'unit.assignment:id,teacher_id,subject_id,grade_level_id',
+            'unit.assignment.gradeLevel:id,name,stage',
+            'unit.term:id,name',
             'lesson:id,title',
             'options:id,question_bank_question_id,option_text,is_correct',
         ];
@@ -201,6 +225,16 @@ class QuestionBankService
     /** @return array<string, mixed> */
     private function present(QuestionBankQuestion $question, User $teacher): array
     {
+        $stageNames = [
+            'primary'     => 'المرحلة الابتدائية',
+            'preparatory' => 'المرحلة الإعدادية',
+            'secondary'   => 'المرحلة الثانوية',
+        ];
+        $stageKey = $question->unit?->assignment?->gradeLevel?->stage;
+        $stageName = $stageNames[$stageKey] ?? ($stageKey ? 'مرحلة ' . $stageKey : null);
+        $gradeName = $question->unit?->assignment?->gradeLevel?->name ?? null;
+        $termName = $question->unit?->term?->name ?? null;
+
         return [
             'id' => $question->id,
             'question_text' => $question->question_text,
@@ -217,6 +251,9 @@ class QuestionBankService
             'subject' => $question->subject?->only(['id', 'name']),
             'unit' => $question->unit?->only(['id', 'title']),
             'lesson' => $question->lesson?->only(['id', 'title']),
+            'stage_name' => $stageName,
+            'grade_name' => $gradeName,
+            'term_name'  => $termName,
             'options' => $question->options->map(fn ($option): array => [
                 'id' => $option->id,
                 'option_text' => $option->option_text,
@@ -241,26 +278,47 @@ class QuestionBankService
     /** @return Collection<int, array<string, mixed>> */
     private function unitsFor(User $teacher): Collection
     {
+        $stageNames = [
+            'primary'     => 'المرحلة الابتدائية',
+            'preparatory' => 'المرحلة الإعدادية',
+            'secondary'   => 'المرحلة الثانوية',
+        ];
+
         return CurriculumUnit::query()
             ->whereHas('assignment', fn ($query) => $query->where('teacher_id', $teacher->id))
             ->with([
-                'assignment:id,teacher_id,subject_id',
+                'assignment:id,teacher_id,subject_id,grade_level_id',
                 'assignment.subject:id,name',
+                'assignment.gradeLevel:id,name,stage',
+                'term:id,name',
                 'lessons:id,curriculum_unit_id,title,order',
             ])
             ->orderBy('order')
-            ->get(['id', 'teaching_assignment_id', 'title', 'order'])
-            ->map(fn (CurriculumUnit $unit): array => [
-                'id' => $unit->id,
-                'title' => $unit->title,
-                'order' => $unit->order,
-                'subject' => $unit->assignment?->subject?->only(['id', 'name']),
-                'lessons' => $unit->lessons->map(fn (GroupMaterial $lesson): array => [
-                    'id' => $lesson->id,
-                    'title' => $lesson->title,
-                    'order' => $lesson->order,
-                ])->values(),
-            ])
+            ->get(['id', 'teaching_assignment_id', 'academic_term_id', 'title', 'order'])
+            ->map(function (CurriculumUnit $unit) use ($stageNames): array {
+                $stageKey = $unit->assignment?->gradeLevel?->stage;
+                $stageName = $stageNames[$stageKey] ?? ($stageKey ? 'مرحلة ' . $stageKey : 'غير محدد');
+                $gradeName = $unit->assignment?->gradeLevel?->name ?? 'غير محدد';
+                $termName = $unit->term?->name ?? 'غير محدد';
+
+                return [
+                    'id'               => $unit->id,
+                    'title'            => $unit->title,
+                    'order'            => $unit->order,
+                    'subject'          => $unit->assignment?->subject?->only(['id', 'name']),
+                    'stage'            => $stageKey,
+                    'stage_name'       => $stageName,
+                    'grade_level_id'   => $unit->assignment?->grade_level_id,
+                    'grade_name'       => $gradeName,
+                    'academic_term_id' => $unit->academic_term_id,
+                    'term_name'        => $termName,
+                    'lessons'          => $unit->lessons->map(fn (GroupMaterial $lesson): array => [
+                        'id'    => $lesson->id,
+                        'title' => $lesson->title,
+                        'order' => $lesson->order,
+                    ])->values(),
+                ];
+            })
             ->values();
     }
 

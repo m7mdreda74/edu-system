@@ -595,6 +595,33 @@ it('lets an admin set and clear a teacher intro video', function () {
         ->and($this->teacher->fresh()->intro_video_thumbnail)->toBeNull();
 });
 
+it('lets an admin upload a direct video file for a teacher intro video', function () {
+    /** @var AdminControlTestCase $this */
+    Storage::fake('public');
+
+    $file = \Illuminate\Http\UploadedFile::fake()->create('sample_intro.mp4', 1024, 'video/mp4');
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.users.intro-video', ['id' => $this->teacher->id]), [
+            'intro_video_file' => $file,
+        ])
+        ->assertRedirect();
+
+    $teacher = $this->teacher->fresh();
+    expect($teacher->intro_video_url)->not->toBeNull()
+        ->and($teacher->intro_video_url)->toStartWith('/storage/teacher-intro-videos/');
+
+    $storedFilename = substr($teacher->intro_video_url, strlen('/storage/'));
+    Storage::disk('public')->assertExists($storedFilename);
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.users.intro-video.delete', ['id' => $this->teacher->id]))
+        ->assertRedirect();
+
+    expect($this->teacher->fresh()->intro_video_url)->toBeNull();
+    Storage::disk('public')->assertMissing($storedFilename);
+});
+
 it('manages photos for teachers only', function () {
     /** @var AdminControlTestCase $this */
     if (! extension_loaded('gd')) {

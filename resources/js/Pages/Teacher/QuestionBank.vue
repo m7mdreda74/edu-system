@@ -11,6 +11,9 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) },
     subjects: { type: Array, default: () => [] },
     units: { type: Array, default: () => [] },
+    stages: { type: Array, default: () => [] },
+    grades: { type: Array, default: () => [] },
+    terms: { type: Array, default: () => [] },
 });
 
 const MIN_OPTIONS = 2;
@@ -22,6 +25,11 @@ const search = ref(props.filters.search ?? '');
 const difficultyFilter = ref(props.filters.difficulty ?? '');
 const typeFilter = ref(props.filters.type ?? '');
 const visibilityFilter = ref(props.filters.visibility ?? '');
+
+// Academic Classification Form State (Stage, Grade, Term)
+const formStage = ref('');
+const formGrade = ref('');
+const formTerm = ref('');
 
 const difficultyLabels = {
     easy: 'سهل',
@@ -77,13 +85,84 @@ form.transform((data) => ({
         .filter(Boolean),
 }));
 
+// Filter grades based on selected stage
+const availableGrades = computed(() => {
+    if (! formStage.value) return props.grades;
+    return props.grades.filter((g) => g.stage === formStage.value);
+});
+
+// Filter curriculum units by stage, grade, term, and subject
+const filteredUnits = computed(() => {
+    return props.units.filter((unit) => {
+        if (formStage.value && unit.stage !== formStage.value) return false;
+        if (formGrade.value && Number(unit.grade_level_id) !== Number(formGrade.value)) return false;
+        if (formTerm.value && Number(unit.academic_term_id) !== Number(formTerm.value)) return false;
+        if (form.subject_id && Number(unit.subject?.id) !== Number(form.subject_id)) return false;
+        return true;
+    });
+});
+
 const selectedUnit = computed(() => props.units.find(
     (unit) => Number(unit.id) === Number(form.curriculum_unit_id),
 ));
 
 const availableLessons = computed(() => selectedUnit.value?.lessons ?? []);
 
-watch(() => form.curriculum_unit_id, () => {
+// Dynamic academic context summary names
+const currentStageName = computed(() => {
+    if (selectedUnit.value?.stage_name && selectedUnit.value.stage_name !== 'غير محدد') {
+        return selectedUnit.value.stage_name;
+    }
+    const match = props.stages.find((s) => s.key === formStage.value);
+    return match?.name || '';
+});
+
+const currentGradeName = computed(() => {
+    if (selectedUnit.value?.grade_name && selectedUnit.value.grade_name !== 'غير محدد') {
+        return selectedUnit.value.grade_name;
+    }
+    const match = props.grades.find((g) => Number(g.id) === Number(formGrade.value));
+    return match?.name || '';
+});
+
+const currentTermName = computed(() => {
+    if (selectedUnit.value?.term_name && selectedUnit.value.term_name !== 'غير محدد') {
+        return selectedUnit.value.term_name;
+    }
+    const match = props.terms.find((t) => Number(t.id) === Number(formTerm.value));
+    return match?.name || '';
+});
+
+const hasAcademicContext = computed(() => {
+    return Boolean(currentStageName.value || currentGradeName.value || currentTermName.value);
+});
+
+function clearAcademicFilters() {
+    formStage.value = '';
+    formGrade.value = '';
+    formTerm.value = '';
+}
+
+watch(() => formStage.value, (newStage) => {
+    if (newStage && formGrade.value) {
+        const gradeStillAvailable = availableGrades.value.some((g) => Number(g.id) === Number(formGrade.value));
+        if (! gradeStillAvailable) {
+            formGrade.value = '';
+        }
+    }
+});
+
+watch(() => form.curriculum_unit_id, (newUnitId) => {
+    if (newUnitId) {
+        const unit = props.units.find((u) => Number(u.id) === Number(newUnitId));
+        if (unit) {
+            if (unit.stage) formStage.value = unit.stage;
+            if (unit.grade_level_id) formGrade.value = unit.grade_level_id;
+            if (unit.academic_term_id) formTerm.value = unit.academic_term_id;
+            if (unit.subject?.id && ! form.subject_id) form.subject_id = unit.subject.id;
+        }
+    }
+
     if (form.lesson_id && ! availableLessons.value.some((lesson) => Number(lesson.id) === Number(form.lesson_id))) {
         form.lesson_id = '';
     }
@@ -98,6 +177,9 @@ watch(() => props.filters, (next) => {
 
 function resetForm() {
     editingId.value = null;
+    formStage.value = '';
+    formGrade.value = '';
+    formTerm.value = '';
     form.reset();
     form.clearErrors();
 }
@@ -123,6 +205,17 @@ function editQuestion(question) {
     form.explanation = question.explanation ?? '';
     form.tags = (question.tags ?? []).join(', ');
     form.options = (question.options ?? []).map((option) => makeOption(option.option_text, !!option.is_correct));
+
+    // Populate stage, grade, and term from unit or question
+    if (question.unit?.id) {
+        const u = props.units.find((unit) => Number(unit.id) === Number(question.unit.id));
+        if (u) {
+            formStage.value = u.stage || '';
+            formGrade.value = u.grade_level_id || '';
+            formTerm.value = u.academic_term_id || '';
+        }
+    }
+
     form.clearErrors();
     showForm.value = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -160,40 +253,23 @@ function removeOption(index) {
 }
 
 function markCorrect(index) {
-    form.options.forEach((option, optionIndex) => { option.is_correct = optionIndex === index; });
+    form.options.forEach((opt, idx) => {
+        opt.is_correct = idx === index;
+    });
 }
 
-function toggleCorrect(index) {
-    form.options[index].is_correct = ! form.options[index].is_correct;
-}
-
-function changeType(type) {
-    form.type = type;
-
-    if (type === 'essay') {
-        form.options = [];
-    } else if (type === 'true_false') {
+function changeType(newType) {
+    form.type = newType;
+    if (newType === 'true_false') {
         form.options = [
             makeOption('صواب', true),
             makeOption('خطأ', false),
         ];
-    } else if (type === 'single') {
-        if (! form.options.length) {
-            form.options = [makeOption(), makeOption()];
-        }
-        let found = false;
-        form.options.forEach((option) => {
-            if (option.is_correct && ! found) {
-                found = true;
-            } else {
-                option.is_correct = false;
-            }
+    } else if (newType === 'single') {
+        const alreadyCorrect = form.options.findIndex((opt) => opt.is_correct);
+        form.options.forEach((opt, idx) => {
+            opt.is_correct = idx === (alreadyCorrect !== -1 ? alreadyCorrect : 0);
         });
-        if (! found && form.options.length) {
-            form.options[0].is_correct = true;
-        }
-    } else if (type === 'multiple' && ! form.options.length) {
-        form.options = [makeOption(), makeOption()];
     }
 }
 
@@ -248,7 +324,7 @@ async function deleteQuestion(question) {
                 <div>
                     <h1 class="text-3xl font-black text-surface-900 dark:text-white">بنك الأسئلة</h1>
                     <p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
-                        احفظ الأسئلة القابلة لإعادة الاستخدام، ثم انسخها إلى أي اختبار تملكه.
+                        احفظ الأسئلة وصنفها حسب المرحلة والصف والفصل الدراسي، ثم انسخها إلى أي اختبار تملكه.
                     </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -263,13 +339,83 @@ async function deleteQuestion(question) {
             <section v-if="showForm" class="card space-y-5 border-primary-200 p-5 dark:border-primary-900">
                 <div class="flex items-center justify-between gap-3">
                     <div>
-                        <h2 class="font-black text-surface-900 dark:text-white">{{ editingId ? 'تعديل سؤال محفوظ' : 'إضافة سؤال إلى البنك' }}</h2>
-                        <p class="mt-1 text-xs text-surface-400">سيتم نسخ السؤال كـ snapshot داخل الاختبار عند استخدامه.</p>
+                        <h2 class="font-black text-surface-900 dark:text-white">{{ editingId ? 'تعديل سؤال محفوظ' : 'إضافة سؤال جديد إلى البنك' }}</h2>
+                        <p class="mt-1 text-xs text-surface-400">حدد المرحلة والصف والفصل الدراسي لربط السؤال وتسهيل استرجاعه في الاختبارات.</p>
                     </div>
                     <button type="button" class="btn-ghost btn-sm" @click="cancelEdit">إلغاء</button>
                 </div>
 
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <!-- ── Academic Classification Selector (Stage, Grade, Term) ──────── -->
+                <div class="rounded-2xl border border-primary-100 bg-gradient-to-br from-primary-50/50 via-white to-surface-50 p-4 dark:border-primary-900/50 dark:from-primary-950/20 dark:via-surface-900 dark:to-surface-800/40 space-y-3">
+                    <div class="flex items-center justify-between gap-2 border-b border-primary-100/70 pb-2 dark:border-primary-800/50">
+                        <div class="flex items-center gap-2">
+                            <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-primary-600 text-white text-xs font-black shadow-sm">
+                                🏫
+                            </span>
+                            <span class="text-xs font-black text-surface-900 dark:text-white">التصنيف الأكاديمي (المرحلة والصف والفصل الدراسي)</span>
+                        </div>
+                        <button
+                            v-if="formStage || formGrade || formTerm"
+                            type="button"
+                            class="text-[11px] font-bold text-primary-600 hover:underline dark:text-primary-400"
+                            @click="clearAcademicFilters"
+                        >
+                            إلغاء تحديد التصنيف
+                        </button>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <!-- 1. Stage (المرحلة الدراسية) -->
+                        <div>
+                            <label class="input-label text-xs flex items-center gap-1 font-bold">
+                                <span>المرحلة الدراسية</span>
+                            </label>
+                            <select v-model="formStage" class="input">
+                                <option value="">كل المراحل الدراسية</option>
+                                <option v-for="stg in stages" :key="stg.key" :value="stg.key">{{ stg.name }}</option>
+                            </select>
+                        </div>
+
+                        <!-- 2. Grade (الصف الدراسي) -->
+                        <div>
+                            <label class="input-label text-xs flex items-center gap-1 font-bold">
+                                <span>الصف الدراسي</span>
+                            </label>
+                            <select v-model="formGrade" class="input">
+                                <option value="">كل الصفوف الدراسية</option>
+                                <option v-for="grd in availableGrades" :key="grd.id" :value="grd.id">{{ grd.name }}</option>
+                            </select>
+                        </div>
+
+                        <!-- 3. Term (الفصل الدراسي) -->
+                        <div>
+                            <label class="input-label text-xs flex items-center gap-1 font-bold">
+                                <span>الفصل الدراسي</span>
+                            </label>
+                            <select v-model="formTerm" class="input">
+                                <option value="">كل الفصول الدراسية</option>
+                                <option v-for="trm in terms" :key="trm.id" :value="trm.id">{{ trm.name }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Prominent Academic Details Banner -->
+                    <div v-if="hasAcademicContext" class="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                        <span class="font-bold text-surface-500 text-[11px]">التصنيف النشط للسؤال:</span>
+                        <span v-if="currentStageName" class="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-2xs">
+                            🏫 المرحلة: {{ currentStageName }}
+                        </span>
+                        <span v-if="currentGradeName" class="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 font-bold text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-2xs">
+                            📚 الصف: {{ currentGradeName }}
+                        </span>
+                        <span v-if="currentTermName" class="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                            🗓️ الفصل: {{ currentTermName }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- ── Subject, Unit, Lesson & Metadata ────────────────────── -->
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
                         <label class="input-label">المادة</label>
                         <select v-model="form.subject_id" class="input" :class="{ 'input-error': form.errors.subject_id }">
@@ -278,14 +424,18 @@ async function deleteQuestion(question) {
                         </select>
                         <p v-if="form.errors.subject_id" class="error-msg">{{ form.errors.subject_id }}</p>
                     </div>
+
                     <div>
                         <label class="input-label">الوحدة الدراسية</label>
                         <select v-model="form.curriculum_unit_id" class="input" :class="{ 'input-error': form.errors.curriculum_unit_id }">
                             <option value="">بدون ربط بوحدة</option>
-                            <option v-for="unit in units" :key="unit.id" :value="unit.id">{{ unit.title }} · {{ unit.subject?.name }}</option>
+                            <option v-for="unit in filteredUnits" :key="unit.id" :value="unit.id">
+                                {{ unit.title }} — {{ unit.grade_name }} · {{ unit.term_name }} ({{ unit.stage_name }})
+                            </option>
                         </select>
                         <p v-if="form.errors.curriculum_unit_id" class="error-msg">{{ form.errors.curriculum_unit_id }}</p>
                     </div>
+
                     <div>
                         <label class="input-label">الدرس</label>
                         <select v-model="form.lesson_id" class="input" :disabled="! availableLessons.length" :class="{ 'input-error': form.errors.lesson_id }">
@@ -294,10 +444,12 @@ async function deleteQuestion(question) {
                         </select>
                         <p v-if="form.errors.lesson_id" class="error-msg">{{ form.errors.lesson_id }}</p>
                     </div>
+
                     <div>
                         <label class="input-label">الموضوع</label>
-                        <input v-model="form.topic" type="text" class="input" maxlength="160" placeholder="مثال: الكسور" />
+                        <input v-model="form.topic" type="text" class="input" maxlength="160" placeholder="مثال: قوانين نيوتن" />
                     </div>
+
                     <div>
                         <label class="input-label">مستوى الصعوبة</label>
                         <select v-model="form.difficulty" class="input">
@@ -306,6 +458,7 @@ async function deleteQuestion(question) {
                             <option value="hard">متقدم</option>
                         </select>
                     </div>
+
                     <div>
                         <label class="input-label">الظهور</label>
                         <select v-model="form.visibility" class="input">
@@ -313,13 +466,15 @@ async function deleteQuestion(question) {
                             <option value="shared">مشترك مع المعلمين</option>
                         </select>
                     </div>
+
                     <div>
                         <label class="input-label">النقاط</label>
                         <input v-model.number="form.points" type="number" min="1" max="100" class="input" />
                     </div>
-                    <div>
-                        <label class="input-label">الوسوم</label>
-                        <input v-model="form.tags" type="text" class="input" placeholder="سهل، مراجعة، وحدة 1" />
+
+                    <div class="sm:col-span-2">
+                        <label class="input-label">الوسوم (مفصولة بفاصلة)</label>
+                        <input v-model="form.tags" type="text" class="input" placeholder="سهل، مراجعة نهائية، اختبار قصير" />
                     </div>
                 </div>
 
@@ -393,7 +548,8 @@ async function deleteQuestion(question) {
                 </p>
                 <p v-if="form.errors.question" class="error-msg">{{ form.errors.question }}</p>
 
-                <div class="flex justify-end">
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="btn-outline btn-sm" @click="cancelEdit">إلغاء</button>
                     <button type="button" class="btn-primary btn-sm" :disabled="form.processing || !! problemOf()" @click="submit">
                         {{ form.processing ? 'جارٍ الحفظ...' : (editingId ? 'حفظ التعديلات' : 'حفظ السؤال') }}
                     </button>
@@ -438,6 +594,18 @@ async function deleteQuestion(question) {
                                 <span class="badge-primary">{{ typeLabels[question.type] || question.type }}</span>
                                 <span class="badge-gray">{{ difficultyLabels[question.difficulty] }}</span>
                                 <span :class="question.visibility === 'shared' ? 'badge-green' : 'badge-accent'">{{ visibilityLabels[question.visibility] }}</span>
+
+                                <!-- Academic Badges for Question (Stage, Grade, Term) -->
+                                <span v-if="question.stage_name" class="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-bold text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                                    🏫 {{ question.stage_name }}
+                                </span>
+                                <span v-if="question.grade_name" class="inline-flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 font-bold text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                                    📚 {{ question.grade_name }}
+                                </span>
+                                <span v-if="question.term_name" class="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                                    🗓️ {{ question.term_name }}
+                                </span>
+
                                 <span v-if="question.allow_file_upload" class="rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold text-sky-600 dark:text-sky-400 border border-sky-500/20">
                                     📎 يقبل حل ورقي
                                 </span>

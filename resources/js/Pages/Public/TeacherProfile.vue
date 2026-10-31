@@ -43,6 +43,12 @@ const embedUrl = computed(() => {
     return url;
 });
 
+const isDirectVideo = computed(() => {
+    const url = props.teacher.intro_video_url;
+    if (!url) return false;
+    return url.startsWith('/storage/') || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+});
+
 const subscribing = ref(null);
 
 // Subscription Wizard State (Step 1: Type -> Step 2: Schedule -> Step 3: Price & Checkout)
@@ -278,8 +284,15 @@ const otherTeachersUrl = computed(() => (
 
                     <!-- Intro video -->
                     <div class="rounded-2xl overflow-hidden bg-black/40 border border-white/15 aspect-video relative">
+                        <video
+                            v-if="playingVideo && isDirectVideo"
+                            :src="teacher.intro_video_url"
+                            controls
+                            autoplay
+                            class="w-full h-full object-contain"
+                        ></video>
                         <iframe
-                            v-if="playingVideo && embedUrl"
+                            v-else-if="playingVideo && embedUrl"
                             :src="`${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`"
                             class="w-full h-full"
                             frameborder="0"

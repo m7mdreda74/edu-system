@@ -186,10 +186,10 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('/chat/start', [ChatController::class, 'startConversation'])
         ->name('chat.start')
-        ->middleware('throttle:10,1');
+        ->middleware('throttle:60,1');
     Route::post('/chat/send', [ChatController::class, 'sendMessage'])
         ->name('chat.send')
-        ->middleware('throttle:30,1');
+        ->middleware('throttle:120,1');
     Route::get('/chat/fetch', [ChatController::class, 'fetchMessages'])
         ->name('chat.fetch')
         ->middleware('throttle:120,1');
@@ -497,6 +497,8 @@ Route::middleware(['auth', 'active', 'role:admin', 'admin.sensitive'])->prefix('
     Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports');
+    Route::get('/reports/export/excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
+    Route::get('/reports/export/pdf', [ReportController::class, 'exportPdf'])->name('reports.export.pdf');
     // Polled by the dashboard so its figures stay live without a page reload.
     Route::get('/dashboard/stats', [App\Http\Controllers\Admin\DashboardController::class, 'stats'])->name('dashboard.stats');
     Route::get('/users', [UserController::class, 'index'])->name('users');

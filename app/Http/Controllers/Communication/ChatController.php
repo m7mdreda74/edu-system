@@ -42,7 +42,11 @@ class ChatController extends Controller
             'student:id,name,avatar',
             'teacher:id,name,avatar',
         ])
-            ->whereHas('participants', fn ($query) => $query->where('users.id', $user->id))
+            ->where(function ($query) use ($user) {
+                $query->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
+                    ->orWhere('student_id', $user->id)
+                    ->orWhere('teacher_id', $user->id);
+            })
             ->orderByDesc('last_message_at')
             ->get()
             ->each(fn (Conversation $conversation) => $this->decorateConversation($conversation, $user));
@@ -57,7 +61,11 @@ class ChatController extends Controller
                 'teacher:id,name,avatar',
             ])
                 ->where('id', $request->query('conversation'))
-                ->whereHas('participants', fn ($query) => $query->where('users.id', $user->id))
+                ->where(function ($query) use ($user) {
+                    $query->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
+                        ->orWhere('student_id', $user->id)
+                        ->orWhere('teacher_id', $user->id);
+                })
                 ->firstOrFail();
             $this->decorateConversation($activeConversation, $user);
 
@@ -85,9 +93,10 @@ class ChatController extends Controller
     {
         $validated = $request->validate([
             'kind'                   => ['nullable', 'string', 'in:academic,support'],
-            'teaching_assignment_id' => ['nullable', 'required_unless:kind,support', 'integer', 'min:1', 'exists:teaching_assignments,id'],
-            'student_id'             => ['nullable', 'integer', 'min:1', 'exists:users,id'],
-            'recipient_id'           => ['nullable', 'integer', 'min:1', 'exists:users,id'],
+            'teaching_assignment_id' => ['nullable', 'integer', 'min:1'],
+            'teacher_id'             => ['nullable', 'integer', 'min:1'],
+            'student_id'             => ['nullable', 'integer', 'min:1'],
+            'recipient_id'           => ['nullable', 'integer', 'min:1'],
         ]);
 
         /** @var \App\Domain\User\Models\User $user */
@@ -127,7 +136,26 @@ class ChatController extends Controller
             return redirect()->route('chat.index', ['conversation' => $conversation->id]);
         }
 
-        $assignment = TeachingAssignment::findOrFail($validated['teaching_assignment_id']);
+        $assignmentId = $validated['teaching_assignment_id'] ?? null;
+
+        if (! $assignmentId && ! empty($validated['teacher_id'])) {
+            $teacherIdInput = (int) $validated['teacher_id'];
+            if ($user->hasRole('student')) {
+                // Find an assignment where the student has an active subscription with this teacher
+                $sub = Subscription::active()
+                    ->where('student_id', $user->id)
+                    ->whereHas('assignment', fn ($q) => $q->where('teacher_id', $teacherIdInput))
+                    ->first();
+                $assignmentId = $sub?->teaching_assignment_id;
+            }
+            if (! $assignmentId) {
+                $assignmentId = TeachingAssignment::where('teacher_id', $teacherIdInput)->value('id');
+            }
+        }
+
+        abort_if(! $assignmentId, 422, 'يجب تحديد المادة أو المعلم لبدء المحادثة.');
+
+        $assignment = TeachingAssignment::findOrFail($assignmentId);
 
         if ($user->hasRole('teacher')) {
             abort_if($assignment->teacher_id !== $user->id, 403, 'هذه المجموعة ليست ضمن جدولك.');
@@ -164,9 +192,18 @@ class ChatController extends Controller
             $studentId = $user->id;
             $teacherId = $assignment->teacher_id;
 
-            // A student may only message a teacher they actually study with.
+            // A student may message a teacher if they have an active subscription with that teacher or assignment
+            $canContact = $user->hasActiveSubscriptionToAssignment($assignment->id)
+                || Subscription::active()
+                    ->where('student_id', $user->id)
+                    ->where(function ($q) use ($assignment) {
+                        $q->where('teaching_assignment_id', $assignment->id)
+                            ->orWhereHas('assignment', fn ($subQ) => $subQ->where('teacher_id', $assignment->teacher_id));
+                    })
+                    ->exists();
+
             abort_unless(
-                $user->hasActiveSubscriptionToAssignment($assignment->id),
+                $canContact,
                 403,
                 'يمكنك مراسلة المعلم بعد الاشتراك معه.',
             );
@@ -181,6 +218,13 @@ class ChatController extends Controller
             ['last_message_at' => now()],
         );
 
+        if ($student = User::find($studentId)) {
+            $this->attachParticipant($conversation, $student, 'student');
+        }
+        if ($teacher = User::find($teacherId)) {
+            $this->attachParticipant($conversation, $teacher, 'teacher');
+        }
+
         if ($user->hasRole('parent')) {
             $this->attachParticipant($conversation, $user, 'parent');
         }
@@ -190,9 +234,22 @@ class ChatController extends Controller
 
     public function sendMessage(Request $request): RedirectResponse
     {
+        // Sanitize: If attachment is string "null", empty string, or not a valid uploaded file, normalize it to null
+        if (! $request->hasFile('attachment') || $request->input('attachment') === 'null' || $request->input('attachment') === '') {
+            $request->offsetUnset('attachment');
+            $request->files->remove('attachment');
+            $request->merge(['attachment' => null]);
+        }
+
+        // Clean message text if provided
+        if ($request->has('message') && is_string($request->input('message'))) {
+            $trimmed = trim($request->input('message'));
+            $request->merge(['message' => filled($trimmed) ? $trimmed : null]);
+        }
+
         $validated = $request->validate([
             'conversation_id' => ['required', 'integer', 'min:1', 'exists:conversations,id'],
-            'message'         => ['nullable', 'required_without:attachment', 'string', 'min:1', 'max:2000'],
+            'message'         => ['nullable', 'required_without:attachment', 'string', 'min:1', 'max:5000'],
             'attachment'      => [
                 'nullable',
                 'required_without:message',
@@ -201,6 +258,10 @@ class ChatController extends Controller
                 'mimetypes:application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,image/png,image/jpeg',
                 'max:10240',
             ],
+        ], [
+            'message.required_without' => 'يرجى كتابة رسالة أو إرفاق ملف.',
+            'attachment.file'          => 'يجب أن يكون المرفق ملفاً صالحاً.',
+            'attachment.max'           => 'الحد الأقصى لحجم الملف هو 10 ميجابايت.',
         ]);
 
         $user         = Auth::user();
@@ -220,6 +281,12 @@ class ChatController extends Controller
         ]);
 
         $conversation->update(['last_message_at' => now()]);
+
+        // Ensure user is attached as participant if not yet attached
+        if (! $conversation->participants()->where('users.id', $user->id)->exists()) {
+            $role = $user->id === $conversation->teacher_id ? 'teacher' : ($user->id === $conversation->student_id ? 'student' : 'participant');
+            $this->attachParticipant($conversation, $user, $role);
+        }
 
         $conversation->participants()
             ->where('users.id', '!=', $user->id)
@@ -340,6 +407,10 @@ class ChatController extends Controller
 
     private function isParticipant(Conversation $conversation, User $user): bool
     {
+        if ($conversation->student_id === $user->id || $conversation->teacher_id === $user->id) {
+            return true;
+        }
+
         return $conversation->participants()->where('users.id', $user->id)->exists();
     }
 
@@ -381,12 +452,18 @@ class ChatController extends Controller
 
     private function decorateConversation(Conversation $conversation, User $viewer): void
     {
-        $counterpart = $conversation->participants->firstWhere('id', '!=', $viewer->id);
+        $counterpart = null;
 
         if ($viewer->hasRole('teacher') && $conversation->student) {
             $counterpart = $conversation->student;
         } elseif ($viewer->hasRole('parent') && $conversation->teacher) {
             $counterpart = $conversation->teacher;
+        } elseif ($conversation->student_id === $viewer->id && $conversation->teacher) {
+            $counterpart = $conversation->teacher;
+        } elseif ($conversation->teacher_id === $viewer->id && $conversation->student) {
+            $counterpart = $conversation->student;
+        } else {
+            $counterpart = $conversation->participants->firstWhere('id', '!=', $viewer->id);
         }
 
         $conversation->setAttribute('counterpart', $counterpart?->only(['id', 'name', 'avatar']));

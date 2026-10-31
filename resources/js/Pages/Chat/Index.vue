@@ -18,6 +18,7 @@ const showMobileChat = ref(!!props.activeConversation);
 const page = usePage();
 const currentUser = page.props.auth.user;
 const isTeacher = currentUser?.roles?.includes('teacher');
+const isStudent = currentUser?.roles?.includes('student') || !isTeacher;
 
 const form = useForm({
     conversation_id: props.activeConversation?.id || '',
@@ -31,16 +32,15 @@ const selectedFile = ref(null);
 const selectedFilePreview = ref(null);
 const showEmojiPicker = ref(false);
 
-// Teacher new conversation search & modal
+// New conversation search & modal (for Teachers & Students)
 const showNewChatModal = ref(false);
-const searchStudentQuery = ref('');
+const searchContactQuery = ref('');
 
-const filteredStudents = computed(() => {
-    const query = searchStudentQuery.value.trim().toLowerCase();
+const filteredContacts = computed(() => {
+    const query = searchContactQuery.value.trim().toLowerCase();
     if (!query) return props.contacts;
-    return props.contacts.filter(s => 
-        s.name.toLowerCase().includes(query) || 
-        (s.subject ?? "").toLowerCase().includes(query)
+    return props.contacts.filter(c => 
+        ((c.name ?? "") + " " + (c.subject ?? "")).toLowerCase().includes(query)
     );
 });
 
@@ -101,16 +101,28 @@ function clearAttachment() {
     }
 }
 
-function startTeacherChat(studentId, assignmentId) {
-    router.post(route('chat.start'), {
-        teaching_assignment_id: assignmentId,
-        teacher_id: currentUser.id,
-        student_id: studentId
-    }, {
-        onSuccess: () => {
-            showNewChatModal.value = false;
-        }
-    });
+function startChatWithContact(contact) {
+    if (isTeacher) {
+        router.post(route('chat.start'), {
+            teaching_assignment_id: contact.teaching_assignment_id,
+            teacher_id: currentUser.id,
+            student_id: contact.id,
+        }, {
+            onSuccess: () => {
+                showNewChatModal.value = false;
+            }
+        });
+    } else {
+        router.post(route('chat.start'), {
+            teaching_assignment_id: contact.teaching_assignment_id,
+            teacher_id: contact.id,
+            student_id: currentUser.id,
+        }, {
+            onSuccess: () => {
+                showNewChatModal.value = false;
+            }
+        });
+    }
 }
 
 function isImage(path) {
@@ -177,22 +189,31 @@ async function fetchNewMessages() {
 }
 
 function sendMessage() {
-    if (!form.message.trim() && !form.attachment) return;
+    const trimmedMessage = form.message.trim();
+    const hasFile = form.attachment instanceof File;
+
+    if (!trimmedMessage && !hasFile) return;
     if (!form.conversation_id) return;
 
     const draftMessage = form.message;
     // Clear the composer immediately so the interface reflects the send
     // action; restore the draft only if the request is rejected.
     form.reset('message');
-    
-    form.post(route('chat.send'), {
+
+    form.transform((data) => ({
+        conversation_id: data.conversation_id,
+        message: trimmedMessage || null,
+        ...(hasFile ? { attachment: data.attachment } : {}),
+    })).post(route('chat.send'), {
         preserveScroll: true,
-        forceFormData: true,
+        forceFormData: hasFile,
         onSuccess: () => {
             clearAttachment();
             fetchNewMessages(); // Immediately fetch instead of waiting for interval
         },
-        onError: () => { form.message = draftMessage; },
+        onError: () => {
+            form.message = draftMessage;
+        },
     });
 }
 
@@ -234,9 +255,9 @@ onUnmounted(() => {
                      :class="{ 'hidden md:flex': showMobileChat, 'flex': !showMobileChat }">
                     <div class="p-4 border-b border-surface-200 dark:border-surface-700 flex items-center justify-between">
                         <h2 class="font-bold text-surface-800 dark:text-surface-200">المحادثات</h2>
-                        <button v-if="isTeacher" type="button" @click="showNewChatModal = true" class="btn-xs bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-[11px] transition-colors">
+                        <button v-if="isTeacher || contacts.length > 0" type="button" @click="showNewChatModal = true" class="btn-xs bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-[11px] transition-colors" :title="isTeacher ? 'بدء محادثة جديدة مع طالب' : 'مراسلة أحد معلميك'">
                             <Icon name="plus" class="w-3.5 h-3.5" />
-                            <span>محادثة جديدة</span>
+                            <span>{{ isTeacher ? 'محادثة جديدة' : 'مراسلة معلم' }}</span>
                         </button>
                     </div>
                     <div class="flex-1 overflow-y-auto">
@@ -416,7 +437,7 @@ onUnmounted(() => {
             </div>
         </div>
 
-        <!-- New Chat Modal (For Teachers) -->
+        <!-- New Chat Modal (For Teachers & Students) -->
         <Transition enter-active-class="ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="ease-in duration-200" leave-from-class="opacity-100" leave-to-class="opacity-0">
             <div v-if="showNewChatModal" class="modal-overlay z-50 bg-surface-950/70 dark:bg-black/80" role="dialog" aria-modal="true" aria-label="محادثة جديدة">
                 <div class="modal-panel bg-white dark:bg-surface-900 w-full max-w-lg rounded-3xl border border-surface-200 dark:border-surface-800 shadow-2xl relative" dir="rtl">
@@ -424,7 +445,9 @@ onUnmounted(() => {
                     <div class="p-5 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <Icon name="chat" class="w-5 h-5 text-primary-500" />
-                            <h3 class="font-bold text-surface-900 dark:text-white text-base">بدء محادثة جديدة</h3>
+                            <h3 class="font-bold text-surface-900 dark:text-white text-base">
+                                {{ isTeacher ? 'بدء محادثة جديدة مع طالب' : 'مراسلة أحد معلميك' }}
+                            </h3>
                         </div>
                         <button type="button" @click="showNewChatModal = false" class="text-surface-400 hover:text-surface-900 dark:hover:text-white text-lg font-bold" aria-label="إغلاق النافذة">
                             ×
@@ -434,14 +457,14 @@ onUnmounted(() => {
                     <!-- Search Input -->
                     <div class="p-4 bg-surface-50 dark:bg-surface-850">
                         <div class="relative">
-                            <input v-model="searchStudentQuery" type="text" maxlength="100" class="input w-full pr-10 pl-4 py-2 text-sm bg-white dark:bg-surface-950 rounded-xl" placeholder="البحث باسم الطالب أو المادة..." />
+                            <input v-model="searchContactQuery" type="text" maxlength="100" class="input w-full pr-10 pl-4 py-2 text-sm bg-white dark:bg-surface-950 rounded-xl" :placeholder="isTeacher ? 'البحث باسم الطالب أو المادة...' : 'البحث باسم المعلم أو المادة...'" />
                             <Icon name="search" class="w-4 h-4 text-surface-400 absolute right-3 top-3.5" />
                         </div>
                     </div>
 
-                    <!-- Enrolled Students List -->
+                    <!-- Contacts List -->
                     <div class="max-h-80 overflow-y-auto divide-y divide-surface-100 dark:divide-surface-800">
-                        <div v-for="item in filteredStudents" :key="item.id + '-' + item.teaching_assignment_id" class="p-4 flex items-center justify-between hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
+                        <div v-for="item in filteredContacts" :key="item.id + '-' + item.teaching_assignment_id" class="p-4 flex items-center justify-between hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
                             <div class="flex items-center gap-3 overflow-hidden">
                                 <div class="avatar-sm bg-surface-100 dark:bg-surface-800 shrink-0">
                                     <img v-if="item.avatar" :src="item.avatar" :alt="item.name" class="w-full h-full object-cover">
@@ -458,12 +481,12 @@ onUnmounted(() => {
                                     </div>
                                 </div>
                             </div>
-                            <button type="button" @click="startTeacherChat(item.id, item.teaching_assignment_id)" class="btn-primary text-xs py-1.5 px-3 rounded-lg shrink-0">
+                            <button type="button" @click="startChatWithContact(item)" class="btn-primary text-xs py-1.5 px-3 rounded-lg shrink-0">
                                 بدء محادثة
                             </button>
                         </div>
-                        <div v-if="filteredStudents.length === 0" class="p-8 text-center text-surface-500 text-sm">
-                            لا يوجد طلاب مطابقين للبحث.
+                        <div v-if="filteredContacts.length === 0" class="p-8 text-center text-surface-500 text-sm">
+                            {{ isTeacher ? 'لا يوجد طلاب مطابقين للبحث.' : 'لا يوجد معلمون مطابقون للبحث.' }}
                         </div>
                     </div>
                 </div>

@@ -73,7 +73,12 @@ it('creates a reusable question and copies a snapshot into the quiz builder', fu
             ->where('questions.data.0.id', $bankQuestion->id)
             ->where('questions.total', 1)
             ->where('questions.data.0.can_edit', true)
-            ->where('questions.data.0.options.0.is_correct', true));
+            ->where('questions.data.0.options.0.is_correct', true)
+            ->where('questions.data.0.grade_name', fn ($val) => filled($val))
+            ->where('questions.data.0.term_name', fn ($val) => filled($val))
+            ->has('stages')
+            ->has('grades')
+            ->has('terms'));
 
     $this->actingAs($teacher)
         ->get(route('teacher.quizzes.edit', $quiz->id))

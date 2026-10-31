@@ -47,6 +47,13 @@ async function cancel(id) {
     });
     if (ok) router.delete(route('student.subscriptions.cancel', { id }));
 }
+
+function openTeacherChat(sub) {
+    router.post(route('chat.start'), {
+        teaching_assignment_id: sub.teaching_assignment_id,
+        teacher_id: sub.teacher?.id,
+    });
+}
 </script>
 
 <template>
@@ -157,9 +164,20 @@ async function cancel(id) {
 
                         <div class="flex flex-wrap items-center gap-2">
                             <Link v-if="sub.group" :href="route('student.learn', { groupId: sub.group.id })" class="btn-primary btn-sm flex items-center gap-1.5 shadow-sm">
-                                <span>دخول الحصة</span>
+                                <span>الاطلاع على الدروس</span>
                                 <span>←</span>
                             </Link>
+
+                            <button
+                                v-if="sub.teacher"
+                                type="button"
+                                class="btn-outline btn-sm flex items-center gap-1.5 text-primary-600 dark:text-primary-400 border-primary-200 dark:border-primary-800 hover:bg-primary-50 dark:hover:bg-primary-950/40"
+                                @click="openTeacherChat(sub)"
+                                title="مراسلة المعلم"
+                            >
+                                <Icon name="chat" class="w-3.5 h-3.5" />
+                                <span>مراسلة المعلم</span>
+                            </button>
 
                             <Link
                                 v-if="sub.certificate_ready && sub.group"

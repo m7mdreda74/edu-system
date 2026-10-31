@@ -4,264 +4,78 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Learning\Models\LiveSession;
-use App\Domain\Learning\Models\LiveSessionAttendee;
-use App\Domain\Scheduling\Models\SessionBooking;
-use App\Domain\Scheduling\Models\TeachingGroup;
-use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
-use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\Reports\ReportDataService;
+use App\Support\Reports\ReportExporter;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
-    private const MAX_PRINT_ROWS = 1_000;
+    public function __construct(
+        private readonly ReportDataService $reportDataService,
+        private readonly ReportExporter $reportExporter,
+    ) {
+    }
 
     public function index(Request $request): Response
     {
-        $filters = $request->validate([
-            'report_type'  => ['nullable', 'string', 'in:all,teachers,attendance,sessions,groups'],
-            'start_date'   => ['nullable', 'date', 'date_format:Y-m-d'],
-            'end_date'     => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
-            'teacher_id'   => ['nullable', 'integer', 'min:1', 'exists:users,id'],
-            'student_id'   => ['nullable', 'integer', 'min:1', 'exists:users,id'],
-            'session_type' => ['nullable', 'string', 'in:all,private,free,group'],
-            'group_id'     => ['nullable', 'integer', 'min:1', 'exists:teaching_groups,id'],
-            'status'       => ['nullable', 'in:scheduled,live,ended,cancelled'],
-            'print'        => ['nullable', 'boolean'],
-        ]);
-
-        $print = $request->boolean('print');
-        $teacherId = isset($filters['teacher_id']) ? (int) $filters['teacher_id'] : null;
-        $studentId = isset($filters['student_id']) ? (int) $filters['student_id'] : null;
-        $sessionType = $filters['session_type'] ?? null;
-        $groupId = isset($filters['group_id']) ? (int) $filters['group_id'] : null;
-        $start = $filters['start_date'] ?? null;
-        $end = $filters['end_date'] ?? null;
-        $startAt = $start ? CarbonImmutable::parse($start)->startOfDay() : null;
-        $endAt = $end ? CarbonImmutable::parse($end)->endOfDay() : null;
-
-        if ($startAt && $endAt && $startAt->diffInDays($endAt) > 366) {
-            throw ValidationException::withMessages([
-                'end_date' => 'نطاق التقرير لا يمكن أن يتجاوز 366 يوماً.',
-            ]);
-        }
-
-        $teachers = User::role('teacher')
-            ->with([
-                'subject:id,name',
-                'teachingAssignments:id,teacher_id',
-            ])
-            ->withCount('teachingAssignments')
-            ->orderBy('name')
-            ->get();
-
-        $students = User::role('student')
-            ->select(['id', 'name', 'email'])
-            ->orderBy('name')
-            ->get();
-
-        $groups = TeachingGroup::query()
-            ->with([
-                'assignment:id,teacher_id,subject_id,grade_level_id',
-                'assignment.teacher:id,name',
-                'assignment.subject:id,name',
-                'assignment.gradeLevel:id,name',
-                'term:id,name',
-            ])
-            ->withCount(['activeBookings', 'liveSessions'])
-            ->when($teacherId, fn (Builder $query) => $query->whereHas(
-                'assignment',
-                fn (Builder $assignment) => $assignment->where('teacher_id', $teacherId),
-            ))
-            ->when($groupId, fn (Builder $query) => $query->where('id', $groupId))
-            ->orderByDesc('is_active')
-            ->orderBy('name')
-            ->get();
-
-        $sessionQuery = LiveSession::query()
-            ->with([
-                'teacher:id,name',
-                'teachingGroup:id,name,teaching_assignment_id',
-                'teachingGroup.assignment.subject:id,name',
-                'privateSessionSlot:id,teaching_assignment_id,starts_at,ends_at',
-            ])
-            ->withCount('attendees')
-            ->when($teacherId, fn (Builder $query) => $query->where('teacher_id', $teacherId))
-            ->when($groupId, fn (Builder $query) => $query->where('teaching_group_id', $groupId))
-            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
-            ->when($startAt, fn (Builder $query) => $query->where('scheduled_at', '>=', $startAt))
-            ->when($endAt, fn (Builder $query) => $query->where('scheduled_at', '<=', $endAt));
-
-        if ($sessionType === 'private') {
-            $sessionQuery->whereNotNull('private_session_slot_id');
-        } elseif ($sessionType === 'free') {
-            $sessionQuery->where('is_free', true);
-        } elseif ($sessionType === 'group') {
-            $sessionQuery->whereNotNull('teaching_group_id')
-                ->where(fn (Builder $q) => $q->where('is_free', false)->orWhereNull('is_free'));
-        }
-
-        if ($print) {
-            $sessionRows = $sessionQuery->latest('scheduled_at')->limit(self::MAX_PRINT_ROWS)->get();
-            $sessions = [
-                'data' => $sessionRows,
-                'links' => [],
-                'meta' => [
-                    'current_page' => 1,
-                    'last_page' => 1,
-                    'per_page' => max(1, $sessionRows->count()),
-                    'total' => $sessionRows->count(),
-                ],
-            ];
-        } else {
-            $sessions = $sessionQuery
-                ->latest('scheduled_at')
-                ->paginate(10)
-                ->withQueryString();
-        }
-
-        $attendanceQuery = LiveSessionAttendee::query()
-            ->with([
-                'user:id,name,email',
-                'session:id,title,teacher_id,teaching_group_id,private_session_slot_id,scheduled_at,status',
-                'session.teacher:id,name',
-                'session.teachingGroup:id,name,teaching_assignment_id',
-                'session.teachingGroup.assignment.subject:id,name',
-                'session.privateSessionSlot.assignment.subject:id,name',
-            ])
-            ->whereHas('user', fn (Builder $query) => $query->role('student'))
-            ->when($studentId, fn (Builder $query) => $query->where('user_id', $studentId))
-            ->whereHas('session', function (Builder $query) use ($teacherId, $groupId, $sessionType, $startAt, $endAt, $filters): void {
-                $query
-                    ->when($teacherId, fn (Builder $q, int $id) => $q->where('teacher_id', $id))
-                    ->when($groupId, fn (Builder $q, int $id) => $q->where('teaching_group_id', $id))
-                    ->when($filters['status'] ?? null, fn (Builder $q, string $status) => $q->where('status', $status))
-                    ->when($startAt, fn (Builder $q) => $q->where('scheduled_at', '>=', $startAt))
-                    ->when($endAt, fn (Builder $q) => $q->where('scheduled_at', '<=', $endAt));
-
-                if ($sessionType === 'private') {
-                    $query->whereNotNull('private_session_slot_id');
-                } elseif ($sessionType === 'free') {
-                    $query->where('is_free', true);
-                } elseif ($sessionType === 'group') {
-                    $query->whereNotNull('teaching_group_id')
-                        ->where(fn (Builder $q) => $q->where('is_free', false)->orWhereNull('is_free'));
-                }
-            });
-
-        if ($print) {
-            $attendanceRows = $attendanceQuery->latest('joined_at')->limit(self::MAX_PRINT_ROWS)->get();
-            $attendance = [
-                'data' => $attendanceRows,
-                'links' => [],
-                'meta' => [
-                    'current_page' => 1,
-                    'last_page' => 1,
-                    'per_page' => max(1, $attendanceRows->count()),
-                    'total' => $attendanceRows->count(),
-                ],
-            ];
-        } else {
-            $attendance = $attendanceQuery
-                ->latest('joined_at')
-                ->paginate(20, ['*'], 'attendance_page')
-                ->withQueryString();
-            $attendanceRows = $attendance->getCollection();
-        }
-
-        $attendanceRows->transform(function (LiveSessionAttendee $attendee): array {
-            $session = $attendee->session;
-
-            return [
-                'id' => $attendee->id,
-                'student' => $attendee->user?->only(['id', 'name', 'email']),
-                'teacher' => $session?->teacher?->only(['id', 'name']),
-                'session' => $session?->title,
-                'subject' => $session?->teachingGroup?->assignment?->subject?->name
-                    ?? $session?->privateSessionSlot?->assignment?->subject?->name,
-                'scheduled_at' => $session?->scheduled_at?->toIso8601String(),
-                'joined_at' => $attendee->joined_at?->toIso8601String(),
-                'left_at' => $attendee->left_at?->toIso8601String(),
-                'minutes' => (int) round($attendee->durationSeconds() / 60),
-            ];
-        });
-
-        $sessionCountQuery = (clone $sessionQuery);
-        $sessionCount = $sessionCountQuery->count();
-        $liveCount = (clone $sessionQuery)->where('status', LiveSession::STATUS_LIVE)->count();
-        $endedCount = (clone $sessionQuery)->where('status', LiveSession::STATUS_ENDED)->count();
-
-        $groupIds = $groups->pluck('id');
-        $confirmedGroupStudents = SessionBooking::query()
-            ->where('status', 'confirmed')
-            ->whereIn('teaching_group_id', $groupIds)
-            ->distinct()
-            ->count('student_id');
-
-        $privateStudents = SessionBooking::query()
-            ->where('status', 'confirmed')
-            ->whereHas('privateSlot.assignment', function (Builder $query) use ($teacherId): void {
-                $query->when($teacherId, fn (Builder $q, int $id) => $q->where('teacher_id', $id));
-            })
-            ->distinct()
-            ->count('student_id');
-
-        $studentCounts = SessionBooking::query()
-            ->selectRaw('teaching_group_id, COUNT(DISTINCT student_id) AS students_count')
-            ->where('status', 'confirmed')
-            ->whereIn('teaching_group_id', $groupIds)
-            ->groupBy('teaching_group_id')
-            ->pluck('students_count', 'teaching_group_id');
-
-        $teacherGroups = $groups->groupBy(fn (TeachingGroup $group) => $group->assignment?->teacher_id);
-        $teacherSessions = LiveSession::query()
-            ->selectRaw('teacher_id, COUNT(*) AS sessions_count')
-            ->when($teacherId, fn (Builder $query) => $query->where('teacher_id', $teacherId))
-            ->when($startAt, fn (Builder $query) => $query->where('scheduled_at', '>=', $startAt))
-            ->when($endAt, fn (Builder $query) => $query->where('scheduled_at', '<=', $endAt))
-            ->groupBy('teacher_id')
-            ->pluck('sessions_count', 'teacher_id');
-
-        $teachers->each(function (User $teacher) use ($teacherGroups, $teacherSessions, $studentCounts): void {
-            $teacherGroupRows = $teacherGroups->get($teacher->id, collect());
-            $teacher->setAttribute('groups_count', $teacherGroupRows->count());
-            $teacher->setAttribute('students_count', $teacherGroupRows
-                ->sum(fn (TeachingGroup $group) => (int) $studentCounts->get($group->id, 0)));
-            $teacher->setAttribute('sessions_count', (int) $teacherSessions->get($teacher->id, 0));
-        });
+        $data = $this->reportDataService->getReportData($request, false);
 
         return Inertia::render('Admin/Reports', [
-            'printMode' => $print,
-            'filters' => [
-                'report_type'  => $filters['report_type'] ?? 'all',
-                'start_date'   => $start,
-                'end_date'     => $end,
-                'teacher_id'   => $teacherId,
-                'student_id'   => $studentId,
-                'session_type' => $sessionType ?? 'all',
-                'group_id'     => $groupId,
-                'status'       => $filters['status'] ?? '',
-                'print'        => $print,
-            ],
-            'teachers'   => $teachers,
-            'students'   => $students,
-            'groups'     => $groups,
-            'sessions'   => $sessions,
-            'attendance' => $attendance,
-            'summary' => [
-                'teachers' => $teachers->count(),
-                'groups' => $groups->count(),
-                'students' => $confirmedGroupStudents + $privateStudents,
-                'sessions' => $sessionCount,
-                'live_sessions' => $liveCount,
-                'ended_sessions' => $endedCount,
-            ],
+            'printMode'     => $data['printMode'],
+            'filters'       => $data['filters'],
+            'filterSummary' => $data['filterSummary'],
+            'teachers'      => $data['teachers'],
+            'students'      => $data['students'],
+            'groups'        => $data['groups'],
+            'sessions'      => $data['sessions'],
+            'attendance'    => $data['attendance'],
+            'summary'       => $data['summary'],
         ]);
     }
-}
 
+    public function exportExcel(Request $request): StreamedResponse
+    {
+        $data = $this->reportDataService->getReportData($request, true);
+
+        return $this->reportExporter->downloadExcel(
+            $data['reportType'],
+            $data,
+            $data['filters'],
+        );
+    }
+
+    public function exportPdf(Request $request): View
+    {
+        $data = $this->reportDataService->getReportData($request, true);
+
+        $categoryTitles = [
+            'teachers'   => 'تقرير ملخص المعلمين والتكليفات الأكاديمية',
+            'students'   => 'تقرير بيانات ومتابعة الطلاب الشامل',
+            'attendance' => 'سجل حضور الطلاب الفعلي',
+            'sessions'   => 'تقرير الحصص المباشرة',
+            'groups'     => 'تقرير المجموعات والدورات الدراسية',
+            'all'        => 'التقرير الإداري الشامل لجميع المدرسين والطلاب',
+        ];
+
+        $categoryNames = [
+            'teachers'   => 'تقرير المعلمين',
+            'students'   => 'تقرير الطلاب',
+            'attendance' => 'حضور الطلاب',
+            'sessions'   => 'الحصص المباشرة',
+            'groups'     => 'المجموعات والدورات',
+            'all'        => 'التقرير الشامل للمنصة',
+        ];
+
+        $reportType = $data['reportType'];
+
+        return view('reports.pdf', array_merge($data, [
+            'activeCategoryTitle' => $categoryTitles[$reportType] ?? 'تقرير منصة التفوق التعليمية',
+            'reportTypeName'      => $categoryNames[$reportType] ?? 'تقرير إداري',
+        ]));
+    }
+}
