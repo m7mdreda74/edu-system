@@ -95,10 +95,12 @@ function relative(iso) {
 const BADGES = {
     active: 'badge-green', approved: 'badge-green',
     pending: 'badge-accent', expired: 'badge-gray', cancelled: 'badge-red',
+    admin_action: 'badge-primary',
 };
 
 const BADGE_LABELS = {
     active: 'فعّال', approved: 'معتمد', pending: 'معلّق', expired: 'منتهي', cancelled: 'ملغي',
+    admin_action: 'إجراء إداري',
 };
 </script>
 
@@ -250,7 +252,12 @@ const BADGE_LABELS = {
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="text-xs text-surface-700 dark:text-surface-200 leading-snug">{{ item.text }}</p>
-                                <p class="text-[10px] text-surface-400 mt-0.5">{{ relative(item.at) }}</p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-[10px] text-surface-400">{{ relative(item.at) }}</span>
+                                    <span v-if="item.admin_name" class="text-[10px] font-semibold text-primary-600 dark:text-primary-400">
+                                        · بواسطة: {{ item.admin_name }}
+                                    </span>
+                                </div>
                             </div>
                             <span v-if="item.badge" :class="BADGES[item.badge] ?? 'badge-gray'" class="text-[9px] shrink-0">
                                 {{ BADGE_LABELS[item.badge] ?? item.badge }}

@@ -515,6 +515,7 @@ Route::middleware(['auth', 'active', 'role:admin', 'admin.sensitive'])->prefix('
     Route::delete('/users/{id}/cover', [UserController::class, 'deleteCover'])->name('users.cover.delete');
     Route::post('/users/{id}/intro-video', [UserController::class, 'updateIntroVideo'])->name('users.intro-video');
     Route::delete('/users/{id}/intro-video', [UserController::class, 'deleteIntroVideo'])->name('users.intro-video.delete');
+    Route::get('/users/{id}/audit-logs', [UserController::class, 'auditLogs'])->name('users.audit-logs');
 
     // Subscriptions replace the old course catalogue
     Route::get('/subscriptions', [App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions');

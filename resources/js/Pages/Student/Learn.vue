@@ -1002,22 +1002,11 @@ function uploadAnswer(sheetId) {
 
                 <!-- Term tabs -->
                 <div class="p-4 border-b border-surface-800 space-y-3">
-                    <div class="flex items-center justify-between gap-2">
-                        <div>
-                            <h3 class="text-white font-bold text-sm">منهج المادة</h3>
-                            <p class="text-surface-400 text-xs mt-0.5">
-                                {{ localUnits.length }} وحدة · {{ completedCount }} / {{ totalLessons }} درس مكتمل
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            @click="openProgressModal"
-                            class="btn-primary btn-xs flex items-center gap-1 font-bold shadow-sm"
-                            title="عرض خريطة المنهج والدروس بالكامل"
-                        >
-                            <Icon name="chart" class="w-3 h-3" />
-                            <span>خريطة التقدم</span>
-                        </button>
+                    <div>
+                        <h3 class="text-white font-bold text-sm">منهج المادة</h3>
+                        <p class="text-surface-400 text-xs mt-0.5">
+                            {{ localUnits.length }} وحدة · {{ completedCount }} / {{ totalLessons }} درس مكتمل
+                        </p>
                     </div>
 
                     <div v-if="terms.length" class="flex gap-1.5 overflow-x-auto pb-1">

@@ -253,3 +253,58 @@ it('creates an essay question with model answer and file upload in question bank
         ->and($quizQuestion->model_answer)->toBe($bankQuestion->model_answer);
 });
 
+test('it saves an essay question with an embedded image diagram and inserts into a quiz', function (): void {
+    $teacher = User::factory()->create();
+    $teacher->assignRole('teacher');
+    $subject = Subject::factory()->create();
+    $assignment = TeachingAssignment::factory()->create([
+        'teacher_id' => $teacher->id,
+        'subject_id' => $subject->id,
+        'grade_level_id' => GradeLevel::query()->firstOrFail()->id,
+    ]);
+    $unit = CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $assignment->id,
+        'academic_term_id' => AcademicTerm::currentOrNext()?->id,
+    ]);
+    $quiz = Quiz::factory()->create(['curriculum_unit_id' => $unit->id]);
+
+    $imageHtml = '<figure class="quiz-figure"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" alt="رسم الدائرة الكهربائية" /><figcaption>شكل 1: الدائرة الكهربائية</figcaption></figure>';
+
+    $this->actingAs($teacher)
+        ->post(route('teacher.question-bank.store'), [
+            'subject_id' => $subject->id,
+            'curriculum_unit_id' => $unit->id,
+            'difficulty' => 'hard',
+            'visibility' => 'private',
+            'question_text' => '<p>بالاعتماد على الشكل الموضح أدناه، احسب شدة التيار الكلي:</p>' . $imageHtml,
+            'type' => 'essay',
+            'points' => 8,
+            'allow_file_upload' => true,
+            'model_answer' => '<p>التيار I = V / R = 12 / 4 = 3 أمبير.</p>',
+            'tags' => ['physics', 'circuits'],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $bankQuestion = QuestionBankQuestion::query()->where('points', 8)->firstOrFail();
+    expect($bankQuestion->question_text)->toContain('quiz-figure')
+        ->and($bankQuestion->question_text)->toContain('data:image/png;base64')
+        ->and($bankQuestion->question_text)->toContain('شكل 1: الدائرة الكهربائية');
+
+    // Also test adding directly to Quiz via QuizBuilder
+    $this->actingAs($teacher)
+        ->post(route('teacher.quizzes.questions.store', $quiz->id), [
+            'question_text' => '<p>مسألة مقالية منشأة مباشرة مع صورة توضيحية:</p>' . $imageHtml,
+            'type' => 'essay',
+            'points' => 5,
+            'allow_file_upload' => true,
+            'model_answer' => '<p>خطوات الحل التفصيلية.</p>',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $quizQuestion = $quiz->questions()->where('points', 5)->firstOrFail();
+    expect($quizQuestion->question_text)->toContain('quiz-figure')
+        ->and($quizQuestion->question_text)->toContain('data:image/png;base64');
+});
+

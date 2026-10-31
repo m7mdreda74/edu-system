@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useDebounceFn } from '@vueuse/core';
+import axios from 'axios';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import DataTablePagination from '@/Components/DataTablePagination.vue';
@@ -413,6 +414,48 @@ function getEmbedVideoUrl(url) {
     if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
     return url;
 }
+
+// ─── Admin Action / Audit History Modal ───
+const auditModalOpen = ref(false);
+const auditUser = ref(null);
+const auditLoading = ref(false);
+const auditEvents = ref([]);
+const auditCreator = ref(null);
+
+async function openAuditModal(user) {
+    auditUser.value = user;
+    auditCreator.value = user.creator ?? null;
+    auditLoading.value = true;
+    auditEvents.value = [];
+    auditModalOpen.value = true;
+    try {
+        const res = await axios.get(route('admin.users.audit-logs', { id: user.id }));
+        auditEvents.value = res.data.events || [];
+        if (res.data.user?.creator) {
+            auditCreator.value = res.data.user.creator;
+        }
+    } catch (err) {
+        console.error('Failed to load audit logs:', err);
+    } finally {
+        auditLoading.value = false;
+    }
+}
+
+function formatAuditDate(dateString) {
+    if (!dateString) return '—';
+    try {
+        const d = new Date(dateString);
+        return d.toLocaleString('ar-EG', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    } catch {
+        return dateString;
+    }
+}
 </script>
 
 <template>
@@ -504,6 +547,10 @@ function getEmbedVideoUrl(url) {
                                         <div>
                                             <div class="font-semibold text-surface-800 dark:text-white">{{ user.name }}</div>
                                             <div class="text-xs text-surface-400">{{ user.email }}</div>
+                                            <div v-if="user.creator" class="inline-flex items-center gap-1 text-[11px] font-semibold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950/60 border border-primary-200/60 dark:border-primary-800/60 px-1.5 py-0.5 rounded mt-0.5" :title="`أضيف بواسطة الأدمن: ${user.creator.name} (${user.creator.email})`">
+                                                <span>🛡️</span>
+                                                <span>أنشئ بواسطة: {{ user.creator.name }}</span>
+                                            </div>
                                             <div v-if="isTeacher(user)" class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                                                 <button
                                                     type="button"
@@ -604,6 +651,15 @@ function getEmbedVideoUrl(url) {
                                         class="text-xs px-3 py-1.5 rounded-lg font-medium bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-800 dark:text-surface-300 dark:hover:bg-surface-700 transition-colors"
                                     >
                                         تعديل الدور
+                                    </button>
+
+                                    <button type="button"
+                                        @click="openAuditModal(user)"
+                                        class="text-xs px-3 py-1.5 rounded-lg font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-1"
+                                        title="عرض سجل الإجراءات الإدارية لهذا المستخدم"
+                                    >
+                                        <span>📜</span>
+                                        <span>سجل الإجراءات</span>
                                     </button>
                                     </div>
                                 </td>
@@ -1136,6 +1192,82 @@ function getEmbedVideoUrl(url) {
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- User Audit History Modal -->
+        <div v-if="auditModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="سجل الإجراءات الإدارية">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="auditModalOpen = false"></div>
+            <div class="relative card p-6 w-full max-w-2xl max-h-[85vh] flex flex-col space-y-4 overflow-hidden shadow-2xl">
+                <!-- Header -->
+                <div class="flex items-start justify-between border-b border-surface-100 dark:border-surface-800 pb-3">
+                    <div>
+                        <h3 class="text-xl font-black text-surface-900 dark:text-white flex items-center gap-2">
+                            <span>📜</span>
+                            <span>سجل الإجراءات الإدارية</span>
+                        </h3>
+                        <p class="text-xs text-surface-500 mt-1">
+                            {{ auditUser?.name }} ({{ auditUser?.email }})
+                        </p>
+                    </div>
+                    <button type="button" @click="auditModalOpen = false" class="btn-ghost btn-sm text-surface-400 hover:text-surface-600">✕</button>
+                </div>
+
+                <!-- Creator Info Banner -->
+                <div v-if="auditCreator" class="p-3 rounded-xl bg-primary-50 dark:bg-primary-950/50 border border-primary-200 dark:border-primary-800 text-xs flex items-center gap-2 text-primary-900 dark:text-primary-200">
+                    <span class="text-base">🛡️</span>
+                    <div>
+                        <span class="font-bold">منشئ الحساب:</span>
+                        <span class="font-semibold ms-1">{{ auditCreator.name }}</span>
+                        <span class="text-primary-600 dark:text-primary-400 ms-1 font-mono text-[11px]">({{ auditCreator.email }})</span>
+                    </div>
+                </div>
+
+                <!-- Body / Timeline -->
+                <div class="flex-1 overflow-y-auto space-y-3 pe-1 max-h-[55vh]">
+                    <div v-if="auditLoading" class="p-8 text-center text-surface-400">
+                        <div class="text-2xl mb-2 animate-pulse">⏳</div>
+                        <p class="text-xs font-semibold">جارٍ تحميل سجل الإجراءات...</p>
+                    </div>
+
+                    <div v-else-if="!auditEvents.length" class="p-8 text-center text-surface-400">
+                        <div class="text-3xl mb-2">📋</div>
+                        <p class="text-sm font-semibold">لا توجد حركات إدارية مسجلة بعد لهذا الحساب.</p>
+                        <p class="text-xs mt-1 text-surface-400">يتم تسجيل كل إجراء إداري جديد (تفعيل، تعطيل، تعديل دور، كلمة مرور، إلخ) باسم الأدمن المنفّذ.</p>
+                    </div>
+
+                    <div v-else class="space-y-2.5">
+                        <div
+                            v-for="ev in auditEvents"
+                            :key="ev.id"
+                            class="p-3.5 rounded-xl border border-surface-200 dark:border-surface-750 bg-white dark:bg-surface-850 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="space-y-1">
+                                    <div class="text-xs font-bold text-surface-900 dark:text-white flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-primary-500 shrink-0"></span>
+                                        <span>{{ ev.description }}</span>
+                                    </div>
+                                    <div class="text-[11px] text-surface-500 dark:text-surface-400 flex flex-wrap items-center gap-2">
+                                        <span class="font-semibold text-primary-700 dark:text-primary-300">
+                                            بواسطة الأدمن: {{ ev.admin_name }}
+                                        </span>
+                                        <span v-if="ev.admin_email" class="text-surface-400 font-mono text-[10px]">({{ ev.admin_email }})</span>
+                                        <span v-if="ev.ip_address" class="text-surface-400 text-[10px]">IP: {{ ev.ip_address }}</span>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] text-surface-400 whitespace-nowrap dir-ltr">
+                                    {{ formatAuditDate(ev.created_at) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="border-t border-surface-100 dark:border-surface-800 pt-3 flex justify-end">
+                    <button type="button" @click="auditModalOpen = false" class="btn-ghost btn-sm">إغلاق</button>
+                </div>
             </div>
         </div>
     </DashboardLayout>

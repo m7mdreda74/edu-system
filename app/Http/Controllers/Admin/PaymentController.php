@@ -26,7 +26,13 @@ class PaymentController extends Controller
             'status' => ['nullable', 'string', 'in:pending,pending_verification,paid,failed,refunded'],
         ]);
 
-        $payments = Payment::with(['user:id,name,email', 'subscription.assignment.subject:id,name', 'subscription.assignment.teacher:id,name', 'subscription.group:id,name'])
+        $payments = Payment::with([
+            'user:id,name,email',
+            'subscription.assignment.subject:id,name',
+            'subscription.assignment.teacher:id,name',
+            'subscription.group:id,name',
+            'reviewer:id,name,email',
+        ])
             ->when($filters['status'] ?? null, fn ($q, string $status) => $q->where('status', $status))
             ->latest()
             ->paginate(10)
@@ -75,6 +81,9 @@ class PaymentController extends Controller
 
         AuditLogger::record('admin.payment.approved', $payment->fresh(), [
             'note_hash' => AuditLogger::hashValue($request->input('note')),
+            'student_name' => $payment->user?->name,
+            'admin_name' => Auth::user()?->name,
+            'amount_formatted' => $payment->getAmountInMainUnit() . ' ' . $payment->currency,
         ]);
 
         return back()->with('success', 'تم تأكيد الدفع وتفعيل الاشتراك للطالب بنجاح.');
@@ -121,6 +130,9 @@ class PaymentController extends Controller
 
         AuditLogger::record('admin.payment.rejected', $rejectedPayment ?? $payment->fresh(), [
             'reason_hash' => AuditLogger::hashValue($validated['reason']),
+            'student_name' => $payment->user?->name,
+            'admin_name' => Auth::user()?->name,
+            'amount_formatted' => $payment->getAmountInMainUnit() . ' ' . $payment->currency,
         ]);
 
         return back()->with('success', 'تم رفض إيصال التحويل بنجاح.');

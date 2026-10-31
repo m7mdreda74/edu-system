@@ -330,6 +330,10 @@ async function destroyGroup(group) {
                                 <td class="px-4 py-3">
                                     <Link :href="route('admin.teaching-groups.show', group.id)" class="font-bold text-xs hover:text-primary-600">{{ group.name }}</Link>
                                     <div class="text-[10px] text-surface-400">{{ group.subject }} · {{ group.grade }}</div>
+                                    <div v-if="group.creator" class="text-[10px] font-medium text-surface-500 dark:text-surface-400 mt-0.5 flex items-center gap-1" :title="`أنشئت بواسطة الأدمن: ${group.creator.name} (${group.creator.email})`">
+                                        <span>🛡️</span>
+                                        <span>بواسطة: {{ group.creator.name }}</span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-xs">{{ group.teacher?.name }}</td>
                                 <td class="px-4 py-3 text-[11px] text-surface-500">{{ group.schedule || '—' }}</td>

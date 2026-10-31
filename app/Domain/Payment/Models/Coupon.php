@@ -25,6 +25,7 @@ class Coupon extends Model
         'usage_limit',
         'used_count',
         'is_active',
+        'created_by',
     ];
 
     protected function casts(): array
@@ -35,7 +36,13 @@ class Coupon extends Model
             'used_count'       => 'integer',
             'expires_at'       => 'datetime',
             'is_active'        => 'boolean',
+            'created_by'       => 'integer',
         ];
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domain\User\Models\User::class, 'created_by');
     }
 
     // ─── Domain Helpers ────────────────────────────────────────────

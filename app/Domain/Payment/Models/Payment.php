@@ -102,6 +102,11 @@ class Payment extends Model
         return $this->hasOne(Invoice::class);
     }
 
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
     // ─── Domain Helpers ────────────────────────────────────────────
 
     public function isPaid(): bool

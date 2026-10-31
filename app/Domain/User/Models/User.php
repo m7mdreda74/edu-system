@@ -56,6 +56,7 @@ class User extends Authenticatable
         'is_featured',
         'is_active',
         'commission_percent',
+        'created_by',
     ];
 
     protected $hidden = [
@@ -72,7 +73,18 @@ class User extends Authenticatable
             'is_featured' => 'boolean',
             'years_experience' => 'integer',
             'commission_percent' => 'integer',
+            'created_by' => 'integer',
         ];
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'created_by');
+    }
+
+    public function createdUsers(): HasMany
+    {
+        return $this->hasMany(self::class, 'created_by');
     }
 
     protected static function booted(): void

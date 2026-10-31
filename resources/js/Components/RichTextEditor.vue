@@ -13,8 +13,23 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue']);
 
 const editorRef = ref(null);
+const fileInputRef = ref(null);
 const isSourceMode = ref(false);
 const rawHtml = ref(props.modelValue || '');
+
+// ── Image Modal State ───────────────────────────────────────────────
+const showImageModal = ref(false);
+const imageTab = ref('upload'); // 'upload' | 'url'
+const selectedFile = ref(null);
+const previewDataUrl = ref('');
+const imageUrlInput = ref('');
+const imageAlt = ref('');
+const imageCaption = ref('');
+const imageWidth = ref('100%');
+const imageAlign = ref('center'); // 'center' | 'right' | 'left'
+const isProcessingImage = ref(false);
+const imageError = ref('');
+const savedRange = ref(null);
 
 // Keep internal and external models in sync
 watch(() => props.modelValue, (newVal) => {
@@ -108,6 +123,206 @@ function insertTable() {
     exec('insertHTML', html);
 }
 
+// ── Image Handling & Optimization ───────────────────────────────
+function saveSelection() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+        savedRange.value = sel.getRangeAt(0);
+    }
+}
+
+function restoreSelection() {
+    if (savedRange.value) {
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(savedRange.value);
+    }
+}
+
+function openImageModal() {
+    saveSelection();
+    showImageModal.value = true;
+    imageError.value = '';
+    selectedFile.value = null;
+    previewDataUrl.value = '';
+    imageUrlInput.value = '';
+    imageAlt.value = '';
+    imageCaption.value = '';
+    imageWidth.value = '100%';
+    imageAlign.value = 'center';
+}
+
+function closeImageModal() {
+    showImageModal.value = false;
+    imageError.value = '';
+}
+
+function optimizeImage(file, maxDimension = 1200, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+        if (!file.type || !file.type.startsWith('image/')) {
+            reject(new Error('الملف المختار ليس صورة مدعومة.'));
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const isPng = file.type === 'image/png';
+                const outputMime = isPng ? 'image/png' : 'image/jpeg';
+                const dataUrl = canvas.toDataURL(outputMime, quality);
+                resolve(dataUrl);
+            };
+            img.onerror = () => reject(new Error('تعذر تحميل الصورة'));
+            img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('تعذر قراءة الملف'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function onFileSelected(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await processSelectedFile(file);
+}
+
+async function processSelectedFile(file) {
+    imageError.value = '';
+    isProcessingImage.value = true;
+    try {
+        selectedFile.value = file;
+        const optimized = await optimizeImage(file);
+        previewDataUrl.value = optimized;
+    } catch (err) {
+        imageError.value = err.message || 'حدث خطأ أثناء معالجة الصورة';
+    } finally {
+        isProcessingImage.value = false;
+    }
+}
+
+function onModalDrop(e) {
+    const files = e.dataTransfer?.files;
+    if (files && files[0]) {
+        processSelectedFile(files[0]);
+    }
+}
+
+function insertImageAtCursor({ src, alt = '', caption = '', width = '100%', align = 'center' }) {
+    editorRef.value?.focus();
+    restoreSelection();
+
+    let alignStyle = '';
+    if (align === 'center') {
+        alignStyle = 'margin-left: auto; margin-right: auto; display: block;';
+    } else if (align === 'right') {
+        alignStyle = 'margin-left: auto; margin-right: 0; display: block;';
+    } else if (align === 'left') {
+        alignStyle = 'margin-right: auto; margin-left: 0; display: block;';
+    }
+
+    const widthStyle = width === 'auto' ? 'max-width: 100%;' : `max-width: ${width}; width: ${width};`;
+    const safeAlt = (alt || 'صورة توضيحية').replace(/"/g, '&quot;');
+    const safeCaption = caption.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const html = `<figure class="quiz-figure my-3" style="text-align: ${align}; margin: 14px 0;">` +
+        `<img src="${src}" alt="${safeAlt}" style="${widthStyle} ${alignStyle}" class="quiz-image rounded-xl border border-surface-200 dark:border-surface-700 shadow-sm max-w-full inline-block" />` +
+        (safeCaption ? `<figcaption class="text-xs text-surface-500 dark:text-surface-400 mt-1.5 font-normal italic text-center">${safeCaption}</figcaption>` : '') +
+        `</figure><p><br></p>`;
+
+    exec('insertHTML', html);
+}
+
+function commitInsertImage() {
+    const src = imageTab.value === 'upload' ? previewDataUrl.value : imageUrlInput.value.trim();
+    if (!src) {
+        imageError.value = imageTab.value === 'upload'
+            ? 'الرجاء اختيار صورة من جهازك أولاً.'
+            : 'الرجاء إدخال رابط الصورة.';
+        return;
+    }
+
+    insertImageAtCursor({
+        src,
+        alt: imageAlt.value.trim(),
+        caption: imageCaption.value.trim(),
+        width: imageWidth.value,
+        align: imageAlign.value,
+    });
+
+    closeImageModal();
+}
+
+// ── Direct Paste (Ctrl+V) & Drag-and-drop into Editor Area ─────
+async function handleEditorPaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) {
+                try {
+                    const optimized = await optimizeImage(file);
+                    insertImageAtCursor({
+                        src: optimized,
+                        alt: 'صورة من الحافظة',
+                        caption: '',
+                        width: '100%',
+                        align: 'center',
+                    });
+                } catch {
+                    // Continue with normal paste if error
+                }
+            }
+            return;
+        }
+    }
+}
+
+async function handleEditorDrop(e) {
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (file.type && file.type.startsWith('image/')) {
+        e.preventDefault();
+        try {
+            const optimized = await optimizeImage(file);
+            insertImageAtCursor({
+                src: optimized,
+                alt: file.name,
+                caption: '',
+                width: '100%',
+                align: 'center',
+            });
+        } catch {
+            // fallback
+        }
+    }
+}
+
 // Word & Character count
 const textLength = computed(() => {
     const tmp = document.createElement('div');
@@ -129,7 +344,7 @@ const wordCount = computed(() => {
     >
         <div v-if="label" class="px-3.5 pt-2.5 pb-1 text-xs font-bold text-surface-700 dark:text-surface-300 flex items-center justify-between">
             <span>{{ label }}</span>
-            <span class="text-[11px] font-normal text-surface-400">محرر منسق (أدوات معالجة النصوص)</span>
+            <span class="text-[11px] font-normal text-surface-400">محرر متقدم (أدوات وورد + إدراج صور)</span>
         </div>
 
         <!-- ── Word-like Toolbar ──────────────────────────────── -->
@@ -217,8 +432,23 @@ const wordCount = computed(() => {
                 </button>
             </div>
 
-            <!-- Insert Rich Objects: Table, Link, Line, Clear -->
+            <!-- Insert Rich Objects: Image, Table, Link, Line, Clear -->
             <div class="flex items-center bg-white dark:bg-surface-800 rounded-lg p-0.5 border border-surface-200 dark:border-surface-700 shadow-2xs">
+                <!-- Insert Image Button -->
+                <button
+                    type="button"
+                    @click="openImageModal"
+                    title="إدراج صورة توضيحية أو مسألة مصورة (أو لصق من الحافظة Ctrl+V)"
+                    class="toolbar-btn text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 px-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <span class="text-[10px]">صورة</span>
+                </button>
+
                 <button type="button" @click="insertTable" title="إدراج جدول" class="toolbar-btn text-primary-600 font-bold flex items-center gap-0.5 px-1.5">
                     <span>⊞</span>
                     <span class="text-[10px]">جدول</span>
@@ -262,9 +492,12 @@ const wordCount = computed(() => {
                 ref="editorRef"
                 contenteditable="true"
                 @input="onInput"
+                @paste="handleEditorPaste"
+                @drop="handleEditorDrop"
+                @dragover.prevent
                 dir="rtl"
                 class="editor-content p-4 outline-none overflow-y-auto font-sans leading-relaxed text-sm text-surface-900 dark:text-surface-100"
-                :style="{ minHeight: minHeight, maxHeight: '420px' }"
+                :style="{ minHeight: minHeight, maxHeight: '480px' }"
                 :data-placeholder="placeholder"
             ></div>
 
@@ -275,19 +508,232 @@ const wordCount = computed(() => {
                 @input="onSourceInput"
                 dir="ltr"
                 class="w-full p-4 font-mono text-xs bg-slate-900 text-emerald-400 outline-none resize-y"
-                :style="{ minHeight: minHeight, maxHeight: '420px' }"
+                :style="{ minHeight: minHeight, maxHeight: '480px' }"
             ></textarea>
         </div>
 
         <!-- ── Bottom Info Bar ────────────────────────────────── -->
-        <div class="bg-surface-50 dark:bg-surface-800/40 border-t border-surface-200 dark:border-surface-700 px-3 py-1.5 text-[11px] text-surface-400 flex items-center justify-between">
+        <div class="bg-surface-50 dark:bg-surface-800/40 border-t border-surface-200 dark:border-surface-700 px-3 py-1.5 text-[11px] text-surface-400 flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-3">
                 <span>{{ wordCount }} كلمة</span>
                 <span>{{ textLength }} حرف</span>
+                <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                    <svg class="w-3 h-3 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    يدعم إدراج ولصق الصور (Ctrl+V)
+                </span>
             </div>
             <span v-if="error" class="text-red-500 font-semibold text-xs">{{ error }}</span>
-            <span v-else class="text-surface-400">يدعم تنسيقات الجداول والعناوين والقوائم والألوان</span>
+            <span v-else class="text-surface-400">يدعم تنسيقات الجداول والعناوين والصور والقوائم والألوان</span>
         </div>
+
+        <!-- ── Image Insert Modal ──────────────────────────────── -->
+        <Teleport to="body">
+            <div
+                v-if="showImageModal"
+                class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity"
+                @click.self="closeImageModal"
+                @keydown.esc="closeImageModal"
+            >
+                <div
+                    class="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150"
+                    dir="rtl"
+                >
+                    <!-- Modal Header -->
+                    <div class="px-5 py-3.5 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50/50 dark:bg-surface-800/40">
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-base">
+                                🖼️
+                            </span>
+                            <div>
+                                <h3 class="text-sm font-bold text-surface-900 dark:text-white">إدراج صورة في السؤال / النص</h3>
+                                <p class="text-[11px] text-surface-500">إدراج رسومات توضيحية، مسائل مصورة، أو أشكال هندسية</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            @click="closeImageModal"
+                            class="text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="p-5 overflow-y-auto space-y-4 text-xs">
+                        <!-- Source Tabs -->
+                        <div class="flex border-b border-surface-200 dark:border-surface-700">
+                            <button
+                                type="button"
+                                @click="imageTab = 'upload'"
+                                class="pb-2.5 px-4 font-bold border-b-2 transition-all flex items-center gap-1.5"
+                                :class="imageTab === 'upload'
+                                    ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+                                    : 'border-transparent text-surface-500 hover:text-surface-700'"
+                            >
+                                <span>📁 رفع من الجهاز</span>
+                            </button>
+                            <button
+                                type="button"
+                                @click="imageTab = 'url'"
+                                class="pb-2.5 px-4 font-bold border-b-2 transition-all flex items-center gap-1.5"
+                                :class="imageTab === 'url'
+                                    ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+                                    : 'border-transparent text-surface-500 hover:text-surface-700'"
+                            >
+                                <span>🔗 رابط صورة مباشر (URL)</span>
+                            </button>
+                        </div>
+
+                        <!-- Tab 1: Upload from device -->
+                        <div v-if="imageTab === 'upload'" class="space-y-3">
+                            <input
+                                ref="fileInputRef"
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                                class="hidden"
+                                @change="onFileSelected"
+                            />
+
+                            <!-- Drag & Drop Zone -->
+                            <div
+                                @click="fileInputRef?.click()"
+                                @drop.prevent="onModalDrop"
+                                @dragover.prevent
+                                class="border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors border-surface-300 dark:border-surface-700 hover:border-emerald-500 bg-surface-50/60 dark:bg-surface-800/30"
+                            >
+                                <div v-if="isProcessingImage" class="py-4 flex flex-col items-center gap-2 text-emerald-600">
+                                    <div class="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                                    <span class="text-xs font-semibold">جاري معالجة وتحسين جودة الصورة...</span>
+                                </div>
+                                <div v-else-if="previewDataUrl" class="space-y-2">
+                                    <div class="max-h-48 overflow-hidden rounded-lg bg-black/5 dark:bg-black/40 p-2 flex justify-center">
+                                        <img :src="previewDataUrl" class="max-h-40 max-w-full rounded object-contain" alt="معاينة" />
+                                    </div>
+                                    <div class="text-[11px] text-surface-500 flex items-center justify-center gap-2">
+                                        <span class="font-bold text-emerald-600">{{ selectedFile?.name || 'تم اختيار الصورة' }}</span>
+                                        <button
+                                            type="button"
+                                            @click.stop="fileInputRef?.click()"
+                                            class="text-primary-600 hover:underline"
+                                        >
+                                            تغيير الصورة
+                                        </button>
+                                    </div>
+                                </div>
+                                <div v-else class="space-y-1.5 py-3">
+                                    <div class="text-3xl">📤</div>
+                                    <div class="font-bold text-surface-800 dark:text-surface-200">
+                                        اضغط لاختيار صورة من جهازك، أو اسحبها وأفلتها هنا
+                                    </div>
+                                    <div class="text-[11px] text-surface-400">
+                                        يدعم صيغ PNG, JPG, WebP, GIF (يتم ضغطها وتحسينها تلقائياً)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: URL Input -->
+                        <div v-else class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-surface-700 dark:text-surface-300 mb-1">
+                                    رابط الصورة المباشر (URL):
+                                </label>
+                                <input
+                                    v-model="imageUrlInput"
+                                    type="url"
+                                    placeholder="https://example.com/images/diagram.png"
+                                    class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-white outline-none focus:border-emerald-500 font-mono text-xs"
+                                    dir="ltr"
+                                />
+                            </div>
+
+                            <div v-if="imageUrlInput" class="max-h-44 overflow-hidden rounded-lg bg-black/5 p-2 flex justify-center">
+                                <img
+                                    :src="imageUrlInput"
+                                    class="max-h-36 max-w-full rounded object-contain"
+                                    alt="معاينة الرابط"
+                                    @error="imageError = 'تعذر تحميل الصورة من هذا الرابط، تأكد من صحته.'"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Display formatting options -->
+                        <div class="pt-3 border-t border-surface-200 dark:border-surface-700 space-y-3">
+                            <div class="font-bold text-surface-800 dark:text-surface-200">خيارات عرض الصورة في السؤال:</div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <!-- Width -->
+                                <div>
+                                    <label class="block text-[11px] font-medium text-surface-600 dark:text-surface-400 mb-1">عرض الصورة:</label>
+                                    <select
+                                        v-model="imageWidth"
+                                        class="w-full py-1.5 px-2.5 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-white text-xs outline-none"
+                                    >
+                                        <option value="100%">كامل العرض (100%)</option>
+                                        <option value="75%">كبير (75%)</option>
+                                        <option value="50%">متوسط (50%)</option>
+                                        <option value="35%">صغير (35%)</option>
+                                        <option value="auto">الحجم الطبيعي الأصلي</option>
+                                    </select>
+                                </div>
+
+                                <!-- Alignment -->
+                                <div>
+                                    <label class="block text-[11px] font-medium text-surface-600 dark:text-surface-400 mb-1">المحاذاة:</label>
+                                    <select
+                                        v-model="imageAlign"
+                                        class="w-full py-1.5 px-2.5 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-white text-xs outline-none"
+                                    >
+                                        <option value="center">في المنتصف (توسيط)</option>
+                                        <option value="right">محاذاة لليمين</option>
+                                        <option value="left">محاذاة لليسار</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Caption / Alt text -->
+                            <div>
+                                <label class="block text-[11px] font-medium text-surface-600 dark:text-surface-400 mb-1">
+                                    تعليق توضيحي أسفل الصورة (اختياري):
+                                </label>
+                                <input
+                                    v-model="imageCaption"
+                                    type="text"
+                                    placeholder="مثال: شكل 1: الدائرة الكهربائية أو الرسم البياني المطلوب"
+                                    class="w-full px-3 py-1.5 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-white text-xs outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Error display -->
+                        <div v-if="imageError" class="p-2.5 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-bold">
+                            ⚠️ {{ imageError }}
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="px-5 py-3 border-t border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50/50 dark:bg-surface-800/40">
+                        <button
+                            type="button"
+                            @click="closeImageModal"
+                            class="px-3.5 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors font-semibold"
+                        >
+                            إلغاء
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="commitInsertImage"
+                            :disabled="isProcessingImage || (imageTab === 'upload' && !previewDataUrl) || (imageTab === 'url' && !imageUrlInput)"
+                            class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                        >
+                            <span>إدراج الصورة في المحرر</span>
+                            <span>✓</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </div>
 </template>
 
@@ -325,5 +771,14 @@ const wordCount = computed(() => {
 }
 .editor-content ol {
     @apply list-decimal list-inside my-1.5 space-y-1;
+}
+.editor-content figure.quiz-figure {
+    @apply my-3 select-none text-center;
+}
+.editor-content img.quiz-image {
+    @apply max-w-full h-auto rounded-xl border border-surface-200 dark:border-surface-700 shadow-sm inline-block transition-all;
+}
+.editor-content img.quiz-image:hover {
+    @apply ring-2 ring-emerald-500/50 cursor-pointer;
 }
 </style>

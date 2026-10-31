@@ -120,12 +120,23 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
                                 <td class="p-4 font-bold text-green-600">{{ formatQAR(payout.amount) }}</td>
                                 <td class="p-4 text-primary-600">{{ formatQAR(payout.platform_commission_amount) }}</td>
                                 <td class="p-4 text-xs">{{ payout.period_start }} — {{ payout.period_end }}</td>
-                                <td class="p-4"><span :class="payout.status === 'paid' ? 'badge-green' : 'badge-primary'">{{ statusLabel(payout) }}</span></td>
-                                <td class="data-table-actions p-4"><div class="flex flex-wrap gap-2">
-                                    <button type="button" v-if="payout.status !== 'paid'" @click="openPay(payout)" class="btn-primary btn-sm">رفع إثبات الدفع</button>
-                                    <button type="button" v-if="payout.receipt_path" @click="selectedReceipt = route('admin.payouts.receipt', payout.id)" class="btn-outline btn-sm">عرض الإثبات</button>
-                                    <button type="button" v-if="payout.status !== 'paid'" @click="deletePayout(payout.id)" class="btn-ghost btn-sm text-red-500">حذف</button>
-                                </div></td>
+                                <td class="p-4">
+                                    <span :class="payout.status === 'paid' ? 'badge-green' : 'badge-primary'">{{ statusLabel(payout) }}</span>
+                                    <div v-if="payout.payer" class="text-[11px] text-surface-600 dark:text-surface-300 mt-1 font-medium flex items-center gap-1" :title="`تم التحويل والاعتماد بواسطة الأدمن: ${payout.payer.name} (${payout.payer.email})`">
+                                        <span>🛡️</span>
+                                        <span>بواسطة: {{ payout.payer.name }}</span>
+                                    </div>
+                                    <div v-if="payout.paid_at" class="text-[10px] text-surface-400 mt-0.5 font-mono">
+                                        {{ new Date(payout.paid_at).toLocaleDateString('ar-EG') }}
+                                    </div>
+                                </td>
+                                <td class="data-table-actions p-4">
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" v-if="payout.status !== 'paid'" @click="openPay(payout)" class="btn-primary btn-sm">رفع إثبات الدفع</button>
+                                        <button type="button" v-if="payout.receipt_path" @click="selectedReceipt = route('admin.payouts.receipt', payout.id)" class="btn-outline btn-sm">عرض الإثبات</button>
+                                        <button type="button" v-if="payout.status !== 'paid'" @click="deletePayout(payout.id)" class="btn-ghost btn-sm text-red-500">حذف</button>
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>

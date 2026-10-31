@@ -12,6 +12,8 @@ use App\Rules\PhoneNumber;
 use App\Services\AuditLogger;
 use App\Services\ImageUploadService;
 use App\Support\PhoneNumber as PhoneNumberValue;
+use App\Models\AuditEvent;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,7 +39,7 @@ class UserController extends Controller
             'role'   => ['nullable', 'string', 'in:admin,teacher,student,parent'],
         ]);
 
-        $users = User::with('roles:name')
+        $users = User::with(['roles:name', 'creator:id,name,email'])
             ->when(! empty($filters['search']), function ($q) use ($filters): void {
                 $search = '%' . $filters['search'] . '%';
 
@@ -102,6 +104,7 @@ class UserController extends Controller
                 'commission_percent' => $validated['role'] === 'teacher'
                     ? (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20)
                     : null,
+                'created_by'  => Auth::id(),
             ]);
 
             $user->assignRole($validated['role']);
@@ -112,6 +115,13 @@ class UserController extends Controller
 
             return $user;
         });
+
+        AuditLogger::record('admin.user.created', $user, [
+            'role' => $validated['role'],
+            'user_name' => $user->name,
+            'user_email' => $user->email,
+            'admin_name' => Auth::user()?->name,
+        ]);
 
         return back()->with('success', "تم إضافة المستخدم {$user->name} بنجاح.");
     }
@@ -417,6 +427,50 @@ class UserController extends Controller
     private function forgetTeacherCaches(): void
     {
         Cache::forget('home.featured_teachers');
+    }
+
+    public function auditLogs(int $id): JsonResponse
+    {
+        $user = User::with('creator:id,name,email')->findOrFail($id);
+
+        $events = AuditEvent::with('actor:id,name,email')
+            ->where(function ($query) use ($user): void {
+                $query->where(function ($q) use ($user): void {
+                    $q->where('auditable_type', $user->getMorphClass())
+                        ->where('auditable_id', $user->id);
+                })->orWhere(function ($q) use ($user): void {
+                    $q->where('action', 'like', 'admin.user.%')
+                        ->where('metadata->target_id', $user->id);
+                });
+            })
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->map(fn (AuditEvent $e): array => [
+                'id' => $e->id,
+                'action' => $e->action,
+                'description' => AuditLogger::humanDescription($e),
+                'admin_name' => $e->metadata['admin_name'] ?? $e->actor?->name ?? 'مسؤول',
+                'admin_email' => $e->metadata['admin_email'] ?? $e->actor?->email ?? null,
+                'created_at' => $e->created_at?->toIso8601String(),
+                'ip_address' => $e->ip_address,
+                'metadata' => $e->metadata,
+            ]);
+
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'creator' => $user->creator ? [
+                    'id' => $user->creator->id,
+                    'name' => $user->creator->name,
+                    'email' => $user->creator->email,
+                ] : null,
+                'created_at' => $user->created_at?->toIso8601String(),
+            ],
+            'events' => $events,
+        ]);
     }
 }
 

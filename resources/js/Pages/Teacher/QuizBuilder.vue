@@ -750,6 +750,14 @@ function optionError(draft, index) {
                                 يتيح للطالب تصوير ورقة إجابته ورفعها أثناء الاختبار ليقوم المعلم بتصحيحها ورصد الدرجة لاحقاً.
                             </p>
 
+                            <div class="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-900 dark:text-emerald-200">
+                                <span class="text-base flex-shrink-0">🖼️</span>
+                                <div>
+                                    <strong class="block text-emerald-950 dark:text-emerald-100 font-bold mb-0.5">إدراج الصور والرسومات الهندسية والبيانية:</strong>
+                                    <span>يمكنك إدراج صور توضيحية أو مسائل مصورة في نص السؤال المقالي أو في نموذج الإجابة عبر زر «صورة 🖼️» في شريط أدوات المحرر أو بلصقها مباشرة من الحافظة (Ctrl+V).</span>
+                                </div>
+                            </div>
+
                             <div class="mt-4">
                                 <RichTextEditor
                                     v-model="draft.model_answer"

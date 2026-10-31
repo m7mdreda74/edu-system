@@ -32,12 +32,12 @@ class QuizQuestionRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'question_text'     => ['required', 'string', 'min:3', 'max:50000'],
+            'question_text'     => ['required', 'string', 'min:3', 'max:5000000'],
             'type'              => ['required', 'string', 'in:single,multiple,true_false,essay'],
             'points'            => ['nullable', 'integer', 'min:1', 'max:100'],
             'order'             => ['nullable', 'integer', 'min:1', 'max:999'],
             'allow_file_upload' => ['nullable', 'boolean'],
-            'model_answer'      => ['nullable', 'string', 'max:50000'],
+            'model_answer'      => ['nullable', 'string', 'max:5000000'],
         ];
 
         if ($this->input('type') === 'essay') {

@@ -87,7 +87,11 @@ async function deleteCoupon(id) {
                         <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
                             <tr v-for="coupon in coupons.data" :key="coupon.id" class="hover:bg-surface-50/50 dark:hover:bg-surface-800/20">
                                 <td class="px-6 py-4 font-mono font-bold text-base text-primary-600 dark:text-primary-400">
-                                    {{ coupon.code }}
+                                    <div>{{ coupon.code }}</div>
+                                    <div v-if="coupon.creator" class="font-sans text-[11px] font-medium text-surface-600 dark:text-surface-300 mt-1 flex items-center gap-1" :title="`أنشئ بواسطة الأدمن: ${coupon.creator.name} (${coupon.creator.email})`">
+                                        <span>🛡️</span>
+                                        <span>بواسطة: {{ coupon.creator.name }}</span>
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 font-semibold text-surface-900 dark:text-white">
                                     %{{ coupon.discount_percent }} خصم

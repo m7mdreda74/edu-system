@@ -14,6 +14,7 @@ use App\Domain\Scheduling\Models\TeachingGroupSchedule;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,7 @@ class TeachingGroupController extends Controller
             'assignment.gradeLevel:id,key,name,track',
             'schedules',
             'term:id,year_label,name',
+            'creator:id,name,email',
         ])
             ->withCount('activeBookings')
             ->when(! empty($filters['search']), fn ($query) => $query->where(function ($nested) use ($filters): void {
@@ -77,6 +79,7 @@ class TeachingGroupController extends Controller
             'materials_count' => $materialCounts[$group->teaching_assignment_id] ?? 0,
             'is_active' => $group->is_active,
             'is_full' => $group->active_bookings_count >= $group->capacity,
+            'creator' => $group->creator?->only(['id', 'name', 'email']),
             'schedule' => $group->schedules
                 ->map(function ($schedule) {
                     $day = self::DAY_NAMES[(int) $schedule->day_of_week] ?? '';
@@ -219,7 +222,7 @@ class TeachingGroupController extends Controller
             ]);
         }
 
-        TeachingGroup::create([
+        $group = TeachingGroup::create([
             'teaching_assignment_id' => $assignment->id,
             'academic_term_id' => $data['academic_term_id'] ?? null,
             'name' => $data['name'],
@@ -234,6 +237,13 @@ class TeachingGroupController extends Controller
             'duration_minutes' => 0,
             'timezone' => $data['timezone'] ?? 'Asia/Qatar',
             'is_active' => true,
+            'created_by' => auth()->id(),
+        ]);
+
+        AuditLogger::record('admin.group.created', $group, [
+            'name' => $group->name,
+            'teacher_name' => $assignment->teacher?->name,
+            'admin_name' => auth()->user()?->name,
         ]);
 
         return back()->with('success', 'تم إنشاء المجموعة وتسعيرها. يحدد المدرس مواعيدها من جدوله.');

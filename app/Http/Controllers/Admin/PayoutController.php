@@ -11,6 +11,7 @@ use App\Domain\Payment\Models\TeacherPayout;
 use App\Domain\Settings\Models\PlatformSetting;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
 use App\Services\SecureStoredFileResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +25,7 @@ class PayoutController extends Controller
 {
     public function index(Request $request): Response
     {
-        $payouts = TeacherPayout::with('teacher:id,name,email,avatar')
+        $payouts = TeacherPayout::with(['teacher:id,name,email,avatar', 'payer:id,name,email'])
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -161,6 +162,12 @@ class PayoutController extends Controller
         ]);
 
         $payout->teacher?->notify(new PayoutStatusNotification($payout));
+
+        AuditLogger::record('admin.payout.processed', $payout, [
+            'teacher_name' => $payout->teacher?->name,
+            'amount_formatted' => ($payout->amount / 100) . ' ' . $payout->currency,
+            'admin_name' => Auth::user()?->name,
+        ]);
 
         return back()->with('success', 'تم تأكيد دفع الأرباح للمعلم بنجاح.');
     }

@@ -42,4 +42,9 @@ class TeacherPayout extends Model
     {
         return $this->belongsTo(User::class, 'teacher_id');
     }
+
+    public function payer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paid_by');
+    }
 }

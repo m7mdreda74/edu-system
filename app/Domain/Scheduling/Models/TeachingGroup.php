@@ -47,6 +47,7 @@ class TeachingGroup extends Model
         'duration_minutes',
         'timezone',
         'is_active',
+        'created_by',
     ];
 
     protected function casts(): array
@@ -58,10 +59,16 @@ class TeachingGroup extends Model
             'day_of_week'      => 'integer',
             'duration_minutes' => 'integer',
             'is_active'        => 'boolean',
+            'created_by'       => 'integer',
         ];
     }
 
     // ─── Relationships ────────────────────────────────────────────
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domain\User\Models\User::class, 'created_by');
+    }
 
     public function assignment(): BelongsTo
     {

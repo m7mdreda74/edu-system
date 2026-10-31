@@ -180,6 +180,18 @@ async function rejectPayment(p) {
                                     <span class="payment-compact-badge" :class="statusColors[p.status]">
                                         {{ statusLabels[p.status] }}
                                     </span>
+                                    <div v-if="p.reviewer" class="mt-1 flex flex-col text-[10px] leading-tight">
+                                        <span class="text-surface-700 dark:text-surface-300 font-bold flex items-center gap-1" :title="`المسؤول المراجع: ${p.reviewer.name} (${p.reviewer.email})`">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
+                                            <span class="truncate max-w-[110px]">بواسطة: {{ p.reviewer.name }}</span>
+                                        </span>
+                                        <span v-if="p.reviewed_at" class="text-surface-400 text-[9px] font-mono">
+                                            {{ formatCompactDate(p.reviewed_at) }}
+                                        </span>
+                                    </div>
+                                    <div v-if="p.review_notes" class="mt-0.5 text-[9px] text-surface-400 truncate max-w-[120px]" :title="p.review_notes">
+                                        ملاحظة: {{ p.review_notes }}
+                                    </div>
                                 </td>
                                 <td class="p-4 font-mono text-surface-400" :title="p.paid_at || p.created_at || ''">{{ formatCompactDate(p.paid_at || p.created_at) }}</td>
                                 <td class="data-table-actions p-3">

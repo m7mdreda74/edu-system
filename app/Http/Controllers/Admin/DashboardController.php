@@ -10,6 +10,8 @@ use App\Domain\Payment\Models\Payment;
 use App\Domain\Subscription\Models\Subscription;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Models\AuditEvent;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -237,11 +239,27 @@ class DashboardController extends Controller
                     'badge' => $r->is_approved ? 'approved' : 'pending',
                 ]);
 
+            $adminEvents = AuditEvent::with('actor:id,name')
+                ->where('action', 'like', 'admin.%')
+                ->orWhereIn('action', ['settings.updated', 'site_pages.updated'])
+                ->latest('id')
+                ->limit(8)
+                ->get()
+                ->map(fn (AuditEvent $e) => [
+                    'type' => 'admin_action',
+                    'icon' => 'shield',
+                    'text' => AuditLogger::humanDescription($e),
+                    'at' => $e->created_at?->toIso8601String(),
+                    'badge' => 'admin',
+                    'actor_name' => $e->metadata['admin_name'] ?? $e->actor?->name ?? 'مسؤول',
+                ]);
+
             return collect()
                 ->merge($subscriptions)
                 ->merge($reviews)
+                ->merge($adminEvents)
                 ->sortByDesc('at')
-                ->take(10)
+                ->take(12)
                 ->values()
                 ->all();
         });
