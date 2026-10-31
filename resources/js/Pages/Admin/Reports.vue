@@ -51,13 +51,15 @@ const {
 
 function setCategory(catKey) {
     activeCategory.value = catKey;
-    const current = { ...props.filters, report_type: catKey };
+    const { print, ...cleanFilters } = props.filters;
+    const current = { ...cleanFilters, report_type: catKey };
     router.get(route('admin.reports'), current, { preserveState: true, replace: true });
 }
 
 function applyFilters(event) {
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData.entries());
+    delete data.print;
     data.report_type = activeCategory.value;
     router.get(route('admin.reports'), data, { preserveState: true, replace: true });
 }

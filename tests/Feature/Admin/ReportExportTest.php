@@ -172,3 +172,21 @@ it('prevents non-admins from downloading excel and pdf reports', function (): vo
         ->get(route('admin.reports.export.pdf'))
         ->assertForbidden();
 });
+
+it('gracefully handles print query parameter with string boolean or zero without validation errors', function (): void {
+    $this->actingAs($this->admin)
+        ->get(route('admin.reports', ['print' => 'false', 'report_type' => 'teachers']))
+        ->assertOk()
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.reports', ['print' => '0', 'report_type' => 'students']))
+        ->assertOk()
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.reports', ['print' => '1', 'report_type' => 'attendance']))
+        ->assertOk()
+        ->assertSessionHasNoErrors();
+});
+

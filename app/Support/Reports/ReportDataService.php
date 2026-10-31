@@ -37,7 +37,7 @@ class ReportDataService
             'session_type' => ['nullable', 'string', 'in:all,private,free,group'],
             'group_id'     => ['nullable', 'integer', 'min:1', 'exists:teaching_groups,id'],
             'status'       => ['nullable', 'in:scheduled,live,ended,cancelled'],
-            'print'        => ['nullable', 'boolean'],
+            'print'        => ['nullable'],
         ]);
 
         $print = $request->boolean('print') || $isExport;
@@ -345,7 +345,7 @@ class ReportDataService
                 'session_type' => $sessionType ?? 'all',
                 'group_id'     => $groupId,
                 'status'       => $filters['status'] ?? '',
-                'print'        => $print,
+                'print'        => $print ? 1 : null,
             ],
             'filterSummary' => $filterSummary,
             'teachers'      => $teachers,
