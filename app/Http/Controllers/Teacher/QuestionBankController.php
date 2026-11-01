@@ -21,7 +21,7 @@ class QuestionBankController extends Controller
     {
         return Inertia::render('Teacher/QuestionBank', $questionBank->index(
             Auth::user(),
-            $request->only(['search', 'difficulty', 'type', 'visibility']),
+            $request->only(['search', 'difficulty', 'type', 'visibility', 'grade_level_id']),
         ));
     }
 

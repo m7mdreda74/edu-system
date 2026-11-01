@@ -82,4 +82,53 @@ class UserCreationTest extends TestCase
         $response->assertSessionHasErrors('email');
         $this->assertDatabaseMissing('users', ['email' => 'external@example.com']);
     }
+
+    public function test_admin_can_assign_and_edit_multiple_grade_levels_for_a_teacher(): void
+    {
+        /** @var User $admin */
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+
+        $subject = \App\Domain\Academic\Models\Subject::query()->where('is_active', true)->firstOrFail();
+        $grades = \App\Domain\Academic\Models\GradeLevel::query()
+            ->where('is_active', true)
+            ->where('key', '!=', 'all')
+            ->limit(3)
+            ->pluck('id')
+            ->all();
+
+        $this->assertGreaterThanOrEqual(2, count($grades));
+
+        // 1. Create teacher with initial grade
+        $this->actingAs($admin)->post(route('admin.users.store'), [
+            'name' => 'Multi Grade Teacher',
+            'email' => 'multi-grade-teacher@almagd.com',
+            'phone' => '51000010',
+            'password' => 'password123',
+            'role' => 'teacher',
+            'subject_id' => $subject->id,
+            'grade_level_ids' => [$grades[0]],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $teacher = User::where('email', 'multi-grade-teacher@almagd.com')->firstOrFail();
+        $this->assertSame($subject->id, $teacher->subject_id);
+        $this->assertCount(1, $teacher->teachingAssignments()->where('is_active', true)->get());
+
+        // 2. Admin adds additional grade levels to the teacher
+        $this->actingAs($admin)->patch(route('admin.users.teacher-grades', ['id' => $teacher->id]), [
+            'subject_id' => $subject->id,
+            'grade_level_ids' => $grades,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $activeGradeIds = $teacher->teachingAssignments()
+            ->where('is_active', true)
+            ->pluck('grade_level_id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+
+        $expected = collect($grades)->map(fn ($id) => (int) $id)->sort()->values()->all();
+        $this->assertSame($expected, $activeGradeIds);
+    }
 }

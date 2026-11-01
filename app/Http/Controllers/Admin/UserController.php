@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Application\User\Services\ParentStudentLinkService;
+use App\Domain\Academic\Models\GradeLevel;
+use App\Domain\Academic\Models\Subject;
+use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Rules\PlatformEmail;
@@ -23,6 +26,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,7 +43,14 @@ class UserController extends Controller
             'role'   => ['nullable', 'string', 'in:admin,teacher,student,parent'],
         ]);
 
-        $users = User::with(['roles:name', 'creator:id,name,email'])
+        $users = User::with([
+            'roles:name',
+            'creator:id,name,email',
+            'subject:id,name',
+            'teachingAssignments' => fn ($q) => $q
+                ->with(['gradeLevel:id,key,name,stage', 'subject:id,name'])
+                ->orderBy('grade_level_id'),
+        ])
             ->when(! empty($filters['search']), function ($q) use ($filters): void {
                 $search = '%' . $filters['search'] . '%';
 
@@ -60,6 +71,11 @@ class UserController extends Controller
         return Inertia::render('Admin/Users', [
             'users'   => $users,
             'filters' => $filters,
+            'subjects' => Subject::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'allGradeLevels' => GradeLevel::where('is_active', true)
+                ->where('key', '!=', 'all')
+                ->orderBy('id')
+                ->get(['id', 'key', 'name', 'stage', 'track']),
             'defaultCommission' => (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20),
         ]);
     }
@@ -88,18 +104,47 @@ class UserController extends Controller
                         ->where('is_active', true)
                         ->where('key', '!=', 'all')),
             ],
+            'subject_id' => [
+                'exclude_unless:role,teacher',
+                'nullable',
+                'integer',
+                Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('is_active', true)),
+            ],
+            'grade_level_ids' => [
+                'exclude_unless:role,teacher',
+                'nullable',
+                'array',
+            ],
+            'grade_level_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('grade_levels', 'id')
+                    ->where(fn ($q) => $q->where('is_active', true)->where('key', '!=', 'all')),
+            ],
         ], [
             'grade_level.required_if' => 'اختر المرحلة والصف الدراسي للطالب.',
             'grade_level.exists' => 'الصف الدراسي المختار غير متاح حالياً.',
+            'subject_id.exists' => 'المادة الدراسية المختارة غير متاحة حالياً.',
         ]);
 
+        if (($validated['role'] ?? '') === 'teacher' && ! empty($validated['grade_level_ids']) && empty($validated['subject_id'])) {
+            throw ValidationException::withMessages([
+                'subject_id' => 'اختر المادة الدراسية أولاً لإسناد الصفوف للمعلم.',
+            ]);
+        }
+
         $user = DB::transaction(function () use ($validated): User {
+            $teacherSubjectId = ($validated['role'] === 'teacher' && ! empty($validated['subject_id']))
+                ? (int) $validated['subject_id']
+                : null;
+
             $user = User::create([
                 'name'        => $validated['name'],
                 'email'       => $validated['email'],
                 'phone'       => $validated['phone'],
                 'password'    => $validated['password'], // hashed by cast
                 'grade_level' => ($validated['role'] === 'student') ? ($validated['grade_level'] ?? null) : null,
+                'subject_id'  => $teacherSubjectId,
                 'is_active'   => true,
                 'commission_percent' => $validated['role'] === 'teacher'
                     ? (int) (\App\Domain\Settings\Models\PlatformSetting::where('key', 'commission_percent')->value('value') ?? 20)
@@ -113,8 +158,29 @@ class UserController extends Controller
                 $this->parentStudentLinks->linkExistingParent($user, $validated['parent_phone']);
             }
 
+            if ($validated['role'] === 'teacher' && $teacherSubjectId !== null && ! empty($validated['grade_level_ids'])) {
+                $gradeIds = array_values(array_unique(array_map('intval', $validated['grade_level_ids'])));
+                Subject::find($teacherSubjectId)?->gradeLevels()->syncWithoutDetaching($gradeIds);
+
+                foreach ($gradeIds as $gradeId) {
+                    TeachingAssignment::create([
+                        'teacher_id' => $user->id,
+                        'subject_id' => $teacherSubjectId,
+                        'grade_level_id' => $gradeId,
+                        'private_monthly_price' => 0,
+                        'accepts_private' => false,
+                        'currency' => 'QAR',
+                        'is_active' => true,
+                    ]);
+                }
+            }
+
             return $user;
         });
+
+        if ($validated['role'] === 'teacher' && ! empty($validated['grade_level_ids'])) {
+            $this->forgetTeacherCaches();
+        }
 
         AuditLogger::record('admin.user.created', $user, [
             'role' => $validated['role'],
@@ -208,6 +274,114 @@ class UserController extends Controller
         ]);
 
         return back()->with('success', "تم تحديث الصف الدراسي للطالب {$user->name}.");
+    }
+
+    public function updateTeacherGrades(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'subject_id' => [
+                'required',
+                'integer',
+                Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('is_active', true)),
+            ],
+            'grade_level_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'grade_level_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('grade_levels', 'id')
+                    ->where(fn ($q) => $q->where('is_active', true)->where('key', '!=', 'all')),
+            ],
+        ], [
+            'subject_id.required' => 'يرجى اختيار المادة الدراسية للمعلم.',
+            'subject_id.exists' => 'المادة الدراسية المختارة غير متاحة.',
+            'grade_level_ids.required' => 'يرجى اختيار صف دراسي واحد على الأقل للمعلم.',
+            'grade_level_ids.min' => 'يرجى اختيار صف دراسي واحد على الأقل للمعلم.',
+        ]);
+
+        $user = User::findOrFail($id);
+        abort_unless($user->hasRole('teacher'), 422, 'إسناد الصفوف الدراسية يخص حسابات المعلمين فقط.');
+
+        $subjectId = (int) $validated['subject_id'];
+        $gradeIds = array_values(array_unique(array_map('intval', $validated['grade_level_ids'])));
+
+        $otherSubjectAssignments = TeachingAssignment::where('teacher_id', $user->id)
+            ->where('subject_id', '!=', $subjectId)
+            ->withCount(['groups', 'units', 'subscriptions', 'privateSlots'])
+            ->get();
+
+        $hasLockedOtherSubject = $otherSubjectAssignments->contains(
+            fn (TeachingAssignment $a): bool =>
+                $a->groups_count > 0 || $a->units_count > 0 || $a->subscriptions_count > 0 || $a->private_slots_count > 0,
+        );
+
+        if ($hasLockedOtherSubject) {
+            throw ValidationException::withMessages([
+                'subject_id' => 'المعلم لديه مجموعات أو محتوى أكاديمي مسجل على مادة أخرى؛ لا يمكن تغيير مادته قبل نقل أو إيقاف المجموعات الحالية.',
+            ]);
+        }
+
+        DB::transaction(function () use ($user, $subjectId, $gradeIds, $otherSubjectAssignments): void {
+            // Clean up any empty off-subject assignments
+            foreach ($otherSubjectAssignments as $emptyOther) {
+                $emptyOther->delete();
+            }
+
+            $user->update(['subject_id' => $subjectId]);
+            Subject::find($subjectId)?->gradeLevels()->syncWithoutDetaching($gradeIds);
+
+            $existing = TeachingAssignment::where('teacher_id', $user->id)
+                ->where('subject_id', $subjectId)
+                ->withCount(['groups', 'units', 'subscriptions', 'privateSlots'])
+                ->get()
+                ->keyBy('grade_level_id');
+
+            foreach ($gradeIds as $gradeId) {
+                if ($existing->has($gradeId)) {
+                    $assignment = $existing->get($gradeId);
+                    if (! $assignment->is_active) {
+                        $assignment->update(['is_active' => true]);
+                    }
+                } else {
+                    TeachingAssignment::create([
+                        'teacher_id' => $user->id,
+                        'subject_id' => $subjectId,
+                        'grade_level_id' => $gradeId,
+                        'private_monthly_price' => 0,
+                        'accepts_private' => false,
+                        'currency' => 'QAR',
+                        'is_active' => true,
+                    ]);
+                }
+            }
+
+            // Deactivate or clean up unselected grades
+            foreach ($existing as $existingGradeId => $assignment) {
+                if (! in_array((int) $existingGradeId, $gradeIds, true)) {
+                    $hasData = $assignment->groups_count > 0
+                        || $assignment->units_count > 0
+                        || $assignment->subscriptions_count > 0
+                        || $assignment->private_slots_count > 0;
+
+                    if ($hasData) {
+                        $assignment->update(['is_active' => false]);
+                    } else {
+                        $assignment->delete();
+                    }
+                }
+            }
+        });
+
+        AuditLogger::record('admin.user.teacher_grades_updated', $user, [
+            'teacher_name' => $user->name,
+            'subject_id' => $subjectId,
+            'grade_level_ids' => $gradeIds,
+        ]);
+
+        $this->forgetTeacherCaches();
+        Cache::forget('shared.active_grade_levels.v2');
+        Cache::forget('home.grades');
+
+        return back()->with('success', "تم تحديث المادة والصفوف الدراسية للمعلم {$user->name} بنجاح.");
     }
 
     public function updateCommission(Request $request, int $id): RedirectResponse

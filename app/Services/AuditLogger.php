@@ -83,6 +83,7 @@ final class AuditLogger
             'admin.user.status_changed' => "قام {$actor} بتعديل حالة الحساب" . (! empty($meta['target_name']) ? " للمستخدم {$meta['target_name']}" : ''),
             'admin.user.role_changed' => "قام {$actor} بتغيير دور المستخدم" . (! empty($meta['target_name']) ? " {$meta['target_name']}" : ''),
             'admin.user.grade_changed' => "قام {$actor} بتعديل الصف الدراسي" . (! empty($meta['target_name']) ? " للطالب {$meta['target_name']}" : ''),
+            'admin.user.teacher_grades_updated' => "قام {$actor} بتحديث المادة والصفوف الدراسية للمعلم" . (! empty($meta['teacher_name']) ? " {$meta['teacher_name']}" : ''),
             'admin.user.commission_changed' => "قام {$actor} بتعديل نسبة عمولة المعلم" . (! empty($meta['target_name']) ? " {$meta['target_name']}" : ''),
             'admin.user.intro_video_updated' => "قام {$actor} برفع/تحديث الفيديو التعريفي للمعلم" . (! empty($meta['teacher_name']) ? " {$meta['teacher_name']}" : ''),
             'admin.user.intro_video_deleted' => "قام {$actor} بحذف الفيديو التعريفي للمعلم" . (! empty($meta['teacher_name']) ? " {$meta['teacher_name']}" : ''),

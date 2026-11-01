@@ -25,6 +25,7 @@ const search = ref(props.filters.search ?? '');
 const difficultyFilter = ref(props.filters.difficulty ?? '');
 const typeFilter = ref(props.filters.type ?? '');
 const visibilityFilter = ref(props.filters.visibility ?? '');
+const gradeFilter = ref(props.filters.grade_level_id ?? '');
 
 // Academic Classification Form State (Stage, Grade, Term)
 const formStage = ref('');
@@ -77,6 +78,8 @@ const form = useForm(blankForm());
 form.transform((data) => ({
     ...data,
     subject_id: data.subject_id || null,
+    grade_level_id: formGrade.value || null,
+    academic_term_id: formTerm.value || null,
     curriculum_unit_id: data.curriculum_unit_id || null,
     lesson_id: data.lesson_id || null,
     tags: String(data.tags || '')
@@ -152,6 +155,26 @@ watch(() => formStage.value, (newStage) => {
     }
 });
 
+watch(() => formGrade.value, (newGradeId) => {
+    if (newGradeId) {
+        const gradeObj = props.grades.find((g) => Number(g.id) === Number(newGradeId));
+        if (gradeObj?.stage && ! formStage.value) {
+            formStage.value = gradeObj.stage;
+        }
+        if (selectedUnit.value && Number(selectedUnit.value.grade_level_id) !== Number(newGradeId)) {
+            form.curriculum_unit_id = '';
+            form.lesson_id = '';
+        }
+    }
+});
+
+watch(() => formTerm.value, (newTermId) => {
+    if (newTermId && selectedUnit.value && Number(selectedUnit.value.academic_term_id) !== Number(newTermId)) {
+        form.curriculum_unit_id = '';
+        form.lesson_id = '';
+    }
+});
+
 watch(() => form.curriculum_unit_id, (newUnitId) => {
     if (newUnitId) {
         const unit = props.units.find((u) => Number(u.id) === Number(newUnitId));
@@ -173,6 +196,7 @@ watch(() => props.filters, (next) => {
     difficultyFilter.value = next.difficulty ?? '';
     typeFilter.value = next.type ?? '';
     visibilityFilter.value = next.visibility ?? '';
+    gradeFilter.value = next.grade_level_id ?? '';
 });
 
 function resetForm() {
@@ -186,6 +210,13 @@ function resetForm() {
 
 function openCreate() {
     resetForm();
+    if (props.subjects.length === 1) {
+        form.subject_id = props.subjects[0].id;
+    }
+    if (props.grades.length === 1) {
+        formGrade.value = props.grades[0].id;
+        if (props.grades[0].stage) formStage.value = props.grades[0].stage;
+    }
     showForm.value = true;
 }
 
@@ -206,13 +237,17 @@ function editQuestion(question) {
     form.tags = (question.tags ?? []).join(', ');
     form.options = (question.options ?? []).map((option) => makeOption(option.option_text, !!option.is_correct));
 
-    // Populate stage, grade, and term from unit or question
-    if (question.unit?.id) {
+    // Populate stage, grade, and term from question or unit
+    formStage.value = question.stage || '';
+    formGrade.value = question.grade_level_id || '';
+    formTerm.value = question.academic_term_id || '';
+
+    if (question.unit?.id && (! formGrade.value || ! formTerm.value)) {
         const u = props.units.find((unit) => Number(unit.id) === Number(question.unit.id));
         if (u) {
-            formStage.value = u.stage || '';
-            formGrade.value = u.grade_level_id || '';
-            formTerm.value = u.academic_term_id || '';
+            if (! formStage.value) formStage.value = u.stage || '';
+            if (! formGrade.value) formGrade.value = u.grade_level_id || '';
+            if (! formTerm.value) formTerm.value = u.academic_term_id || '';
         }
     }
 
@@ -300,6 +335,7 @@ function applyFilters() {
         difficulty: difficultyFilter.value || undefined,
         type: typeFilter.value || undefined,
         visibility: visibilityFilter.value || undefined,
+        grade_level_id: gradeFilter.value || undefined,
     }, { preserveState: true, preserveScroll: true, replace: true });
 }
 
@@ -564,8 +600,12 @@ async function deleteQuestion(question) {
                 </div>
             </section>
 
-            <form class="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5" @submit.prevent="applyFilters">
+            <form class="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6" @submit.prevent="applyFilters">
                 <input v-model="search" type="search" class="input lg:col-span-2" placeholder="ابحث في نص السؤال أو الموضوع" />
+                <select v-model="gradeFilter" class="input">
+                    <option value="">كل الصفوف</option>
+                    <option v-for="grd in grades" :key="grd.id" :value="grd.id">{{ grd.name }}</option>
+                </select>
                 <select v-model="difficultyFilter" class="input">
                     <option value="">كل الصعوبات</option>
                     <option value="easy">سهل</option>

@@ -115,7 +115,7 @@ class TeachingGroupController extends Controller
             'assignments' => $assignments,
             'teachers' => User::role('teacher')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'subject_id']),
             'subjects' => Subject::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'gradeLevels' => GradeLevel::where('is_active', true)->orderBy('id')->get(['id', 'key', 'name']),
+            'gradeLevels' => GradeLevel::where('is_active', true)->where('key', '!=', 'all')->orderBy('id')->get(['id', 'key', 'name', 'stage']),
             'filters' => $filters,
             'terms' => AcademicTerm::orderByDesc('starts_on')->get(['id', 'year_label', 'name']),
             'stats' => [
@@ -132,10 +132,22 @@ class TeachingGroupController extends Controller
         $data = $request->validate([
             'teacher_id' => ['required', 'integer', 'min:1', 'exists:users,id'],
             'subject_id' => ['required', 'integer', 'min:1', 'exists:subjects,id'],
-            'grade_level_id' => ['required', 'integer', 'min:1', 'exists:grade_levels,id'],
+            'grade_level_id' => ['nullable', 'integer', 'min:1', 'exists:grade_levels,id'],
+            'grade_level_ids' => ['nullable', 'array', 'min:1'],
+            'grade_level_ids.*' => ['integer', 'min:1', 'distinct', 'exists:grade_levels,id'],
             'accepts_private' => ['nullable', 'boolean'],
             'private_monthly_price_qar' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
         ]);
+
+        $gradeIds = ! empty($data['grade_level_ids'])
+            ? array_values(array_unique(array_map('intval', $data['grade_level_ids'])))
+            : (! empty($data['grade_level_id']) ? [(int) $data['grade_level_id']] : []);
+
+        if (empty($gradeIds)) {
+            throw ValidationException::withMessages([
+                'grade_level_ids' => 'يرجى اختيار صف دراسي واحد على الأقل.',
+            ]);
+        }
 
         $teacher = User::findOrFail($data['teacher_id']);
         abort_unless($teacher->hasRole('teacher'), 422, 'المستخدم المختار ليس معلماً.');
@@ -150,10 +162,12 @@ class TeachingGroupController extends Controller
             ]);
         }
 
-        if (TeachingAssignment::where([
+        // Keep legacy single-grade duplicate message when only 1 active grade is submitted
+        if (count($gradeIds) === 1 && ! empty($data['grade_level_id']) && TeachingAssignment::where([
             'teacher_id' => $teacher->id,
             'subject_id' => $data['subject_id'],
-            'grade_level_id' => $data['grade_level_id'],
+            'grade_level_id' => $gradeIds[0],
+            'is_active' => true,
         ])->exists()) {
             throw ValidationException::withMessages([
                 'grade_level_id' => 'هذا الإسناد موجود بالفعل.',
@@ -164,42 +178,78 @@ class TeachingGroupController extends Controller
         $price = $this->priceInMinorUnits($data['private_monthly_price_qar'] ?? 0);
         $this->assertPrivatePrice($acceptsPrivate, $price);
 
-        DB::transaction(function () use ($data, $teacher, $acceptsPrivate, $price): void {
+        DB::transaction(function () use ($data, $teacher, $gradeIds, $acceptsPrivate, $price): void {
             $teacher->update(['subject_id' => $data['subject_id']]);
+            Subject::find((int) $data['subject_id'])?->gradeLevels()->syncWithoutDetaching($gradeIds);
 
-            TeachingAssignment::create([
-                'teacher_id' => $teacher->id,
-                'subject_id' => $data['subject_id'],
-                'grade_level_id' => $data['grade_level_id'],
-                'private_monthly_price' => $price,
-                'accepts_private' => $acceptsPrivate,
-                'currency' => 'QAR',
-                'is_active' => true,
-            ]);
+            foreach ($gradeIds as $gradeId) {
+                $existing = TeachingAssignment::where([
+                    'teacher_id' => $teacher->id,
+                    'subject_id' => $data['subject_id'],
+                    'grade_level_id' => $gradeId,
+                ])->first();
+
+                if ($existing) {
+                    $existing->update([
+                        'private_monthly_price' => $price > 0 ? $price : $existing->private_monthly_price,
+                        'accepts_private' => $acceptsPrivate ?: $existing->accepts_private,
+                        'is_active' => true,
+                    ]);
+                } else {
+                    TeachingAssignment::create([
+                        'teacher_id' => $teacher->id,
+                        'subject_id' => $data['subject_id'],
+                        'grade_level_id' => $gradeId,
+                        'private_monthly_price' => $price,
+                        'accepts_private' => $acceptsPrivate,
+                        'currency' => 'QAR',
+                        'is_active' => true,
+                    ]);
+                }
+            }
         });
 
-        return back()->with('success', 'تم إسناد المادة والصف للمعلم بواسطة الإدارة.');
+        return back()->with('success', 'تم إسناد المادة والصفوف المختارة للمعلم بنجاح.');
     }
 
     public function updateAssignment(Request $request, int $id): RedirectResponse
     {
         $assignment = TeachingAssignment::findOrFail($id);
         $data = $request->validate([
+            'grade_level_id' => ['nullable', 'integer', 'min:1', 'exists:grade_levels,id'],
             'accepts_private' => ['required', 'boolean'],
             'private_monthly_price_qar' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'is_active' => ['required', 'boolean'],
         ]);
 
+        $newGradeId = ! empty($data['grade_level_id']) ? (int) $data['grade_level_id'] : (int) $assignment->grade_level_id;
+        if ($newGradeId !== (int) $assignment->grade_level_id) {
+            $duplicate = TeachingAssignment::where('teacher_id', $assignment->teacher_id)
+                ->where('subject_id', $assignment->subject_id)
+                ->where('grade_level_id', $newGradeId)
+                ->where('id', '!=', $assignment->id)
+                ->exists();
+
+            if ($duplicate) {
+                throw ValidationException::withMessages([
+                    'grade_level_id' => 'هذا الصف مسند بالفعل لهذا المعلم.',
+                ]);
+            }
+
+            Subject::find((int) $assignment->subject_id)?->gradeLevels()->syncWithoutDetaching([$newGradeId]);
+        }
+
         $price = $this->priceInMinorUnits($data['private_monthly_price_qar'] ?? 0);
         $this->assertPrivatePrice((bool) $data['accepts_private'], $price, $assignment);
 
         $assignment->update([
+            'grade_level_id' => $newGradeId,
             'accepts_private' => (bool) $data['accepts_private'],
             'private_monthly_price' => $price,
             'is_active' => (bool) $data['is_active'],
         ]);
 
-        return back()->with('success', 'تم تحديث سعر البرايفيت وحالة الإسناد.');
+        return back()->with('success', 'تم تحديث بيانات الصف وسعر البرايفيت وحالة الإسناد.');
     }
 
     public function store(Request $request): RedirectResponse

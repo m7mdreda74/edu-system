@@ -140,7 +140,7 @@ const menuGroups = computed(() => {
                 links: [
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
                     { label: 'مواد صفي', icon: 'book',      href: route('student.my-grade'),   name: 'student.my-grade' },
-                    { label: 'التقييمات', icon: 'assignment', href: route('student.assessments'), name: 'student.assessments' },
+                    { label: 'التقييمات والاختبارات', icon: 'assignment', href: route('student.assessments'), name: 'student.assessments' },
                     { label: 'الموارد التعليمية', icon: 'book', href: route('student.resources'), name: 'student.resources' },
                     { label: 'جدول حصصي', icon: 'calendar', href: route('student.schedule'),   name: 'student.schedule' },
                     { label: 'الرسائل',  icon: 'chat',      href: route('chat.index'),         name: 'chat.index' },

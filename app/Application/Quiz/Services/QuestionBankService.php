@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Application\Quiz\Services;
 
+use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Quiz\Models\QuestionBankQuestion;
 use App\Domain\Quiz\Models\Quiz;
 use App\Domain\Quiz\Models\QuizQuestion;
+use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\User\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -43,28 +45,83 @@ class QuestionBankService
             }
         }
 
+        $filterGradeId = $this->nullableInt($filters['grade_level_id'] ?? null);
+        if ($filterGradeId !== null) {
+            $query->where(function ($gradeQuery) use ($filterGradeId): void {
+                $gradeQuery
+                    ->where('grade_level_id', $filterGradeId)
+                    ->orWhereHas('unit.assignment', fn ($q) => $q->where('grade_level_id', $filterGradeId));
+            });
+        }
+
         $questions = $query->paginate(self::PAGE_SIZE)->withQueryString();
         $questions->setCollection($questions->getCollection()->map(
             fn (QuestionBankQuestion $question): array => $this->present($question, $teacher),
         ));
 
+        $assignments = TeachingAssignment::query()
+            ->where('teacher_id', $teacher->id)
+            ->where('is_active', true)
+            ->with([
+                'gradeLevel:id,name,stage',
+                'subject:id,name',
+            ])
+            ->orderBy('grade_level_id')
+            ->get();
+
         $units = $this->unitsFor($teacher);
+        $stageNames = $this->stageNames();
 
-        $stages = $units->filter(fn (array $u): bool => ! empty($u['stage']))->map(fn (array $u): array => [
-            'key' => $u['stage'],
-            'name' => $u['stage_name'],
-        ])->unique('key')->values();
+        $assignmentGrades = $assignments
+            ->filter(fn (TeachingAssignment $a): bool => $a->gradeLevel !== null)
+            ->map(fn (TeachingAssignment $a): array => [
+                'id' => $a->gradeLevel->id,
+                'name' => $a->gradeLevel->name,
+                'stage' => $a->gradeLevel->stage,
+            ]);
 
-        $grades = $units->filter(fn (array $u): bool => ! empty($u['grade_level_id']))->map(fn (array $u): array => [
-            'id' => $u['grade_level_id'],
-            'name' => $u['grade_name'],
-            'stage' => $u['stage'],
-        ])->unique('id')->values();
+        $unitGrades = $units
+            ->filter(fn (array $u): bool => ! empty($u['grade_level_id']))
+            ->map(fn (array $u): array => [
+                'id' => $u['grade_level_id'],
+                'name' => $u['grade_name'],
+                'stage' => $u['stage'],
+            ]);
 
-        $terms = $units->filter(fn (array $u): bool => ! empty($u['academic_term_id']))->map(fn (array $u): array => [
-            'id' => $u['academic_term_id'],
-            'name' => $u['term_name'],
-        ])->unique('id')->values();
+        $grades = $assignmentGrades
+            ->concat($unitGrades)
+            ->unique('id')
+            ->sortBy('id')
+            ->values();
+
+        $stages = $grades
+            ->filter(fn (array $g): bool => ! empty($g['stage']))
+            ->map(fn (array $g): array => [
+                'key' => $g['stage'],
+                'name' => $stageNames[$g['stage']] ?? ('مرحلة ' . $g['stage']),
+            ])
+            ->unique('key')
+            ->values();
+
+        $allTerms = AcademicTerm::query()
+            ->orderBy('starts_on')
+            ->get(['id', 'name'])
+            ->map(fn (AcademicTerm $t): array => [
+                'id' => $t->id,
+                'name' => $t->name,
+            ]);
+
+        $unitTerms = $units
+            ->filter(fn (array $u): bool => ! empty($u['academic_term_id']))
+            ->map(fn (array $u): array => [
+                'id' => $u['academic_term_id'],
+                'name' => $u['term_name'],
+            ]);
+
+        $terms = $allTerms
+            ->concat($unitTerms)
+            ->unique('id')
+            ->values();
 
         return [
             'questions' => $questions,
@@ -73,6 +130,7 @@ class QuestionBankService
                 'difficulty' => (string) ($filters['difficulty'] ?? ''),
                 'type' => (string) ($filters['type'] ?? ''),
                 'visibility' => (string) ($filters['visibility'] ?? ''),
+                'grade_level_id' => $filterGradeId ? (string) $filterGradeId : '',
             ],
             'subjects' => $this->subjectsFor($teacher),
             'units' => $units,
@@ -207,12 +265,24 @@ class QuestionBankService
         };
     }
 
+    /** @return array<string, string> */
+    private function stageNames(): array
+    {
+        return [
+            'primary'     => 'المرحلة الابتدائية',
+            'preparatory' => 'المرحلة الإعدادية',
+            'secondary'   => 'المرحلة الثانوية',
+        ];
+    }
+
     /** @return array<int, string> */
     private function questionRelations(): array
     {
         return [
             'teacher:id,name',
             'subject:id,name',
+            'gradeLevel:id,name,stage',
+            'term:id,name',
             'unit:id,teaching_assignment_id,academic_term_id,title',
             'unit.assignment:id,teacher_id,subject_id,grade_level_id',
             'unit.assignment.gradeLevel:id,name,stage',
@@ -225,15 +295,13 @@ class QuestionBankService
     /** @return array<string, mixed> */
     private function present(QuestionBankQuestion $question, User $teacher): array
     {
-        $stageNames = [
-            'primary'     => 'المرحلة الابتدائية',
-            'preparatory' => 'المرحلة الإعدادية',
-            'secondary'   => 'المرحلة الثانوية',
-        ];
-        $stageKey = $question->unit?->assignment?->gradeLevel?->stage;
+        $stageNames = $this->stageNames();
+        $gradeLevel = $question->gradeLevel ?? $question->unit?->assignment?->gradeLevel;
+        $term = $question->term ?? $question->unit?->term;
+        $stageKey = $gradeLevel?->stage;
         $stageName = $stageNames[$stageKey] ?? ($stageKey ? 'مرحلة ' . $stageKey : null);
-        $gradeName = $question->unit?->assignment?->gradeLevel?->name ?? null;
-        $termName = $question->unit?->term?->name ?? null;
+        $gradeName = $gradeLevel?->name ?? null;
+        $termName = $term?->name ?? null;
 
         return [
             'id' => $question->id,
@@ -251,8 +319,11 @@ class QuestionBankService
             'subject' => $question->subject?->only(['id', 'name']),
             'unit' => $question->unit?->only(['id', 'title']),
             'lesson' => $question->lesson?->only(['id', 'title']),
+            'stage' => $stageKey,
             'stage_name' => $stageName,
+            'grade_level_id' => $gradeLevel?->id,
             'grade_name' => $gradeName,
+            'academic_term_id' => $term?->id,
             'term_name'  => $termName,
             'options' => $question->options->map(fn ($option): array => [
                 'id' => $option->id,
@@ -268,7 +339,12 @@ class QuestionBankService
     private function subjectsFor(User $teacher): Collection
     {
         return Subject::query()
-            ->whereHas('teachingAssignments', fn ($query) => $query->where('teacher_id', $teacher->id))
+            ->where(function ($q) use ($teacher): void {
+                $q->whereHas('teachingAssignments', fn ($query) => $query->where('teacher_id', $teacher->id)->where('is_active', true));
+                if ($teacher->subject_id !== null) {
+                    $q->orWhere('id', $teacher->subject_id);
+                }
+            })
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn (Subject $subject): array => $subject->only(['id', 'name']))
@@ -278,11 +354,7 @@ class QuestionBankService
     /** @return Collection<int, array<string, mixed>> */
     private function unitsFor(User $teacher): Collection
     {
-        $stageNames = [
-            'primary'     => 'المرحلة الابتدائية',
-            'preparatory' => 'المرحلة الإعدادية',
-            'secondary'   => 'المرحلة الثانوية',
-        ];
+        $stageNames = $this->stageNames();
 
         return CurriculumUnit::query()
             ->whereHas('assignment', fn ($query) => $query->where('teacher_id', $teacher->id))
@@ -350,7 +422,11 @@ class QuestionBankService
         }
 
         $subjectId = $this->nullableInt($data['subject_id'] ?? null);
+        $gradeLevelId = $this->nullableInt($data['grade_level_id'] ?? null);
+        $academicTermId = $this->nullableInt($data['academic_term_id'] ?? null);
         $unitSubjectId = $unit?->assignment?->subject_id;
+        $unitGradeId = $unit?->assignment?->grade_level_id;
+        $unitTermId = $unit?->academic_term_id;
 
         if ($subjectId !== null && $unitSubjectId !== null && (int) $unitSubjectId !== $subjectId) {
             throw ValidationException::withMessages([
@@ -358,11 +434,34 @@ class QuestionBankService
             ]);
         }
 
+        if ($unitGradeId !== null) {
+            $gradeLevelId = (int) $unitGradeId;
+        } elseif ($gradeLevelId !== null) {
+            $assignedGrade = TeachingAssignment::query()
+                ->where('teacher_id', $teacher->id)
+                ->where('grade_level_id', $gradeLevelId)
+                ->first();
+
+            if (! $assignedGrade) {
+                throw ValidationException::withMessages([
+                    'grade_level_id' => 'هذا الصف الدراسي ليس ضمن الصفوف المسندة إليك.',
+                ]);
+            }
+
+            if ($subjectId === null && $assignedGrade->subject_id !== null) {
+                $subjectId = (int) $assignedGrade->subject_id;
+            }
+        }
+
+        if ($unitTermId !== null) {
+            $academicTermId = (int) $unitTermId;
+        }
+
         if ($subjectId === null && $unitSubjectId !== null) {
             $subjectId = (int) $unitSubjectId;
         }
 
-        if ($subjectId !== null && ! Subject::query()
+        if ($subjectId !== null && (int) $subjectId !== (int) $teacher->subject_id && ! Subject::query()
             ->whereKey($subjectId)
             ->whereHas('teachingAssignments', fn ($query) => $query->where('teacher_id', $teacher->id))
             ->exists()) {
@@ -373,6 +472,8 @@ class QuestionBankService
 
         return [
             'subject_id' => $subjectId,
+            'grade_level_id' => $gradeLevelId,
+            'academic_term_id' => $academicTermId,
             'curriculum_unit_id' => $unitId,
             'lesson_id' => $lessonId,
             'question_text' => trim((string) $data['question_text']),

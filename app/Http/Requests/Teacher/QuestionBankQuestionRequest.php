@@ -12,6 +12,8 @@ class QuestionBankQuestionRequest extends QuizQuestionRequest
     {
         return array_merge(parent::rules(), [
             'subject_id' => ['nullable', 'integer', 'exists:subjects,id'],
+            'grade_level_id' => ['nullable', 'integer', 'exists:grade_levels,id'],
+            'academic_term_id' => ['nullable', 'integer', 'exists:academic_terms,id'],
             'curriculum_unit_id' => ['nullable', 'integer', 'exists:curriculum_units,id'],
             'lesson_id' => ['nullable', 'integer', 'exists:group_materials,id'],
             'topic' => ['nullable', 'string', 'max:160'],

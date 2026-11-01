@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Quiz\Models;
 
+use App\Domain\Academic\Models\AcademicTerm;
 use App\Domain\Academic\Models\CurriculumUnit;
+use App\Domain\Academic\Models\GradeLevel;
 use App\Domain\Academic\Models\Subject;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\User\Models\User;
@@ -39,6 +41,8 @@ class QuestionBankQuestion extends Model
     protected $fillable = [
         'teacher_id',
         'subject_id',
+        'grade_level_id',
+        'academic_term_id',
         'curriculum_unit_id',
         'lesson_id',
         'question_text',
@@ -70,6 +74,16 @@ class QuestionBankQuestion extends Model
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    public function gradeLevel(): BelongsTo
+    {
+        return $this->belongsTo(GradeLevel::class);
+    }
+
+    public function term(): BelongsTo
+    {
+        return $this->belongsTo(AcademicTerm::class, 'academic_term_id');
     }
 
     public function unit(): BelongsTo

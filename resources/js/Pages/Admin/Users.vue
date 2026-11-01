@@ -11,6 +11,8 @@ import { useConfirm } from '@/composables/useConfirm';
 const props = defineProps({
     users:   { type: Object, required: true },  // paginated
     filters: { type: Object, default: () => ({}) },
+    subjects: { type: Array, default: () => [] },
+    allGradeLevels: { type: Array, default: () => [] },
     defaultCommission: { type: Number, default: 20 },
 });
 
@@ -56,6 +58,8 @@ const createForm = useForm({
     password: '',
     role: 'student',
     grade_level: '',
+    subject_id: '',
+    grade_level_ids: [],
 });
 
 const emailPrefix = ref('');
@@ -76,9 +80,16 @@ const onStageChange = () => {
 watch(() => createForm.role, (newRole) => {
     if (newRole === 'student') {
         onStageChange();
+        createForm.subject_id = '';
+        createForm.grade_level_ids = [];
+    } else if (newRole === 'teacher') {
+        createForm.grade_level = '';
+        createForm.parent_phone = '';
     } else {
         createForm.grade_level = '';
         createForm.parent_phone = '';
+        createForm.subject_id = '';
+        createForm.grade_level_ids = [];
     }
 });
 
@@ -138,9 +149,100 @@ function openRoleModal(user) {
     roleModalOpen.value = true;
 }
 
-const assignableGradeLevels = computed(() =>
-    (page.props.grade_levels ?? []).filter(g => g.key !== 'all'),
-);
+const assignableGradeLevels = computed(() => {
+    const source = props.allGradeLevels?.length ? props.allGradeLevels : (page.props.grade_levels ?? []);
+    return source.filter(g => g.key !== 'all');
+});
+
+const stageOrder = ['primary', 'preparatory', 'secondary'];
+const stageLabels = {
+    primary: 'المرحلة الابتدائية',
+    preparatory: 'المرحلة الإعدادية',
+    secondary: 'المرحلة الثانوية',
+};
+
+const groupedGradeLevels = computed(() => {
+    return stageOrder
+        .map((stageKey) => ({
+            key: stageKey,
+            label: stageLabels[stageKey] || stageKey,
+            grades: assignableGradeLevels.value.filter((g) => g.stage === stageKey),
+        }))
+        .filter((group) => group.grades.length > 0);
+});
+
+// ─── Teacher Subject & Grade Levels Modal ───
+const teacherGradesModalOpen = ref(false);
+const teacherGradesUser = ref(null);
+const teacherGradesForm = useForm({
+    subject_id: '',
+    grade_level_ids: [],
+});
+
+function activeTeacherAssignments(user) {
+    return (user?.teaching_assignments ?? []).filter((a) => a.is_active);
+}
+
+function teacherSubjectName(user) {
+    return user?.subject?.name
+        || activeTeacherAssignments(user)[0]?.subject?.name
+        || user?.teaching_assignments?.[0]?.subject?.name
+        || '';
+}
+
+function openTeacherGradesModal(user) {
+    roleModalOpen.value = false;
+    teacherGradesUser.value = user;
+    const activeAssignments = activeTeacherAssignments(user);
+    teacherGradesForm.subject_id = user.subject_id
+        || activeAssignments[0]?.subject_id
+        || user.teaching_assignments?.[0]?.subject_id
+        || (props.subjects[0]?.id ?? '');
+    teacherGradesForm.grade_level_ids = activeAssignments
+        .map((a) => Number(a.grade_level_id))
+        .filter(Boolean);
+    teacherGradesForm.clearErrors();
+    teacherGradesModalOpen.value = true;
+}
+
+function toggleGradeSelection(targetArray, gradeId) {
+    const numericId = Number(gradeId);
+    const idx = targetArray.indexOf(numericId);
+    if (idx === -1) {
+        targetArray.push(numericId);
+    } else {
+        targetArray.splice(idx, 1);
+    }
+}
+
+function areAllStageGradesSelected(targetArray, stageGrades) {
+    return stageGrades.length > 0 && stageGrades.every((g) => targetArray.includes(Number(g.id)));
+}
+
+function toggleStageSelection(targetArray, stageGrades) {
+    const ids = stageGrades.map((g) => Number(g.id));
+    if (areAllStageGradesSelected(targetArray, stageGrades)) {
+        for (const id of ids) {
+            const idx = targetArray.indexOf(id);
+            if (idx !== -1) targetArray.splice(idx, 1);
+        }
+    } else {
+        for (const id of ids) {
+            if (!targetArray.includes(id)) targetArray.push(id);
+        }
+    }
+}
+
+function saveTeacherGrades() {
+    if (!teacherGradesUser.value) return;
+    teacherGradesForm.patch(route('admin.users.teacher-grades', { id: teacherGradesUser.value.id }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            teacherGradesModalOpen.value = false;
+            teacherGradesUser.value = null;
+        },
+    });
+}
 
 function updateGrade() {
     if (!editingUser.value || !editingGrade.value) return;
@@ -593,6 +695,30 @@ function formatAuditDate(dateString) {
                                               class="text-[11px] font-medium text-surface-500 dark:text-surface-400 block mt-1">
                                             {{ assignableGradeLevels.find(g => g.key === user.grade_level)?.name ?? user.grade_level }}
                                         </span>
+                                        <div v-if="isTeacher(user)" class="mt-1.5 space-y-1">
+                                            <div v-if="teacherSubjectName(user)" class="text-[11px] font-bold text-primary-700 dark:text-primary-300">
+                                                📘 المادة: {{ teacherSubjectName(user) }}
+                                            </div>
+                                            <div class="flex flex-wrap items-center gap-1">
+                                                <span
+                                                    v-for="assign in activeTeacherAssignments(user)"
+                                                    :key="assign.id"
+                                                    class="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300"
+                                                >
+                                                    {{ assign.grade_level?.name }}
+                                                </span>
+                                                <span v-if="!activeTeacherAssignments(user).length" class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                                                    لم يتم إسناد صفوف بعد
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    class="text-[10px] font-bold text-primary-600 dark:text-primary-400 hover:underline ms-1"
+                                                    @click="openTeacherGradesModal(user)"
+                                                >
+                                                    {{ activeTeacherAssignments(user).length ? '+ تعديل الصفوف' : '+ إسناد صفوف' }}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="p-4 text-surface-600 dark:text-surface-300">
@@ -614,6 +740,17 @@ function formatAuditDate(dateString) {
                                 </td>
                                 <td class="data-table-actions p-4">
                                     <div class="flex flex-wrap gap-2">
+                                    <button
+                                        v-if="isTeacher(user)"
+                                        type="button"
+                                        @click="openTeacherGradesModal(user)"
+                                        class="text-xs px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-1.5 shadow-sm bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                                        title="تعديل وإضافة الصفوف الدراسية والمادة للمعلم"
+                                    >
+                                        <span>📚</span>
+                                        <span>الصفوف والمادة</span>
+                                    </button>
+
                                     <button
                                         v-if="isTeacher(user)"
                                         type="button"
@@ -777,6 +914,13 @@ function formatAuditDate(dateString) {
                             <button type="button" @click="updateGrade" :disabled="!editingGrade" class="btn-primary shrink-0">حفظ الصف</button>
                         </div>
                     </div>
+
+                    <div v-if="isTeacher(editingUser)" class="mt-5 pt-4 border-t border-surface-200 dark:border-surface-800">
+                        <button type="button" @click="openTeacherGradesModal(editingUser)" class="btn-outline w-full text-xs flex items-center justify-center gap-2">
+                            <span>📚</span>
+                            <span>تعديل وإضافة الصفوف الدراسية للمعلم</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="p-4 bg-surface-50 dark:bg-surface-950 flex justify-end gap-2 border-t border-surface-200 dark:border-surface-800">
                     <button type="button" @click="roleModalOpen = false" class="btn-ghost">إلغاء</button>
@@ -864,6 +1008,51 @@ function formatAuditDate(dateString) {
                                 </select>
                                 <p v-if="createForm.errors.grade_level" class="mt-1 text-red-500 text-xs">{{ createForm.errors.grade_level }}</p>
                                 <p v-else-if="!filteredGradeLevels.length" class="mt-1 text-amber-600 text-xs">لا توجد صفوف متاحة لهذه المرحلة حالياً.</p>
+                            </div>
+                        </div>
+
+                        <!-- Subject & Multi-Grade Levels for Teacher -->
+                        <div v-if="createForm.role === 'teacher'" class="space-y-3 rounded-xl border border-surface-200 dark:border-surface-800 p-3 bg-surface-50/60 dark:bg-surface-800/30">
+                            <div>
+                                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-teacher-subject">المادة الدراسية للمعلم (اختياري الآن)</label>
+                                <select id="create-teacher-subject" v-model="createForm.subject_id" class="input w-full text-sm">
+                                    <option value="">تحديد المادة لاحقاً</option>
+                                    <option v-for="subj in subjects" :key="subj.id" :value="subj.id">{{ subj.name }}</option>
+                                </select>
+                                <p v-if="createForm.errors.subject_id" class="mt-1 text-red-500 text-xs">{{ createForm.errors.subject_id }}</p>
+                            </div>
+
+                            <div v-if="createForm.subject_id">
+                                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1.5">الصفوف الدراسية المسندة للمعلم</label>
+                                <div class="max-h-44 overflow-y-auto space-y-2 pe-1">
+                                    <div v-for="group in groupedGradeLevels" :key="group.key" class="space-y-1">
+                                        <div class="flex items-center justify-between text-[11px] font-bold text-surface-500">
+                                            <span>{{ group.label }}</span>
+                                            <button type="button" class="text-primary-600 hover:underline" @click="toggleStageSelection(createForm.grade_level_ids, group.grades)">
+                                                {{ areAllStageGradesSelected(createForm.grade_level_ids, group.grades) ? 'إلغاء الكل' : 'تحديد المرحلة' }}
+                                            </button>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-1.5">
+                                            <label
+                                                v-for="gl in group.grades"
+                                                :key="gl.id"
+                                                class="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition-colors"
+                                                :class="createForm.grade_level_ids.includes(Number(gl.id))
+                                                    ? 'border-primary-500 bg-primary-50 text-primary-800 dark:bg-primary-950/40 dark:text-primary-200 font-bold'
+                                                    : 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 text-surface-700 dark:text-surface-300'"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    :checked="createForm.grade_level_ids.includes(Number(gl.id))"
+                                                    class="rounded text-primary-600"
+                                                    @change="toggleGradeSelection(createForm.grade_level_ids, gl.id)"
+                                                />
+                                                <span class="truncate">{{ gl.name }}</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p v-if="createForm.errors.grade_level_ids" class="mt-1 text-red-500 text-xs">{{ createForm.errors.grade_level_ids }}</p>
                             </div>
                         </div>
                     </div>
@@ -1190,6 +1379,88 @@ function formatAuditDate(dateString) {
                                 <span>{{ introVideoForm.processing ? 'جارٍ الرفع والحفظ...' : 'حفظ وتأكيد الفيديو' }}</span>
                             </button>
                         </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Teacher Subject & Grade Levels Modal -->
+        <div v-if="teacherGradesModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="إدارة المادة والصفوف الدراسية للمعلم">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="teacherGradesModalOpen = false"></div>
+            <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-surface-200 dark:border-surface-800">
+                <form @submit.prevent="saveTeacherGrades">
+                    <div class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                        <div class="flex items-start justify-between border-b border-surface-100 dark:border-surface-800 pb-3">
+                            <div>
+                                <h3 class="text-lg font-black text-surface-900 dark:text-white flex items-center gap-2">
+                                    <span>📚</span>
+                                    <span>إدارة المادة والصفوف الدراسية للمعلم</span>
+                                </h3>
+                                <p class="text-xs text-surface-500 mt-1">
+                                    المعلم: <strong class="text-surface-800 dark:text-white">{{ teacherGradesUser?.name }}</strong> — يمكنك إضافة أو تعديل كل الصفوف التي يدرّس لها.
+                                </p>
+                            </div>
+                            <button type="button" @click="teacherGradesModalOpen = false" class="btn-ghost btn-sm text-surface-400">✕</button>
+                        </div>
+
+                        <div>
+                            <label class="input-label" for="teacher-grades-subject">المادة الدراسية للمعلم</label>
+                            <select id="teacher-grades-subject" v-model="teacherGradesForm.subject_id" class="input w-full" required>
+                                <option value="" disabled>اختر المادة الدراسية...</option>
+                                <option v-for="subj in subjects" :key="subj.id" :value="subj.id">{{ subj.name }}</option>
+                            </select>
+                            <p v-if="teacherGradesForm.errors.subject_id" class="error-msg">{{ teacherGradesForm.errors.subject_id }}</p>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <label class="input-label mb-0">الصفوف الدراسية المسندة للمعلم ({{ teacherGradesForm.grade_level_ids.length }} محدد)</label>
+                            </div>
+
+                            <div v-for="group in groupedGradeLevels" :key="group.key" class="rounded-xl border border-surface-200 dark:border-surface-800 p-3 space-y-2 bg-surface-50/50 dark:bg-surface-800/20">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-black text-surface-800 dark:text-surface-200">{{ group.label }}</span>
+                                    <button
+                                        type="button"
+                                        class="text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                                        @click="toggleStageSelection(teacherGradesForm.grade_level_ids, group.grades)"
+                                    >
+                                        {{ areAllStageGradesSelected(teacherGradesForm.grade_level_ids, group.grades) ? 'إلغاء تحديد المرحلة' : 'تحديد كل صفوف المرحلة' }}
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <label
+                                        v-for="gl in group.grades"
+                                        :key="gl.id"
+                                        class="flex items-center gap-2.5 rounded-xl border px-3 py-2 text-xs cursor-pointer transition-colors"
+                                        :class="teacherGradesForm.grade_level_ids.includes(Number(gl.id))
+                                            ? 'border-primary-500 bg-primary-50 text-primary-800 dark:bg-primary-950/50 dark:text-primary-200 font-bold shadow-2xs'
+                                            : 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 text-surface-700 dark:text-surface-300 hover:border-primary-300'"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            :checked="teacherGradesForm.grade_level_ids.includes(Number(gl.id))"
+                                            class="rounded text-primary-600 focus:ring-primary-500"
+                                            @change="toggleGradeSelection(teacherGradesForm.grade_level_ids, gl.id)"
+                                        />
+                                        <span>{{ gl.name }}</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <p v-if="teacherGradesForm.errors.grade_level_ids" class="error-msg">{{ teacherGradesForm.errors.grade_level_ids }}</p>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-surface-50 dark:bg-surface-950 flex justify-end gap-2 border-t border-surface-200 dark:border-surface-800">
+                        <button type="button" class="btn-ghost btn-sm" :disabled="teacherGradesForm.processing" @click="teacherGradesModalOpen = false">إلغاء</button>
+                        <button
+                            type="submit"
+                            class="btn-primary btn-sm"
+                            :disabled="teacherGradesForm.processing || !teacherGradesForm.subject_id || !teacherGradesForm.grade_level_ids.length"
+                        >
+                            {{ teacherGradesForm.processing ? 'جارٍ الحفظ...' : 'حفظ المادة والصفوف' }}
+                        </button>
                     </div>
                 </form>
             </div>

@@ -37,17 +37,50 @@ const term = ref(props.filters.term ?? '');
 const assignmentForm = useForm({
     teacher_id: '',
     subject_id: '',
-    grade_level_id: '',
+    grade_level_ids: [],
     accepts_private: false,
     private_monthly_price_qar: 0,
 });
 
 const assignmentEdit = useForm({
     id: null,
+    grade_level_id: '',
     accepts_private: false,
     private_monthly_price_qar: 0,
     is_active: true,
 });
+
+const alreadyAssignedGradeIds = computed(() => {
+    if (!assignmentForm.teacher_id) return [];
+    return props.assignments
+        .filter((a) => Number(a.teacher?.id) === Number(assignmentForm.teacher_id) && a.is_active)
+        .map((a) => Number(a.grade?.id))
+        .filter(Boolean);
+});
+
+watch(() => assignmentForm.teacher_id, (newTeacherId) => {
+    assignmentForm.grade_level_ids = [];
+    if (!newTeacherId) return;
+    const teacher = props.teachers.find((t) => Number(t.id) === Number(newTeacherId));
+    if (teacher?.subject_id) {
+        assignmentForm.subject_id = teacher.subject_id;
+    } else {
+        const existingAssign = props.assignments.find((a) => Number(a.teacher?.id) === Number(newTeacherId));
+        if (existingAssign?.subject?.id) {
+            assignmentForm.subject_id = existingAssign.subject.id;
+        }
+    }
+});
+
+function toggleAssignmentGrade(gradeId) {
+    const num = Number(gradeId);
+    const idx = assignmentForm.grade_level_ids.indexOf(num);
+    if (idx === -1) {
+        assignmentForm.grade_level_ids.push(num);
+    } else {
+        assignmentForm.grade_level_ids.splice(idx, 1);
+    }
+}
 
 const groupForm = useForm({
     teaching_assignment_id: '',
@@ -86,6 +119,7 @@ function storeAssignment() {
 
 function editAssignment(assignment) {
     assignmentEdit.id = assignment.id;
+    assignmentEdit.grade_level_id = assignment.grade?.id ?? '';
     assignmentEdit.accepts_private = Boolean(assignment.accepts_private);
     assignmentEdit.private_monthly_price_qar = (assignment.private_monthly_price ?? 0) / 100;
     assignmentEdit.is_active = Boolean(assignment.is_active);
@@ -189,28 +223,69 @@ async function destroyGroup(group) {
                 </div>
 
                 <div v-if="managementTab === 'assignments'" class="p-5 space-y-6">
-                    <form class="grid md:grid-cols-3 gap-3" @submit.prevent="storeAssignment">
-                        <select v-model="assignmentForm.teacher_id" class="input" required>
-                            <option value="">اختر المعلم</option>
-                            <option v-for="teacher in teachers" :key="teacher.id" :value="teacher.id">{{ teacher.name }}</option>
-                        </select>
-                        <select v-model="assignmentForm.subject_id" class="input" required>
-                            <option value="">اختر المادة</option>
-                            <option v-for="subject in subjects" :key="subject.id" :value="subject.id">{{ subject.name }}</option>
-                        </select>
-                        <select v-model="assignmentForm.grade_level_id" class="input" required>
-                            <option value="">اختر الصف</option>
-                            <option v-for="grade in gradeLevels" :key="grade.id" :value="grade.id">{{ grade.name }}</option>
-                        </select>
-                        <label class="flex items-center gap-2 text-sm">
-                            <input v-model="assignmentForm.accepts_private" type="checkbox" />
-                            إتاحة حصص برايفيت
-                        </label>
-                        <div>
-                            <label class="text-[11px] text-surface-500">سعر البرايفيت الشهري (ر.ق)</label>
-                            <input v-model.number="assignmentForm.private_monthly_price_qar" type="number" min="0" max="1000000" step="0.01" class="input w-full" :disabled="!assignmentForm.accepts_private" />
+                    <form class="space-y-4" @submit.prevent="storeAssignment">
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[11px] font-bold text-surface-500 block mb-1">المعلم</label>
+                                <select v-model="assignmentForm.teacher_id" class="input w-full" required>
+                                    <option value="">اختر المعلم</option>
+                                    <option v-for="teacher in teachers" :key="teacher.id" :value="teacher.id">{{ teacher.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-bold text-surface-500 block mb-1">المادة الدراسية</label>
+                                <select v-model="assignmentForm.subject_id" class="input w-full" required>
+                                    <option value="">اختر المادة</option>
+                                    <option v-for="subject in subjects" :key="subject.id" :value="subject.id">{{ subject.name }}</option>
+                                </select>
+                            </div>
                         </div>
-                        <button type="submit" class="btn-primary" :disabled="assignmentForm.processing">إسناد بواسطة الإدارة</button>
+
+                        <div>
+                            <label class="text-[11px] font-bold text-surface-500 block mb-1.5">
+                                اختر الصفوف الدراسية المراد إضافتها للمعلم (يمكن اختيار أكثر من صف معاً)
+                            </label>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 rounded-xl border border-surface-200 dark:border-surface-800 p-3 bg-surface-50/50 dark:bg-surface-900/40">
+                                <label
+                                    v-for="grade in gradeLevels"
+                                    :key="grade.id"
+                                    class="flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs cursor-pointer transition-colors"
+                                    :class="assignmentForm.grade_level_ids.includes(Number(grade.id))
+                                        ? 'border-primary-500 bg-primary-50 text-primary-800 dark:bg-primary-950/40 dark:text-primary-200 font-bold'
+                                        : 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 text-surface-700 dark:text-surface-300'"
+                                >
+                                    <span class="flex items-center gap-2 min-w-0">
+                                        <input
+                                            type="checkbox"
+                                            :checked="assignmentForm.grade_level_ids.includes(Number(grade.id))"
+                                            class="rounded text-primary-600"
+                                            @change="toggleAssignmentGrade(grade.id)"
+                                        />
+                                        <span class="truncate">{{ grade.name }}</span>
+                                    </span>
+                                    <span
+                                        v-if="alreadyAssignedGradeIds.includes(Number(grade.id))"
+                                        class="shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300"
+                                    >
+                                        مُسند
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-3 gap-3 items-end">
+                            <label class="flex items-center gap-2 text-sm pb-2">
+                                <input v-model="assignmentForm.accepts_private" type="checkbox" />
+                                إتاحة حصص برايفيت
+                            </label>
+                            <div>
+                                <label class="text-[11px] text-surface-500">سعر البرايفيت الشهري (ر.ق)</label>
+                                <input v-model.number="assignmentForm.private_monthly_price_qar" type="number" min="0" max="1000000" step="0.01" class="input w-full" :disabled="!assignmentForm.accepts_private" />
+                            </div>
+                            <button type="submit" class="btn-primary" :disabled="assignmentForm.processing || !assignmentForm.grade_level_ids.length">
+                                إسناد الصفوف المختارة للمعلم
+                            </button>
+                        </div>
                     </form>
 
                     <p v-if="Object.keys(assignmentForm.errors).length" class="text-xs text-red-500">
@@ -243,8 +318,14 @@ async function destroyGroup(group) {
                     </div>
                     <DataTablePagination :paginator="assignmentsPagination" item-label="إسناد" @page-change="setAssignmentsPage" />
 
-                    <form v-if="assignmentEdit.id" class="rounded-xl border border-primary-500/20 p-4 grid md:grid-cols-4 gap-3 items-end" @submit.prevent="updateAssignment">
-                        <label class="flex items-center gap-2 text-sm">
+                    <form v-if="assignmentEdit.id" class="rounded-xl border border-primary-500/20 p-4 grid md:grid-cols-5 gap-3 items-end" @submit.prevent="updateAssignment">
+                        <div>
+                            <label class="text-[11px] text-surface-500">الصف الدراسي</label>
+                            <select v-model="assignmentEdit.grade_level_id" class="input w-full" required>
+                                <option v-for="grade in gradeLevels" :key="grade.id" :value="grade.id">{{ grade.name }}</option>
+                            </select>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm pb-2">
                             <input v-model="assignmentEdit.accepts_private" type="checkbox" />
                             البرايفيت متاح
                         </label>
@@ -252,7 +333,7 @@ async function destroyGroup(group) {
                             <label class="text-[11px] text-surface-500">السعر الشهري (ر.ق)</label>
                             <input v-model.number="assignmentEdit.private_monthly_price_qar" type="number" min="0" max="1000000" step="0.01" class="input w-full" />
                         </div>
-                        <label class="flex items-center gap-2 text-sm">
+                        <label class="flex items-center gap-2 text-sm pb-2">
                             <input v-model="assignmentEdit.is_active" type="checkbox" />
                             الإسناد نشط
                         </label>

@@ -308,3 +308,79 @@ test('it saves an essay question with an embedded image diagram and inserts into
         ->and($quizQuestion->question_text)->toContain('data:image/png;base64');
 });
 
+it('lists all grade levels assigned to the teacher even before curriculum units exist and saves grade/term directly', function (): void {
+    Role::findOrCreate('teacher', 'web');
+    $teacher = User::factory()->create();
+    $teacher->assignRole('teacher');
+
+    $subject = Subject::query()->firstOrFail();
+    $grades = GradeLevel::query()
+        ->where('is_active', true)
+        ->where('key', '!=', 'all')
+        ->limit(3)
+        ->get();
+
+    expect($grades->count())->toBeGreaterThanOrEqual(2);
+
+    foreach ($grades as $grade) {
+        TeachingAssignment::factory()->create([
+            'teacher_id' => $teacher->id,
+            'subject_id' => $subject->id,
+            'grade_level_id' => $grade->id,
+            'is_active' => true,
+        ]);
+    }
+
+    // Create a unit ONLY for the first grade; second/third grades have NO units yet
+    $firstAssignment = TeachingAssignment::where('teacher_id', $teacher->id)
+        ->where('grade_level_id', $grades[0]->id)
+        ->firstOrFail();
+    $term = AcademicTerm::currentOrNext() ?? AcademicTerm::query()->firstOrFail();
+
+    CurriculumUnit::factory()->create([
+        'teaching_assignment_id' => $firstAssignment->id,
+        'academic_term_id' => $term->id,
+    ]);
+
+    $this->actingAs($teacher)
+        ->get(route('teacher.question-bank'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Teacher/QuestionBank')
+            ->has('grades', $grades->count()));
+
+    // Save a question classified under the SECOND grade (which has no curriculum units yet)
+    $secondGrade = $grades[1];
+
+    $this->actingAs($teacher)
+        ->post(route('teacher.question-bank.store'), [
+            'subject_id' => $subject->id,
+            'grade_level_id' => $secondGrade->id,
+            'academic_term_id' => $term->id,
+            'difficulty' => 'easy',
+            'visibility' => 'private',
+            'question_text' => 'سؤال للصف الثاني بدون وحدة بعد',
+            'type' => 'true_false',
+            'points' => 2,
+            'options' => [
+                ['option_text' => 'صواب', 'is_correct' => true],
+                ['option_text' => 'خطأ', 'is_correct' => false],
+            ],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $saved = QuestionBankQuestion::where('question_text', 'سؤال للصف الثاني بدون وحدة بعد')->firstOrFail();
+    expect($saved->grade_level_id)->toBe($secondGrade->id)
+        ->and($saved->academic_term_id)->toBe($term->id);
+
+    $this->actingAs($teacher)
+        ->get(route('teacher.question-bank', ['grade_level_id' => $secondGrade->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('questions.total', 1)
+            ->where('questions.data.0.grade_level_id', $secondGrade->id)
+            ->where('questions.data.0.grade_name', $secondGrade->name));
+});
+
+
