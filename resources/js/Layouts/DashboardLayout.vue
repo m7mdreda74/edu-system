@@ -139,7 +139,7 @@ const menuGroups = computed(() => {
                 title: 'لوحة الطالب',
                 links: [
                     { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'),          name: 'dashboard' },
-                    { label: 'مواد صفي', icon: 'book',      href: route('student.my-grade'),   name: 'student.my-grade' },
+                    { label: 'مواد صفي', icon: 'courses',   href: route('student.my-grade'),   name: 'student.my-grade' },
                     { label: 'التقييمات والاختبارات', icon: 'assignment', href: route('student.assessments'), name: 'student.assessments' },
                     { label: 'الموارد التعليمية', icon: 'book', href: route('student.resources'), name: 'student.resources' },
                     { label: 'جدول حصصي', icon: 'calendar', href: route('student.schedule'),   name: 'student.schedule' },
@@ -149,6 +149,17 @@ const menuGroups = computed(() => {
         ];
     }
 });
+
+function normalizePath(rawUrl) {
+    if (!rawUrl) return '/';
+    try {
+        const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+        const parsed = new URL(rawUrl, base);
+        return parsed.pathname.replace(/\/+$/, '') || '/';
+    } catch {
+        return String(rawUrl).split('?')[0].replace(/\/+$/, '') || '/';
+    }
+}
 
 const isActive = (name) => {
     const url = page.url.toLowerCase();
@@ -176,6 +187,32 @@ const isActive = (name) => {
     const sub = parts[1];
     return compName.startsWith(group) && (url.includes(sub) || compName.includes(sub));
 };
+
+const isLinkActive = (link) => {
+    const currentPath = normalizePath(page.url).toLowerCase();
+    const targetPath = normalizePath(link.href).toLowerCase();
+
+    if (currentPath === targetPath) {
+        return true;
+    }
+
+    if (link.name === 'dashboard' || link.name.endsWith('.dashboard')) {
+        return false;
+    }
+
+    if (targetPath !== '/' && currentPath.startsWith(`${targetPath}/`)) {
+        return true;
+    }
+
+    return isActive(link.name);
+};
+
+// All sidebar links except the page the user is currently standing on
+const quickNavLinks = computed(() =>
+    menuGroups.value
+        .flatMap((group) => group.links)
+        .filter((link) => !isLinkActive(link))
+);
 </script>
 
 <template>
@@ -240,13 +277,13 @@ const isActive = (name) => {
                                 @click="closeSidebar"
                                 class="flex items-center rounded-xl text-sm font-semibold transition-all duration-300 transform"
                                 :class="[
-                                    isActive(link.name)
+                                    isLinkActive(link)
                                         ? 'bg-primary-500/10 text-primary-700 dark:text-primary-300 font-bold ' + (!isSidebarCollapsed ? 'border-r-4 border-accent-500 rounded-l-xl rounded-r-none pr-3' : 'border border-primary-500/20')
                                         : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-primary-600 dark:hover:text-white',
                                     isSidebarCollapsed ? 'justify-center p-2.5' : 'gap-3 px-4 py-2.5 hover:-translate-x-1'
                                 ]"
                                 :title="isSidebarCollapsed ? link.label : ''"
-                                :aria-current="isActive(link.name) ? 'page' : undefined"
+                                :aria-current="isLinkActive(link) ? 'page' : undefined"
                             >
                                 <Icon :name="link.icon" class="w-5 h-5 transition-transform duration-300 shrink-0" />
                                 <span v-show="!isSidebarCollapsed">{{ link.label }}</span>
@@ -336,6 +373,27 @@ const isActive = (name) => {
             <!-- Page Content -->
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-2 md:p-4 lg:p-6">
                 <div class="dashboard-slot w-full min-h-full flex flex-col">
+                    <!-- Horizontal Quick-Access Bar (All sidebar pages except current page) -->
+                    <nav
+                        v-if="quickNavLinks.length"
+                        aria-label="اختصارات التنقل السريع"
+                        class="mb-5 pb-3 border-b border-surface-200/70 dark:border-surface-800/80"
+                    >
+                        <div class="flex items-center gap-2 overflow-x-auto py-0.5 scrollbar-thin">
+                            <Link
+                                v-for="link in quickNavLinks"
+                                :key="`quick-nav-${link.name}`"
+                                :href="link.href"
+                                prefetch
+                                cache-for="30s"
+                                class="h-9 px-3.5 rounded-xl inline-flex items-center justify-center gap-2 text-xs font-bold whitespace-nowrap shrink-0 bg-white dark:bg-surface-900/90 text-surface-700 dark:text-surface-200 border border-surface-200 dark:border-surface-700/80 hover:border-accent-500/60 dark:hover:border-accent-500/60 hover:bg-accent-500/10 dark:hover:bg-accent-500/10 hover:text-accent-700 dark:hover:text-accent-300 shadow-sm transition-all duration-200"
+                            >
+                                <Icon :name="link.icon" class="w-4 h-4 text-accent-500 dark:text-accent-400 shrink-0" />
+                                <span>{{ link.label }}</span>
+                            </Link>
+                        </div>
+                    </nav>
+
                     <slot />
                 </div>
             </main>

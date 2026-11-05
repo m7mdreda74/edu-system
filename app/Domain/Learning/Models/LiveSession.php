@@ -125,6 +125,11 @@ class LiveSession extends Model
                 'teachingGroup.activeBookings',
                 fn (Builder $bookings) => $bookings->where('student_id', $studentId),
             )->orWhereHas(
+                'teachingGroup.subscriptions',
+                fn (Builder $subscriptions) => $subscriptions
+                    ->where('student_id', $studentId)
+                    ->active(),
+            )->orWhereHas(
                 'privateSessionSlot.booking',
                 fn (Builder $booking) => $booking
                     ->where('student_id', $studentId)

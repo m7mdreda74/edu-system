@@ -242,7 +242,7 @@ onUnmounted(() => {
     <DashboardLayout>
         <Head title="الرسائل" />
 
-        <div class="container-app px-4 py-8 h-[calc(100vh-64px)] flex flex-col">
+        <div class="container-app px-4 py-2 h-[calc(100vh-132px)] min-h-[500px] flex flex-col">
             <h1 class="text-3xl font-black text-surface-900 dark:text-white mb-6 flex items-center gap-2">
                 <Icon name="chat" class="w-8 h-8 text-primary-500" />
                 <span>الرسائل</span>

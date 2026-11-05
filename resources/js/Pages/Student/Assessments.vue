@@ -201,7 +201,7 @@ function formatDateOnly(value) {
         <div class="space-y-8 pb-12">
 
             <!-- ── Page Header ────────────────────────────────────── -->
-            <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <header class="flex flex-col gap-2">
                 <div>
                     <div class="flex items-center gap-3">
                         <h1 class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white">
@@ -212,13 +212,6 @@ function formatDateOnly(value) {
                     <p class="mt-1 text-sm text-surface-500 dark:text-surface-400 max-w-2xl leading-relaxed">
                         مركز موحد يضم التقييمات الدورية، واختبارات الوحدات، والتقييمات الإلكترونية والورقية المرتبطة بموادك المشترك بها.
                     </p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <Link :href="route('dashboard')" class="btn-outline btn-sm">العودة للرئيسية</Link>
-                    <Link :href="route('student.resources')" class="btn-primary btn-sm flex items-center gap-1.5 font-bold">
-                        <Icon name="book" class="w-3.5 h-3.5" />
-                        <span>الموارد التعليمية</span>
-                    </Link>
                 </div>
             </header>
 
@@ -581,16 +574,16 @@ function formatDateOnly(value) {
 
                             <!-- Download Questions Sheet -->
                             <div v-if="item.file_url" class="p-3 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <span class="text-lg">📄</span>
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <span class="text-lg shrink-0">📄</span>
                                     <div class="min-w-0">
                                         <div class="text-xs font-bold text-surface-900 dark:text-white truncate">ورقة أسئلة التقييم</div>
                                         <div class="text-[10px] text-surface-400">حمّل الملف واكتب إجاباتك تمهيداً لرفعها وتسليمها</div>
                                     </div>
                                 </div>
-                                <a :href="item.file_url" target="_blank" rel="noopener" class="btn btn-xs bg-primary-600 hover:bg-primary-700 text-white font-bold shrink-0 flex items-center gap-1">
+                                <a :href="item.file_url" target="_blank" rel="noopener" class="btn-outline btn-sm shrink-0 flex items-center gap-1.5">
                                     <Icon name="download" class="w-3.5 h-3.5" />
-                                    <span>تحميل الأسئلة</span>
+                                    <span>تحميل ورقة الأسئلة</span>
                                 </a>
                             </div>
 
@@ -685,12 +678,12 @@ function formatDateOnly(value) {
                     </div>
 
                     <!-- Worksheet / Paper Footer -->
-                    <div v-else class="mt-6 pt-4 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between gap-3 text-xs">
-                        <a v-if="item.file_url" :href="item.file_url" target="_blank" rel="noopener" class="btn-outline btn-sm flex items-center gap-1">
-                            <Icon name="download" class="w-3.5 h-3.5" />
-                            <span>تحميل ورقة الأسئلة</span>
-                        </a>
-                        <div v-else class="text-surface-400 text-[11px]">لا يوجد ملف أسئلة مرفق</div>
+                    <div v-else class="mt-5 pt-3 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between gap-3 text-xs">
+                        <div class="text-surface-400 text-[11px]">
+                            <span v-if="!item.file_url">لا يوجد ملف أسئلة مرفق</span>
+                            <span v-else-if="item.due_date">الموعد النهائي: {{ formatDateOnly(item.due_date) }}</span>
+                            <span v-else>متاح للتسليم في أي وقت</span>
+                        </div>
 
                         <div class="text-xs font-bold text-surface-500">
                             <span v-if="item.submission" class="text-green-600 dark:text-green-400">✓ تم التسليم بنجاح</span>

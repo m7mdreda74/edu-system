@@ -48,7 +48,7 @@ const greetingTime = computed(() => {
         <div class="space-y-8 pb-12">
 
             <!-- ── Top Header ──────────────────────────────────────── -->
-            <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <header class="flex flex-col gap-2">
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-bold text-accent-500 bg-accent-500/10 px-2.5 py-0.5 rounded-full border border-accent-500/20">
@@ -63,30 +63,6 @@ const greetingTime = computed(() => {
                     <p class="text-xs sm:text-sm text-surface-500 dark:text-surface-400 mt-0.5">
                         تابع دراستك، أنجز تقييماتك، واستعد لحصصك واختباراتك القادمة بكل ثقة.
                     </p>
-                </div>
-
-                <div class="flex items-center gap-2.5 flex-wrap">
-                    <Link
-                        :href="route('student.assessments')"
-                        class="btn-primary btn-sm flex items-center gap-1.5 font-bold shadow-md shadow-primary-500/20"
-                    >
-                        <Icon name="assignment" class="w-4 h-4" />
-                        <span>التقييمات والاختبارات</span>
-                        <span
-                            v-if="stats.totalPendingEvaluations > 0"
-                            class="ms-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-red-600 text-white"
-                        >
-                            {{ stats.totalPendingEvaluations }}
-                        </span>
-                    </Link>
-                    <Link :href="route('student.schedule')" class="btn-outline btn-sm flex items-center gap-1.5 font-bold">
-                        <Icon name="calendar" class="w-4 h-4" />
-                        <span>جدول الحصص</span>
-                    </Link>
-                    <Link :href="route('student.resources')" class="btn-ghost btn-sm flex items-center gap-1.5">
-                        <Icon name="book" class="w-4 h-4" />
-                        <span>الموارد التعليمية</span>
-                    </Link>
                 </div>
             </header>
 
@@ -109,48 +85,6 @@ const greetingTime = computed(() => {
                             <button type="button" class="btn-primary btn-sm" @click="respondToParentLink(link.id, 'approve')">موافقة وتأكيد</button>
                             <button type="button" class="btn-outline btn-sm text-red-400 border-red-500/30" @click="respondToParentLink(link.id, 'reject')">رفض</button>
                         </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ── Continue Learning Hero (متابعة التعلم) ─────────── -->
-            <section v-if="continueLearning && continueLearning.group_id" class="card p-5 sm:p-6 border-primary-500/30 bg-gradient-to-r from-primary-950/40 via-surface-900 to-surface-900 shadow-lg">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-5">
-                    <div class="min-w-0 space-y-1.5">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-primary-500/20 text-primary-300 border border-primary-500/30 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-primary-400 animate-pulse"></span>
-                                <span>متابعة التعلم</span>
-                            </span>
-                            <span class="text-xs font-bold text-surface-300">{{ continueLearning.subject?.name }}</span>
-                            <span class="text-surface-500">·</span>
-                            <span class="text-xs text-surface-400">{{ continueLearning.group_name }}</span>
-                            <span v-if="continueLearning.teacher">·</span>
-                            <span v-if="continueLearning.teacher" class="text-xs text-surface-400">{{ continueLearning.teacher.name }}</span>
-                        </div>
-                        <h2 class="text-lg sm:text-xl font-black text-white leading-snug truncate">
-                            {{ continueLearning.lesson_title }}
-                        </h2>
-                        <p class="text-xs text-surface-400">
-                            {{ continueLearning.watched_seconds > 0 ? 'استأنف مشاهدة الشرح وحل التقييمات المرتبطة به.' : 'ابدأ دراسة هذا الدرس واستكشف المذكرة والكويز.' }}
-                        </p>
-                    </div>
-
-                    <div class="flex items-center gap-2.5 shrink-0">
-                        <Link
-                            :href="route('student.learn', { groupId: continueLearning.group_id, progress: 1 })"
-                            class="btn-outline btn-sm flex items-center gap-1.5 font-bold text-xs"
-                        >
-                            <Icon name="chart" class="w-3.5 h-3.5" />
-                            <span>خريطة المنهج</span>
-                        </Link>
-                        <Link
-                            :href="route('student.learn', { groupId: continueLearning.group_id })"
-                            class="btn-primary btn-sm flex items-center gap-2 font-bold px-4"
-                        >
-                            <span>{{ continueLearning.watched_seconds > 0 ? 'استكمل الدرس' : 'ابدأ الدرس الآن' }}</span>
-                            <span>←</span>
-                        </Link>
                     </div>
                 </div>
             </section>
