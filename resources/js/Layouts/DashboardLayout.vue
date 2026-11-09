@@ -373,9 +373,9 @@ const quickNavLinks = computed(() =>
             <!-- Page Content -->
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-2 md:p-4 lg:p-6">
                 <div class="dashboard-slot w-full min-h-full flex flex-col">
-                    <!-- Horizontal Quick-Access Bar (All sidebar pages except current page) -->
+                    <!-- Horizontal Quick-Access Bar (Student pages only, excluding current page) -->
                     <nav
-                        v-if="quickNavLinks.length"
+                        v-if="!authStore.isAdmin && !authStore.isTeacher && !authStore.isParent && quickNavLinks.length"
                         aria-label="اختصارات التنقل السريع"
                         class="mb-5 pb-3 border-b border-surface-200/70 dark:border-surface-800/80"
                     >

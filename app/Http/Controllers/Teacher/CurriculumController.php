@@ -94,18 +94,65 @@ class CurriculumController extends Controller
     public function index(Request $request, int $assignmentId): Response
     {
         $assignment = $this->ownedAssignment($assignmentId);
-        $assignment->load(['subject:id,name', 'gradeLevel:id,key,name', 'teacher:id,name']);
+        $assignment->load(['subject:id,name', 'gradeLevel:id,key,name,stage,track', 'teacher:id,name']);
 
-        $allAssignments = TeachingAssignment::with(['subject:id,name', 'gradeLevel:id,key,name'])
+        $stageLabels = [
+            'primary'     => 'ابتدائي',
+            'preparatory' => 'إعدادي',
+            'secondary'   => 'ثانوي',
+        ];
+
+        $extractBaseGrade = static function (?\App\Domain\Academic\Models\GradeLevel $gl): array {
+            if (! $gl) {
+                return ['key' => '', 'name' => ''];
+            }
+            $key  = (string) $gl->key;
+            $name = (string) $gl->name;
+
+            if (preg_match('/^grade_(11|12)(?:_.+)?$/', $key, $m)) {
+                return [
+                    'key'  => 'grade_' . $m[1],
+                    'name' => $m[1] === '11' ? 'الصف الحادي عشر' : 'الصف الثاني عشر',
+                ];
+            }
+
+            if ($gl->track) {
+                $baseKey  = (string) preg_replace('/_(science|arts|technology|literary)$/', '', $key);
+                $baseName = trim(explode('—', $name)[0]);
+
+                return [
+                    'key'  => $baseKey ?: $key,
+                    'name' => $baseName ?: $name,
+                ];
+            }
+
+            return ['key' => $key, 'name' => $name];
+        };
+
+        $allAssignments = TeachingAssignment::with(['subject:id,name', 'gradeLevel:id,key,name,stage,track'])
             ->where('teacher_id', Auth::id())
             ->where('is_active', true)
             ->get()
-            ->map(fn (TeachingAssignment $a) => [
-                'id' => $a->id,
-                'subject_name' => $a->subject?->name,
-                'grade_name' => $a->gradeLevel?->name,
-                'label' => ($a->subject?->name ?? 'مادة') . ' — ' . ($a->gradeLevel?->name ?? 'الصف'),
-            ])
+            ->map(function (TeachingAssignment $a) use ($stageLabels, $extractBaseGrade) {
+                $stageKey  = $a->gradeLevel?->stage ?? '';
+                $baseGrade = $extractBaseGrade($a->gradeLevel);
+
+                return [
+                    'id'              => $a->id,
+                    'subject_id'      => $a->subject_id,
+                    'subject_name'    => $a->subject?->name,
+                    'stage_key'       => $stageKey,
+                    'stage_name'      => $stageLabels[$stageKey] ?? $stageKey,
+                    'grade_id'        => $a->grade_level_id,
+                    'grade_key'       => $a->gradeLevel?->key,
+                    'grade_name'      => $a->gradeLevel?->name,
+                    'base_grade_key'  => $baseGrade['key'],
+                    'base_grade_name' => $baseGrade['name'],
+                    'track_key'       => $a->gradeLevel?->track,
+                    'track_name'      => $a->gradeLevel?->trackLabel(),
+                    'label'           => ($a->subject?->name ?? 'مادة') . ' — ' . ($a->gradeLevel?->name ?? 'الصف'),
+                ];
+            })
             ->values()
             ->all();
 
@@ -125,13 +172,25 @@ class CurriculumController extends Controller
         $units = $this->unitsFor($assignment, $activeTermId)
             ->map(fn (CurriculumUnit $unit) => $this->presentUnit($unit));
 
+        $currentBaseGrade = $extractBaseGrade($assignment->gradeLevel);
+
         return Inertia::render('Teacher/Curriculum', [
             'assignment' => [
-                'id' => $assignment->id,
+                'id'      => $assignment->id,
                 'subject' => $assignment->subject?->only(['id', 'name']),
-                'grade' => $assignment->gradeLevel?->only(['id', 'key', 'name']),
+                'grade'   => $assignment->gradeLevel ? [
+                    'id'              => $assignment->gradeLevel->id,
+                    'key'             => $assignment->gradeLevel->key,
+                    'name'            => $assignment->gradeLevel->name,
+                    'stage'           => $assignment->gradeLevel->stage,
+                    'track'           => $assignment->gradeLevel->track,
+                    'track_label'     => $assignment->gradeLevel->trackLabel(),
+                    'base_grade_key'  => $currentBaseGrade['key'],
+                    'base_grade_name' => $currentBaseGrade['name'],
+                ] : null,
                 'teacher' => $assignment->teacher?->only(['id', 'name']),
             ],
+            'isSelected' => $request->boolean('selected'),
             'allAssignments' => $allAssignments,
             'terms' => $terms->map(fn (AcademicTerm $term) => [
                 'id' => $term->id,
@@ -256,15 +315,23 @@ class CurriculumController extends Controller
         $assignment = $this->ownedAssignment($assignmentId);
         $termId = $request->integer('academic_term_id');
         $unitsCount = $request->integer('units_count');
-        $lessonsPerUnit = $request->integer('lessons_per_unit');
+        $defaultLessonsPerUnit = $request->filled('lessons_per_unit') ? $request->integer('lessons_per_unit') : 0;
+        $unitLessons = is_array($request->input('unit_lessons')) ? array_values($request->input('unit_lessons')) : [];
 
-        DB::transaction(function () use ($assignment, $termId, $unitsCount, $lessonsPerUnit): void {
+        $totalCreatedLessons = 0;
+
+        DB::transaction(function () use ($assignment, $termId, $unitsCount, $defaultLessonsPerUnit, $unitLessons, &$totalCreatedLessons): void {
             $order = $this->lastUnitOrder($assignment->id, $termId);
             $now = now();
             $lessons = [];
 
             for ($u = 1; $u <= $unitsCount; $u++) {
                 $order++;
+                $rawLessonsCount = array_key_exists($u - 1, $unitLessons)
+                    ? (int) $unitLessons[$u - 1]
+                    : $defaultLessonsPerUnit;
+                $lessonsCountForUnit = max(0, min(20, $rawLessonsCount));
+                $totalCreatedLessons += $lessonsCountForUnit;
 
                 $unit = CurriculumUnit::create([
                     'teaching_assignment_id' => $assignment->id,
@@ -274,7 +341,7 @@ class CurriculumController extends Controller
                     'is_published' => true,
                 ]);
 
-                for ($l = 1; $l <= $lessonsPerUnit; $l++) {
+                for ($l = 1; $l <= $lessonsCountForUnit; $l++) {
                     $lessons[] = [
                         'curriculum_unit_id' => $unit->id,
                         'academic_term_id' => $termId,
@@ -297,11 +364,16 @@ class CurriculumController extends Controller
                 ]);
             }
 
-            // Up to 400 rows; one round trip rather than four hundred.
-            GroupMaterial::insert($lessons);
+            if (! empty($lessons)) {
+                GroupMaterial::insert($lessons);
+            }
         });
 
-        return back()->with('success', "تمت إضافة {$unitsCount} وحدة، في كل وحدة {$lessonsPerUnit} درس.");
+        $msg = $totalCreatedLessons > 0
+            ? "تمت إضافة {$unitsCount} وحدة بإجمالي {$totalCreatedLessons} درس."
+            : "تمت إضافة {$unitsCount} وحدة بنجاح. يمكنك الآن تحديد وإضافة عدد الدروس داخل كل وحدة.";
+
+        return back()->with('success', $msg);
     }
 
     // ─── Units ────────────────────────────────────────────────────
@@ -546,6 +618,33 @@ class CurriculumController extends Controller
     public function storeLesson(StoreCurriculumLessonRequest $request, int $unitId): RedirectResponse
     {
         $unit = $this->ownedUnit($unitId);
+
+        if ($request->filled('lessons_count')) {
+            $count = max(1, min(20, $request->integer('lessons_count')));
+            $startOrder = $this->lastLessonOrder($unit->id);
+            $now = now();
+            $rows = [];
+
+            for ($i = 1; $i <= $count; $i++) {
+                $order = $startOrder + $i;
+                $rows[] = [
+                    'curriculum_unit_id' => $unit->id,
+                    'academic_term_id' => $unit->academic_term_id,
+                    'order' => $order,
+                    'title' => 'الدرس '.ArabicOrdinal::masculine($order),
+                    'video_url' => null,
+                    'duration_seconds' => 0,
+                    'description' => null,
+                    'is_free_preview' => 0,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            GroupMaterial::insert($rows);
+
+            return back()->with('success', "تمت إضافة {$count} دروس إلى {$unit->title}.");
+        }
 
         GroupMaterial::create([
             'curriculum_unit_id' => $unit->id,

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Teacher;
 
 use App\Domain\Academic\Models\AcademicTerm;
+use App\Domain\Communication\Models\GroupAnnouncement;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\LiveSession;
 use App\Domain\Learning\Models\WorksheetSubmission;
 use App\Domain\Quiz\Models\QuizAttempt;
+use App\Domain\Scheduling\Models\PrivateSessionSlot;
 use App\Domain\Scheduling\Models\SessionBooking;
 use App\Domain\Scheduling\Models\TeachingAssignment;
 use App\Domain\Scheduling\Models\TeachingGroup;
@@ -120,6 +122,12 @@ class DashboardController extends Controller
                 'student_name' => $slot->booking?->student?->name,
             ])->values();
 
+            $regularGroupsCount = $groups->where('is_private', false)->count();
+            $privateGroupsCount = $groups->where('is_private', true)->count();
+            $bookedPrivateSlotsCount = $assignment->privateSlots
+                ->filter(fn ($slot) => $slot->status === 'booked' || $slot->booking !== null)
+                ->count();
+
             return [
                 'id' => $assignment->id,
                 'subject' => [
@@ -139,6 +147,8 @@ class DashboardController extends Controller
                 'accepts_private' => (bool) $assignment->accepts_private,
                 'private_monthly_price' => (int) $assignment->private_monthly_price,
                 'groups' => $groups,
+                'groups_count' => $regularGroupsCount,
+                'private_count' => $privateGroupsCount + $bookedPrivateSlotsCount,
                 'units' => $assignment->units->map(fn ($u) => [
                     'id' => $u->id,
                     'title' => $u->title,
@@ -333,11 +343,72 @@ class DashboardController extends Controller
             ->values()
             ->take(6);
 
+        // Total group students vs private students for the two enrollment summary cards
+        $groupStudentIds = $allGroups
+            ->where('is_private', false)
+            ->flatMap(fn ($g) => collect($g['students'] ?? [])->pluck('id'))
+            ->filter()
+            ->unique();
+
+        $privateGroupStudentIds = $allGroups
+            ->where('is_private', true)
+            ->flatMap(fn ($g) => collect($g['students'] ?? [])->pluck('id'));
+
+        $privateSlotIds = $assignmentIds->isNotEmpty()
+            ? PrivateSessionSlot::whereIn('teaching_assignment_id', $assignmentIds)->pluck('id')
+            : collect();
+
+        $privateBookingStudentIds = $privateSlotIds->isNotEmpty()
+            ? SessionBooking::whereIn('private_session_slot_id', $privateSlotIds)
+                ->where('status', 'confirmed')
+                ->pluck('student_id')
+            : collect();
+
+        $privateSubStudentIds = $assignmentIds->isNotEmpty()
+            ? Subscription::whereIn('teaching_assignment_id', $assignmentIds)
+                ->where('type', Subscription::TYPE_PRIVATE)
+                ->where('status', Subscription::STATUS_ACTIVE)
+                ->pluck('student_id')
+            : collect();
+
+        $privateStudentIds = $privateGroupStudentIds
+            ->merge($privateBookingStudentIds)
+            ->merge($privateSubStudentIds)
+            ->filter()
+            ->unique();
+
+        // Latest 5 announcements published by the teacher
+        $recentAnnouncements = GroupAnnouncement::query()
+            ->where('teacher_id', $teacherId)
+            ->with([
+                'group:id,name,teaching_assignment_id',
+                'group.assignment.subject:id,name',
+                'group.assignment.gradeLevel:id,name',
+            ])
+            ->latest('published_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (GroupAnnouncement $announcement): array => [
+                'id' => $announcement->id,
+                'title' => $announcement->title,
+                'body' => $announcement->body,
+                'group_name' => $announcement->group?->name,
+                'subject_name' => $announcement->group?->assignment?->subject?->name,
+                'grade_name' => $announcement->group?->assignment?->gradeLevel?->name,
+                'published_at' => $announcement->published_at?->toIso8601String(),
+                'published_at_formatted' => $announcement->published_at
+                    ? Carbon::parse($announcement->published_at)->locale('ar')->diffForHumans()
+                    : '',
+            ])
+            ->values();
+
         return Inertia::render('Teacher/Dashboard', [
             'stats' => [
                 'assignments' => $assignments->count(),
                 'total_groups' => $allGroups->count(),
                 'active_students' => $teacher->activeStudentsCount(),
+                'group_students_count' => $groupStudentIds->count(),
+                'private_students_count' => $privateStudentIds->count(),
                 'lessons' => collect($materialCounts)->sum(),
                 'upcoming_sessions_count' => $upcomingSessions->count(),
                 'pending_grading' => $pendingGradingCount,
@@ -345,6 +416,7 @@ class DashboardController extends Controller
             'assignments' => $formattedAssignments,
             'groups' => $allGroups,
             'recent_enrollments' => $recentEnrollments,
+            'recent_announcements' => $recentAnnouncements,
             'upcoming_sessions' => $upcomingSessions,
             'pending_submissions' => $pendingSubmissions,
             'at_risk_students' => $atRiskStudents,

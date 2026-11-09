@@ -59,6 +59,7 @@ const createForm = useForm({
     role: 'student',
     grade_level: '',
     subject_id: '',
+    subject_ids: [],
     grade_level_ids: [],
 });
 
@@ -81,6 +82,7 @@ watch(() => createForm.role, (newRole) => {
     if (newRole === 'student') {
         onStageChange();
         createForm.subject_id = '';
+        createForm.subject_ids = [];
         createForm.grade_level_ids = [];
     } else if (newRole === 'teacher') {
         createForm.grade_level = '';
@@ -89,6 +91,7 @@ watch(() => createForm.role, (newRole) => {
         createForm.grade_level = '';
         createForm.parent_phone = '';
         createForm.subject_id = '';
+        createForm.subject_ids = [];
         createForm.grade_level_ids = [];
     }
 });
@@ -176,6 +179,7 @@ const teacherGradesModalOpen = ref(false);
 const teacherGradesUser = ref(null);
 const teacherGradesForm = useForm({
     subject_id: '',
+    subject_ids: [],
     grade_level_ids: [],
 });
 
@@ -183,24 +187,49 @@ function activeTeacherAssignments(user) {
     return (user?.teaching_assignments ?? []).filter((a) => a.is_active);
 }
 
+function teacherSubjectNames(user) {
+    const names = new Set();
+    if (user?.subject?.name) names.add(user.subject.name);
+    for (const a of activeTeacherAssignments(user)) {
+        if (a.subject?.name) names.add(a.subject.name);
+    }
+    return Array.from(names);
+}
+
 function teacherSubjectName(user) {
-    return user?.subject?.name
-        || activeTeacherAssignments(user)[0]?.subject?.name
-        || user?.teaching_assignments?.[0]?.subject?.name
-        || '';
+    return teacherSubjectNames(user).join('، ');
+}
+
+function toggleSubjectSelection(targetArray, subjectId) {
+    const numericId = Number(subjectId);
+    const idx = targetArray.indexOf(numericId);
+    if (idx === -1) {
+        targetArray.push(numericId);
+    } else {
+        targetArray.splice(idx, 1);
+    }
 }
 
 function openTeacherGradesModal(user) {
     roleModalOpen.value = false;
     teacherGradesUser.value = user;
     const activeAssignments = activeTeacherAssignments(user);
-    teacherGradesForm.subject_id = user.subject_id
-        || activeAssignments[0]?.subject_id
-        || user.teaching_assignments?.[0]?.subject_id
-        || (props.subjects[0]?.id ?? '');
-    teacherGradesForm.grade_level_ids = activeAssignments
-        .map((a) => Number(a.grade_level_id))
-        .filter(Boolean);
+    const assignedSubjIds = Array.from(new Set(
+        activeAssignments.map((a) => Number(a.subject_id)).filter(Boolean),
+    ));
+    if (!assignedSubjIds.length && user.subject_id) {
+        assignedSubjIds.push(Number(user.subject_id));
+    }
+    if (!assignedSubjIds.length && props.subjects[0]?.id) {
+        assignedSubjIds.push(Number(props.subjects[0].id));
+    }
+    teacherGradesForm.subject_ids = assignedSubjIds;
+    teacherGradesForm.subject_id = assignedSubjIds[0] ?? '';
+    teacherGradesForm.grade_level_ids = Array.from(new Set(
+        activeAssignments
+            .map((a) => Number(a.grade_level_id))
+            .filter(Boolean),
+    ));
     teacherGradesForm.clearErrors();
     teacherGradesModalOpen.value = true;
 }
@@ -697,7 +726,7 @@ function formatAuditDate(dateString) {
                                         </span>
                                         <div v-if="isTeacher(user)" class="mt-1.5 space-y-1">
                                             <div v-if="teacherSubjectName(user)" class="text-[11px] font-bold text-primary-700 dark:text-primary-300">
-                                                📘 المادة: {{ teacherSubjectName(user) }}
+                                                📘 المواد: {{ teacherSubjectName(user) }}
                                             </div>
                                             <div class="flex flex-wrap items-center gap-1">
                                                 <span
@@ -705,7 +734,7 @@ function formatAuditDate(dateString) {
                                                     :key="assign.id"
                                                     class="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300"
                                                 >
-                                                    {{ assign.grade_level?.name }}
+                                                    {{ assign.subject?.name ? `${assign.subject.name} — ` : '' }}{{ assign.grade_level?.name }}
                                                 </span>
                                                 <span v-if="!activeTeacherAssignments(user).length" class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
                                                     لم يتم إسناد صفوف بعد
@@ -715,7 +744,7 @@ function formatAuditDate(dateString) {
                                                     class="text-[10px] font-bold text-primary-600 dark:text-primary-400 hover:underline ms-1"
                                                     @click="openTeacherGradesModal(user)"
                                                 >
-                                                    {{ activeTeacherAssignments(user).length ? '+ تعديل الصفوف' : '+ إسناد صفوف' }}
+                                                    {{ activeTeacherAssignments(user).length ? '+ تعديل المواد والصفوف' : '+ إسناد مواد وصفوف' }}
                                                 </button>
                                             </div>
                                         </div>
@@ -1014,16 +1043,30 @@ function formatAuditDate(dateString) {
                         <!-- Subject & Multi-Grade Levels for Teacher -->
                         <div v-if="createForm.role === 'teacher'" class="space-y-3 rounded-xl border border-surface-200 dark:border-surface-800 p-3 bg-surface-50/60 dark:bg-surface-800/30">
                             <div>
-                                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1" for="create-teacher-subject">المادة الدراسية للمعلم (اختياري الآن)</label>
-                                <select id="create-teacher-subject" v-model="createForm.subject_id" class="input w-full text-sm">
-                                    <option value="">تحديد المادة لاحقاً</option>
-                                    <option v-for="subj in subjects" :key="subj.id" :value="subj.id">{{ subj.name }}</option>
-                                </select>
-                                <p v-if="createForm.errors.subject_id" class="mt-1 text-red-500 text-xs">{{ createForm.errors.subject_id }}</p>
+                                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1.5">المواد الدراسية للمعلم (يمكن اختيار أكثر من مادة)</label>
+                                <div class="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pe-1">
+                                    <label
+                                        v-for="subj in subjects"
+                                        :key="subj.id"
+                                        class="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition-colors"
+                                        :class="createForm.subject_ids.includes(Number(subj.id))
+                                            ? 'border-primary-500 bg-primary-50 text-primary-800 dark:bg-primary-950/40 dark:text-primary-200 font-bold'
+                                            : 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 text-surface-700 dark:text-surface-300'"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            :checked="createForm.subject_ids.includes(Number(subj.id))"
+                                            class="rounded text-primary-600"
+                                            @change="toggleSubjectSelection(createForm.subject_ids, subj.id)"
+                                        />
+                                        <span class="truncate">{{ subj.name }}</span>
+                                    </label>
+                                </div>
+                                <p v-if="createForm.errors.subject_id || createForm.errors.subject_ids" class="mt-1 text-red-500 text-xs">{{ createForm.errors.subject_id || createForm.errors.subject_ids }}</p>
                             </div>
 
-                            <div v-if="createForm.subject_id">
-                                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1.5">الصفوف الدراسية المسندة للمعلم</label>
+                            <div v-if="createForm.subject_ids.length">
+                                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1.5">المراحل والصفوف الدراسية المسندة للمعلم</label>
                                 <div class="max-h-44 overflow-y-auto space-y-2 pe-1">
                                     <div v-for="group in groupedGradeLevels" :key="group.key" class="space-y-1">
                                         <div class="flex items-center justify-between text-[11px] font-bold text-surface-500">
@@ -1385,7 +1428,7 @@ function formatAuditDate(dateString) {
         </div>
 
         <!-- Teacher Subject & Grade Levels Modal -->
-        <div v-if="teacherGradesModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="إدارة المادة والصفوف الدراسية للمعلم">
+        <div v-if="teacherGradesModalOpen" class="modal-overlay z-50" role="dialog" aria-modal="true" aria-label="إدارة المواد والصفوف الدراسية للمعلم">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="teacherGradesModalOpen = false"></div>
             <div class="relative modal-panel-compact bg-white dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-surface-200 dark:border-surface-800">
                 <form @submit.prevent="saveTeacherGrades">
@@ -1394,27 +1437,41 @@ function formatAuditDate(dateString) {
                             <div>
                                 <h3 class="text-lg font-black text-surface-900 dark:text-white flex items-center gap-2">
                                     <span>📚</span>
-                                    <span>إدارة المادة والصفوف الدراسية للمعلم</span>
+                                    <span>إدارة المواد والمراحل والصفوف الدراسية للمعلم</span>
                                 </h3>
                                 <p class="text-xs text-surface-500 mt-1">
-                                    المعلم: <strong class="text-surface-800 dark:text-white">{{ teacherGradesUser?.name }}</strong> — يمكنك إضافة أو تعديل كل الصفوف التي يدرّس لها.
+                                    المعلم: <strong class="text-surface-800 dark:text-white">{{ teacherGradesUser?.name }}</strong> — يمكنك إسناد أكثر من مادة وأكثر من مرحلة وصف دراسي.
                                 </p>
                             </div>
                             <button type="button" @click="teacherGradesModalOpen = false" class="btn-ghost btn-sm text-surface-400">✕</button>
                         </div>
 
                         <div>
-                            <label class="input-label" for="teacher-grades-subject">المادة الدراسية للمعلم</label>
-                            <select id="teacher-grades-subject" v-model="teacherGradesForm.subject_id" class="input w-full" required>
-                                <option value="" disabled>اختر المادة الدراسية...</option>
-                                <option v-for="subj in subjects" :key="subj.id" :value="subj.id">{{ subj.name }}</option>
-                            </select>
-                            <p v-if="teacherGradesForm.errors.subject_id" class="error-msg">{{ teacherGradesForm.errors.subject_id }}</p>
+                            <label class="input-label">المواد الدراسية المسندة للمعلم ({{ teacherGradesForm.subject_ids.length }} محددة)</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                <label
+                                    v-for="subj in subjects"
+                                    :key="subj.id"
+                                    class="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs cursor-pointer transition-colors"
+                                    :class="teacherGradesForm.subject_ids.includes(Number(subj.id))
+                                        ? 'border-primary-500 bg-primary-50 text-primary-800 dark:bg-primary-950/50 dark:text-primary-200 font-bold shadow-2xs'
+                                        : 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 text-surface-700 dark:text-surface-300 hover:border-primary-300'"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        :checked="teacherGradesForm.subject_ids.includes(Number(subj.id))"
+                                        class="rounded text-primary-600 focus:ring-primary-500"
+                                        @change="toggleSubjectSelection(teacherGradesForm.subject_ids, subj.id)"
+                                    />
+                                    <span class="truncate">{{ subj.name }}</span>
+                                </label>
+                            </div>
+                            <p v-if="teacherGradesForm.errors.subject_id || teacherGradesForm.errors.subject_ids" class="error-msg">{{ teacherGradesForm.errors.subject_id || teacherGradesForm.errors.subject_ids }}</p>
                         </div>
 
                         <div class="space-y-3">
                             <div class="flex items-center justify-between">
-                                <label class="input-label mb-0">الصفوف الدراسية المسندة للمعلم ({{ teacherGradesForm.grade_level_ids.length }} محدد)</label>
+                                <label class="input-label mb-0">المراحل والصفوف الدراسية المسندة للمعلم ({{ teacherGradesForm.grade_level_ids.length }} محدد)</label>
                             </div>
 
                             <div v-for="group in groupedGradeLevels" :key="group.key" class="rounded-xl border border-surface-200 dark:border-surface-800 p-3 space-y-2 bg-surface-50/50 dark:bg-surface-800/20">
@@ -1457,9 +1514,9 @@ function formatAuditDate(dateString) {
                         <button
                             type="submit"
                             class="btn-primary btn-sm"
-                            :disabled="teacherGradesForm.processing || !teacherGradesForm.subject_id || !teacherGradesForm.grade_level_ids.length"
+                            :disabled="teacherGradesForm.processing || !teacherGradesForm.subject_ids.length || !teacherGradesForm.grade_level_ids.length"
                         >
-                            {{ teacherGradesForm.processing ? 'جارٍ الحفظ...' : 'حفظ المادة والصفوف' }}
+                            {{ teacherGradesForm.processing ? 'جارٍ الحفظ...' : 'حفظ المواد والصفوف' }}
                         </button>
                     </div>
                 </form>

@@ -173,7 +173,7 @@ it('keeps teaching assignments away from teachers', function () {
     expect(app('router')->has('teacher.teaching-schedule.assignments.store'))->toBeFalse();
 });
 
-it('stops the admin assigning a teacher to a second subject', function () {
+it('allows the admin to assign a teacher to multiple subjects and grades', function () {
     $physics = Subject::where('name', 'الفيزياء')->firstOrFail();
 
     $this->actingAs($this->admin)
@@ -182,10 +182,10 @@ it('stops the admin assigning a teacher to a second subject', function () {
             'subject_id' => $physics->id,
             'grade_level_id' => GradeLevel::where('key', 'grade_11_science')->value('id'),
         ])
-        ->assertSessionHasErrors('subject_id');
+        ->assertSessionHasNoErrors();
 
     expect(TeachingAssignment::where('teacher_id', $this->teacherA->id)
-        ->distinct('subject_id')->count('subject_id'))->toBe(1);
+        ->distinct('subject_id')->count('subject_id'))->toBe(2);
 });
 
 it('lets the admin add another grade of the teacher subject', function () {

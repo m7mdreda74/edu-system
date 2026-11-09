@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import { Upload } from 'tus-js-client';
@@ -10,6 +10,7 @@ import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     assignment:   { type: Object, required: true },
+    isSelected:   { type: Boolean, default: false },
     allAssignments: { type: Array, default: () => [] },
     terms:        { type: Array,  default: () => [] },
     activeTermId: { type: Number, default: null },
@@ -73,12 +74,12 @@ const expanded     = ref({});    // unitId   -> open
 const editingVideo = ref({});    // lessonId -> the url editor is showing
 const unitDrafts   = ref({});
 const lessonDrafts = ref({});
-const outcomeDrafts = ref({});
+const unitBulkCount = ref({});   // unitId   -> number of lessons to add to this unit
 const videoUploads = ref({});
 const managedVideoFiles = ref({});
 const uploadRequests = ref({});
 const showSkeleton = ref(false);
-const showAddUnit  = ref(false);
+const skeletonStep = ref(1);
 
 let seenUnitIds = null;
 
@@ -119,7 +120,7 @@ watch(() => props.units, (units) => {
     unitDrafts.value   = nextUnits;
     lessonDrafts.value = nextLessons;
     units.forEach((unit) => {
-        outcomeDrafts.value[unit.id] ??= { title: '', description: '', group_material_id: null, quiz_id: null };
+        unitBulkCount.value[unit.id] ??= 4;
     });
 
     const ids = units.map((unit) => unit.id);
@@ -137,27 +138,222 @@ watch(() => props.units, (units) => {
 function goToTerm(termId) {
     if (termId === props.activeTermId) return;
 
-    router.get(route('teacher.curriculum', { assignment: props.assignment.id, term: termId }), {}, {
+    router.get(route('teacher.curriculum', {
+        assignment: props.assignment.id,
+        term: termId,
+        selected: isClassificationComplete.value ? 1 : undefined,
+    }), {}, {
         ...VISIT,
         only: ['terms', 'activeTermId', 'units', 'stats'],
     });
 }
 
 function switchAssignment(assignmentId) {
-    if (!assignmentId || Number(assignmentId) === Number(props.assignment.id)) return;
-    router.get(route('teacher.curriculum', { assignment: assignmentId }), {}, {
+    if (!assignmentId) return;
+    if (Number(assignmentId) === Number(props.assignment.id)) return;
+    router.get(route('teacher.curriculum', { assignment: assignmentId, selected: 1 }), {}, {
         preserveScroll: false,
     });
+}
+
+// ─── Classification Filters (المادة -> المرحلة -> الصف -> المسار للثانوي 11/12) ──
+const STAGE_LABELS = {
+    primary:     'ابتدائي',
+    preparatory: 'إعدادي',
+    secondary:   'ثانوي',
+};
+
+const selectedSubjectId    = ref(props.isSelected ? (props.assignment?.subject?.id ?? '') : '');
+const selectedStageKey     = ref(props.isSelected ? (props.assignment?.grade?.stage ?? '') : '');
+const selectedBaseGradeKey = ref(props.isSelected ? (props.assignment?.grade?.base_grade_key ?? props.assignment?.grade?.key ?? '') : '');
+const selectedTrackKey     = ref(props.isSelected ? (props.assignment?.grade?.track ?? '') : '');
+
+watch(() => [props.assignment, props.isSelected], ([newAssignment, selected]) => {
+    if (selected && newAssignment) {
+        selectedSubjectId.value    = newAssignment.subject?.id ?? '';
+        selectedStageKey.value     = newAssignment.grade?.stage ?? '';
+        selectedBaseGradeKey.value = newAssignment.grade?.base_grade_key ?? newAssignment.grade?.key ?? '';
+        selectedTrackKey.value     = newAssignment.grade?.track ?? '';
+    }
+});
+
+const subjectOptions = computed(() => {
+    const map = new Map();
+    for (const a of props.allAssignments) {
+        if (a.subject_id && !map.has(a.subject_id)) {
+            map.set(a.subject_id, { id: a.subject_id, name: a.subject_name });
+        }
+    }
+    if (!map.size && props.assignment?.subject) {
+        map.set(props.assignment.subject.id, {
+            id: props.assignment.subject.id,
+            name: props.assignment.subject.name,
+        });
+    }
+    return Array.from(map.values());
+});
+
+const stageOptions = computed(() => {
+    if (!selectedSubjectId.value) return [];
+    const map = new Map();
+    const filtered = props.allAssignments.filter(
+        (a) => Number(a.subject_id) === Number(selectedSubjectId.value)
+    );
+    for (const a of filtered) {
+        if (a.stage_key && !map.has(a.stage_key)) {
+            map.set(a.stage_key, {
+                key: a.stage_key,
+                name: a.stage_name || STAGE_LABELS[a.stage_key] || a.stage_key,
+            });
+        }
+    }
+    return Array.from(map.values());
+});
+
+const gradeOptions = computed(() => {
+    if (!selectedSubjectId.value || !selectedStageKey.value) return [];
+    const map = new Map();
+    const filtered = props.allAssignments.filter(
+        (a) =>
+            Number(a.subject_id) === Number(selectedSubjectId.value) &&
+            a.stage_key === selectedStageKey.value
+    );
+    for (const a of filtered) {
+        const bKey  = a.base_grade_key || a.grade_key || String(a.grade_id);
+        const bName = a.base_grade_name || a.grade_name;
+        if (bKey && !map.has(bKey)) {
+            map.set(bKey, {
+                key: bKey,
+                name: bName,
+            });
+        }
+    }
+    return Array.from(map.values());
+});
+
+const trackOptions = computed(() => {
+    if (!selectedSubjectId.value || selectedStageKey.value !== 'secondary' || !selectedBaseGradeKey.value) {
+        return [];
+    }
+    const map = new Map();
+    const filtered = props.allAssignments.filter(
+        (a) =>
+            Number(a.subject_id) === Number(selectedSubjectId.value) &&
+            a.stage_key === 'secondary' &&
+            (a.base_grade_key || a.grade_key) === selectedBaseGradeKey.value &&
+            Boolean(a.track_key)
+    );
+    for (const a of filtered) {
+        if (a.track_key && !map.has(a.track_key)) {
+            map.set(a.track_key, {
+                key: a.track_key,
+                name: a.track_name || a.track_key,
+            });
+        }
+    }
+    return Array.from(map.values());
+});
+
+const requiresTrack = computed(() => {
+    return (
+        selectedStageKey.value === 'secondary' &&
+        (selectedBaseGradeKey.value === 'grade_11' ||
+            selectedBaseGradeKey.value === 'grade_12' ||
+            trackOptions.value.length > 0)
+    );
+});
+
+const matchedAssignment = computed(() => {
+    if (!selectedSubjectId.value || !selectedStageKey.value || !selectedBaseGradeKey.value) {
+        return null;
+    }
+    if (requiresTrack.value && !selectedTrackKey.value) {
+        return null;
+    }
+    return (
+        props.allAssignments.find((a) => {
+            const matchSubject = Number(a.subject_id) === Number(selectedSubjectId.value);
+            const matchStage   = a.stage_key === selectedStageKey.value;
+            const matchGrade   = (a.base_grade_key || a.grade_key || String(a.grade_id)) === selectedBaseGradeKey.value;
+            const matchTrack   = !requiresTrack.value || a.track_key === selectedTrackKey.value;
+            return matchSubject && matchStage && matchGrade && matchTrack;
+        }) ?? null
+    );
+});
+
+const isClassificationComplete = computed(() => Boolean(matchedAssignment.value));
+
+function onSubjectChange() {
+    selectedStageKey.value     = '';
+    selectedBaseGradeKey.value = '';
+    selectedTrackKey.value     = '';
+    showSkeleton.value         = false;
+}
+
+function onStageChange() {
+    selectedBaseGradeKey.value = '';
+    selectedTrackKey.value     = '';
+    showSkeleton.value         = false;
+}
+
+function onGradeChange() {
+    selectedTrackKey.value = '';
+    showSkeleton.value     = false;
+    if (!requiresTrack.value && matchedAssignment.value) {
+        switchAssignment(matchedAssignment.value.id);
+    }
+}
+
+function onTrackChange() {
+    showSkeleton.value = false;
+    if (matchedAssignment.value) {
+        switchAssignment(matchedAssignment.value.id);
+    }
+}
+
+function toggleSkeleton() {
+    if (!isClassificationComplete.value) return;
+    skeletonStep.value = 1;
+    showSkeleton.value = !showSkeleton.value;
 }
 
 // ─── Skeleton generator ──────────────────────────────────────────────────────
 const skeleton = useForm({
     academic_term_id: props.activeTermId,
     units_count:      4,
-    lessons_per_unit: 4,
+    unit_lessons:     [4, 4, 4, 4],
 });
 
 watch(() => props.activeTermId, (id) => { skeleton.academic_term_id = id; });
+
+watch(() => skeleton.units_count, (val) => {
+    const count = Math.max(1, Math.min(20, Number(val) || 1));
+    const current = Array.isArray(skeleton.unit_lessons) ? [...skeleton.unit_lessons] : [];
+    if (current.length < count) {
+        while (current.length < count) {
+            current.push(4);
+        }
+    } else if (current.length > count) {
+        current.length = count;
+    }
+    skeleton.unit_lessons = current;
+});
+
+function generateUnitsOnly() {
+    const target = skeleton.academic_term_id;
+    const count = Math.max(1, Math.min(20, Number(skeleton.units_count) || 1));
+    skeleton.unit_lessons = Array(count).fill(0);
+
+    skeleton.post(route('teacher.curriculum.skeleton', props.assignment.id), {
+        ...VISIT,
+        onSuccess: () => {
+            showSkeleton.value = false;
+            skeletonStep.value = 1;
+            skeleton.unit_lessons = Array(count).fill(4);
+            goToTerm(target);
+        },
+    });
+}
 
 function generateSkeleton() {
     const target = skeleton.academic_term_id;
@@ -166,6 +362,7 @@ function generateSkeleton() {
         ...VISIT,
         onSuccess: () => {
             showSkeleton.value = false;
+            skeletonStep.value = 1;
             // Built into another term than the one on screen — follow the work.
             goToTerm(target);
         },
@@ -210,40 +407,6 @@ function togglePublished(unit) {
     send('put', route('teacher.units.update', unit.id), { is_published: !unit.is_published }, `unit:${unit.id}`);
 }
 
-function addOutcome(unit) {
-    const draft = outcomeDrafts.value[unit.id];
-    if (!draft?.title?.trim()) return;
-
-    send('post', route('teacher.outcomes.store', unit.id), {
-        title: draft.title,
-        description: draft.description,
-        group_material_id: draft.group_material_id || null,
-        quiz_id: draft.quiz_id || null,
-    }, `unit:${unit.id}:outcome`, {
-        onSuccess: () => {
-            outcomeDrafts.value[unit.id] = { title: '', description: '', group_material_id: null, quiz_id: null };
-        },
-    });
-}
-
-function toggleOutcome(outcome) {
-    send('put', route('teacher.outcomes.update', outcome.id), {
-        title: outcome.title,
-        description: outcome.description,
-        is_published: !outcome.is_published,
-    }, `outcome:${outcome.id}`);
-}
-
-async function removeOutcome(outcome) {
-    const ok = await confirm({
-        title: `حذف «${outcome.title}»`,
-        message: 'سيتم حذف ناتج التعلم من هذه الوحدة.',
-        confirmLabel: 'حذف',
-        variant: 'danger',
-    });
-    if (ok) send('delete', route('teacher.outcomes.destroy', outcome.id), {}, `outcome:${outcome.id}`);
-}
-
 function moveUnit(unit, direction) {
     send('post', route('teacher.units.reorder', unit.id), { direction }, `unit:${unit.id}`);
 }
@@ -269,6 +432,12 @@ function addLesson(unit) {
     send('post', route('teacher.lessons.store', unit.id), { title }, `unit:${unit.id}:lesson`, {
         onSuccess: () => { newLesson.value[unit.id] = ''; },
     });
+}
+
+function addBulkLessons(unit) {
+    const count = Math.max(1, Math.min(20, Number(unitBulkCount.value[unit.id]) || 1));
+
+    send('post', route('teacher.lessons.store', unit.id), { lessons_count: count }, `unit:${unit.id}:lesson`);
 }
 
 function saveLessonTitle(lesson) {
@@ -831,7 +1000,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
 
 <template>
     <DashboardLayout>
-        <Head :title="`الخطة الأكاديمية — ${assignment.subject?.name ?? ''}`" />
+        <Head title="الخطة الأكاديمية" />
 
         <div class="space-y-6">
             <!-- ── Header ─────────────────────────────────────────────── -->
@@ -840,43 +1009,110 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                     <nav class="text-xs text-surface-400 mb-1 flex items-center gap-1 flex-wrap">
                         <Link :href="route('teacher.dashboard')" class="hover:text-primary-500">لوحة المعلم</Link>
                         <span>/</span>
-                        <span class="text-surface-500 dark:text-surface-400 font-bold">الخطة الأكاديمية (خطة فصلية)</span>
+                        <span class="text-surface-500 dark:text-surface-400 font-bold">الخطة الأكاديمية</span>
                     </nav>
                     <div class="flex items-center gap-3 flex-wrap">
                         <h1 class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white flex items-center gap-2 flex-wrap">
                             <Icon name="book" class="w-7 h-7 text-primary-500 shrink-0" />
-                            <span>الخطة الأكاديمية: {{ assignment.subject?.name }}</span>
-                            <span v-if="assignment.grade" class="badge-primary text-xs">{{ assignment.grade.name }}</span>
+                            <span>الخطة الأكاديمية</span>
                         </h1>
-
-                        <!-- Assignment switcher if teacher teaches multiple subjects/grades -->
-                        <div v-if="allAssignments && allAssignments.length > 1" class="flex items-center gap-2">
-                            <label class="text-xs font-bold text-surface-500 dark:text-surface-400">تبديل المادة:</label>
-                            <select
-                                :value="assignment.id"
-                                @change="switchAssignment($event.target.value)"
-                                class="input-sm text-xs font-bold rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 py-1 px-3"
-                            >
-                                <option v-for="a in allAssignments" :key="a.id" :value="a.id">{{ a.label }}</option>
-                            </select>
-                        </div>
                     </div>
                     <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
                         خطة فصلية شاملة مقسمة لكل فصل دراسي (الوحدات، الدروس، الملازم والفيديوهات، والواجبات والاختبارات) — تسمّع وتظهر لجميع طلابك مباشرة.
                     </p>
                 </div>
+            </header>
 
-                <div class="flex items-center gap-2 flex-wrap shrink-0">
-                    <Link :href="route('teacher.teaching-schedule')" class="btn-outline btn-sm flex items-center gap-1.5">
-                        <Icon name="calendar" class="w-4 h-4" />
-                        <span>تحديد المواعيد والجدول</span>
-                    </Link>
-                    <button type="button" class="btn-primary btn-sm shrink-0" @click="showSkeleton = !showSkeleton">
+            <!-- ── Classification Bar (اختر المادة / اختر المرحلة / اختر الصف / اختر المسار) + زر إنشاء هيكل الفصل ── -->
+            <section class="card p-4 sm:p-5 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label for="filter-subject" class="input-label">اختر المادة</label>
+                        <select
+                            id="filter-subject"
+                            v-model="selectedSubjectId"
+                            class="input font-bold"
+                            @change="onSubjectChange"
+                        >
+                            <option value="">اختر المادة...</option>
+                            <option v-for="subj in subjectOptions" :key="subj.id" :value="subj.id">
+                                {{ subj.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="filter-stage" class="input-label">اختر المرحلة</label>
+                        <select
+                            id="filter-stage"
+                            v-model="selectedStageKey"
+                            class="input font-bold"
+                            :disabled="!selectedSubjectId"
+                            @change="onStageChange"
+                        >
+                            <option value="">اختر المرحلة...</option>
+                            <option v-for="stg in stageOptions" :key="stg.key" :value="stg.key">
+                                {{ stg.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="filter-grade" class="input-label">اختر الصف</label>
+                        <select
+                            id="filter-grade"
+                            v-model="selectedBaseGradeKey"
+                            class="input font-bold"
+                            :disabled="!selectedStageKey"
+                            @change="onGradeChange"
+                        >
+                            <option value="">اختر الصف...</option>
+                            <option v-for="grd in gradeOptions" :key="grd.key" :value="grd.key">
+                                {{ grd.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div v-if="requiresTrack">
+                        <label for="filter-track" class="input-label">اختر المسار</label>
+                        <select
+                            id="filter-track"
+                            v-model="selectedTrackKey"
+                            class="input font-bold"
+                            :disabled="!selectedBaseGradeKey"
+                            @change="onTrackChange"
+                        >
+                            <option value="">اختر المسار...</option>
+                            <option v-for="trk in trackOptions" :key="trk.key" :value="trk.key">
+                                {{ trk.name }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-surface-100 dark:border-surface-800">
+                    <div class="text-xs text-surface-500 dark:text-surface-400 font-semibold flex items-center gap-2 flex-wrap">
+                        <template v-if="isClassificationComplete">
+                            <span>المقرر المختار حالياً:</span>
+                            <span class="badge-primary text-xs">{{ assignment.subject?.name }} — {{ assignment.grade?.name }}</span>
+                        </template>
+                        <span v-else class="text-amber-600 dark:text-amber-400 font-bold">
+                            يرجى اختيار المادة والمرحلة والصف {{ requiresTrack ? 'والمسار ' : '' }}أعلاه لتفعيل زر إنشاء هيكل الفصل.
+                        </span>
+                    </div>
+
+                    <button
+                        v-if="terms.length"
+                        type="button"
+                        class="btn-primary btn-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                        :disabled="!isClassificationComplete"
+                        @click="toggleSkeleton"
+                    >
                         <Icon name="plus" class="w-4 h-4" />
-                        <span>{{ showSkeleton ? 'إغلاق مولّد الهيكل' : '⚡ إنشاء هيكل الفصل (وحدات ودروس)' }}</span>
+                        <span>{{ showSkeleton ? 'إغلاق مولّد الهيكل' : '+ إنشاء هيكل الفصل (وحدات ودروس)' }}</span>
                     </button>
                 </div>
-            </header>
+            </section>
 
             <!-- ── No academic calendar ───────────────────────────────── -->
             <div v-if="!terms.length" class="alert-warn">
@@ -915,15 +1151,16 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
             </div>
 
             <!-- ── Skeleton generator ─────────────────────────────────── -->
-            <section v-if="showSkeleton && terms.length" class="card p-5 space-y-4">
+            <section v-if="showSkeleton && terms.length" class="card p-5 space-y-5 border-2 border-primary-500/30">
                 <div>
-                    <h2 class="font-bold text-lg text-surface-900 dark:text-white">إنشاء هيكل الفصل</h2>
+                    <h2 class="font-bold text-lg text-surface-900 dark:text-white">إنشاء هيكل الفصل (وحدات ودروس)</h2>
                     <p class="input-hint">
-                        يُنشئ الوحدات ودروسها فارغة ومرقّمة، ومعها نموذج اختبار إلكتروني لكل وحدة، ثم ترفع أنت فيديو الشرح وملزمة الشرح والتقييم في كل درس.
+                        الخطوة الأولى: نبدأ بإضافة عدد الوحدات أولاً، ثم بعد ذلك تحدد عدد دروس كل وحدة على حدة (أو تضيف الدروس من داخل كل وحدة مباشرة).
                     </p>
                 </div>
 
-                <div class="grid sm:grid-cols-3 gap-4">
+                <!-- الخطوة 1: الفصل الدراسي + عدد الوحدات فقط -->
+                <div class="grid sm:grid-cols-2 gap-4">
                     <div>
                         <label for="skeleton-term" class="input-label">الفصل الدراسي</label>
                         <select id="skeleton-term" v-model.number="skeleton.academic_term_id" class="input">
@@ -933,28 +1170,77 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                     </div>
 
                     <div>
-                        <label for="units-count" class="input-label">عدد الوحدات</label>
-                        <input id="units-count" v-model.number="skeleton.units_count" type="number" min="1" max="20" class="input" />
+                        <label for="units-count" class="input-label">1. عدد الوحدات المراد إنشاؤها أولاً</label>
+                        <input id="units-count" v-model.number="skeleton.units_count" type="number" min="1" max="20" class="input font-bold" />
                         <p v-if="skeleton.errors.units_count" class="error-msg">{{ skeleton.errors.units_count }}</p>
                     </div>
+                </div>
 
-                    <div>
-                        <label for="lessons-count" class="input-label">عدد الدروس في كل وحدة</label>
-                        <input id="lessons-count" v-model.number="skeleton.lessons_per_unit" type="number" min="1" max="20" class="input" />
-                        <p v-if="skeleton.errors.lessons_per_unit" class="error-msg">{{ skeleton.errors.lessons_per_unit }}</p>
+                <div v-if="skeletonStep === 1" class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-surface-100 dark:border-surface-800">
+                    <button type="button" class="btn-ghost btn-sm" @click="showSkeleton = false">إلغاء</button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            class="btn-outline btn-sm"
+                            :disabled="skeleton.processing"
+                            @click="generateUnitsOnly"
+                        >
+                            {{ skeleton.processing ? 'جارٍ الإنشاء...' : `إنشاء ${skeleton.units_count || 0} وحدات الآن (وإضافة الدروس داخل كل وحدة)` }}
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-primary btn-sm"
+                            @click="skeletonStep = 2"
+                        >
+                            التالي: تحديد عدد دروس كل وحدة ←
+                        </button>
                     </div>
                 </div>
 
-                <div class="alert-info text-xs">
-                    <Icon name="info" class="w-4 h-4 shrink-0" />
-                    <span>الإضافة تتم بعد الموجود: الترقيم يكمل من آخر وحدة في الفصل، ولا يُحذف أي شيء سبق بناؤه.</span>
-                </div>
+                <!-- الخطوة 2: تحديد عدد دروس كل وحدة على حدة -->
+                <div v-else class="space-y-4 pt-3 border-t border-surface-100 dark:border-surface-800">
+                    <div class="flex items-center justify-between">
+                        <label class="input-label mb-0">2. حدد عدد دروس كل وحدة على حدة:</label>
+                        <button type="button" class="text-xs font-bold text-primary-600 hover:underline" @click="skeletonStep = 1">
+                            → تعديل عدد الوحدات
+                        </button>
+                    </div>
 
-                <div class="flex flex-wrap justify-end gap-2">
-                    <button type="button" class="btn-ghost btn-sm" @click="showSkeleton = false">إلغاء</button>
-                    <button type="button" class="btn-primary btn-sm" :disabled="skeleton.processing" @click="generateSkeleton">
-                        {{ skeleton.processing ? 'جارٍ الإنشاء...' : `إنشاء ${skeleton.units_count || 0} وحدة` }}
-                    </button>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        <div
+                            v-for="(_, idx) in skeleton.unit_lessons"
+                            :key="idx"
+                            class="rounded-xl border border-surface-200 dark:border-surface-700/80 bg-surface-50/70 dark:bg-surface-900/50 p-3"
+                        >
+                            <label :for="`unit-lessons-${idx}`" class="block text-xs font-bold text-surface-700 dark:text-surface-200 mb-1.5">
+                                عدد دروس الوحدة {{ idx + 1 }}
+                            </label>
+                            <input
+                                :id="`unit-lessons-${idx}`"
+                                v-model.number="skeleton.unit_lessons[idx]"
+                                type="number"
+                                min="0"
+                                max="20"
+                                class="input py-1.5 text-sm font-bold text-center"
+                            />
+                            <p v-if="skeleton.errors[`unit_lessons.${idx}`]" class="error-msg mt-1">
+                                {{ skeleton.errors[`unit_lessons.${idx}`] }}
+                            </p>
+                        </div>
+                    </div>
+                    <p v-if="skeleton.errors.lessons_per_unit" class="error-msg">{{ skeleton.errors.lessons_per_unit }}</p>
+
+                    <div class="alert-info text-xs">
+                        <Icon name="info" class="w-4 h-4 shrink-0" />
+                        <span>الإضافة تتم بعد الموجود: الترقيم يكمل من آخر وحدة في الفصل، ولا يُحذف أي شيء سبق بناؤه.</span>
+                    </div>
+
+                    <div class="flex flex-wrap justify-end gap-2">
+                        <button type="button" class="btn-ghost btn-sm" @click="showSkeleton = false">إلغاء</button>
+                        <button type="button" class="btn-primary btn-sm" :disabled="skeleton.processing" @click="generateSkeleton">
+                            {{ skeleton.processing ? 'جارٍ الإنشاء...' : `إنشاء ${skeleton.units_count || 0} وحدة مع دروسها` }}
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -1065,51 +1351,39 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                             </div>
                         </div>
 
-                        <!-- ── Learning outcomes ─────────────────────── -->
-                        <div class="rounded-xl border border-accent-200 bg-accent-50/40 p-4 dark:border-accent-900/60 dark:bg-accent-950/20">
-                            <div class="flex items-center justify-between gap-3">
-                                <h3 class="flex items-center gap-2 text-sm font-bold text-surface-700 dark:text-surface-200">
-                                    <Icon name="certificate" class="h-4 w-4 text-accent-500" />
-                                    نواتج التعلم
-                                    <span class="badge-gray text-[10px]">{{ unit.learning_outcomes?.length ?? 0 }}</span>
-                                </h3>
-                                <span class="text-[11px] text-surface-400">اختياري</span>
-                            </div>
-                            <div v-if="unit.learning_outcomes?.length" class="mt-3 space-y-2">
-                                <div v-for="outcome in unit.learning_outcomes" :key="outcome.id" class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-xs dark:bg-surface-900/60">
-                                    <div>
-                                        <p class="font-bold text-surface-800 dark:text-surface-100">{{ outcome.title }}</p>
-                                        <p v-if="outcome.target_title" class="mt-0.5 text-[11px] text-surface-500">مرتبط بـ{{ outcome.target_type === 'lesson' ? ' الدرس' : ' الاختبار' }}: {{ outcome.target_title }}</p>
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <button type="button" class="btn-ghost btn-sm text-[11px]" @click="toggleOutcome(outcome)">{{ outcome.is_published ? 'إخفاء' : 'نشر' }}</button>
-                                        <button type="button" class="btn-ghost btn-sm text-red-500" @click="removeOutcome(outcome)">حذف</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-3 grid gap-2 md:grid-cols-[1.2fr_1fr_1fr_auto]">
-                                <input v-model="outcomeDrafts[unit.id].title" type="text" maxlength="255" class="input py-2 text-xs" placeholder="مثال: يشرح الطالب الفكرة الأساسية" />
-                                <select v-model="outcomeDrafts[unit.id].group_material_id" class="input py-2 text-xs">
-                                    <option :value="null">مرتبط بالوحدة</option>
-                                    <option v-for="lesson in unit.lessons" :key="lesson.id" :value="lesson.id">درس: {{ lesson.title }}</option>
-                                </select>
-                                <select v-model="outcomeDrafts[unit.id].quiz_id" class="input py-2 text-xs">
-                                    <option :value="null">بدون اختبار محدد</option>
-                                    <option v-if="unit.electronic_exam" :value="unit.electronic_exam.id">اختبار: {{ unit.electronic_exam.title }}</option>
-                                </select>
-                                <button type="button" class="btn-accent btn-sm" @click="addOutcome(unit)">إضافة</button>
-                            </div>
-                            <input v-model="outcomeDrafts[unit.id].description" type="text" maxlength="1000" class="input mt-2 py-2 text-xs" placeholder="وصف مختصر (اختياري)" />
-                            <p v-if="firstError(`unit:${unit.id}:outcome`)" class="error-msg mt-2">{{ firstError(`unit:${unit.id}:outcome`) }}</p>
-                        </div>
-
                         <!-- ── Lessons ────────────────────────────────── -->
                         <div class="space-y-3">
-                            <h3 class="text-sm font-bold text-surface-700 dark:text-surface-200 flex items-center gap-2">
-                                <Icon name="video" class="w-4 h-4 text-primary-500" />
-                                <span>دروس الوحدة</span>
-                                <span class="badge-gray text-[10px]">{{ unit.lessons_count }}</span>
-                            </h3>
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <h3 class="text-sm font-bold text-surface-700 dark:text-surface-200 flex items-center gap-2">
+                                    <Icon name="video" class="w-4 h-4 text-primary-500" />
+                                    <span>دروس الوحدة</span>
+                                    <span class="badge-gray text-[10px]">{{ unit.lessons_count }}</span>
+                                </h3>
+
+                                <!-- تحديد/إضافة عدد دروس لهذه الوحدة مباشرة -->
+                                <div class="flex items-center gap-2 bg-surface-50 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-700/80 rounded-xl px-3 py-1.5">
+                                    <label :for="`bulk-lessons-${unit.id}`" class="text-xs font-bold text-surface-600 dark:text-surface-300">
+                                        عدد الدروس المراد إضافتها للوحدة:
+                                    </label>
+                                    <input
+                                        :id="`bulk-lessons-${unit.id}`"
+                                        v-model.number="unitBulkCount[unit.id]"
+                                        type="number"
+                                        min="1"
+                                        max="20"
+                                        class="input py-1 px-2 w-16 text-xs font-bold text-center"
+                                    />
+                                    <button
+                                        type="button"
+                                        class="btn-primary btn-sm text-xs py-1 px-3"
+                                        :disabled="busy === `unit:${unit.id}:lesson`"
+                                        @click="addBulkLessons(unit)"
+                                    >
+                                        <Icon name="plus" class="w-3.5 h-3.5" />
+                                        <span>إضافة الدروس</span>
+                                    </button>
+                                </div>
+                            </div>
 
                             <article
                                 v-for="lesson in unit.lessons"
@@ -1497,46 +1771,20 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                 <Icon name="courses" class="w-12 h-12 text-surface-300 dark:text-surface-700 mx-auto mb-4" />
                 <h3 class="font-bold text-lg text-surface-800 dark:text-surface-100 mb-2">لا توجد وحدات في هذا الفصل بعد</h3>
                 <p class="text-sm text-surface-400 max-w-md mx-auto mb-6">
-                    ابدأ بمولّد الهيكل: حدد عدد الوحدات وعدد الدروس في كل وحدة، وسيُنشئ لك الفصل كاملاً مرقّماً وجاهزاً لرفع الفيديوهات والملازم والواجبات.
+                    اختر المادة والمرحلة والصف أعلاه، ثم اضغط على زر إنشاء هيكل الفصل لتحديد عدد الوحدات وعدد الدروس لكل وحدة على حدة.
                 </p>
                 <div class="flex flex-wrap justify-center gap-2">
-                    <button type="button" class="btn-primary" @click="showSkeleton = true">
+                    <button
+                        type="button"
+                        class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                        :disabled="!isClassificationComplete"
+                        @click="toggleSkeleton"
+                    >
                         <Icon name="plus" class="w-4 h-4" />
-                        <span>إنشاء هيكل الفصل</span>
+                        <span>إنشاء هيكل الفصل (وحدات ودروس)</span>
                     </button>
-                    <button type="button" class="btn-outline" @click="showAddUnit = true">إضافة وحدة واحدة</button>
                 </div>
             </div>
-
-            <!-- ── Add a single unit ──────────────────────────────────── -->
-            <section v-if="terms.length" class="card p-4">
-                <button v-if="!showAddUnit" type="button" class="w-full flex items-center justify-center gap-2 py-2 text-sm font-semibold text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors" @click="showAddUnit = true">
-                    <Icon name="plus" class="w-4 h-4" />
-                    <span>إضافة وحدة إلى هذا الفصل</span>
-                </button>
-
-                <form v-else class="space-y-3" @submit.prevent="addUnit">
-                    <div class="grid md:grid-cols-2 gap-3">
-                        <div>
-                            <label for="new-unit-title" class="input-label">عنوان الوحدة</label>
-                            <input id="new-unit-title" v-model="newUnit.title" type="text" minlength="3" maxlength="255" class="input" placeholder="الوحدة الخامسة: الدوال" required />
-                            <p v-if="newUnit.errors.title" class="error-msg">{{ newUnit.errors.title }}</p>
-                        </div>
-                        <div>
-                            <label for="new-unit-desc" class="input-label">وصف مختصر (اختياري)</label>
-                            <input id="new-unit-desc" v-model="newUnit.description" type="text" maxlength="2000" class="input" />
-                            <p v-if="newUnit.errors.description" class="error-msg">{{ newUnit.errors.description }}</p>
-                        </div>
-                    </div>
-                    <p v-if="newUnit.errors.academic_term_id" class="error-msg">{{ newUnit.errors.academic_term_id }}</p>
-                    <div class="flex flex-wrap justify-end gap-2">
-                        <button type="button" class="btn-ghost btn-sm" @click="showAddUnit = false">إلغاء</button>
-                        <button type="submit" class="btn-primary btn-sm" :disabled="newUnit.processing">
-                            {{ newUnit.processing ? 'جارٍ الإضافة...' : 'إضافة الوحدة' }}
-                        </button>
-                    </div>
-                </form>
-            </section>
         </div>
     </DashboardLayout>
 </template>

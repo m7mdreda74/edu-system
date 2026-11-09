@@ -1,68 +1,19 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
-import StatCard from '@/Components/StatCard.vue';
-import ScheduleModal from '@/Components/Teacher/ScheduleModal.vue';
-import PrivateSlotModal from '@/Components/Teacher/PrivateSlotModal.vue';
-import QuickContentModal from '@/Components/Teacher/QuickContentModal.vue';
-import { formatTime12 } from '@/lib/money';
 
-const props = defineProps({
-    stats:               { type: Object, default: () => ({}) },
-    assignments:         { type: Array,  default: () => [] },
-    groups:              { type: Array,  default: () => [] },
-    recent_enrollments:  { type: Array,  default: () => [] },
-    upcoming_sessions:   { type: Array,  default: () => [] },
-    pending_submissions: { type: Array,  default: () => [] },
-    at_risk_students:    { type: Array,  default: () => [] },
-    terms:               { type: Array,  default: () => [] },
+defineProps({
+    stats:                { type: Object, default: () => ({}) },
+    assignments:          { type: Array,  default: () => [] },
+    groups:               { type: Array,  default: () => [] },
+    recent_enrollments:   { type: Array,  default: () => [] },
+    recent_announcements: { type: Array,  default: () => [] },
+    upcoming_sessions:    { type: Array,  default: () => [] },
+    pending_submissions:  { type: Array,  default: () => [] },
+    at_risk_students:     { type: Array,  default: () => [] },
+    terms:                { type: Array,  default: () => [] },
 });
-
-// Modals state
-const activeScheduleGroup = ref(null);
-const showScheduleModal = ref(false);
-
-const activePrivateAssignment = ref(null);
-const showPrivateModal = ref(false);
-
-const activeContentAssignment = ref(null);
-const showContentModal = ref(false);
-
-const selectedGroupForStudents = ref(null);
-const studentSearchQuery = ref('');
-
-function openSchedule(group) {
-    activeScheduleGroup.value = group;
-    showScheduleModal.value = true;
-}
-
-function openPrivate(assignment) {
-    activePrivateAssignment.value = assignment;
-    showPrivateModal.value = true;
-}
-
-function openQuickContent(assignment) {
-    activeContentAssignment.value = assignment;
-    showContentModal.value = true;
-}
-
-function openStudents(group) {
-    selectedGroupForStudents.value = group;
-    studentSearchQuery.value = '';
-}
-
-function closeStudents() {
-    selectedGroupForStudents.value = null;
-    studentSearchQuery.value = '';
-}
-
-function autoScheduleGroup(groupId) {
-    router.post(route('teacher.teaching-schedule.groups.auto-schedule', groupId), {}, {
-        preserveScroll: true,
-    });
-}
 </script>
 
 <template>
@@ -71,64 +22,14 @@ function autoScheduleGroup(groupId) {
     <DashboardLayout>
         <div class="space-y-8 pb-12">
             <!-- ── Top Header ──────────────────────────────────────── -->
-            <header class="flex items-start justify-between gap-4 flex-wrap">
-                <div>
-                    <h1 class="text-3xl font-black text-surface-900 dark:text-white tracking-tight">
-                        مرحباً، أستاذ {{ $page.props.auth.user?.name }} 👋
-                    </h1>
-                    <p class="text-sm text-surface-500 dark:text-surface-400 mt-1.5 leading-relaxed">
-                        مساحتك لإدارة المواد الدراسية، مواعيد المجموعات والبرايفت، وجدولة الحصص ونشر المحتوى بكل سلاسة.
-                    </p>
-                </div>
-
-                <div class="flex items-center gap-2.5">
-                    <Link :href="route('teacher.live-sessions')" class="btn-primary btn-sm flex items-center gap-2 shadow-glow-primary">
-                        <Icon name="live" class="w-4 h-4" />
-                        <span>الحصص المباشرة</span>
-                    </Link>
-                    <Link :href="route('teacher.teaching-schedule')" class="btn-outline btn-sm flex items-center gap-2">
-                        <Icon name="calendar" class="w-4 h-4" />
-                        <span>جدول المواعيد الأسبوعي</span>
-                    </Link>
-                    <Link :href="route('teacher.gradebook')" class="btn-ghost btn-sm flex items-center gap-2">
-                        <Icon name="chart" class="w-4 h-4" />
-                        <span>سجل الدرجات</span>
-                    </Link>
-                    <Link :href="route('teacher.announcements')" class="btn-ghost btn-sm flex items-center gap-2">
-                        <Icon name="bell" class="w-4 h-4" />
-                        <span>إعلانات المجموعات</span>
-                    </Link>
-                    <Link :href="route('teacher.question-bank')" class="btn-ghost btn-sm flex items-center gap-2">
-                        <Icon name="calculator" class="w-4 h-4" />
-                        <span>بنك الأسئلة</span>
-                    </Link>
-                </div>
+            <header>
+                <h1 class="text-3xl font-black text-surface-900 dark:text-white tracking-tight">
+                    مرحباً، أستاذ {{ $page.props.auth.user?.name }} 👋
+                </h1>
+                <p class="text-sm text-surface-500 dark:text-surface-400 mt-1.5 leading-relaxed">
+                    مساحتك لإدارة المواد الدراسية، مواعيد المجموعات والبرايفت، وجدولة الحصص ونشر المحتوى بكل سلاسة.
+                </p>
             </header>
-
-            <!-- ── Stat Cards ──────────────────────────────────────── -->
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <div
-                    v-for="stat in [
-                        { label: 'المواد والصفوف المسندة', value: stats.assignments,     icon: 'courses', color: 'primary' },
-                        { label: 'مجموعات التدريس',        value: stats.total_groups,    icon: 'users',   color: 'accent' },
-                        { label: 'الطلاب المشتركون',       value: stats.active_students, icon: 'student', color: 'primary' },
-                        { label: 'الدروس والمواد المنشورة', value: stats.lessons,         icon: 'book',    color: 'accent' },
-                        { label: 'واجبات بانتظار التصحيح', value: stats.pending_grading, icon: 'edit',    color: 'accent' },
-                    ]"
-                    :key="stat.label"
-                    class="card p-5 hover:shadow-lg transition-shadow duration-300"
-                >
-                    <div class="flex items-center gap-3.5">
-                        <div :class="`p-3 rounded-2xl bg-${stat.color}-50 dark:bg-${stat.color}-950 text-${stat.color}-600 dark:text-${stat.color}-400`">
-                            <Icon :name="stat.icon" class="w-6 h-6" />
-                        </div>
-                        <div class="min-w-0">
-                            <div class="text-2xl font-black text-surface-900 dark:text-white truncate">{{ stat.value ?? 0 }}</div>
-                            <div class="text-xs text-surface-400 mt-0.5">{{ stat.label }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- ── Upcoming Sessions Bar ────────────────────────────── -->
             <section v-if="upcoming_sessions.length" class="space-y-3">
@@ -172,73 +73,76 @@ function autoScheduleGroup(groupId) {
                 </div>
             </section>
 
-            <!-- ── Recent Student Enrollments & Bookings (الاشتراكات والحجوزات الأخيرة) ── -->
-            <section v-if="recent_enrollments?.length" class="space-y-3">
+            <!-- ── Student Subscriptions & Bookings (الاشتراكات والحجوزات لطلابك) ── -->
+            <section class="space-y-4">
                 <div class="flex items-center justify-between">
-                    <h2 class="font-extrabold text-sm text-surface-800 dark:text-surface-200 flex items-center gap-2">
+                    <h2 class="font-extrabold text-base text-surface-900 dark:text-white flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span>الاشتراكات والحجوزات الجديدة لطلابك:</span>
+                        <span>الاشتراكات والحجوزات لطلابك</span>
                     </h2>
-                    <Link :href="route('teacher.students.index')" class="text-xs font-bold text-primary-600 hover:underline">
+                    <Link :href="route('teacher.students.index')" class="text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline">
                         عرض قائمة جميع الطلاب ←
                     </Link>
                 </div>
 
-                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                    <div
-                        v-for="enrollment in recent_enrollments"
-                        :key="enrollment.id"
-                        class="card p-4 flex flex-col justify-between border transition-all hover:shadow-md"
-                        :class="enrollment.is_private
-                            ? 'border-accent-500/30 bg-accent-500/[0.03] dark:bg-accent-950/20'
-                            : 'border-surface-200 dark:border-surface-800'"
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <!-- 1. Groups Card -->
+                    <Link
+                        :href="route('teacher.students.index')"
+                        class="card p-6 border border-surface-200 dark:border-surface-800 hover:border-primary-500/60 dark:hover:border-primary-500/60 hover:shadow-lg transition-all flex items-center justify-between gap-4 group"
                     >
-                        <div class="space-y-2.5">
-                            <div class="flex items-start justify-between gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <div
-                                        class="w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden"
-                                        :class="enrollment.is_private ? 'bg-accent-500/15 text-accent-700 dark:text-accent-300' : 'bg-primary-500/15 text-primary-700 dark:text-primary-300'"
-                                    >
-                                        <img v-if="enrollment.student_avatar" :src="enrollment.student_avatar" :alt="enrollment.student_name" class="w-full h-full object-cover" />
-                                        <span v-else>{{ enrollment.student_name?.charAt(0) }}</span>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <h4 class="font-black text-sm text-surface-900 dark:text-white truncate">
-                                            {{ enrollment.student_name }}
-                                        </h4>
-                                        <p class="text-[11px] text-surface-400 truncate">
-                                            {{ enrollment.grade_name }} · {{ enrollment.subject_name }}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <span
-                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0"
-                                    :class="enrollment.is_private
-                                        ? 'bg-accent-500/15 text-accent-700 dark:text-accent-300 border border-accent-500/25'
-                                        : 'bg-primary-500/15 text-primary-700 dark:text-primary-300 border border-primary-500/25'"
-                                >
-                                    {{ enrollment.type_label }}
-                                </span>
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 rounded-2xl bg-primary-500/15 text-primary-600 dark:text-primary-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                <Icon name="users" class="w-7 h-7" />
                             </div>
-
-                            <div class="p-2.5 rounded-xl bg-surface-100/70 dark:bg-surface-850 border border-surface-200/50 dark:border-surface-800/60 text-xs space-y-1">
-                                <div class="flex items-center gap-1.5 text-surface-700 dark:text-surface-300 font-semibold truncate">
-                                    <Icon name="calendar" class="w-3.5 h-3.5 text-primary-500 shrink-0" />
-                                    <span class="truncate">{{ enrollment.schedule_text || enrollment.group_name }}</span>
-                                </div>
+                            <div>
+                                <h3 class="text-base font-black text-surface-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                    المجموعات الدراسية
+                                </h3>
+                                <p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
+                                    إجمالي الطلاب المشتركين في المجموعات
+                                </p>
                             </div>
                         </div>
 
-                        <div class="mt-3 pt-2.5 border-t border-surface-200/60 dark:border-surface-800 flex items-center justify-between text-[11px]">
-                            <span class="text-surface-400 font-mono">{{ enrollment.enrolled_at_formatted }}</span>
-                            <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                <span>{{ enrollment.status }}</span>
-                                <span>✓</span>
+                        <div class="text-end shrink-0">
+                            <div class="text-3xl font-black text-primary-600 dark:text-primary-400">
+                                {{ stats.group_students_count ?? 0 }}
+                            </div>
+                            <span class="text-[11px] font-bold text-surface-400 group-hover:text-primary-500 transition-colors">
+                                طالب مشترك ←
                             </span>
                         </div>
-                    </div>
+                    </Link>
+
+                    <!-- 2. Private Card -->
+                    <Link
+                        :href="route('teacher.students.index')"
+                        class="card p-6 border border-surface-200 dark:border-surface-800 hover:border-accent-500/60 dark:hover:border-accent-500/60 hover:shadow-lg transition-all flex items-center justify-between gap-4 group"
+                    >
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 rounded-2xl bg-accent-500/15 text-accent-600 dark:text-accent-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                <Icon name="student" class="w-7 h-7" />
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-surface-900 dark:text-white group-hover:text-accent-600 dark:group-hover:text-accent-400 transition-colors">
+                                    الحصص الخاصة (البرايفت)
+                                </h3>
+                                <p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
+                                    إجمالي الطلاب المشتركين في البرايفت
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="text-end shrink-0">
+                            <div class="text-3xl font-black text-accent-600 dark:text-accent-400">
+                                {{ stats.private_students_count ?? 0 }}
+                            </div>
+                            <span class="text-[11px] font-bold text-surface-400 group-hover:text-accent-500 transition-colors">
+                                طالب مشترك ←
+                            </span>
+                        </div>
+                    </Link>
                 </div>
             </section>
 
@@ -341,202 +245,61 @@ function autoScheduleGroup(groupId) {
                 </div>
             </section>
 
-            <!-- ── Main Academic Subjects & Groups Section ──────────── -->
-            <section class="space-y-6">
+            <!-- ── Assigned Subjects & Stages (موادك والمراحل الدراسية المسندة إليك — Display Cards Only -> مجموعاتي) ── -->
+            <section class="space-y-4">
                 <div class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-3">
                     <div>
                         <h2 class="text-xl font-black text-surface-900 dark:text-white">
                             موادك والمراحل الدراسية المسندة إليك
                         </h2>
                         <p class="text-xs text-surface-400 mt-0.5">
-                            لكل مادة وصف دراسي: إدارة المجموعات، المواعيد الأسبوعية، الحصص الفردية والمحتوى
+                            اضغط على أي بطاقة للانتقال إلى تبويب مجموعاتي
                         </p>
                     </div>
+                    <Link :href="route('teacher.groups.index')" class="text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline">
+                        إدارة مجموعاتي ←
+                    </Link>
                 </div>
 
-                <div v-if="assignments.length" class="space-y-6">
-                    <article
+                <div v-if="assignments.length" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Link
                         v-for="assignment in assignments"
                         :key="assignment.id"
-                        class="card p-6 sm:p-7 space-y-6 border border-surface-200 dark:border-surface-800 hover:border-surface-300 dark:hover:border-surface-700 transition-colors shadow-sm"
+                        :href="route('teacher.groups.index')"
+                        class="card p-6 border border-surface-200 dark:border-surface-800 hover:border-primary-500/60 dark:hover:border-primary-500/60 hover:shadow-lg transition-all flex items-start justify-between gap-4 group"
                     >
-                        <!-- Assignment Header (Stage, Subject, Grade) -->
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-100 dark:border-surface-800/80 pb-5">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white flex items-center justify-center font-black text-xl shadow-glow-primary shrink-0">
-                                    {{ assignment.subject.name.charAt(0) }}
-                                </div>
-                                <div>
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-primary-500/10 text-primary-700 dark:text-primary-300 border border-primary-500/20">
-                                            {{ assignment.stage.name }}
-                                        </span>
-                                        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300">
-                                            {{ assignment.grade.name }}
-                                        </span>
-                                    </div>
-                                    <h3 class="text-2xl font-black text-surface-900 dark:text-white mt-1">
-                                        {{ assignment.subject.name }}
-                                    </h3>
-                                </div>
+                        <div class="flex-1 min-w-0 space-y-2.5 text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="text-surface-500 dark:text-surface-400 font-bold shrink-0">المرحلة :</span>
+                                <span class="font-black text-surface-900 dark:text-white truncate">{{ assignment.stage.name }}</span>
                             </div>
-
-                            <!-- Fast Action Toolbar -->
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <button
-                                    type="button"
-                                    class="btn-primary btn-sm flex items-center gap-1.5 shadow-sm"
-                                    @click="openQuickContent(assignment)"
-                                    title="إضافة درس ومرفقاته فوراً"
-                                >
-                                    <Icon name="sparkles" class="w-3.5 h-3.5" />
-                                    <span>إضافة محتوى سريع</span>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    class="btn-outline btn-sm flex items-center gap-1.5"
-                                    @click="openPrivate(assignment)"
-                                    title="إضافة موعد برايفت أو تجريبي"
-                                >
-                                    <Icon name="clock" class="w-3.5 h-3.5 text-accent-500" />
-                                    <span>موعد برايفيت</span>
-                                </button>
-
-                                <Link
-                                    :href="route('teacher.curriculum', { assignment: assignment.id })"
-                                    class="btn-ghost btn-sm flex items-center gap-1.5"
-                                    title="عرض وتعديل المنهج بالكامل"
-                                >
-                                    <Icon name="book" class="w-3.5 h-3.5 text-surface-500" />
-                                    <span>المنهج الكامل ({{ assignment.units_count }} وحدة)</span>
-                                </Link>
+                            <div class="flex items-center gap-2">
+                                <span class="text-surface-500 dark:text-surface-400 font-bold shrink-0">الصف :</span>
+                                <span class="font-black text-surface-900 dark:text-white truncate">{{ assignment.grade.name }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-surface-500 dark:text-surface-400 font-bold shrink-0">المادة :</span>
+                                <span class="font-black text-primary-600 dark:text-primary-400 truncate">{{ assignment.subject.name }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-surface-500 dark:text-surface-400 font-bold shrink-0">عدد المجموعات :</span>
+                                <span class="font-black text-surface-900 dark:text-white">{{ assignment.groups_count ?? 0 }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-surface-500 dark:text-surface-400 font-bold shrink-0">البرايفت :</span>
+                                <span class="font-black text-accent-600 dark:text-accent-400">{{ assignment.private_count ?? 0 }}</span>
                             </div>
                         </div>
 
-                        <!-- Groups Section -->
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <h4 class="text-sm font-black text-surface-800 dark:text-surface-200 flex items-center gap-2">
-                                    <Icon name="courses" class="w-4 h-4 text-primary-500" />
-                                    <span>المجموعات المسندة ({{ assignment.groups.length }} مجموعة)</span>
-                                </h4>
+                        <div class="flex flex-col items-end justify-between self-stretch shrink-0">
+                            <div class="w-12 h-12 rounded-2xl bg-primary-500/15 text-primary-600 dark:text-primary-400 flex items-center justify-center font-black text-lg group-hover:scale-105 transition-transform">
+                                <Icon name="courses" class="w-6 h-6" />
                             </div>
-
-                            <div v-if="assignment.groups.length" class="grid sm:grid-cols-2 lg:grid-cols-2 gap-4">
-                                <div
-                                    v-for="group in assignment.groups"
-                                    :key="group.id"
-                                    class="rounded-2xl p-5 border border-surface-200 dark:border-surface-800 bg-surface-50/60 dark:bg-surface-900/40 hover:bg-surface-50 dark:hover:bg-surface-900 transition-all space-y-4"
-                                >
-                                    <!-- Group Info -->
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div>
-                                            <div class="flex items-center gap-2 flex-wrap">
-                                                <h5 class="font-extrabold text-base text-surface-900 dark:text-white">
-                                                    {{ group.name }}
-                                                </h5>
-                                                <span
-                                                    v-if="group.is_private"
-                                                    class="px-2 py-0.5 rounded-full text-[10px] font-black bg-accent-500/10 text-accent-700 dark:text-accent-300 border border-accent-500/20"
-                                                >
-                                                    حصة خاصة 1-on-1 (فردي) 🎯
-                                                </span>
-                                            </div>
-                                            <p class="text-xs text-surface-400 mt-0.5">
-                                                <template v-if="group.is_private">
-                                                    سعة المقعد: طالب واحد فقط ·
-                                                    <span v-if="group.students?.length" class="text-accent-600 dark:text-accent-400 font-bold">
-                                                        المقعد محجوز للطالب: {{ group.students[0].name }}
-                                                    </span>
-                                                    <span v-else class="text-surface-400">المقعد متاح للحجز</span>
-                                                </template>
-                                                <template v-else>
-                                                    سعة المجموعة: {{ group.capacity }} مقعد · المشتركون: {{ group.students_count }} طالب
-                                                </template>
-                                            </p>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            class="text-xs font-bold text-primary-600 hover:underline flex items-center gap-1 shrink-0"
-                                            @click="openStudents(group)"
-                                        >
-                                            <Icon name="users" class="w-3.5 h-3.5" />
-                                            <span>الطلاب ({{ group.students_count }})</span>
-                                        </button>
-                                    </div>
-
-                                    <!-- Schedules Badge (12-hour system) -->
-                                    <div class="p-3.5 rounded-xl bg-white dark:bg-surface-950/70 border border-surface-200 dark:border-surface-800/80 space-y-2">
-                                        <div class="flex items-center justify-between text-xs">
-                                            <span class="font-bold text-surface-600 dark:text-surface-400">مواعيد الحصص:</span>
-                                            <button
-                                                type="button"
-                                                class="text-xs font-bold text-primary-600 hover:underline flex items-center gap-1"
-                                                @click="openSchedule(group)"
-                                            >
-                                                <span>{{ group.schedules.length ? 'تعديل المواعيد ✎' : '+ تحديد المواعيد' }}</span>
-                                            </button>
-                                        </div>
-
-                                        <div v-if="group.schedules.length" class="flex flex-wrap gap-1.5">
-                                            <span
-                                                v-for="s in group.schedules"
-                                                :key="s.id"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary-500/10 text-primary-800 dark:text-primary-200 text-xs font-bold border border-primary-500/20"
-                                            >
-                                                <Icon name="clock" class="w-3 h-3 text-primary-600" />
-                                                <span>{{ s.day_name }} · {{ s.start_time_12 }} إلى {{ s.end_time_12 }}</span>
-                                            </span>
-                                        </div>
-                                        <p v-else class="text-xs text-amber-600 dark:text-amber-400 font-semibold">
-                                            ⚠️ لم يتم ضبط مواعيد أسبوعية للمجموعة بعد.
-                                        </p>
-                                    </div>
-
-                                    <!-- Group Lessons & Auto-Schedule status -->
-                                    <div class="flex items-center justify-between gap-3 text-xs pt-1 border-t border-surface-100 dark:border-surface-800">
-                                        <div class="text-surface-500 font-medium">
-                                            {{ group.lessons_count }} حصة في الخطة
-                                            <span v-if="group.pending_lessons_count > 0" class="text-amber-600 font-bold">
-                                                ({{ group.pending_lessons_count }} بحاجة لجدولة)
-                                            </span>
-                                        </div>
-
-                                        <div class="flex items-center gap-2">
-                                            <button
-                                                v-if="group.pending_lessons_count > 0 && group.schedules.length"
-                                                type="button"
-                                                class="btn-accent btn-sm text-[11px] font-black"
-                                                @click="autoScheduleGroup(group.id)"
-                                                title="توزيع الحصص المتبقية تلقائياً على المواعيد"
-                                            >
-                                                ⚡ جدولة الحصص تلقائياً
-                                            </button>
-                                            <Link
-                                                :href="route('teacher.teaching-schedule')"
-                                                class="btn-ghost btn-sm text-[11px]"
-                                            >
-                                                الخطة
-                                            </Link>
-                                            <Link
-                                                :href="route('teacher.worksheets.index', { groupId: group.id })"
-                                                class="btn-ghost btn-sm text-[11px]"
-                                            >
-                                                الواجبات والتصحيح
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-else class="text-center py-6 border border-dashed border-surface-200 dark:border-surface-800 rounded-2xl">
-                                <Icon name="courses" class="w-8 h-8 text-surface-300 mx-auto mb-2" />
-                                <p class="text-xs text-surface-400">لم تنشئ الإدارة مجموعات لهذا الإسناد بعد.</p>
-                            </div>
+                            <span class="text-[11px] font-bold text-surface-400 group-hover:text-primary-500 transition-colors mt-4">
+                                مجموعاتي ←
+                            </span>
                         </div>
-                    </article>
+                    </Link>
                 </div>
 
                 <div v-else class="card p-12 text-center space-y-3">
@@ -547,87 +310,68 @@ function autoScheduleGroup(groupId) {
                     </p>
                 </div>
             </section>
-        </div>
 
-        <!-- ── Integrated Modals ────────────────────────────────────── -->
-        <!-- 1. Schedule Modal -->
-        <ScheduleModal
-            v-model="showScheduleModal"
-            :group="activeScheduleGroup"
-            @saved="router.reload()"
-        />
-
-        <!-- 2. Private Slot Modal -->
-        <PrivateSlotModal
-            v-model="showPrivateModal"
-            :assignment="activePrivateAssignment"
-            @saved="router.reload()"
-        />
-
-        <!-- 3. Quick Content Modal -->
-        <QuickContentModal
-            v-model="showContentModal"
-            :assignment="activeContentAssignment"
-            :terms="terms"
-            @saved="router.reload()"
-        />
-
-        <!-- 4. Students Modal -->
-        <div
-            v-if="selectedGroupForStudents"
-            class="modal-overlay z-[80] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-            role="dialog"
-            aria-modal="true"
-            @click.self="closeStudents"
-        >
-            <div class="card w-full max-w-2xl max-h-[85vh] flex flex-col p-6 space-y-4 shadow-2xl">
-                <div class="flex items-start justify-between gap-3 border-b border-surface-200 dark:border-surface-700 pb-4">
+            <!-- ── Latest 5 Teacher Announcements (أحدث 5 إعلانات قام المدرس بإعلانها) ── -->
+            <section class="space-y-4">
+                <div class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-3">
                     <div>
                         <h2 class="text-xl font-black text-surface-900 dark:text-white flex items-center gap-2">
-                            <Icon name="users" class="w-6 h-6 text-primary-500" />
-                            <span>طلاب مجموعة: {{ selectedGroupForStudents.name }}</span>
+                            <Icon name="chat" class="w-5 h-5 text-accent-500" />
+                            <span>أحدث الإعلانات المنشورة</span>
                         </h2>
-                        <p class="text-xs text-surface-500 mt-1">
-                            {{ selectedGroupForStudents.students?.length ?? 0 }} طالب مشترك · سعة المجموعة {{ selectedGroupForStudents.capacity }} مقعد
+                        <p class="text-xs text-surface-400 mt-0.5">
+                            أحدث 5 إعلانات قمت بنشرها لمجموعاتك الدراسية
                         </p>
                     </div>
-                    <button type="button" class="text-surface-400 hover:text-surface-600 text-lg font-bold" @click="closeStudents">✕</button>
+                    <Link :href="route('teacher.announcements')" class="btn-outline btn-sm flex items-center gap-1.5 font-bold">
+                        <span>إدارة ونشر الإعلانات</span>
+                        <span>←</span>
+                    </Link>
                 </div>
 
-                <div v-if="selectedGroupForStudents.students?.length" class="space-y-2">
-                    <input
-                        v-model="studentSearchQuery"
-                        type="text"
-                        class="input text-xs"
-                        placeholder="ابحث بالاسم أو البريد الإلكتروني..."
-                    />
-                </div>
-
-                <div class="overflow-y-auto no-scrollbar flex-1 space-y-2.5 py-1">
-                    <div
-                        v-for="(student, sIdx) in (selectedGroupForStudents.students || []).filter(s => !studentSearchQuery || s.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || s.email.toLowerCase().includes(studentSearchQuery.toLowerCase()))"
-                        :key="student.id"
-                        class="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/60 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+                <div v-if="recent_announcements.length" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <article
+                        v-for="announcement in recent_announcements"
+                        :key="announcement.id"
+                        class="card p-5 border border-surface-200 dark:border-surface-800 flex flex-col justify-between space-y-3"
                     >
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="text-xs font-mono text-surface-400 w-5">{{ sIdx + 1 }}.</span>
-                            <div class="w-10 h-10 rounded-full bg-primary-500/10 text-primary-600 flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
-                                <img v-if="student.avatar" :src="student.avatar" :alt="student.name" class="w-full h-full object-cover" />
-                                <span v-else>{{ student.name?.charAt(0) }}</span>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <span
+                                    v-if="announcement.group_name"
+                                    class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary-500/10 text-primary-700 dark:text-primary-300"
+                                >
+                                    {{ announcement.group_name }}
+                                </span>
+                                <span class="text-[11px] text-surface-400 font-mono">
+                                    {{ announcement.published_at_formatted }}
+                                </span>
                             </div>
-                            <div class="min-w-0">
-                                <p class="font-bold text-sm text-surface-900 dark:text-white truncate">{{ student.name }}</p>
-                                <p class="text-xs text-surface-500 dark:text-surface-400 font-mono truncate">{{ student.email }}</p>
-                            </div>
-                        </div>
-                        <span class="badge-green text-xs shrink-0">مشترك</span>
-                    </div>
 
-                    <div v-if="!selectedGroupForStudents.students?.length" class="text-center py-8 text-xs text-surface-400">
-                        لا يوجد طلاب مشتركون في هذه المجموعة حتى الآن.
-                    </div>
+                            <h3 class="font-black text-sm text-surface-900 dark:text-white leading-snug">
+                                {{ announcement.title }}
+                            </h3>
+                            <p class="text-xs text-surface-500 dark:text-surface-400 line-clamp-3 leading-relaxed">
+                                {{ announcement.body }}
+                            </p>
+                        </div>
+
+                        <div
+                            v-if="announcement.subject_name || announcement.grade_name"
+                            class="pt-2.5 border-t border-surface-100 dark:border-surface-800 text-[11px] text-surface-400 flex items-center gap-1.5"
+                        >
+                            <span>{{ announcement.subject_name }}</span>
+                            <span v-if="announcement.subject_name && announcement.grade_name">·</span>
+                            <span>{{ announcement.grade_name }}</span>
+                        </div>
+                    </article>
                 </div>
-            </div>
+
+                <div v-else class="card p-8 text-center space-y-2 border border-surface-200 dark:border-surface-800">
+                    <p class="text-sm font-bold text-surface-700 dark:text-surface-200">لم تقم بنشر أي إعلانات بعد</p>
+                    <p class="text-xs text-surface-400">يمكنك نشر تنبيهات وإعلانات لطلاب مجموعاتك من صفحة الإعلانات.</p>
+                </div>
+            </section>
         </div>
     </DashboardLayout>
 </template>

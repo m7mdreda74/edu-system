@@ -25,7 +25,8 @@ class StoreCurriculumLessonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title'            => ['required', 'string', 'min:3', 'max:255'],
+            'title'            => ['required_without:lessons_count', 'nullable', 'string', 'min:3', 'max:255'],
+            'lessons_count'    => ['nullable', 'integer', 'min:1', 'max:20'],
             'video_url'        => ['nullable', 'url', 'max:2048'],
             'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
             'description'      => ['nullable', 'string', 'max:2000'],
@@ -36,11 +37,14 @@ class StoreCurriculumLessonRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'title.required'       => 'عنوان الدرس مطلوب.',
-            'title.max'            => 'عنوان الدرس يجب ألا يتجاوز 255 حرفاً.',
-            'video_url.url'        => 'رابط فيديو الشرح غير صحيح.',
-            'duration_seconds.max' => 'مدة الدرس يجب ألا تتجاوز 24 ساعة.',
-            'description.max'      => 'وصف الدرس يجب ألا يتجاوز 2000 حرف.',
+            'title.required_without' => 'عنوان الدرس أو عدد الدروس مطلوب.',
+            'title.required'         => 'عنوان الدرس مطلوب.',
+            'title.max'              => 'عنوان الدرس يجب ألا يتجاوز 255 حرفاً.',
+            'lessons_count.min'      => 'عدد الدروس يجب أن يكون درساً واحداً على الأقل.',
+            'lessons_count.max'      => 'عدد الدروس يجب ألا يتجاوز 20 درساً في المرة الواحدة.',
+            'video_url.url'          => 'رابط فيديو الشرح غير صحيح.',
+            'duration_seconds.max'   => 'مدة الدرس يجب ألا تتجاوز 24 ساعة.',
+            'description.max'        => 'وصف الدرس يجب ألا يتجاوز 2000 حرف.',
         ];
     }
 }

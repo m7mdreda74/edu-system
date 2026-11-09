@@ -51,9 +51,13 @@ const assignmentEdit = useForm({
 });
 
 const alreadyAssignedGradeIds = computed(() => {
-    if (!assignmentForm.teacher_id) return [];
+    if (!assignmentForm.teacher_id || !assignmentForm.subject_id) return [];
     return props.assignments
-        .filter((a) => Number(a.teacher?.id) === Number(assignmentForm.teacher_id) && a.is_active)
+        .filter((a) =>
+            Number(a.teacher?.id) === Number(assignmentForm.teacher_id)
+            && Number(a.subject?.id) === Number(assignmentForm.subject_id)
+            && a.is_active,
+        )
         .map((a) => Number(a.grade?.id))
         .filter(Boolean);
 });
@@ -70,6 +74,10 @@ watch(() => assignmentForm.teacher_id, (newTeacherId) => {
             assignmentForm.subject_id = existingAssign.subject.id;
         }
     }
+});
+
+watch(() => assignmentForm.subject_id, () => {
+    assignmentForm.grade_level_ids = [];
 });
 
 function toggleAssignmentGrade(gradeId) {

@@ -29,7 +29,9 @@ class StoreCurriculumSkeletonRequest extends FormRequest
         return [
             'academic_term_id' => ['required', 'integer', 'min:1', 'exists:academic_terms,id'],
             'units_count'      => ['required', 'integer', 'min:1', 'max:20'],
-            'lessons_per_unit' => ['required', 'integer', 'min:1', 'max:20'],
+            'lessons_per_unit' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'unit_lessons'     => ['nullable', 'array', 'max:20'],
+            'unit_lessons.*'   => ['nullable', 'integer', 'min:0', 'max:20'],
         ];
     }
 
@@ -41,9 +43,12 @@ class StoreCurriculumSkeletonRequest extends FormRequest
             'units_count.required'      => 'حدد عدد الوحدات.',
             'units_count.min'           => 'عدد الوحدات يجب أن يكون وحدة واحدة على الأقل.',
             'units_count.max'           => 'عدد الوحدات يجب ألا يتجاوز 20 وحدة.',
-            'lessons_per_unit.required' => 'حدد عدد الدروس في كل وحدة.',
+            'lessons_per_unit.required_without' => 'حدد عدد الدروس في كل وحدة.',
             'lessons_per_unit.min'      => 'عدد الدروس يجب أن يكون درساً واحداً على الأقل.',
             'lessons_per_unit.max'      => 'عدد الدروس في الوحدة يجب ألا يتجاوز 20 درساً.',
+            'unit_lessons.*.required'   => 'حدد عدد دروس الوحدة.',
+            'unit_lessons.*.min'        => 'عدد الدروس يجب أن يكون درساً واحداً على الأقل.',
+            'unit_lessons.*.max'        => 'عدد الدروس في الوحدة يجب ألا يتجاوز 20 درساً.',
         ];
     }
 }

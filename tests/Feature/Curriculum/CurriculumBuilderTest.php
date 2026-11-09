@@ -71,6 +71,25 @@ it('generates a complete term shell with units lessons and draft unit exams', fu
             ]);
 });
 
+it('generates a term shell with different lesson counts per unit', function () {
+    $this->actingAs($this->teacher)
+        ->post(route('teacher.curriculum.skeleton', ['assignment' => $this->assignment->id]), [
+            'academic_term_id' => $this->term->id,
+            'units_count' => 3,
+            'unit_lessons' => [2, 5, 3],
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $units = CurriculumUnit::where('teaching_assignment_id', $this->assignment->id)
+        ->orderBy('order')
+        ->withCount('lessons')
+        ->get();
+
+    expect($units)->toHaveCount(3)
+        ->and($units->pluck('lessons_count')->all())->toBe([2, 5, 3]);
+});
+
 it('keeps another teacher out of the curriculum', function () {
     $otherTeacher = User::factory()->create(['email_verified_at' => now()]);
     $otherTeacher->assignRole('teacher');

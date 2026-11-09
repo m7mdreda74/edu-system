@@ -131,13 +131,25 @@ class TeachingGroupController extends Controller
     {
         $data = $request->validate([
             'teacher_id' => ['required', 'integer', 'min:1', 'exists:users,id'],
-            'subject_id' => ['required', 'integer', 'min:1', 'exists:subjects,id'],
+            'subject_id' => ['nullable', 'integer', 'min:1', 'exists:subjects,id'],
+            'subject_ids' => ['nullable', 'array', 'min:1'],
+            'subject_ids.*' => ['integer', 'min:1', 'distinct', 'exists:subjects,id'],
             'grade_level_id' => ['nullable', 'integer', 'min:1', 'exists:grade_levels,id'],
             'grade_level_ids' => ['nullable', 'array', 'min:1'],
             'grade_level_ids.*' => ['integer', 'min:1', 'distinct', 'exists:grade_levels,id'],
             'accepts_private' => ['nullable', 'boolean'],
             'private_monthly_price_qar' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
         ]);
+
+        $subjectIds = ! empty($data['subject_ids'])
+            ? array_values(array_unique(array_map('intval', $data['subject_ids'])))
+            : (! empty($data['subject_id']) ? [(int) $data['subject_id']] : []);
+
+        if (empty($subjectIds)) {
+            throw ValidationException::withMessages([
+                'subject_id' => 'يرجى اختيار مادة دراسية واحدة على الأقل.',
+            ]);
+        }
 
         $gradeIds = ! empty($data['grade_level_ids'])
             ? array_values(array_unique(array_map('intval', $data['grade_level_ids'])))
@@ -152,20 +164,10 @@ class TeachingGroupController extends Controller
         $teacher = User::findOrFail($data['teacher_id']);
         abort_unless($teacher->hasRole('teacher'), 422, 'المستخدم المختار ليس معلماً.');
 
-        $hasOtherSubject = TeachingAssignment::where('teacher_id', $teacher->id)
-            ->where('subject_id', '!=', $data['subject_id'])
-            ->exists();
-
-        if ($hasOtherSubject) {
-            throw ValidationException::withMessages([
-                'subject_id' => 'المعلم مسند بالفعل إلى مادة أخرى. أوقف الإسناد القديم أو اختر مادته الحالية.',
-            ]);
-        }
-
-        // Keep legacy single-grade duplicate message when only 1 active grade is submitted
-        if (count($gradeIds) === 1 && ! empty($data['grade_level_id']) && TeachingAssignment::where([
+        // Keep legacy single-grade duplicate message when only 1 active subject+grade is submitted
+        if (count($subjectIds) === 1 && count($gradeIds) === 1 && ! empty($data['grade_level_id']) && TeachingAssignment::where([
             'teacher_id' => $teacher->id,
-            'subject_id' => $data['subject_id'],
+            'subject_id' => $subjectIds[0],
             'grade_level_id' => $gradeIds[0],
             'is_active' => true,
         ])->exists()) {
@@ -178,33 +180,38 @@ class TeachingGroupController extends Controller
         $price = $this->priceInMinorUnits($data['private_monthly_price_qar'] ?? 0);
         $this->assertPrivatePrice($acceptsPrivate, $price);
 
-        DB::transaction(function () use ($data, $teacher, $gradeIds, $acceptsPrivate, $price): void {
-            $teacher->update(['subject_id' => $data['subject_id']]);
-            Subject::find((int) $data['subject_id'])?->gradeLevels()->syncWithoutDetaching($gradeIds);
+        DB::transaction(function () use ($teacher, $subjectIds, $gradeIds, $acceptsPrivate, $price): void {
+            if (! $teacher->subject_id) {
+                $teacher->update(['subject_id' => $subjectIds[0]]);
+            }
 
-            foreach ($gradeIds as $gradeId) {
-                $existing = TeachingAssignment::where([
-                    'teacher_id' => $teacher->id,
-                    'subject_id' => $data['subject_id'],
-                    'grade_level_id' => $gradeId,
-                ])->first();
+            foreach ($subjectIds as $subjectId) {
+                Subject::find((int) $subjectId)?->gradeLevels()->syncWithoutDetaching($gradeIds);
 
-                if ($existing) {
-                    $existing->update([
-                        'private_monthly_price' => $price > 0 ? $price : $existing->private_monthly_price,
-                        'accepts_private' => $acceptsPrivate ?: $existing->accepts_private,
-                        'is_active' => true,
-                    ]);
-                } else {
-                    TeachingAssignment::create([
+                foreach ($gradeIds as $gradeId) {
+                    $existing = TeachingAssignment::where([
                         'teacher_id' => $teacher->id,
-                        'subject_id' => $data['subject_id'],
+                        'subject_id' => $subjectId,
                         'grade_level_id' => $gradeId,
-                        'private_monthly_price' => $price,
-                        'accepts_private' => $acceptsPrivate,
-                        'currency' => 'QAR',
-                        'is_active' => true,
-                    ]);
+                    ])->first();
+
+                    if ($existing) {
+                        $existing->update([
+                            'private_monthly_price' => $price > 0 ? $price : $existing->private_monthly_price,
+                            'accepts_private' => $acceptsPrivate ?: $existing->accepts_private,
+                            'is_active' => true,
+                        ]);
+                    } else {
+                        TeachingAssignment::create([
+                            'teacher_id' => $teacher->id,
+                            'subject_id' => $subjectId,
+                            'grade_level_id' => $gradeId,
+                            'private_monthly_price' => $price,
+                            'accepts_private' => $acceptsPrivate,
+                            'currency' => 'QAR',
+                            'is_active' => true,
+                        ]);
+                    }
                 }
             }
         });

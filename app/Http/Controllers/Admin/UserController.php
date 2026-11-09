@@ -110,6 +110,16 @@ class UserController extends Controller
                 'integer',
                 Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('is_active', true)),
             ],
+            'subject_ids' => [
+                'exclude_unless:role,teacher',
+                'nullable',
+                'array',
+            ],
+            'subject_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('is_active', true)),
+            ],
             'grade_level_ids' => [
                 'exclude_unless:role,teacher',
                 'nullable',
@@ -125,18 +135,23 @@ class UserController extends Controller
             'grade_level.required_if' => 'اختر المرحلة والصف الدراسي للطالب.',
             'grade_level.exists' => 'الصف الدراسي المختار غير متاح حالياً.',
             'subject_id.exists' => 'المادة الدراسية المختارة غير متاحة حالياً.',
+            'subject_ids.*.exists' => 'المادة الدراسية المختارة غير متاحة حالياً.',
         ]);
 
-        if (($validated['role'] ?? '') === 'teacher' && ! empty($validated['grade_level_ids']) && empty($validated['subject_id'])) {
+        $teacherSubjectIds = ($validated['role'] ?? '') === 'teacher'
+            ? (! empty($validated['subject_ids'])
+                ? array_values(array_unique(array_map('intval', $validated['subject_ids'])))
+                : (! empty($validated['subject_id']) ? [(int) $validated['subject_id']] : []))
+            : [];
+
+        if (($validated['role'] ?? '') === 'teacher' && ! empty($validated['grade_level_ids']) && empty($teacherSubjectIds)) {
             throw ValidationException::withMessages([
                 'subject_id' => 'اختر المادة الدراسية أولاً لإسناد الصفوف للمعلم.',
             ]);
         }
 
-        $user = DB::transaction(function () use ($validated): User {
-            $teacherSubjectId = ($validated['role'] === 'teacher' && ! empty($validated['subject_id']))
-                ? (int) $validated['subject_id']
-                : null;
+        $user = DB::transaction(function () use ($validated, $teacherSubjectIds): User {
+            $teacherSubjectId = $teacherSubjectIds[0] ?? null;
 
             $user = User::create([
                 'name'        => $validated['name'],
@@ -158,20 +173,22 @@ class UserController extends Controller
                 $this->parentStudentLinks->linkExistingParent($user, $validated['parent_phone']);
             }
 
-            if ($validated['role'] === 'teacher' && $teacherSubjectId !== null && ! empty($validated['grade_level_ids'])) {
+            if ($validated['role'] === 'teacher' && ! empty($teacherSubjectIds) && ! empty($validated['grade_level_ids'])) {
                 $gradeIds = array_values(array_unique(array_map('intval', $validated['grade_level_ids'])));
-                Subject::find($teacherSubjectId)?->gradeLevels()->syncWithoutDetaching($gradeIds);
+                foreach ($teacherSubjectIds as $subjectId) {
+                    Subject::find($subjectId)?->gradeLevels()->syncWithoutDetaching($gradeIds);
 
-                foreach ($gradeIds as $gradeId) {
-                    TeachingAssignment::create([
-                        'teacher_id' => $user->id,
-                        'subject_id' => $teacherSubjectId,
-                        'grade_level_id' => $gradeId,
-                        'private_monthly_price' => 0,
-                        'accepts_private' => false,
-                        'currency' => 'QAR',
-                        'is_active' => true,
-                    ]);
+                    foreach ($gradeIds as $gradeId) {
+                        TeachingAssignment::create([
+                            'teacher_id' => $user->id,
+                            'subject_id' => $subjectId,
+                            'grade_level_id' => $gradeId,
+                            'private_monthly_price' => 0,
+                            'accepts_private' => false,
+                            'currency' => 'QAR',
+                            'is_active' => true,
+                        ]);
+                    }
                 }
             }
 
@@ -280,8 +297,18 @@ class UserController extends Controller
     {
         $validated = $request->validate([
             'subject_id' => [
-                'required',
+                'nullable',
                 'integer',
+                Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('is_active', true)),
+            ],
+            'subject_ids' => [
+                'nullable',
+                'array',
+                'min:1',
+            ],
+            'subject_ids.*' => [
+                'integer',
+                'distinct',
                 Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('is_active', true)),
             ],
             'grade_level_ids' => ['required', 'array', 'min:1', 'max:100'],
@@ -292,71 +319,69 @@ class UserController extends Controller
                     ->where(fn ($q) => $q->where('is_active', true)->where('key', '!=', 'all')),
             ],
         ], [
-            'subject_id.required' => 'يرجى اختيار المادة الدراسية للمعلم.',
             'subject_id.exists' => 'المادة الدراسية المختارة غير متاحة.',
+            'subject_ids.*.exists' => 'المادة الدراسية المختارة غير متاحة.',
             'grade_level_ids.required' => 'يرجى اختيار صف دراسي واحد على الأقل للمعلم.',
             'grade_level_ids.min' => 'يرجى اختيار صف دراسي واحد على الأقل للمعلم.',
         ]);
 
-        $user = User::findOrFail($id);
-        abort_unless($user->hasRole('teacher'), 422, 'إسناد الصفوف الدراسية يخص حسابات المعلمين فقط.');
+        $subjectIds = ! empty($validated['subject_ids'])
+            ? array_values(array_unique(array_map('intval', $validated['subject_ids'])))
+            : (! empty($validated['subject_id']) ? [(int) $validated['subject_id']] : []);
 
-        $subjectId = (int) $validated['subject_id'];
-        $gradeIds = array_values(array_unique(array_map('intval', $validated['grade_level_ids'])));
-
-        $otherSubjectAssignments = TeachingAssignment::where('teacher_id', $user->id)
-            ->where('subject_id', '!=', $subjectId)
-            ->withCount(['groups', 'units', 'subscriptions', 'privateSlots'])
-            ->get();
-
-        $hasLockedOtherSubject = $otherSubjectAssignments->contains(
-            fn (TeachingAssignment $a): bool =>
-                $a->groups_count > 0 || $a->units_count > 0 || $a->subscriptions_count > 0 || $a->private_slots_count > 0,
-        );
-
-        if ($hasLockedOtherSubject) {
+        if (empty($subjectIds)) {
             throw ValidationException::withMessages([
-                'subject_id' => 'المعلم لديه مجموعات أو محتوى أكاديمي مسجل على مادة أخرى؛ لا يمكن تغيير مادته قبل نقل أو إيقاف المجموعات الحالية.',
+                'subject_id' => 'يرجى اختيار المادة الدراسية للمعلم.',
             ]);
         }
 
-        DB::transaction(function () use ($user, $subjectId, $gradeIds, $otherSubjectAssignments): void {
-            // Clean up any empty off-subject assignments
-            foreach ($otherSubjectAssignments as $emptyOther) {
-                $emptyOther->delete();
-            }
+        $user = User::findOrFail($id);
+        abort_unless($user->hasRole('teacher'), 422, 'إسناد الصفوف الدراسية يخص حسابات المعلمين فقط.');
 
-            $user->update(['subject_id' => $subjectId]);
-            Subject::find($subjectId)?->gradeLevels()->syncWithoutDetaching($gradeIds);
+        $gradeIds = array_values(array_unique(array_map('intval', $validated['grade_level_ids'])));
 
-            $existing = TeachingAssignment::where('teacher_id', $user->id)
-                ->where('subject_id', $subjectId)
+        DB::transaction(function () use ($user, $subjectIds, $gradeIds): void {
+            $user->update(['subject_id' => $subjectIds[0]]);
+
+            $allExisting = TeachingAssignment::where('teacher_id', $user->id)
                 ->withCount(['groups', 'units', 'subscriptions', 'privateSlots'])
-                ->get()
-                ->keyBy('grade_level_id');
+                ->get();
 
-            foreach ($gradeIds as $gradeId) {
-                if ($existing->has($gradeId)) {
-                    $assignment = $existing->get($gradeId);
-                    if (! $assignment->is_active) {
-                        $assignment->update(['is_active' => true]);
+            $existingByPair = $allExisting->keyBy(
+                fn (TeachingAssignment $a): string => "{$a->subject_id}_{$a->grade_level_id}"
+            );
+
+            $desiredPairs = [];
+            foreach ($subjectIds as $subjectId) {
+                Subject::find($subjectId)?->gradeLevels()->syncWithoutDetaching($gradeIds);
+
+                foreach ($gradeIds as $gradeId) {
+                    $pairKey = "{$subjectId}_{$gradeId}";
+                    $desiredPairs[$pairKey] = true;
+
+                    if ($existingByPair->has($pairKey)) {
+                        $assignment = $existingByPair->get($pairKey);
+                        if (! $assignment->is_active) {
+                            $assignment->update(['is_active' => true]);
+                        }
+                    } else {
+                        TeachingAssignment::create([
+                            'teacher_id' => $user->id,
+                            'subject_id' => $subjectId,
+                            'grade_level_id' => $gradeId,
+                            'private_monthly_price' => 0,
+                            'accepts_private' => false,
+                            'currency' => 'QAR',
+                            'is_active' => true,
+                        ]);
                     }
-                } else {
-                    TeachingAssignment::create([
-                        'teacher_id' => $user->id,
-                        'subject_id' => $subjectId,
-                        'grade_level_id' => $gradeId,
-                        'private_monthly_price' => 0,
-                        'accepts_private' => false,
-                        'currency' => 'QAR',
-                        'is_active' => true,
-                    ]);
                 }
             }
 
-            // Deactivate or clean up unselected grades
-            foreach ($existing as $existingGradeId => $assignment) {
-                if (! in_array((int) $existingGradeId, $gradeIds, true)) {
+            // Deactivate or clean up unselected (subject, grade) pairs
+            foreach ($allExisting as $assignment) {
+                $pairKey = "{$assignment->subject_id}_{$assignment->grade_level_id}";
+                if (! isset($desiredPairs[$pairKey])) {
                     $hasData = $assignment->groups_count > 0
                         || $assignment->units_count > 0
                         || $assignment->subscriptions_count > 0
@@ -373,7 +398,8 @@ class UserController extends Controller
 
         AuditLogger::record('admin.user.teacher_grades_updated', $user, [
             'teacher_name' => $user->name,
-            'subject_id' => $subjectId,
+            'subject_id' => $subjectIds[0],
+            'subject_ids' => $subjectIds,
             'grade_level_ids' => $gradeIds,
         ]);
 
@@ -381,7 +407,7 @@ class UserController extends Controller
         Cache::forget('shared.active_grade_levels.v2');
         Cache::forget('home.grades');
 
-        return back()->with('success', "تم تحديث المادة والصفوف الدراسية للمعلم {$user->name} بنجاح.");
+        return back()->with('success', "تم تحديث المواد والصفوف الدراسية للمعلم {$user->name} بنجاح.");
     }
 
     public function updateCommission(Request $request, int $id): RedirectResponse
