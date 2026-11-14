@@ -66,13 +66,13 @@ function applyFilters(event) {
 
 function formatDate(value) {
     return value
-        ? new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+        ? new Date(value).toLocaleString('ar-EG-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' })
         : '—';
 }
 
 function formatTime(value) {
     return value
-        ? new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+        ? new Date(value).toLocaleString('ar-EG-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' })
         : '—';
 }
 

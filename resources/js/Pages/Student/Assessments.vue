@@ -175,7 +175,7 @@ const statusClasses = {
 function dateLabel(value) {
     if (!value) return 'متاح في أي وقت';
 
-    return new Date(value).toLocaleString('ar-QA', {
+    return new Date(value).toLocaleString('ar-QA-u-nu-latn', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -186,7 +186,7 @@ function dateLabel(value) {
 
 function formatDateOnly(value) {
     if (!value) return 'غير محدد';
-    return new Date(value).toLocaleDateString('ar-QA', {
+    return new Date(value).toLocaleDateString('ar-QA-u-nu-latn', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',

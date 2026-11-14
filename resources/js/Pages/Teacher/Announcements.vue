@@ -58,7 +58,7 @@ function deleteAnnouncement(id) {
 function formatDate(value) {
     if (!value) return '';
 
-    return new Date(value).toLocaleString('ar-QA', {
+    return new Date(value).toLocaleString('ar-QA-u-nu-latn', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',

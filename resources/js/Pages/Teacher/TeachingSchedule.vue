@@ -196,13 +196,13 @@ function cancelPrivateSlot(slotId) {
 function formatDate(value, timeZone = 'Asia/Qatar') {
     if (!value) return '—';
     try {
-        return new Date(value).toLocaleString('ar-QA', {
+        return new Date(value).toLocaleString('ar-QA-u-nu-latn', {
             timeZone: timeZone || 'Asia/Qatar',
             dateStyle: 'medium',
             timeStyle: 'short',
         });
     } catch {
-        return new Date(value).toLocaleString('ar-EG', {
+        return new Date(value).toLocaleString('ar-EG-u-nu-latn', {
             dateStyle: 'medium',
             timeStyle: 'short',
         });

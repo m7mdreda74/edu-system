@@ -34,7 +34,7 @@ function resetFilter() {
 
 function formatDate(val) {
     if (!val) return '—';
-    return new Date(val).toLocaleDateString('ar-EG', { dateStyle: 'medium' });
+    return new Date(val).toLocaleDateString('ar-EG-u-nu-latn', { dateStyle: 'medium' });
 }
 </script>
 

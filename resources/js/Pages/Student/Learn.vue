@@ -299,12 +299,12 @@ function formatDuration(seconds) {
 
 function formatDate(value) {
     if (!value) return '';
-    return new Date(value).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+    return new Date(value).toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 function formatDateTime(value) {
     if (!value) return '';
-    return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+    return new Date(value).toLocaleString('ar-EG-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 // Watermark Logic
@@ -946,7 +946,7 @@ function uploadAnswer(sheetId) {
                                         </div>
                                         <div>
                                             <div class="font-bold text-xs text-white">{{ q.user?.name }}</div>
-                                            <div class="text-[10px] text-surface-500 mt-0.5">منذ {{ new Date(q.created_at).toLocaleDateString('ar-EG') }}</div>
+                                            <div class="text-[10px] text-surface-500 mt-0.5">منذ {{ new Date(q.created_at).toLocaleDateString('ar-EG-u-nu-latn') }}</div>
                                         </div>
                                     </div>
                                     <button type="button" v-if="q.video_timestamp !== null" @click="seekTo(q.video_timestamp)" class="text-xs text-primary-400 hover:text-primary-300 font-bold flex items-center gap-1">
@@ -964,7 +964,7 @@ function uploadAnswer(sheetId) {
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="font-bold text-xs text-white">{{ reply.user?.name }}</span>
-                                                <span class="text-[9px] text-surface-500">منذ {{ new Date(reply.created_at).toLocaleDateString('ar-EG') }}</span>
+                                                <span class="text-[9px] text-surface-500">منذ {{ new Date(reply.created_at).toLocaleDateString('ar-EG-u-nu-latn') }}</span>
                                             </div>
                                             <p class="text-xs text-surface-300">{{ reply.content }}</p>
                                         </div>

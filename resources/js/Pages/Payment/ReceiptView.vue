@@ -18,18 +18,27 @@ const formattedDate = computed(() => {
     return d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 });
 
+const paymentStatus = computed(() => ({
+    pending: 'بانتظار الدفع',
+    pending_verification: 'بانتظار مراجعة إثبات الدفع',
+    paid: 'مدفوع بالكامل',
+    failed: 'فشل أو رُفض',
+    refunded: 'مسترد',
+}[props.payment.status] || 'حالة غير معروفة'));
+
 const gatewayName = computed(() => {
     const gw = props.payment.gateway?.toLowerCase();
     if (gw === 'skipcash') return 'بوابة SkipCash القطرية (Apple Pay / بطاقة بنكية)';
     if (gw === 'fatora') return 'بوابة فاتورة القطرية Fatora';
     if (gw === 'tap') return 'بوابة Tap للمدفوعات';
+    if (gw === 'vodafone_cash') return 'فودافون كاش';
     if (gw === 'manual') return 'تحويل بنكي مباشر معتمد';
-    return props.payment.gateway || 'دفع إلكتروني';
+    return props.payment.gateway || 'غير محددة';
 });
 </script>
 
 <template>
-    <Head :title="`إيصال سداد #${payment.invoice_number}`" />
+    <Head :title="`${payment.is_paid ? 'إيصال سداد' : 'تفاصيل عملية الدفع'} #${payment.invoice_number}`" />
 
     <div class="min-h-screen bg-surface-50 dark:bg-surface-950 py-8 px-4 sm:px-6 lg:px-8 text-surface-900 dark:text-white" dir="rtl" lang="ar">
         <div class="max-w-3xl mx-auto">
@@ -68,14 +77,16 @@ const gatewayName = computed(() => {
                         <img src="/images/logo-icon.png" alt="بوابة المجد التعليمية" class="w-16 h-16 object-contain" />
                         <div>
                             <h1 class="text-xl sm:text-2xl font-black text-surface-950 dark:text-white tracking-tight">بوابة المجد التعليمية</h1>
-                            <p class="text-xs text-surface-500 dark:text-surface-400 font-medium mt-0.5">منصة التدريس الأكاديمي الرائدة — دولة قطر</p>
+                            <p class="text-xs text-surface-500 dark:text-surface-400 font-medium mt-0.5">السجل التجاري: 192652</p>
+                            <p class="text-xs text-surface-500 dark:text-surface-400 mt-0.5" dir="ltr">+974 70159941 · +974 31168649 · +974 40079903</p>
                         </div>
                     </div>
 
                     <div class="text-start sm:text-end">
-                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                            <span>إيصال سداد إلكتروني معتمد</span>
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border font-bold text-xs"
+                            :class="payment.is_paid ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-surface-100 border-surface-300 text-surface-700 dark:bg-surface-800 dark:text-surface-200'">
+                            <span class="w-2 h-2 rounded-full" :class="payment.is_paid ? 'bg-emerald-500' : 'bg-surface-500'"></span>
+                            <span>{{ payment.is_paid ? 'إيصال سداد' : 'تفاصيل عملية الدفع' }}</span>
                         </div>
                         <p class="text-sm font-black font-mono mt-2 text-surface-900 dark:text-white" dir="ltr">
                             #{{ payment.invoice_number }}
@@ -110,7 +121,7 @@ const gatewayName = computed(() => {
                             Ref: {{ payment.gateway_ref }}
                         </p>
                         <p class="text-surface-500">
-                            حالة الدفع: <span class="font-bold text-emerald-600 dark:text-emerald-400">مدفوع بالكامل (PAID)</span>
+                            حالة الدفع: <span class="font-bold" :class="payment.is_paid ? 'text-emerald-600 dark:text-emerald-400' : 'text-surface-700 dark:text-surface-200'">{{ paymentStatus }}</span>
                         </p>
                     </div>
                 </div>
@@ -158,7 +169,7 @@ const gatewayName = computed(() => {
                             <span>{{ payment.coupon.discount_percent }}%</span>
                         </div>
                         <div class="flex justify-between text-base font-black border-t-2 border-surface-900 dark:border-surface-100 pt-2 text-surface-950 dark:text-white">
-                            <span>إجمالي المدفوع:</span>
+                            <span>{{ payment.is_paid ? 'إجمالي المدفوع:' : 'مبلغ العملية:' }}</span>
                             <span class="font-mono text-primary-600 dark:text-accent-400" dir="ltr">{{ formatQAR(payment.amount) }}</span>
                         </div>
                     </div>
@@ -167,18 +178,18 @@ const gatewayName = computed(() => {
                 <!-- Official Footer Seal & Verification -->
                 <div class="mt-10 pt-6 border-t border-surface-100 dark:border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-start text-[11px] text-surface-400">
                     <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-xl border border-accent-500/40 bg-accent-50/30 dark:bg-accent-950/20 flex flex-col items-center justify-center text-accent-600 dark:text-accent-400 shrink-0">
+                        <div v-if="payment.is_paid" class="w-12 h-12 rounded-xl border border-accent-500/40 bg-accent-50/30 dark:bg-accent-950/20 flex flex-col items-center justify-center text-accent-600 dark:text-accent-400 shrink-0">
                             <Icon name="success" class="w-5 h-5" />
                             <span class="text-[8px] font-black uppercase">معتمد</span>
                         </div>
                         <div>
-                            <p class="font-bold text-surface-700 dark:text-surface-300">إيصال رسمي صادر آلياً من نظام بوابة المجد التعليمية</p>
-                            <p class="text-surface-400 mt-0.5">الدعم المالي والفني متاح عبر واتساب على مدار الساعة</p>
+                            <p class="font-bold text-surface-700 dark:text-surface-300">{{ payment.is_paid ? 'إيصال سداد صادر آلياً من نظام بوابة المجد التعليمية' : 'تفاصيل عملية الدفع من نظام بوابة المجد التعليمية' }}</p>
+                            <p class="text-surface-400 mt-0.5">للاستفسار عن العملية تواصل مع إدارة المركز</p>
                         </div>
                     </div>
 
                     <div class="text-[10px] text-surface-400 font-mono" dir="ltr">
-                        AL-MAJD QA • TAX RECEIPT • {{ payment.invoice_number }}
+                        AL-MAJD QA • {{ payment.invoice_number }}
                     </div>
                 </div>
 

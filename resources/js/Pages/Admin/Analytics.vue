@@ -15,7 +15,7 @@ const revenueMax = computed(() => Math.max(...(props.analytics.revenue?.months ?
 const peakMax = computed(() => Math.max(...(props.analytics.peak_sessions ?? []).map((item) => item.sessions), 1));
 
 function percent(value) {
-    return `${Number(value ?? 0).toLocaleString('ar-EG', { maximumFractionDigits: 1 })}%`;
+    return `${Number(value ?? 0).toLocaleString('ar-EG-u-nu-latn', { maximumFractionDigits: 1 })}%`;
 }
 
 function peakLabel(item) {

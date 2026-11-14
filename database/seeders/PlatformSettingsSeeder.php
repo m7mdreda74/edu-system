@@ -36,7 +36,8 @@ class PlatformSettingsSeeder extends Seeder
         $defaults = [
             'platform_name' => 'بوابة المجد التعليمية',
             'contact_email' => 'support@almagd.com',
-            'whatsapp_url' => 'https://wa.me/97455556666',
+            'whatsapp_url' => 'https://wa.me/97470159941',
+            'contact_phone' => '+974 7015 9941',
             'footer_desc' => 'منصة تعليمية قطرية تربط الطالب بأفضل المعلمين — اختر صفك، شاهد طريقة الشرح، واحجز مع من يناسبك.',
             'home_hero_badge' => 'منصة التعليم الأولى في قطر',
             'home_hero_title' => 'تفوّق في دراستك',

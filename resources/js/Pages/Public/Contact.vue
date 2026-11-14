@@ -14,18 +14,18 @@ const settings = computed(() => page.props.settings || {});
 const badge = computed(() => settings.value.contact_badge || 'يسعدنا تواصلكم');
 const title = computed(() => settings.value.contact_title || 'تواصل معنا');
 
-const whatsappUrl = computed(() => settings.value.whatsapp_url || 'https://wa.me/97455556666');
+const whatsappUrl = computed(() => settings.value.whatsapp_url || 'https://wa.me/97470159941');
 const whatsappLabel = computed(() => {
     const url = whatsappUrl.value;
 
     if (url.includes('wa.me/')) {
-        return '+' + url.split('wa.me/')[1].replace(/[^0-9]/g, '');
+        return '+' + url.split('wa.me/')[1].split('?')[0].replace(/[^0-9]/g, '');
     }
 
-    return '+974 5555 6666';
+    return 'تواصل عبر واتساب';
 });
 
-const contactPhone = computed(() => settings.value.contact_phone || '+974 4444 8888');
+const contactPhone = computed(() => settings.value.contact_phone || '+974 7015 9941');
 const contactEmail = computed(() => settings.value.contact_email || 'support@almagd.com');
 const formSubmitted = ref(false);
 const captchaContainer = ref(null);
@@ -200,9 +200,13 @@ onBeforeUnmount(() => {
                     <div class="md:col-span-5 space-y-4">
                         <div v-for="info in [
                             { title: 'الدعم المالي والفني (واتساب)', value: whatsappLabel, icon: 'chat', href: whatsappUrl },
-                            { title: 'الاتصال الهاتفي الساخن', value: contactPhone, icon: 'phone', href: 'tel:' + contactPhone.replace(/\s+/g, '') },
+                            { title: 'الحجز', value: contactPhone, icon: 'phone', href: 'tel:' + contactPhone.replace(/\s+/g, '') },
+                            { title: 'الحجز', value: '+974 3116 8649', icon: 'phone', href: 'tel:+97431168649' },
+                            { title: 'الهاتف الأرضي', value: '+974 4007 9903', icon: 'phone', href: 'tel:+97440079903' },
+                            { title: 'العنوان', value: 'السد – شارع النصر – المرقاب مول', icon: 'globe' },
+                            { title: 'السجل التجاري', value: '192652', icon: 'globe' },
                             { title: 'البريد الإلكتروني الرسمي', value: contactEmail, icon: 'globe', href: 'mailto:' + contactEmail }
-                        ]" :key="info.title" class="card p-5 border border-surface-200 dark:border-surface-800 flex items-start gap-4">
+                        ]" :key="info.title + info.value" class="card p-5 border border-surface-200 dark:border-surface-800 flex items-start gap-4">
                             <div class="p-3 bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 rounded-xl flex-shrink-0">
                                 <Icon :name="info.icon" class="w-5 h-5" />
                             </div>

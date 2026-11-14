@@ -355,7 +355,7 @@ onUnmounted(() => {
                                 </div>
 
                                 <div class="text-[10px] text-surface-400 mt-1 px-1">
-                                    {{ new Date(msg.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) }}
+                                    {{ new Date(msg.created_at).toLocaleTimeString('ar-EG-u-nu-latn', { hour: '2-digit', minute: '2-digit' }) }}
                                 </div>
                             </div>
                             <div v-if="chatMessages.length === 0" class="text-center text-surface-500 py-10">

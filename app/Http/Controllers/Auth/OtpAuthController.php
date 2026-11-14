@@ -12,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
@@ -23,6 +22,13 @@ class OtpAuthController extends Controller
      */
     public function sendOtp(Request $request): JsonResponse
     {
+        if (! app()->environment(['local', 'testing'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تسجيل الدخول برمز التحقق غير متاح حالياً. استخدم كلمة المرور.',
+            ], 503);
+        }
+
         $validated = $request->validate([
             'phone' => ['required', 'string', 'min:8', 'max:20'],
         ], [
@@ -49,13 +55,11 @@ class OtpAuthController extends Controller
         // Cache for 5 minutes
         Cache::put('otp_code_' . $normalizedPhone, $code, now()->addMinutes(5));
 
-        Log::info("OTP generated for [{$normalizedPhone}]: {$code}");
-
-        $isDev = app()->environment('local') || (bool) config('app.debug');
+        $isDev = app()->environment(['local', 'testing']);
 
         return response()->json([
             'success'  => true,
-            'message'  => 'تم إرسال رمز التحقق بنجاح إلى هاتفك الجوال عبر رسالة نصية / واتساب.',
+            'message'  => 'رمز تجريبي للاستخدام المحلي فقط؛ لم يتم إرسال رسالة.',
             'dev_code' => $isDev ? $code : null,
         ]);
     }
@@ -65,6 +69,13 @@ class OtpAuthController extends Controller
      */
     public function verifyOtp(Request $request): JsonResponse|RedirectResponse
     {
+        if (! app()->environment(['local', 'testing'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تسجيل الدخول برمز التحقق غير متاح حالياً. استخدم كلمة المرور.',
+            ], 503);
+        }
+
         $validated = $request->validate([
             'phone' => ['required', 'string', 'min:8', 'max:20'],
             'code'  => ['required', 'string', 'min:4', 'max:10'],

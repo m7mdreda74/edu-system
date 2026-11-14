@@ -576,7 +576,7 @@ function formatAuditDate(dateString) {
     if (!dateString) return '—';
     try {
         const d = new Date(dateString);
-        return d.toLocaleString('ar-EG', {
+        return d.toLocaleString('ar-EG-u-nu-latn', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',

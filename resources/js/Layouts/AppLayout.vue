@@ -124,8 +124,12 @@ const footerLinks = computed(() => {
 });
 
 const contactEmail = computed(() => page.props.settings?.contact_email || 'support@almagd.com');
-const contactPhone = computed(() => page.props.settings?.contact_phone || '+974 4444 8888');
-const whatsappUrl = computed(() => page.props.settings?.whatsapp_url || 'https://wa.me/97455556666');
+const contactPhone = computed(() => page.props.settings?.contact_phone || '+974 7015 9941');
+const whatsappUrl = computed(() => page.props.settings?.whatsapp_url || 'https://wa.me/97470159941');
+const whatsappBookingUrl = computed(() => {
+    const url = whatsappUrl.value;
+    return url + (url.includes('?') ? '&' : '?') + 'text=' + encodeURIComponent('مرحباً، أود الاستفسار عن الحجز في بوابة المجد التعليمية.');
+});
 const whatsappNumber = computed(() => {
     const digits = String(whatsappUrl.value).match(/wa\.me\/(\d+)/i)?.[1] || '';
 
@@ -133,7 +137,7 @@ const whatsappNumber = computed(() => {
         return '+974 ' + digits.slice(3, 7) + ' ' + digits.slice(7);
     }
 
-    return digits ? '+' + digits : '+974 5555 6666';
+    return digits ? '+' + digits : '';
 });
 
 const socialLinks = computed(() => {
@@ -332,7 +336,7 @@ const isActive = (link) => {
                             {{ $page.props.settings?.footer_desc ?? 'منصة تعليمية قطرية تربط الطالب بأفضل المعلمين — اختر صفك، شاهد طريقة الشرح، واحجز مع من يناسبك.' }}
                         </p>
                         <p class="max-w-md mt-3 text-sm text-surface-500 leading-7">
-                            نسهّل عليك طريق التعلم بخطة واضحة، وشروحات مبسطة، ودعم مستمر يساعدك تتقدم بثقة.
+                            حيث يبدأ المجد
                         </p>
                     </div>
                     <div class="min-w-0 text-start">
@@ -349,13 +353,17 @@ const isActive = (link) => {
                             لو عندك استفسار أو تحتاج مساعدة، فريقنا جاهز للرد ومساعدتك في أي وقت.
                         </p>
                         <div class="space-y-3 text-sm">
+                            <p>السد – شارع النصر – المرقاب مول</p>
                             <a :href="'mailto:' + contactEmail" class="flex w-full justify-end text-end text-surface-400 hover:text-white transition-colors">
                                 <span dir="ltr">{{ contactEmail }}</span>
                             </a>
                             <a v-if="contactPhone" :href="'tel:' + contactPhone.replace(/\s+/g, '')" class="flex w-full justify-end text-end text-surface-400 hover:text-white transition-colors">
-                                <span dir="ltr">{{ contactPhone }}</span>
+                                <span>الحجز: <span dir="ltr">{{ contactPhone }}</span></span>
                             </a>
-                            <a :href="whatsappUrl" target="_blank" rel="noopener noreferrer"
+                            <a href="tel:+97431168649" class="flex w-full justify-end text-surface-400 hover:text-white transition-colors"><span>الحجز: <span dir="ltr">+974 3116 8649</span></span></a>
+                            <a href="tel:+97440079903" class="flex w-full justify-end text-surface-400 hover:text-white transition-colors"><span>الهاتف الأرضي: <span dir="ltr">+974 4007 9903</span></span></a>
+                            <p>السجل التجاري: <span dir="ltr">192652</span></p>
+                            <a :href="whatsappBookingUrl" target="_blank" rel="noopener noreferrer"
                                class="flex w-full items-center justify-end gap-2 text-surface-300 hover:text-green-400 transition-colors"
                             >
                                 <Icon name="whatsapp" class="w-4 h-4 text-green-400 shrink-0" />
@@ -382,7 +390,7 @@ const isActive = (link) => {
         </footer>
 
         <!-- ── Floating WhatsApp Widget ───────────────────────────── -->
-        <div v-if="$page.props.settings?.whatsapp_url"
+        <div v-if="whatsappUrl"
              class="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-40 flex flex-col items-center gap-1.5 pointer-events-none"
         >
             <!-- Label above -->
@@ -390,7 +398,7 @@ const isActive = (link) => {
                 تواصل معنا
             </span>
             <!-- Glowing Yellow/Amber WhatsApp Button -->
-            <a :href="$page.props.settings.whatsapp_url" 
+            <a :href="whatsappBookingUrl"
                target="_blank"
                rel="noopener noreferrer"
                class="pointer-events-auto w-12 h-12 rounded-full bg-accent-500 hover:bg-accent-600 flex items-center justify-center text-white shadow-lg transition-transform duration-300 transform hover:scale-105 shadow-glow-accent"

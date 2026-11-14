@@ -4,6 +4,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
 import Icon from '@/Components/Icon.vue';
+import { normalizeSearchText } from '@/lib/arabicSearch';
 
 const props = defineProps({
     teachers: { type: Array, default: () => [] },
@@ -12,17 +13,17 @@ const props = defineProps({
 const search = ref('');
 
 const filteredTeachers = computed(() => {
-    const query = search.value.trim().toLocaleLowerCase();
+    const query = normalizeSearchText(search.value);
 
     if (!query) return props.teachers;
 
     return props.teachers.filter((teacher) => {
-        const haystack = [
+        const haystack = normalizeSearchText([
             teacher.name,
             teacher.headline,
             ...(teacher.subjects ?? []),
             ...(teacher.grades ?? []),
-        ].filter(Boolean).join(' ').toLocaleLowerCase();
+        ].filter(Boolean).join(' '));
 
         return haystack.includes(query);
     });

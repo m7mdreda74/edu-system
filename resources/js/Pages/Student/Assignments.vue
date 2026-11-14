@@ -49,7 +49,7 @@ const statusClasses = {
 
 function formatDate(value) {
     if (!value) return 'بدون موعد نهائي';
-    return new Date(`${value}T00:00:00`).toLocaleDateString('ar-QA', {
+    return new Date(`${value}T00:00:00`).toLocaleDateString('ar-QA-u-nu-latn', {
         weekday: 'short',
         day: 'numeric',
         month: 'short',
@@ -127,7 +127,7 @@ function formatDate(value) {
                     <div v-if="assignment.submission" class="mt-4 rounded-xl bg-surface-50 p-3 text-xs dark:bg-surface-900/60">
                         <div class="flex flex-wrap items-center justify-between gap-2 text-surface-500">
                             <div class="flex items-center gap-2">
-                                <span>تم التسليم: {{ new Date(assignment.submission.submitted_at).toLocaleDateString('ar-QA') }}</span>
+                                <span>تم التسليم: {{ new Date(assignment.submission.submitted_at).toLocaleDateString('ar-QA-u-nu-latn') }}</span>
                                 <span
                                     v-if="assignment.submission.is_late || assignment.submitted_late"
                                     class="rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-500 border border-red-500/20"

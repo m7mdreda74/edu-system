@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import { isExampleResult } from '@/lib/homeContent';
 
 const page = usePage();
 const activeBatch = ref('all');
@@ -40,7 +41,7 @@ const resultsData = computed(() => {
             const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
             return Array.isArray(parsed)
-                ? parsed.map(normalizeResult).filter(Boolean)
+                ? parsed.filter((result) => result && !isExampleResult(result)).map(normalizeResult).filter(Boolean)
                 : [];
         } catch (error) {
             console.warn('Failed to parse home_results settings JSON:', error);
@@ -74,7 +75,7 @@ const filteredResults = computed(() => {
                     <span class="badge bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 mb-3 inline-block">قصص نجاح وتفوق طلابنا</span>
                     <h1 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white mb-4">لوحة شرف المتفوقين</h1>
                     <p class="text-surface-500 dark:text-surface-400 text-sm leading-relaxed max-w-2xl mx-auto">
-                        نفخر بتقديم الدعم التعليمي لآلاف الطلاب في قطر. هنا نستعرض لوحة شرف الذين حققوا الدرجات الكاملة والمعدلات الاستثنائية في الشهادة الثانوية العامة.
+                        نشارك هنا نتائج طلابنا وإنجازاتهم الدراسية.
                     </p>
                 </div>
 

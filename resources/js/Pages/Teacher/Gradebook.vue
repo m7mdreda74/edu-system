@@ -26,7 +26,7 @@ function selectAssignment(event) {
 
 function formatDate(value) {
     if (!value) return '—';
-    return new Date(value).toLocaleDateString('ar-QA', {
+    return new Date(value).toLocaleDateString('ar-QA-u-nu-latn', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',

@@ -127,7 +127,7 @@ const statusLabel = payout => payout.status === 'paid' ? 'تم التحويل' :
                                         <span>بواسطة: {{ payout.payer.name }}</span>
                                     </div>
                                     <div v-if="payout.paid_at" class="text-[10px] text-surface-400 mt-0.5 font-mono">
-                                        {{ new Date(payout.paid_at).toLocaleDateString('ar-EG') }}
+                                        {{ new Date(payout.paid_at).toLocaleDateString('ar-EG-u-nu-latn') }}
                                     </div>
                                 </td>
                                 <td class="data-table-actions p-4">

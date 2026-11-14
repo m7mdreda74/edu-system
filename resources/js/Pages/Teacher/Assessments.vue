@@ -231,7 +231,7 @@ function setPresetFeedback(text) {
 
 function formatDate(val) {
     if (!val) return 'مفتوح بدون موعد';
-    return new Date(val).toLocaleDateString('ar-QA', {
+    return new Date(val).toLocaleDateString('ar-QA-u-nu-latn', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -240,7 +240,7 @@ function formatDate(val) {
 
 function formatDateTime(val) {
     if (!val) return 'غير محدد';
-    return new Date(val).toLocaleString('ar-QA', {
+    return new Date(val).toLocaleString('ar-QA-u-nu-latn', {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',

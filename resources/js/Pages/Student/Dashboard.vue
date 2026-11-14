@@ -25,7 +25,7 @@ function respondToParentLink(linkId, action) {
 
 function formatDateTime(value) {
     if (!value) return '';
-    return new Date(value).toLocaleString('ar-QA', {
+    return new Date(value).toLocaleString('ar-QA-u-nu-latn', {
         weekday: 'long',
         day: 'numeric',
         month: 'short',

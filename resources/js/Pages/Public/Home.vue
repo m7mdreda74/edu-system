@@ -6,6 +6,7 @@ import GradeCard from '@/Components/GradeCard.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
 import Icon from '@/Components/Icon.vue';
 import WelcomePopup from '@/Components/WelcomePopup.vue';
+import { isExampleResult, isExampleFaq } from '@/lib/homeContent';
 
 // Props from HomeController — validated server-side
 const props = defineProps({
@@ -89,10 +90,10 @@ const cleanText = (text) => {
 };
 
 const heroContent = computed(() => ({
-    badge: cleanText(settings.value.home_hero_badge) || 'منصة التعليم الأولى في قطر',
-    title: cleanText(settings.value.home_hero_title) || 'تميّز في دراستك الثانوية',
-    subtitle: cleanText(settings.value.home_hero_subtitle) || 'بوابة المجد التعليمية الأولى في قطر',
-    description: cleanText(settings.value.home_hero_desc) || 'نصنع مستقبل التعليم في قطر من خلال أفضل الشروحات والمناهج التعليمية المتكاملة.',
+    badge: cleanText(settings.value.home_hero_badge) === 'منصة التعليم الأولى في قطر' ? 'بوابة المجد التعليمية' : (cleanText(settings.value.home_hero_badge) || 'بوابة المجد التعليمية'),
+    title: cleanText(settings.value.home_hero_title) || 'تعلم بثقة مع بوابة المجد التعليمية',
+    subtitle: cleanText(settings.value.home_hero_subtitle) || 'ابدأ رحلتك التعليمية',
+    description: cleanText(settings.value.home_hero_desc) || 'اختر صفك ومادتك، وتعرّف على المعلمين وابدأ رحلتك التعليمية.',
     primaryButton: cleanText(settings.value.home_hero_btn1) || 'ابدأ التعلم الآن',
     secondaryButton: cleanText(settings.value.home_hero_btn2) || 'إنشاء حساب جديد',
 }));
@@ -116,16 +117,12 @@ const features = computed(() => {
 const studentResults = computed(() => {
     try {
         const raw = settings.value.home_results;
-        if (raw) return typeof raw === 'string' ? JSON.parse(raw) : raw;
+        const results = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : [];
+        return Array.isArray(results) ? results.filter((result) => result && !isExampleResult(result)) : [];
     } catch (e) {
         console.warn('Failed to parse home_results settings JSON:', e);
+        return [];
     }
-    return [
-        { name: 'محمد الكواري', title: 'دفعة 2024', desc: 'الحصول على الدرجة الكاملة في الرياضيات والفيزياء', grade: 'الصف الثاني عشر' },
-        { name: 'سارة المهندي', title: 'دفعة 2025 الفصل الثاني', desc: 'المركز الأول على المدرسة بمعدل 99.8%', grade: 'الصف الثاني عشر' },
-        { name: 'خالد آل ثاني', title: 'دفعة 2025 الفصل الأول', desc: 'تفوق استثنائي في الكيمياء والأحياء بـ 100%', grade: 'الصف الثاني عشر' },
-        { name: 'مريم الباكر', title: 'دفعة 2026 الفصل الأول', desc: 'الدرجة الكاملة في اللغة العربية والإنجليزية', grade: 'الصف الثاني عشر' }
-    ];
 });
 
 const resultScore = (result) => {
@@ -185,20 +182,12 @@ const youtubeSectionVisible = computed(() => {
 const parsedFaqs = computed(() => {
     try {
         const raw = settings.value.home_faqs;
-        if (raw) return typeof raw === 'string' ? JSON.parse(raw) : raw;
+        const faqs = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : [];
+        return Array.isArray(faqs) ? faqs.filter((faq) => faq && !isExampleFaq(faq)) : [];
     } catch (e) {
         console.warn('Failed to parse home_faqs settings JSON:', e);
+        return [];
     }
-    return [
-        { q: 'ما هي المراحل الدراسية التي تستهدفها بوابة المجد التعليمية؟', a: 'تغطي المنصة منهج دولة قطر كاملاً من الصف الأول الابتدائي حتى الثاني عشر، وتشمل مسارات المرحلة الثانوية الثلاثة: العلمي، والآداب والإنسانيات، والتكنولوجي.' },
-        { q: 'هل المناهج المشروحة مطابقة لخطط وزارة التربية والتعليم القطرية؟', a: 'نعم، جميع الشروحات والملازم والشيتات يتم إعدادها وتحديثها بانتظام لتطابق خطط ومعايير وزارة التربية والتعليم والتعليم العالي في قطر بنسبة 100%.' },
-        { q: 'كيف يمكنني مشاهدة الدروس من خلال الجوال أو الآيباد؟', a: 'يمكنك الدراسة عبر الموقع مباشرة من أي متصفح، أو تنزيل تطبيق المنصة المخصص للأجهزة الذكية (آيفون، آيباد، أندرويد، وهواوي) لضمان أفضل سرعة تشغيل للفيديوهات.' },
-        { q: 'ما هي خطوات الاشتراك مع معلم؟', a: 'قم بتسجيل حساب مجاني كطالب، ثم اختر صفك فالمادة، شاهد الفيديو التعريفي للمعلمين، واضغط اشتراك مع من يناسبك، حيث يمكنك الدفع بأمان وسهولة عبر بطاقتك الائتمانية أو بطاقة الخصم (Stripe).' },
-        { q: 'هل توفر المنصة اختبارات أو كويزات تقييمية؟', a: 'نعم، تحتوي كل مجموعة على اختبارات قصيرة وواجبات تقييمية (شيتات) يقوم المعلم بتصحيحها ورصد درجاتها لمتابعة مستوى استيعابك بانتظام.' },
-        { q: 'كيف يمكنني التواصل مع الدعم الفني في حال واجهتني مشكلة؟', a: 'فريق الدعم متواجد لخدمتك طوال أيام الأسبوع عبر الواتساب على الرقم +974 5555 6666 أو البريد الإلكتروني support@almagd.com.' },
-        { q: 'ماذا أفعل إذا نسيت كلمة المرور الخاصة بحسابي؟', a: 'اضغط على زر "نسيت كلمة المرور" في صفحة تسجيل الدخول، وأدخل بريدك الإلكتروني لتصلك رسالة تحتوي على رابط آمن لإعادة تعيين كلمة مرورك الجديدة فوراً.' },
-        { q: 'من هم المعلمون في بوابة المجد التعليمية؟', a: 'تضم المنصة نخبة من أكفأ المعلمين المتخصصين ذوي الخبرة الواسعة في تدريس المناهج القطرية والذين حقق طلابهم أعلى الدرجات في السنوات السابقة.' },
-    ];
 });
 
 const selectedStageTab = ref('all');
@@ -308,6 +297,8 @@ refreshAllStagePreview();
                             </span>
                         </h1>
 
+                        <p class="text-base font-bold text-white/90 mb-4">حيث يبدأ المجد</p>
+
                         <!-- Description -->
                         <p class="text-base sm:text-lg text-white/80 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0">
                             {{ heroContent.description }}
@@ -341,22 +332,6 @@ refreshAllStagePreview();
                             </Link>
                         </div>
 
-                        <!-- Social Proof Bar -->
-                        <div class="pt-6 border-t border-white/10 flex flex-wrap items-center justify-center lg:justify-start gap-4">
-                            <div class="flex -space-x-2.5 space-x-reverse">
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-accent-600 to-amber-300 border-2 border-surface-950 flex items-center justify-center text-[10px] font-bold text-surface-950">م</div>
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-600 to-blue-400 border-2 border-surface-950 flex items-center justify-center text-[10px] font-bold text-white">س</div>
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-300 border-2 border-surface-950 flex items-center justify-center text-[10px] font-bold text-white">خ</div>
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-pink-400 border-2 border-surface-950 flex items-center justify-center text-[10px] font-bold text-white">ن</div>
-                            </div>
-                            <div class="text-xs text-surface-300 text-start">
-                                <div class="flex items-center gap-1 text-accent-400 font-bold">
-                                    <span>★★★★★</span>
-                                    <span class="text-white font-black text-sm mr-1">4.9</span>
-                                </div>
-                                <span class="text-white/60">من أكثر من 15,000 طالب وولي أمر</span>
-                            </div>
-                        </div>
 
                     </div>
 
@@ -375,17 +350,6 @@ refreshAllStagePreview();
                                     class="w-full h-auto max-h-[320px] sm:max-h-[380px] lg:max-h-[420px] object-contain rounded-2xl transform transition-transform duration-700 group-hover:scale-[1.02]"
                                     loading="eager"
                                 />
-
-                                <!-- Floating Badge: Success Rate -->
-                                <div class="absolute top-5 start-5 flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl bg-surface-950/90 border border-accent-400/30 shadow-lg backdrop-blur-md">
-                                    <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-accent-500/20 flex items-center justify-center text-accent-400">
-                                        <Icon name="success" class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                    </div>
-                                    <div class="text-start">
-                                        <div class="text-[9px] sm:text-[10px] text-white/60 leading-none">معدل التفوق</div>
-                                        <div class="text-[11px] sm:text-xs font-black text-accent-300 mt-0.5">98.4% نجاح</div>
-                                    </div>
-                                </div>
 
                                 <!-- Floating Badge: Live Interactive -->
                                 <div class="absolute bottom-5 end-5 flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl bg-surface-950/90 border border-primary-500/30 shadow-lg backdrop-blur-md">
@@ -538,7 +502,7 @@ refreshAllStagePreview();
                         نتائج وآراء طلابنا المتفوقين
                     </h2>
                     <p class="text-surface-500 dark:text-surface-400 text-sm leading-relaxed">
-                        تأسست منصتنا لتكون الخيار الأول للتعليم في قطر، وقد حصل طلابنا على أكثر من 100 درجة كاملة في مختلف المواد للمراحل الثانوية.
+                        نفخر بإنجازات طلابنا ونشارك نتائجهم.
                     </p>
                 </div>
 
@@ -695,7 +659,7 @@ refreshAllStagePreview();
         </section>
 
         <!-- ── FAQ Section ──────────────────────────────────────── -->
-        <section class="section bg-transparent">
+        <section v-if="parsedFaqs.length" class="section bg-transparent">
             <div class="container-app max-w-3xl">
                 <div class="text-center mb-12">
                     <span class="badge bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 mb-3 inline-block">الأسئلة الشائعة</span>
@@ -736,12 +700,24 @@ refreshAllStagePreview();
             </div>
         </section>
 
+        <section class="section bg-transparent" aria-labelledby="how-to-start">
+            <div class="container-app">
+                <h2 id="how-to-start" class="text-2xl md:text-3xl font-black text-surface-900 dark:text-white text-center mb-8">كيف تبدأ؟</h2>
+                <ol class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <li v-for="(step, index) in ['اختر الصف والمادة', 'سجّل واشترك', 'احضر حصصك وتابع تعلمك']" :key="step" class="card p-6 flex items-center gap-4">
+                        <span class="w-10 h-10 shrink-0 rounded-full bg-primary-700 text-white font-bold flex items-center justify-center">{{ index + 1 }}</span>
+                        <span class="font-bold text-surface-900 dark:text-white">{{ step }}</span>
+                    </li>
+                </ol>
+            </div>
+        </section>
+
         <!-- ── CTA Section ────────────────────────────────────────── -->
         <section class="hero-gradient py-16">
             <div class="container-app px-4 text-center">
                 <h2 class="text-3xl font-black text-white mb-4">{{ stripEmojis($page.props.settings?.home_cta_title) || 'ابدأ رحلتك نحو التميز اليوم' }}</h2>
                 <p class="text-white/80 mb-8 max-w-md mx-auto">
-                    {{ stripEmojis($page.props.settings?.home_cta_desc) || 'انضم لآلاف الطلاب الذين حققوا نتائج متميزة مع بوابة المجد التعليمية' }}
+                    {{ stripEmojis($page.props.settings?.home_cta_desc) || 'اختر صفك ومادتك وتعرّف على معلميك لتبدأ التعلم.' }}
                 </p>
                 <Link :href="route('register')" class="btn btn-lg bg-white text-primary-800 border border-white/80 shadow-xl transform transition-all duration-300 hover:scale-105 hover:bg-surface-50 hover:shadow-glow-accent">
                     {{ stripEmojis($page.props.settings?.home_cta_btn) || 'إنشاء حساب مجاني — الآن' }}

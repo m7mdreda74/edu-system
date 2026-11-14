@@ -5,13 +5,14 @@ import axios from 'axios';
 import Icon from '@/Components/Icon.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
-defineProps({
+const props = defineProps({
     canResetPassword: { type: Boolean },
+    otpAvailable:     { type: Boolean, default: false },
     status:           { type: String, default: null },
 });
 
 // Mode: 'otp' (default for parents/students in Qatar) or 'password'
-const authMode = ref('otp');
+const authMode = ref(props.otpAvailable ? 'otp' : 'password');
 const showPassword = ref(false);
 
 // Password Form
@@ -66,7 +67,7 @@ async function handleSendOtp() {
         const response = await axios.post(route('otp.send'), { phone });
         if (response.data.success) {
             otpStep.value = 2;
-            otpSuccessMsg.value = response.data.message || 'تم إرسال رمز التحقق بنجاح.';
+            otpSuccessMsg.value = response.data.message || 'تم إنشاء رمز تجريبي.';
             if (response.data.dev_code) {
                 devCode.value = response.data.dev_code;
                 otpCode.value = response.data.dev_code; // auto-fill in development for fast testing
@@ -141,7 +142,7 @@ function resetToPhoneStep() {
                         <span>تسجيل سلس عبر رقم الجوال</span>
                     </div>
                     <p class="text-white/80 text-xs leading-relaxed">
-                        دخول مباشر وسريع لأولياء الأمور والطلاب عبر رسالة نصية أو واتساب بدون الحاجة لتذكر كلمات المرور.
+                        استخدم رقم الجوال أو البريد الإلكتروني مع كلمة المرور لتسجيل الدخول.
                     </p>
                 </div>
 
@@ -151,7 +152,7 @@ function resetToPhoneStep() {
                         <span>متابعة شاملة للأبناء</span>
                     </div>
                     <p class="text-white/80 text-xs leading-relaxed">
-                        لوحة تحكم خاصة لولي الأمر لمتابعة الحضور المباشر، درجات الواجبات، تقارير الاختبارات، والمدفوعات الإلكترونية المعتمدة.
+                        لوحة تحكم خاصة لولي الأمر لمتابعة الحضور المباشر، درجات الواجبات، تقارير الاختبارات، وحالة المدفوعات.
                     </p>
                 </div>
             </div>
@@ -178,7 +179,7 @@ function resetToPhoneStep() {
                 </div>
 
                 <!-- Mode Switcher Tabs -->
-                <div class="bg-white/10 p-1 rounded-2xl flex items-center border border-white/10 text-xs font-bold shadow-inner">
+                <div v-if="otpAvailable" class="bg-white/10 p-1 rounded-2xl flex items-center border border-white/10 text-xs font-bold shadow-inner">
                     <button
                         id="tab-otp"
                         data-testid="tab-otp"
@@ -190,7 +191,7 @@ function resetToPhoneStep() {
                             : 'text-white/70 hover:text-white'"
                     >
                         <Icon name="phone" class="w-4 h-4" />
-                        <span>رقم الجوال (OTP سريع)</span>
+                        <span>رمز تجريبي</span>
                     </button>
                     <button
                         id="tab-password"
@@ -207,6 +208,8 @@ function resetToPhoneStep() {
                     </button>
                 </div>
 
+                <p v-if="!otpAvailable" class="text-white/80 text-sm text-center">تسجيل الدخول برمز التحقق غير متاح حالياً. استخدم رقم الجوال أو البريد الإلكتروني وكلمة المرور.</p>
+
                 <!-- Status Message -->
                 <div v-if="status" class="bg-emerald-600/30 border border-emerald-500/50 text-emerald-200 px-4 py-3 rounded-2xl text-xs text-center">
                     {{ status }}
@@ -217,7 +220,7 @@ function resetToPhoneStep() {
                     
                     <div class="border-b border-white/10 pb-4 text-center">
                         <h3 class="text-lg font-black text-white">تسجيل الدخول السريع برقم الجوال</h3>
-                        <p class="text-white/60 text-xs mt-1">يصلك رمز التحقق مباشرة وبدون كلمة مرور</p>
+                        <p class="text-white/60 text-xs mt-1">رمز محلي للتجربة فقط، لا تُرسل رسالة إلى الجوال</p>
                     </div>
 
                     <!-- Step 1: Enter Phone Number -->
@@ -285,7 +288,7 @@ function resetToPhoneStep() {
                             :class="{ 'opacity-65 cursor-not-allowed': otpLoading }"
                         >
                             <span v-if="otpLoading" class="w-4 h-4 border-2 border-surface-950 border-t-transparent rounded-full animate-spin"></span>
-                            <span>{{ otpLoading ? 'جاري الإرسال...' : 'إرسال رمز التحقق عبر واتساب / SMS' }}</span>
+                            <span>{{ otpLoading ? 'جاري الإنشاء...' : 'إنشاء رمز تجريبي' }}</span>
                         </button>
                     </form>
 
@@ -293,7 +296,7 @@ function resetToPhoneStep() {
                     <form v-else @submit.prevent="handleVerifyOtp" class="space-y-5">
                         <div class="text-center space-y-1">
                             <p class="text-xs text-white/80">
-                                تم إرسال رمز التحقق إلى:
+                                تم إنشاء رمز تجريبي للرقم:
                                 <span class="font-bold text-accent-300 font-mono" dir="ltr">{{ otpPhone }}</span>
                             </p>
                             <button type="button" @click="resetToPhoneStep" class="text-[11px] text-accent-400 hover:underline">

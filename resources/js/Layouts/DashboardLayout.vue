@@ -213,6 +213,14 @@ const quickNavLinks = computed(() =>
         .flatMap((group) => group.links)
         .filter((link) => !isLinkActive(link))
 );
+
+const showStudentMobileNav = computed(() => authStore.isStudent && !authStore.isAdmin && !authStore.isTeacher && !authStore.isParent);
+const studentMobileLinks = computed(() => [
+    { label: 'الرئيسية', icon: 'dashboard', href: route('dashboard'), name: 'dashboard' },
+    { label: 'دوراتي', icon: 'courses', href: route('student.my-classes'), name: 'student.my-classes' },
+    { label: 'الجدول', icon: 'calendar', href: route('student.schedule'), name: 'student.schedule' },
+    { label: 'حسابي', icon: 'users', href: route('profile.edit'), name: 'profile.edit' },
+]);
 </script>
 
 <template>
@@ -371,7 +379,7 @@ const quickNavLinks = computed(() =>
             </div>
 
             <!-- Page Content -->
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-2 md:p-4 lg:p-6">
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-4 lg:p-6" :class="{ 'pb-24 md:pb-4 lg:pb-6': showStudentMobileNav }">
                 <div class="dashboard-slot w-full min-h-full flex flex-col">
                     <!-- Horizontal Quick-Access Bar (Student pages only, excluding current page) -->
                     <nav
@@ -398,9 +406,21 @@ const quickNavLinks = computed(() =>
                 </div>
             </main>
 
+            <nav v-if="showStudentMobileNav && !isSidebarOpen" aria-label="تنقل الطالب"
+                 class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-surface-700 bg-surface-950 px-2 pb-[env(safe-area-inset-bottom)] shadow-lg md:hidden">
+                <Link v-for="link in studentMobileLinks" :key="link.name" :href="link.href"
+                      class="flex min-h-[64px] flex-col items-center justify-center gap-1 px-1 text-sm font-bold text-surface-300"
+                      :class="{ 'text-accent-400': isLinkActive(link) }"
+                      :aria-current="isLinkActive(link) ? 'page' : undefined">
+                    <Icon :name="link.icon" class="h-5 w-5" aria-hidden="true" />
+                    <span>{{ link.label }}</span>
+                </Link>
+            </nav>
+
             <!-- ── Floating WhatsApp Widget (Direct Support) ── -->
             <div v-if="$page.props.settings?.whatsapp_url"
                  class="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-40 flex flex-col items-center gap-1.5 pointer-events-none"
+                 :class="{ 'max-md:bottom-20': showStudentMobileNav }"
             >
                 <span class="hidden sm:block bg-surface-900 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow-lg border border-surface-800 pointer-events-none select-none">
                     واتساب الدعم

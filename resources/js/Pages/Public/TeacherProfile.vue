@@ -183,13 +183,13 @@ function bookPrivateSlot(slotId) {
 function formatDateTime(value, timezone = 'Asia/Qatar') {
     if (!value) return '';
     try {
-        return new Date(value).toLocaleString('ar-QA', {
+        return new Date(value).toLocaleString('ar-QA-u-nu-latn', {
             timeZone: timezone || 'Asia/Qatar',
             dateStyle: 'medium',
             timeStyle: 'short',
         });
     } catch {
-        return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+        return new Date(value).toLocaleString('ar-EG-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' });
     }
 }
 

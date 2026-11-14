@@ -65,4 +65,20 @@ class OtpAuthenticationTest extends TestCase
 
         $this->assertGuest();
     }
+    public function test_otp_is_unavailable_outside_local_and_testing_without_a_delivery_provider(): void
+    {
+        $this->app['env'] = 'production';
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+
+        $this->postJson(route('otp.send'), ['phone' => '55556666'])
+            ->assertStatus(503)
+            ->assertJson(['success' => false]);
+        $this->assertFalse(Cache::has('otp_code_97455556666'));
+
+        Cache::put('otp_code_97455556666', '123456', now()->addMinutes(5));
+        $this->postJson(route('otp.verify'), ['phone' => '55556666', 'code' => '123456'])
+            ->assertStatus(503);
+        $this->assertGuest();
+    }
+
 }

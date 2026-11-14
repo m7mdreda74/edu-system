@@ -183,7 +183,7 @@ function groupSessionsByDate(sessionList) {
         if (!groups.has(key)) {
             groups.set(key, {
                 key,
-                label: date.toLocaleDateString('ar-QA', {
+                label: date.toLocaleDateString('ar-QA-u-nu-latn', {
                     timeZone: tz,
                     weekday: 'long',
                     day: 'numeric',
@@ -205,7 +205,7 @@ const groupedPastSessions = computed(() => groupSessionsByDate(filteredPastSessi
 
 function formatTime(session) {
     if (!session.scheduled_at) return '';
-    return new Date(session.scheduled_at).toLocaleTimeString('ar-QA', {
+    return new Date(session.scheduled_at).toLocaleTimeString('ar-QA-u-nu-latn', {
         timeZone: session.timezone || 'Asia/Qatar',
         hour: '2-digit',
         minute: '2-digit',
@@ -214,7 +214,7 @@ function formatTime(session) {
 
 function formatDateShort(isoString, timezone) {
     if (!isoString) return '';
-    return new Date(isoString).toLocaleDateString('ar-QA', {
+    return new Date(isoString).toLocaleDateString('ar-QA-u-nu-latn', {
         timeZone: timezone || 'Asia/Qatar',
         weekday: 'short',
         day: 'numeric',

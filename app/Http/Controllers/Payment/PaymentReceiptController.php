@@ -66,7 +66,7 @@ class PaymentReceiptController extends Controller
                 'is_paid'        => $payment->isPaid(),
                 'amount'         => $payment->amount,
                 'currency'       => $payment->currency ?? 'QAR',
-                'gateway'        => $payment->gateway ?? 'skipcash',
+                'gateway'        => $payment->gateway,
                 'gateway_ref'    => $payment->gateway_ref,
                 'paid_at'        => $payment->paid_at?->toIso8601String() ?? $payment->created_at?->toIso8601String(),
                 'invoice_number' => $invoice->invoice_number,

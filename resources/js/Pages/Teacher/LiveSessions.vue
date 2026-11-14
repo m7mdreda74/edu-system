@@ -288,7 +288,7 @@ function getSessionStatusColor(session) {
 
 function formatDate(value) {
     return value
-        ? new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+        ? new Date(value).toLocaleString('ar-EG-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' })
         : '—';
 }
 </script>
@@ -348,14 +348,14 @@ function formatDate(value) {
                                     </div>
                                 </td>
                                 <td class="p-4 text-surface-600 dark:text-surface-300 font-mono text-xs">
-                                    {{ new Date(session.scheduled_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                    {{ new Date(session.scheduled_at).toLocaleString('ar-EG-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' }) }}
                                 </td>
                                 <td class="p-4">
                                     <span :class="getSessionStatusColor(session)" class="text-xs">
                                         {{ getSessionStatusLabel(session) }}
                                     </span>
                                     <p v-if="session.apology?.status === 'makeup_scheduled'" class="mt-2 text-[11px] text-green-600">
-                                        تم التعويض: {{ new Date(session.apology.makeup_scheduled_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                        تم التعويض: {{ new Date(session.apology.makeup_scheduled_at).toLocaleString('ar-EG-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' }) }}
                                     </p>
                                     <p v-else-if="session.apology?.status === 'deducted'" class="mt-2 text-[11px] text-red-600">سجلت الإدارة خصمًا</p>
                                     <p v-else-if="session.apology" class="mt-2 text-[11px] text-accent-600">بانتظار التعويض أو قرار الإدارة</p>
@@ -913,7 +913,7 @@ function formatDate(value) {
                                     <select v-model="form.private_session_slot_id" class="input" required>
                                         <option value="" disabled>-- اختر موعد الحصة الخاصة المحجوز --</option>
                                         <option v-for="slot in filteredPrivateOptions" :key="slot.id" :value="slot.id">
-                                            {{ new Date(slot.starts_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                            {{ new Date(slot.starts_at).toLocaleString('ar-EG-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' }) }}
                                             — الطالب: {{ slot.booking?.student?.name || 'طالب محجوز' }}
                                         </option>
                                     </select>

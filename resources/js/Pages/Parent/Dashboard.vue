@@ -66,13 +66,13 @@ function formatQAR(halala) {
 function formatSlotDateTime(value, timeZone = 'Asia/Qatar') {
     if (!value) return '';
     try {
-        return new Date(value).toLocaleString('ar-QA', {
+        return new Date(value).toLocaleString('ar-QA-u-nu-latn', {
             timeZone: timeZone || 'Asia/Qatar',
             dateStyle: 'medium',
             timeStyle: 'short',
         });
     } catch {
-        return new Date(value).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+        return new Date(value).toLocaleString('ar-EG-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' });
     }
 }
 
@@ -101,7 +101,7 @@ const assignmentStatusClasses = {
 
 function assignmentDate(value) {
     if (!value) return 'بدون موعد نهائي';
-    return new Date(`${value}T00:00:00`).toLocaleDateString('ar-QA', {
+    return new Date(`${value}T00:00:00`).toLocaleDateString('ar-QA-u-nu-latn', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -111,7 +111,7 @@ function assignmentDate(value) {
 function reportDate(value) {
     if (!value) return '—';
 
-    return new Date(`${value}T00:00:00`).toLocaleDateString('ar-QA', {
+    return new Date(`${value}T00:00:00`).toLocaleDateString('ar-QA-u-nu-latn', {
         weekday: 'short',
         day: 'numeric',
         month: 'short',
@@ -121,7 +121,7 @@ function reportDate(value) {
 function reportDateTime(value) {
     if (!value) return '—';
 
-    return new Date(value).toLocaleDateString('ar-QA', {
+    return new Date(value).toLocaleDateString('ar-QA-u-nu-latn', {
         day: 'numeric',
         month: 'short',
         hour: 'numeric',
@@ -693,8 +693,8 @@ function payForRequest(requestId) {
                                     <thead><tr class="text-surface-500 border-b border-surface-200 dark:border-surface-700"><th class="p-3 text-start">الحصة</th><th class="p-3 text-start">المادة</th><th class="p-3 text-start">الموعد</th><th class="p-3 text-start">دخل</th><th class="p-3 text-start">خرج</th><th class="p-3 text-start">الحالة</th><th class="p-3 text-start">المدة</th></tr></thead>
                                     <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
                                         <tr v-for="session in paginatedAttendance" :key="session.id">
-                                            <td class="p-3 font-bold">{{ session.title }}</td><td class="p-3">{{ session.subject }}</td><td class="p-3 text-xs">{{ new Date(session.scheduled_at).toLocaleString('ar-EG') }}</td>
-                                            <td class="p-3 text-xs">{{ session.joined_at ? new Date(session.joined_at).toLocaleTimeString('ar-EG') : '—' }}</td><td class="p-3 text-xs">{{ session.left_at ? new Date(session.left_at).toLocaleTimeString('ar-EG') : '—' }}</td>
+                                            <td class="p-3 font-bold">{{ session.title }}</td><td class="p-3">{{ session.subject }}</td><td class="p-3 text-xs">{{ new Date(session.scheduled_at).toLocaleString('ar-EG-u-nu-latn') }}</td>
+                                            <td class="p-3 text-xs">{{ session.joined_at ? new Date(session.joined_at).toLocaleTimeString('ar-EG-u-nu-latn') : '—' }}</td><td class="p-3 text-xs">{{ session.left_at ? new Date(session.left_at).toLocaleTimeString('ar-EG-u-nu-latn') : '—' }}</td>
                                             <td class="p-3"><span :class="session.attended ? 'badge-green' : 'badge-gray'">{{ session.attended ? 'حاضر' : 'غائب' }}</span></td><td class="p-3">{{ session.minutes }} دقيقة</td>
                                         </tr>
                                     </tbody>
@@ -772,7 +772,7 @@ function payForRequest(requestId) {
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 text-xs text-surface-400">
-                                                {{ att.submitted_at ? new Date(att.submitted_at).toLocaleDateString('ar') : 'لم يسلّم' }}
+                                                {{ att.submitted_at ? new Date(att.submitted_at).toLocaleDateString('ar-u-nu-latn') : 'لم يسلّم' }}
                                                 <p v-if="att.teacher_feedback" class="mt-2 text-start text-surface-500">ملاحظات المدرس: {{ att.teacher_feedback }}</p>
                                             </td>
                                         </tr>

@@ -18,8 +18,8 @@ export default {
         extend: {
             // ─── Typography ───────────────────────────────────────────
             fontFamily: {
-                sans:  ['Cairo', 'Tajawal', ...defaultTheme.fontFamily.sans],
-                latin: ['Inter', ...defaultTheme.fontFamily.sans],
+                sans:  ['Tajawal', 'Cairo', ...defaultTheme.fontFamily.sans],
+                latin: ['Tajawal', 'Cairo', ...defaultTheme.fontFamily.sans],
                 cairo: ['Cairo', 'sans-serif'],
             },
 

@@ -103,7 +103,7 @@ async function deleteCoupon(id) {
                                     {{ coupon.used_count }}
                                 </td>
                                 <td class="px-6 py-4 text-xs text-surface-500">
-                                    {{ coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString('ar') : 'مستمر' }}
+                                    {{ coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString('ar-u-nu-latn') : 'مستمر' }}
                                 </td>
                                 <td class="px-6 py-4">
                                     <span :class="coupon.is_usable ? 'badge-green' : 'badge-gray'">
