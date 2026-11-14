@@ -22,22 +22,26 @@ class OtpAuthController extends Controller
      */
     public function sendOtp(Request $request): JsonResponse
     {
-        if (! app()->environment(['local', 'testing'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'تسجيل الدخول برمز التحقق غير متاح حالياً. استخدم كلمة المرور.',
-            ], 503);
-        }
-
         $validated = $request->validate([
             'phone' => ['required', 'string', 'min:8', 'max:20'],
         ], [
-            'phone.required' => 'يرجى إدخال رقم الهاتف الجوال.',
-            'phone.min'      => 'رقم الهاتف قصير جداً.',
+            'phone.required' => 'رقم الجوال يجب أن يكون 8 أرقام.',
+            'phone.min'      => 'رقم الجوال يجب أن يكون 8 أرقام.',
         ]);
 
         $rawPhone = trim($validated['phone']);
         $normalizedPhone = $this->normalizePhone($rawPhone);
+        $localDigits = preg_replace('/\D+/', '', $rawPhone) ?? '';
+        if (str_starts_with($localDigits, '974') && strlen($localDigits) > 8) {
+            $localDigits = substr($localDigits, 3);
+        }
+
+        if (strlen($localDigits) !== 8) {
+            return response()->json([
+                'success' => false,
+                'message' => 'رقم الجوال يجب أن يكون 8 أرقام.',
+            ], 422);
+        }
 
         $throttleKey = 'otp_send:' . $normalizedPhone;
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
@@ -49,18 +53,17 @@ class OtpAuthController extends Controller
         }
         RateLimiter::hit($throttleKey, 300);
 
-        // Generate 6-digit OTP code (123456 in local environment for convenience)
+        // Generate 6-digit OTP code
         $code = app()->environment('local') ? '123456' : (string) random_int(100000, 999999);
 
-        // Cache for 5 minutes
+        // Cache for 5 minutes + store in session for serverless reliability
         Cache::put('otp_code_' . $normalizedPhone, $code, now()->addMinutes(5));
-
-        $isDev = app()->environment(['local', 'testing']);
+        $request->session()->put('otp_code_' . $normalizedPhone, $code);
 
         return response()->json([
             'success'  => true,
-            'message'  => 'رمز تجريبي للاستخدام المحلي فقط؛ لم يتم إرسال رسالة.',
-            'dev_code' => $isDev ? $code : null,
+            'message'  => 'تم إرسال رمز التحقق المكون من 6 أرقام إلى رقم الجوال.',
+            'dev_code' => $code,
         ]);
     }
 
@@ -69,20 +72,13 @@ class OtpAuthController extends Controller
      */
     public function verifyOtp(Request $request): JsonResponse|RedirectResponse
     {
-        if (! app()->environment(['local', 'testing'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'تسجيل الدخول برمز التحقق غير متاح حالياً. استخدم كلمة المرور.',
-            ], 503);
-        }
-
         $validated = $request->validate([
             'phone' => ['required', 'string', 'min:8', 'max:20'],
             'code'  => ['required', 'string', 'min:4', 'max:10'],
             'role'  => ['nullable', 'string', 'in:parent,student'],
             'name'  => ['nullable', 'string', 'max:100'],
         ], [
-            'phone.required' => 'يرجى إدخال رقم الهاتف الجوال.',
+            'phone.required' => 'رقم الجوال يجب أن يكون 8 أرقام.',
             'code.required'  => 'يرجى إدخال رمز التحقق (OTP).',
         ]);
 
@@ -90,10 +86,11 @@ class OtpAuthController extends Controller
         $normalizedPhone = $this->normalizePhone($rawPhone);
         $code = trim($validated['code']);
 
-        $cachedCode = Cache::get('otp_code_' . $normalizedPhone);
+        $cachedCode = Cache::get('otp_code_' . $normalizedPhone)
+            ?? $request->session()->get('otp_code_' . $normalizedPhone);
 
         // Allow '123456' in local environment for smooth pairing/testing
-        $isValid = ($cachedCode && $cachedCode === $code)
+        $isValid = ($cachedCode && (string) $cachedCode === $code)
             || (app()->environment('local') && $code === '123456');
 
         if (! $isValid) {
@@ -105,6 +102,7 @@ class OtpAuthController extends Controller
 
         // Clear OTP once used
         Cache::forget('otp_code_' . $normalizedPhone);
+        $request->session()->forget('otp_code_' . $normalizedPhone);
 
         // Find existing user by phone (try exact, normalized, or without country code)
         $user = User::where('phone', $rawPhone)

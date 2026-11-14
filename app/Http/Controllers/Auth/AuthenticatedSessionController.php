@@ -20,7 +20,7 @@ class AuthenticatedSessionController extends Controller
     {
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
-            'otpAvailable' => app()->environment(['local', 'testing']),
+            'otpAvailable' => true,
             'status' => session('status'),
         ]);
     }

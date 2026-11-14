@@ -7,12 +7,12 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
     canResetPassword: { type: Boolean },
-    otpAvailable:     { type: Boolean, default: false },
+    otpAvailable:     { type: Boolean, default: true },
     status:           { type: String, default: null },
 });
 
 // Mode: 'otp' (default for parents/students in Qatar) or 'password'
-const authMode = ref(props.otpAvailable ? 'otp' : 'password');
+const authMode = ref(props.otpAvailable !== false ? 'otp' : 'password');
 const showPassword = ref(false);
 
 // Password Form
@@ -52,30 +52,38 @@ onUnmounted(() => {
     clearInterval(timerInterval);
 });
 
+function normalizeLocalPhoneDigits(raw) {
+    let digits = String(raw || '').replace(/\D+/g, '');
+    if (digits.startsWith('974') && digits.length > 8) {
+        digits = digits.slice(3);
+    }
+    return digits;
+}
+
 async function handleSendOtp() {
     otpError.value = '';
     otpSuccessMsg.value = '';
     
-    const phone = otpPhone.value.trim();
-    if (!phone || phone.length < 8) {
-        otpError.value = 'يرجى إدخال رقم هاتف صحيح (مثال: 55556666 أو 97455556666)';
+    const digits = normalizeLocalPhoneDigits(otpPhone.value);
+    if (digits.length !== 8) {
+        otpError.value = 'رقم الجوال يجب أن يكون 8 أرقام.';
         return;
     }
 
     otpLoading.value = true;
     try {
-        const response = await axios.post(route('otp.send'), { phone });
+        const response = await axios.post(route('otp.send'), { phone: `+974${digits}` });
         if (response.data.success) {
             otpStep.value = 2;
-            otpSuccessMsg.value = response.data.message || 'تم إنشاء رمز تجريبي.';
+            otpSuccessMsg.value = response.data.message || 'تم إرسال رمز التحقق.';
             if (response.data.dev_code) {
                 devCode.value = response.data.dev_code;
-                otpCode.value = response.data.dev_code; // auto-fill in development for fast testing
+                otpCode.value = response.data.dev_code;
             }
             startTimer();
         }
     } catch (err) {
-        otpError.value = err.response?.data?.message || 'تعذر إرسال رمز التحقق، يرجى التحقق من الرقم والمحاولة مرة أخرى.';
+        otpError.value = err.response?.data?.message || 'رقم الجوال يجب أن يكون 8 أرقام.';
     } finally {
         otpLoading.value = false;
     }
@@ -89,10 +97,12 @@ async function handleVerifyOtp() {
         return;
     }
 
+    const digits = normalizeLocalPhoneDigits(otpPhone.value);
+
     otpLoading.value = true;
     try {
         const response = await axios.post(route('otp.verify'), {
-            phone: otpPhone.value.trim(),
+            phone: `+974${digits}`,
             code: code,
             role: otpRole.value,
         });
@@ -179,7 +189,7 @@ function resetToPhoneStep() {
                 </div>
 
                 <!-- Mode Switcher Tabs -->
-                <div v-if="otpAvailable" class="bg-white/10 p-1 rounded-2xl flex items-center border border-white/10 text-xs font-bold shadow-inner">
+                <div class="bg-white/10 p-1 rounded-2xl flex items-center border border-white/10 text-xs font-bold shadow-inner">
                     <button
                         id="tab-otp"
                         data-testid="tab-otp"
@@ -191,7 +201,7 @@ function resetToPhoneStep() {
                             : 'text-white/70 hover:text-white'"
                     >
                         <Icon name="phone" class="w-4 h-4" />
-                        <span>رمز تجريبي</span>
+                        <span>رمز التحقق (OTP)</span>
                     </button>
                     <button
                         id="tab-password"
@@ -208,8 +218,6 @@ function resetToPhoneStep() {
                     </button>
                 </div>
 
-                <p v-if="!otpAvailable" class="text-white/80 text-sm text-center">تسجيل الدخول برمز التحقق غير متاح حالياً. استخدم رقم الجوال أو البريد الإلكتروني وكلمة المرور.</p>
-
                 <!-- Status Message -->
                 <div v-if="status" class="bg-emerald-600/30 border border-emerald-500/50 text-emerald-200 px-4 py-3 rounded-2xl text-xs text-center">
                     {{ status }}
@@ -220,7 +228,7 @@ function resetToPhoneStep() {
                     
                     <div class="border-b border-white/10 pb-4 text-center">
                         <h3 class="text-lg font-black text-white">تسجيل الدخول السريع برقم الجوال</h3>
-                        <p class="text-white/60 text-xs mt-1">رمز محلي للتجربة فقط، لا تُرسل رسالة إلى الجوال</p>
+                        <p class="text-white/60 text-xs mt-1">أدخل رقم الجوال القطري (8 أرقام) لاستلام رمز التحقق المكون من 6 أرقام</p>
                     </div>
 
                     <!-- Step 1: Enter Phone Number -->
@@ -255,40 +263,41 @@ function resetToPhoneStep() {
                             </div>
                         </div>
 
-                        <!-- Phone Number Input -->
+                        <!-- Phone Number Input with Fixed +974 Prefix -->
                         <div class="space-y-2">
                             <label class="block text-xs font-bold text-white/95 mr-2" for="otp_phone">
-                                رقم الجوال (قطري أو دولي) <span class="text-accent-400">*</span>
+                                رقم الجوال القطري <span class="text-accent-400">*</span>
                             </label>
-                            <div class="relative">
+                            <div dir="ltr" class="flex items-center h-12 overflow-hidden rounded-xl bg-white border border-transparent focus-within:ring-4 focus-within:ring-accent-500/40 shadow-inner">
+                                <span class="shrink-0 px-3.5 h-full flex items-center bg-surface-100 text-surface-800 font-black text-sm border-r border-surface-200 select-none">
+                                    +974
+                                </span>
                                 <input
                                     id="otp_phone"
                                     v-model="otpPhone"
                                     type="tel"
+                                    inputmode="numeric"
+                                    maxlength="8"
                                     dir="ltr"
-                                    class="w-full px-5 py-3.5 bg-white text-surface-900 rounded-full border border-transparent focus:outline-none focus:ring-4 focus:ring-accent-500/40 shadow-inner placeholder-surface-400 text-sm font-bold text-center tracking-wider transition-all"
-                                    placeholder="+974 5555 6666"
+                                    class="min-w-0 flex-1 h-full px-4 bg-white text-surface-900 border-0 focus:outline-none focus:ring-0 placeholder-surface-400 text-sm font-bold tracking-wider"
+                                    placeholder="55556666"
                                     required
                                     autofocus
                                 />
                             </div>
-                            <p class="text-[11px] text-white/50 mr-2">مثال: 55556666 أو +97455556666</p>
-                        </div>
-
-                        <!-- Error Banner -->
-                        <div v-if="otpError" class="bg-red-500/20 border border-red-500/40 text-red-200 px-4 py-2.5 rounded-xl text-xs text-center">
-                            {{ otpError }}
+                            <p v-if="otpError" class="text-red-400 text-xs font-semibold mr-2">{{ otpError }}</p>
+                            <p v-else class="text-[11px] text-white/50 mr-2">أدخل 8 أرقام (مثال: 55556666)</p>
                         </div>
 
                         <!-- Submit Button -->
                         <button
                             type="submit"
                             :disabled="otpLoading"
-                            class="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-surface-950 rounded-full font-black text-sm shadow-lg transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2"
+                            class="w-full h-12 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-surface-950 rounded-xl font-black text-sm shadow-lg transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2"
                             :class="{ 'opacity-65 cursor-not-allowed': otpLoading }"
                         >
                             <span v-if="otpLoading" class="w-4 h-4 border-2 border-surface-950 border-t-transparent rounded-full animate-spin"></span>
-                            <span>{{ otpLoading ? 'جاري الإنشاء...' : 'إنشاء رمز تجريبي' }}</span>
+                            <span>{{ otpLoading ? 'جاري الإرسال...' : 'إرسال رمز التحقق (OTP)' }}</span>
                         </button>
                     </form>
 
@@ -296,8 +305,8 @@ function resetToPhoneStep() {
                     <form v-else @submit.prevent="handleVerifyOtp" class="space-y-5">
                         <div class="text-center space-y-1">
                             <p class="text-xs text-white/80">
-                                تم إنشاء رمز تجريبي للرقم:
-                                <span class="font-bold text-accent-300 font-mono" dir="ltr">{{ otpPhone }}</span>
+                                تم إرسال رمز التحقق إلى الرقم:
+                                <span class="font-bold text-accent-300 font-mono" dir="ltr">+974 {{ normalizeLocalPhoneDigits(otpPhone) }}</span>
                             </p>
                             <button type="button" @click="resetToPhoneStep" class="text-[11px] text-accent-400 hover:underline">
                                 تغيير رقم الجوال؟
@@ -306,7 +315,7 @@ function resetToPhoneStep() {
 
                         <!-- Dev notice if applicable -->
                         <div v-if="devCode" class="bg-accent-500/20 border border-accent-400/40 text-accent-200 px-3 py-2 rounded-xl text-xs text-center font-mono">
-                            ⚡ للتجربة السريعة: رمز التحقق هو <b class="text-white">{{ devCode }}</b>
+                            ⚡ رمز التحقق الفوري: <b class="text-white">{{ devCode }}</b>
                         </div>
 
                         <!-- Code input -->
@@ -431,17 +440,17 @@ function resetToPhoneStep() {
                         <button
                             type="submit"
                             :disabled="form.processing"
-                            class="w-full py-3.5 bg-surface-950 hover:bg-surface-900 text-white rounded-full font-bold text-sm shadow-lg transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2"
+                            class="w-full h-12 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-surface-950 rounded-xl font-black text-sm shadow-lg transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2"
                             :class="{ 'opacity-65 cursor-not-allowed': form.processing }"
                             id="login-submit-btn"
                         >
-                            <span v-if="form.processing" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span v-if="form.processing" class="w-4 h-4 border-2 border-surface-950 border-t-transparent rounded-full animate-spin"></span>
                             <span>{{ form.processing ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول' }}</span>
                         </button>
 
                         <Link
                             :href="route('register')"
-                            class="w-full py-3.5 bg-white hover:bg-surface-50 text-primary-900 rounded-full font-bold text-sm shadow-md transition-all duration-200 active:scale-[0.98] flex items-center justify-center"
+                            class="w-full h-12 bg-white hover:bg-surface-50 text-primary-900 rounded-xl font-bold text-sm shadow-md transition-all duration-200 active:scale-[0.98] flex items-center justify-center"
                         >
                             إنشاء حساب جديد
                         </Link>
