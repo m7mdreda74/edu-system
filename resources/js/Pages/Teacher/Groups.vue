@@ -1,38 +1,117 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import Icon from '@/Components/Icon.vue';
 import StatCard from '@/Components/StatCard.vue';
 import { formatTime12 } from '@/lib/money';
+import { filterTeacherGroups } from '@/lib/teacherGroupFilters';
 
 const props = defineProps({
     groups: { type: Array, default: () => [] },
+    privateSlots: { type: Array, default: () => [] },
+    assignedGrades: { type: Array, default: () => [] },
+    assignedSubjects: { type: Array, default: () => [] },
     stats: { type: Object, default: () => ({}) },
 });
 
 const searchQuery = ref('');
+const selectedStage = ref('');
+const selectedType = ref('');
+const selectedGrade = ref('');
+const selectedTrack = ref('');
+const selectedSubject = ref('');
+
+const appliedFilters = ref({
+    search: '',
+    stage: '',
+    type: '',
+    grade: '',
+    track: '',
+    subject: '',
+});
+
 const selectedGroupForStudents = ref(null);
 const studentSearchQuery = ref('');
 const rosterStudents = ref([]);
 const rosterMeta = ref({ current_page: 1, last_page: 1, total: 0 });
 const rosterLoading = ref(false);
 const rosterError = ref('');
+let rosterRequestId = 0;
 
 const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const stageOrder = ['primary', 'preparatory', 'secondary'];
+const stageLabels = { primary: 'ابتدائي', preparatory: 'إعدادي', secondary: 'ثانوي' };
+const trackLabels = { science: 'العلمي', arts: 'الآداب والإنسانيات', technology: 'التكنولوجي' };
+const allGroups = computed(() => [...props.groups, ...props.privateSlots]);
 
-const filteredGroups = computed(() => {
-    if (!searchQuery.value.trim()) {
-        return props.groups;
-    }
-    const q = searchQuery.value.toLowerCase();
-    return props.groups.filter(g =>
-        g.name?.toLowerCase().includes(q) ||
-        g.subject?.name?.toLowerCase().includes(q) ||
-        g.grade?.name?.toLowerCase().includes(q)
-    );
+function formatSchedule(schedule) {
+    const date = schedule.date ? new Date(`${schedule.date.slice(0, 10)}T00:00:00`).toLocaleDateString('ar-EG-u-nu-latn', { dateStyle: 'medium' }) : null;
+    const endDate = schedule.end_date && schedule.end_date !== schedule.date
+        ? new Date(`${schedule.end_date.slice(0, 10)}T00:00:00`).toLocaleDateString('ar-EG-u-nu-latn', { dateStyle: 'medium' })
+        : null;
+    return `${days[schedule.day_of_week]}${date ? ` ${date}` : ''} · ${formatTime12(schedule.start_time)}${schedule.end_time ? ` إلى ${formatTime12(schedule.end_time)}${endDate ? ` ${endDate}` : ''}` : ''}${schedule.timezone ? ` (${schedule.timezone})` : ''}`;
+}
+
+function uniqueOptions(values, key = 'id') {
+    return [...new Map(values.filter(Boolean).map(value => [value[key], value])).values()];
+}
+
+const grades = computed(() => uniqueOptions([
+    ...props.assignedGrades,
+    ...allGroups.value.map(group => group.grade),
+]));
+
+const availableGrades = computed(() => {
+    if (!selectedStage.value) return grades.value;
+    return grades.value.filter(grade => grade.stage === selectedStage.value);
 });
+
+watch(selectedStage, () => {
+    if (selectedGrade.value && !availableGrades.value.some(g => String(g.id) === String(selectedGrade.value))) {
+        selectedGrade.value = '';
+    }
+});
+
+const subjects = computed(() => uniqueOptions([
+    ...props.assignedSubjects,
+    ...allGroups.value.map(group => group.subject),
+]));
+
+const stages = computed(() => {
+    const present = new Set(grades.value.map(grade => grade.stage).filter(Boolean));
+    const ordered = stageOrder.filter(stage => present.has(stage));
+    return ordered.length ? ordered : stageOrder;
+});
+
+function applyFilters() {
+    appliedFilters.value = {
+        search: searchQuery.value,
+        stage: selectedStage.value,
+        type: selectedType.value,
+        grade: selectedGrade.value,
+        track: selectedTrack.value,
+        subject: selectedSubject.value,
+    };
+}
+
+function resetFilters() {
+    searchQuery.value = '';
+    selectedStage.value = '';
+    selectedType.value = '';
+    selectedGrade.value = '';
+    selectedTrack.value = '';
+    selectedSubject.value = '';
+    applyFilters();
+}
+
+const hasActiveFilter = computed(() => Boolean(
+    searchQuery.value || selectedStage.value || selectedType.value || selectedGrade.value ||
+    appliedFilters.value.search || appliedFilters.value.stage || appliedFilters.value.type || appliedFilters.value.grade
+));
+
+const filteredGroups = computed(() => filterTeacherGroups(allGroups.value, appliedFilters.value));
 
 async function openStudentsModal(group) {
     selectedGroupForStudents.value = group;
@@ -43,14 +122,28 @@ async function openStudentsModal(group) {
 }
 
 function closeStudentsModal() {
+    rosterRequestId++;
     selectedGroupForStudents.value = null;
     studentSearchQuery.value = '';
     rosterStudents.value = [];
     rosterError.value = '';
+    rosterLoading.value = false;
 }
 
 async function fetchRoster(page = 1) {
     if (!selectedGroupForStudents.value) return;
+    const requestId = ++rosterRequestId;
+
+    if (selectedGroupForStudents.value.source === 'private_slot') {
+        const q = studentSearchQuery.value.trim().toLowerCase();
+        rosterStudents.value = (selectedGroupForStudents.value.students ?? []).filter(student =>
+            !q || student.name?.toLowerCase().includes(q) || student.email?.toLowerCase().includes(q)
+        );
+        rosterMeta.value = { current_page: 1, last_page: 1, total: rosterStudents.value.length };
+        rosterError.value = '';
+        rosterLoading.value = false;
+        return;
+    }
 
     rosterLoading.value = true;
     rosterError.value = '';
@@ -61,12 +154,14 @@ async function fetchRoster(page = 1) {
             page,
             search: studentSearchQuery.value || undefined,
         }));
+        if (requestId !== rosterRequestId) return;
         rosterStudents.value = data.data ?? [];
         rosterMeta.value = data.meta ?? rosterMeta.value;
     } catch (error) {
+        if (requestId !== rosterRequestId) return;
         rosterError.value = error.response?.data?.message || 'تعذر تحميل قائمة الطلاب.';
     } finally {
-        rosterLoading.value = false;
+        if (requestId === rosterRequestId) rosterLoading.value = false;
     }
 }
 </script>
@@ -87,41 +182,60 @@ async function fetchRoster(page = 1) {
                     </p>
                 </div>
 
-                <Link :href="route('teacher.teaching-schedule')" class="btn-primary flex items-center gap-2">
-                    <Icon name="calendar" class="w-4 h-4" />
-                    <span>الخطة الأكاديمية والجدول</span>
-                </Link>
             </header>
 
             <!-- Stats Grid -->
             <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="إجمالي المجموعات" :value="stats.total_groups || groups.length" icon="courses" tone="primary" />
                 <StatCard label="المجموعات النشطة" :value="stats.active_groups || groups.length" icon="success" tone="green" />
-                <StatCard label="الطلاب المسجلون" :value="stats.total_students || 0" icon="student" tone="accent" />
+                <StatCard label="الطلاب المسجلون في المجموعات" :value="stats.total_students || 0" icon="student" tone="accent" />
                 <StatCard label="السعة الإجمالية" :value="stats.total_capacity || 0" icon="users" tone="primary" />
             </section>
 
-            <!-- Search Bar -->
-            <div class="card p-4 flex flex-wrap items-center justify-between gap-3">
-                <div class="relative flex-1 min-w-[240px]">
-                    <Icon name="search" class="w-5 h-5 text-surface-400 absolute start-3 top-1/2 -translate-y-1/2" />
-                    <input
-                        v-model="searchQuery"
-                        type="text"
-                        class="input ps-10 text-sm"
-                        placeholder="ابحث باسم المجموعة أو المادة أو الصف..."
-                    />
+            <!-- Filters -->
+            <div class="card p-4 space-y-3">
+                <div class="flex flex-wrap items-center gap-3">
+                    <!-- 1. جميع المراحل (ابتدائي / إعدادي / ثانوي) -->
+                    <select v-model="selectedStage" aria-label="المرحلة الدراسية" class="input text-sm w-auto min-w-[170px]">
+                        <option value="">جميع المراحل</option>
+                        <option v-for="stage in stages" :key="stage" :value="stage">{{ stageLabels[stage] || stage }}</option>
+                    </select>
+
+                    <!-- 2. جميع المجموعات (مجموعة / برايفيت) -->
+                    <select v-model="selectedType" aria-label="نوع المجموعة" class="input text-sm w-auto min-w-[170px]">
+                        <option value="">جميع المجموعات</option>
+                        <option value="group">مجموعة</option>
+                        <option value="private">برايفيت</option>
+                    </select>
+
+                    <!-- 3. جميع الصفوف (حسب المرحلة المسندة للمعلم) -->
+                    <select v-model="selectedGrade" aria-label="الصف الدراسي" class="input text-sm w-auto min-w-[190px]">
+                        <option value="">جميع الصفوف</option>
+                        <option v-for="grade in availableGrades" :key="grade.id" :value="String(grade.id)">
+                            {{ grade.name }}{{ grade.track ? ` - ${trackLabels[grade.track] || grade.track}` : '' }}
+                        </option>
+                    </select>
+
+                    <!-- 4. زر تطبيق الفلتر -->
+                    <button type="button" class="btn-primary btn-sm px-5" @click="applyFilters">
+                        تطبيق الفلتر
+                    </button>
+
+                    <button v-if="hasActiveFilter" type="button" class="btn-ghost btn-sm" @click="resetFilters">
+                        إلغاء الفلتر
+                    </button>
+
+                    <span class="ms-auto text-xs text-surface-500 font-bold">
+                        عرض {{ filteredGroups.length }} من {{ allGroups.length }} نتيجة
+                    </span>
                 </div>
-                <span class="text-xs text-surface-500 font-bold">
-                    عرض {{ filteredGroups.length }} من {{ groups.length }} مجموعة
-                </span>
             </div>
 
             <!-- Groups Grid -->
             <section v-if="filteredGroups.length" class="grid md:grid-cols-2 gap-6">
                 <article
                     v-for="group in filteredGroups"
-                    :key="group.id"
+                    :key="`${group.source}-${group.id}`"
                     class="card p-6 flex flex-col justify-between space-y-5 hover:border-primary-500/40 transition-colors"
                 >
                     <div class="space-y-4">
@@ -129,6 +243,8 @@ async function fetchRoster(page = 1) {
                             <div>
                                 <h2 class="text-xl font-black text-surface-900 dark:text-white">{{ group.name }}</h2>
                                 <div class="flex flex-wrap items-center gap-2 mt-1 text-xs text-surface-500">
+                                    <span>{{ group.is_private ? 'برايفت' : 'مجموعة' }}</span>
+                                    <span>·</span>
                                     <span class="font-bold text-primary-600 dark:text-primary-400">{{ group.subject?.name }}</span>
                                     <span>·</span>
                                     <span>{{ group.grade?.name }}</span>
@@ -136,63 +252,10 @@ async function fetchRoster(page = 1) {
                                 </div>
                             </div>
                             <span :class="group.is_active ? 'badge-green' : 'badge-gray'" class="text-xs">
-                                {{ group.is_active ? 'نشطة' : 'متوقفة' }}
+                                {{ group.source === 'private_slot' ? 'محجوزة' : (group.is_active ? 'نشطة' : 'متوقفة') }}
                             </span>
                         </div>
 
-                        <!-- Capacity Bar -->
-                        <div class="space-y-1.5">
-                            <div class="flex items-center justify-between text-xs">
-                                <span class="text-surface-600 dark:text-surface-300 font-bold flex items-center gap-1.5">
-                                    <Icon name="users" class="w-3.5 h-3.5 text-primary-500" />
-                                    <span>المقاعد المحجوزة</span>
-                                </span>
-                                <span class="font-bold font-mono text-surface-900 dark:text-white">
-                                    {{ group.students_count }} / {{ group.capacity }}
-                                </span>
-                            </div>
-                            <div class="w-full h-2 bg-surface-100 dark:bg-surface-700 rounded-full overflow-hidden">
-                                <div
-                                    class="h-full bg-primary-500 rounded-full transition-all duration-300"
-                                    :style="{ width: `${Math.min(100, Math.round((group.students_count / (group.capacity || 1)) * 100))}%` }"
-                                ></div>
-                            </div>
-                        </div>
-
-                        <!-- Weekly Schedules -->
-                        <div class="space-y-2">
-                            <span class="text-xs font-bold text-surface-500">المواعيد الأسبوعية:</span>
-                            <div v-if="group.schedules?.length" class="flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="s in group.schedules"
-                                    :key="s.id"
-                                    class="inline-flex items-center gap-1 rounded-lg bg-surface-100 dark:bg-surface-800 px-2.5 py-1 text-xs font-medium text-surface-700 dark:text-surface-300"
-                                >
-                                    <Icon name="clock" class="w-3 h-3 text-primary-500" />
-                                    <span>{{ days[s.day_of_week] }} · {{ formatTime12(s.start_time) }}<template v-if="s.end_time"> إلى {{ formatTime12(s.end_time) }}</template></span>
-                                </span>
-                            </div>
-                            <p v-else class="text-xs text-surface-400">لم يتم تحديد مواعيد لهذه المجموعة بعد.</p>
-                        </div>
-
-                        <!-- Enrolled Students Strip -->
-                        <div class="rounded-xl bg-surface-50 dark:bg-surface-800/60 p-3 border border-surface-200 dark:border-surface-700 space-y-2">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="text-xs font-bold text-surface-700 dark:text-surface-300 flex items-center gap-1.5">
-                                    <Icon name="student" class="w-3.5 h-3.5 text-accent-500" />
-                                    <span>طلاب المجموعة ({{ group.students_count ?? 0 }})</span>
-                                </span>
-                                <button
-                                    type="button"
-                                    class="text-xs font-bold text-primary-600 hover:underline"
-                                    @click="openStudentsModal(group)"
-                                >
-                                    عرض كل الطلاب
-                                </button>
-                            </div>
-
-                            <p class="text-xs text-surface-400">تُحمّل بيانات الطلاب عند فتح القائمة لحماية الأداء والخصوصية.</p>
-                        </div>
                     </div>
 
                     <!-- Actions -->
@@ -203,12 +266,11 @@ async function fetchRoster(page = 1) {
                             @click="openStudentsModal(group)"
                         >
                             <Icon name="users" class="w-4 h-4" />
-                            <span>قائمة الطلاب ({{ group.students_count ?? 0 }})</span>
+                            <span>عرض تفاصيل المجموعة</span>
                         </button>
 
-                        <div class="flex items-center gap-1.5">
+                        <div v-if="group.source === 'group'" class="flex items-center gap-1.5">
                             <Link :href="route('teacher.groups.workspace', { groupId: group.id })" class="btn-primary btn-sm">مساحة المجموعة</Link>
-                            <Link v-if="group.assignment_id" :href="route('teacher.curriculum', { assignment: group.assignment_id })" class="btn-outline btn-sm">المنهج</Link>
                             <Link :href="route('teacher.materials', { groupId: group.id })" class="btn-outline btn-sm">المواد</Link>
                             <Link :href="route('teacher.worksheets.index', { groupId: group.id })" class="btn-ghost btn-sm">الواجبات</Link>
                         </div>
@@ -218,7 +280,7 @@ async function fetchRoster(page = 1) {
 
             <div v-else class="card p-12 text-center text-surface-400">
                 <Icon name="courses" class="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p class="text-base font-bold text-surface-700 dark:text-surface-300">لا توجد مجموعات تطابق البحث.</p>
+                <p class="text-base font-bold text-surface-700 dark:text-surface-300">لا توجد نتائج تطابق البحث والفلاتر.</p>
             </div>
         </div>
 
@@ -236,13 +298,19 @@ async function fetchRoster(page = 1) {
                     <div>
                         <h2 class="text-xl font-black text-surface-900 dark:text-white flex items-center gap-2">
                             <Icon name="users" class="w-6 h-6 text-primary-500" />
-                            <span>طلاب مجموعة: {{ selectedGroupForStudents.name }}</span>
+                            <span>تفاصيل المجموعة: {{ selectedGroupForStudents.name }}</span>
                         </h2>
                         <p class="text-xs text-surface-500 mt-1">
-                            {{ selectedGroupForStudents.students_count ?? 0 }} طالب مسجل · سعة المجموعة {{ selectedGroupForStudents.capacity }} مقعد
+                            {{ selectedGroupForStudents.students_count ?? 0 }} طالب مسجل · السعة {{ selectedGroupForStudents.capacity }} مقعد
                         </p>
                     </div>
                     <button type="button" class="text-surface-400 hover:text-surface-600 text-lg font-bold" @click="closeStudentsModal">✕</button>
+                </div>
+
+                <div class="text-sm text-surface-700 dark:text-surface-300">
+                    <span class="font-bold">{{ selectedGroupForStudents.source === 'private_slot' ? 'موعد الحصة:' : 'المواعيد الأسبوعية:' }} </span>
+                    <span v-if="selectedGroupForStudents.schedules?.length">{{ selectedGroupForStudents.schedules.map(formatSchedule).join('، ') }}</span>
+                    <span v-else>لم يتم تحديد مواعيد بعد.</span>
                 </div>
 
                 <div class="space-y-2">

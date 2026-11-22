@@ -584,9 +584,6 @@ function formatDateTime(val) {
                         <Icon name="courses" class="w-12 h-12 mx-auto mb-3 text-surface-400 opacity-40" />
                         <h3 class="text-base font-bold text-surface-700 dark:text-surface-200">لا توجد اختبارات إلكترونية بعد</h3>
                         <p class="text-xs text-surface-400 mt-1 mb-4">أنشئ اختبارات واضبط الأسئلة من بنك الأسئلة أو الاختبارات المباشرة.</p>
-                        <Link :href="route('teacher.curriculum.index')" class="btn-primary btn-sm">
-                            الذهاب للخطة الأكاديمية وبناء الاختبارات
-                        </Link>
                     </div>
                 </div>
 

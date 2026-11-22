@@ -21,11 +21,6 @@ const { confirm } = useConfirm();
 
 const OPTION_LABELS = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة'];
 
-const curriculumHref = computed(() => route('teacher.curriculum', {
-    assignment: props.assignment.id,
-    term: props.unit.term_id,
-}));
-
 // ── Quiz settings ─────────────────────────────────────────────────
 
 const settings = useForm({
@@ -404,9 +399,7 @@ function optionError(draft, index) {
             <header class="flex items-start justify-between gap-4 flex-wrap">
                 <div class="min-w-0">
                     <nav class="text-xs text-surface-400 mb-1 flex items-center gap-1 flex-wrap">
-                        <Link :href="route('teacher.teaching-schedule')" class="hover:text-primary-500">جدول التدريس</Link>
-                        <span>/</span>
-                        <Link :href="curriculumHref" class="hover:text-primary-500">بناء المنهج</Link>
+                        <Link :href="route('teacher.assessments.index')" class="hover:text-primary-500">التقييمات والاختبارات</Link>
                         <span>/</span>
                         <span>{{ unit.title }}</span>
                     </nav>
@@ -427,9 +420,9 @@ function optionError(draft, index) {
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <Link :href="curriculumHref" class="btn-ghost btn-sm">
+                    <Link :href="route('teacher.assessments.index')" class="btn-ghost btn-sm">
                         <Icon name="arrowRight" class="w-4 h-4" />
-                        <span class="ms-1">العودة للمنهج</span>
+                        <span class="ms-1">العودة للتقييمات والاختبارات</span>
                     </Link>
                     <button type="button" class="btn-ghost btn-sm text-red-500" @click="destroyQuiz">
                         <Icon name="trash" class="w-4 h-4" />

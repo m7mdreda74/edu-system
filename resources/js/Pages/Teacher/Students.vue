@@ -7,18 +7,17 @@ import StatCard from '@/Components/StatCard.vue';
 
 const props = defineProps({
     students: { type: Array, default: () => [] },
-    groups: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) },
     stats: { type: Object, default: () => ({}) },
 });
 
 const search = ref(props.filters.q || '');
-const selectedGroup = ref(props.filters.group_id || '');
+const selectedType = ref(props.filters.type || '');
 
 function applyFilter() {
     router.get(route('teacher.students.index'), {
         q: search.value || undefined,
-        group_id: selectedGroup.value || undefined,
+        type: selectedType.value || undefined,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -28,7 +27,7 @@ function applyFilter() {
 
 function resetFilter() {
     search.value = '';
-    selectedGroup.value = '';
+    selectedType.value = '';
     applyFilter();
 }
 
@@ -53,17 +52,6 @@ function formatDate(val) {
                         دليل شامل لجميع الطلاب المشتركين معك في مجموعاتك التعليمية والجلسات الخاصة.
                     </p>
                 </div>
-
-                <div class="flex items-center gap-2">
-                    <Link :href="route('teacher.groups.index')" class="btn-outline flex items-center gap-2">
-                        <Icon name="courses" class="w-4 h-4" />
-                        <span>عرض المجموعات</span>
-                    </Link>
-                    <Link :href="route('chat.index')" class="btn-primary flex items-center gap-2">
-                        <Icon name="chat" class="w-4 h-4" />
-                        <span>مركز الرسائل</span>
-                    </Link>
-                </div>
             </header>
 
             <!-- Stats Grid -->
@@ -87,17 +75,16 @@ function formatDate(val) {
                         />
                     </div>
 
-                    <select v-model="selectedGroup" class="input text-sm w-auto min-w-[180px]" @change="applyFilter">
+                    <select v-model="selectedType" aria-label="نوع الدراسة" class="input text-sm w-auto min-w-[180px]">
                         <option value="">جميع المجموعات</option>
-                        <option v-for="g in groups" :key="g.id" :value="g.id">
-                            {{ g.name }} ({{ g.subject }})
-                        </option>
+                        <option value="group">مجموعات</option>
+                        <option value="private">برايفيت</option>
                     </select>
 
-                    <button type="button" class="btn-primary btn-sm" @click="applyFilter">
-                        تطبيق
+                    <button type="button" class="btn-primary btn-sm px-4" @click="applyFilter">
+                        تطبيق الفلتر
                     </button>
-                    <button v-if="search || selectedGroup" type="button" class="btn-ghost btn-sm" @click="resetFilter">
+                    <button v-if="search || selectedType || filters.type || filters.q" type="button" class="btn-ghost btn-sm" @click="resetFilter">
                         إلغاء الفلتر
                     </button>
                 </div>

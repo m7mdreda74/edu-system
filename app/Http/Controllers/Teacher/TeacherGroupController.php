@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Application\Scheduling\Services\TeacherPrivateSlotsForGroups;
 use App\Domain\Learning\Models\GroupMaterial;
 use App\Domain\Learning\Models\Worksheet;
 use App\Domain\Scheduling\Models\TeachingAssignment;
@@ -23,9 +24,27 @@ class TeacherGroupController extends Controller
     {
         $teacherId = (int) Auth::id();
 
-        $assignmentIds = TeachingAssignment::where('teacher_id', $teacherId)
+        $assignments = TeachingAssignment::with([
+            'subject:id,name',
+            'gradeLevel:id,key,name,stage,track',
+        ])
+            ->where('teacher_id', $teacherId)
             ->where('is_active', true)
-            ->pluck('id');
+            ->get();
+
+        $assignmentIds = $assignments->pluck('id');
+        $assignedGrades = $assignments
+            ->pluck('gradeLevel')
+            ->filter()
+            ->unique('id')
+            ->values()
+            ->map(fn ($grade): array => $grade->only(['id', 'key', 'name', 'stage', 'track']));
+        $assignedSubjects = $assignments
+            ->pluck('subject')
+            ->filter()
+            ->unique('id')
+            ->values()
+            ->map(fn ($subject): array => $subject->only(['id', 'name']));
 
         $materialsCounts = GroupMaterial::countsByAssignment($assignmentIds);
         $worksheetsCounts = Worksheet::query()
@@ -52,7 +71,7 @@ class TeacherGroupController extends Controller
 
         $groups = TeachingGroup::with([
             'assignment.subject:id,name',
-            'assignment.gradeLevel:id,key,name',
+            'assignment.gradeLevel:id,key,name,stage,track',
             'term:id,name',
             'schedules',
         ])
@@ -66,14 +85,16 @@ class TeacherGroupController extends Controller
 
                 return [
                     'id' => $group->id,
+                    'source' => 'group',
                     'assignment_id' => $group->teaching_assignment_id,
                     'name' => $group->name,
+                    'is_private' => $group->isPrivate(),
                     'capacity' => $group->capacity,
                     'monthly_price' => $group->monthly_price,
                     'is_active' => $group->is_active,
                     'term' => $group->term?->name,
                     'subject' => $group->assignment?->subject?->only(['id', 'name']),
-                    'grade' => $group->assignment?->gradeLevel?->only(['key', 'name']),
+                    'grade' => $group->assignment?->gradeLevel?->only(['id', 'key', 'name', 'stage', 'track']),
                     'schedules' => $group->schedules->map(fn ($s) => [
                         'id' => $s->id,
                         'day_of_week' => $s->day_of_week,
@@ -89,6 +110,9 @@ class TeacherGroupController extends Controller
 
         return Inertia::render('Teacher/Groups', [
             'groups' => $groups,
+            'privateSlots' => app(TeacherPrivateSlotsForGroups::class)->forTeacher($teacherId),
+            'assignedGrades' => $assignedGrades,
+            'assignedSubjects' => $assignedSubjects,
             'stats' => [
                 'total_groups' => $groups->count(),
                 'active_groups' => $groups->where('is_active', true)->count(),

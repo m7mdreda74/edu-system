@@ -90,10 +90,6 @@ function formatDuration(seconds) {
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <Link v-if="group.assignment_id" :href="route('teacher.curriculum', { assignment: group.assignment_id })" class="btn-outline btn-sm">
-                        <Icon name="book" class="w-4 h-4" />
-                        <span class="ms-1">بناء المنهج</span>
-                    </Link>
                     <button type="button" class="btn-primary btn-sm" @click="showForm = !showForm">
                         <Icon name="plus" class="w-4 h-4" />
                         <span class="ms-1">{{ showForm ? 'إغلاق' : 'إضافة مادة' }}</span>
@@ -102,8 +98,7 @@ function formatDuration(seconds) {
             </header>
 
             <p v-if="group.assignment_id" class="alert-info text-sm">
-                هذه الشاشة ترفع كل مادة إلى الوحدة الأولى فقط. لتقسيم المنهج إلى فصول ووحدات ودروس واختبارات استخدم
-                <Link :href="route('teacher.curriculum', { assignment: group.assignment_id })" class="font-bold hover:underline">بناء المنهج</Link>.
+                هذه الشاشة ترفع كل مادة إلى الوحدة الأولى فقط.
             </p>
 
             <!-- Add form -->

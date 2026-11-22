@@ -14,7 +14,6 @@ const tabs = [
     { label: 'نظرة عامة', icon: 'dashboard', href: () => route('teacher.groups.workspace', { groupId: props.group.id }), active: true },
     { label: 'الطلاب', icon: 'student', href: () => route('teacher.groups.roster.page', { groupId: props.group.id }) },
     { label: 'الجدول', icon: 'calendar', href: () => route('teacher.teaching-schedule') },
-    { label: 'المنهج والدروس', icon: 'book', href: () => route('teacher.curriculum', { assignment: props.group.assignment_id }) },
     { label: 'المواد التعليمية', icon: 'file', href: () => route('teacher.materials', { groupId: props.group.id }) },
     { label: 'الواجبات', icon: 'assignment', href: () => route('teacher.worksheets.index', { groupId: props.group.id }) },
     { label: 'سجل الدرجات', icon: 'chart', href: () => route('teacher.gradebook') },
@@ -74,11 +73,6 @@ const tabs = [
                         <Link :href="route('teacher.groups.roster.page', { groupId: group.id })" class="btn-outline btn-sm">قائمة الطلاب</Link>
                     </div>
                     <div class="grid gap-3 sm:grid-cols-2">
-                        <Link :href="route('teacher.curriculum', { assignment: group.assignment_id })" class="card-hover rounded-2xl border border-surface-200 p-4 dark:border-surface-700">
-                            <Icon name="book" class="mb-2 h-5 w-5 text-primary-500" />
-                            <span class="block font-bold text-surface-900 dark:text-white">إنشاء درس أو منهج</span>
-                            <span class="text-xs text-surface-500">إدارة الوحدات والدروس والنتائج التعليمية</span>
-                        </Link>
                         <Link :href="route('teacher.materials', { groupId: group.id })" class="card-hover rounded-2xl border border-surface-200 p-4 dark:border-surface-700">
                             <Icon name="file" class="mb-2 h-5 w-5 text-primary-500" />
                             <span class="block font-bold text-surface-900 dark:text-white">رفع مادة تعليمية</span>
@@ -106,7 +100,7 @@ const tabs = [
                         </div>
                     </div>
                     <p v-else class="mt-5 text-sm text-surface-500">لم يتم تحديد موعد أسبوعي لهذه المجموعة بعد.</p>
-                    <Link :href="route('teacher.teaching-schedule')" class="btn-outline btn-sm mt-5">فتح الخطة والجدول</Link>
+                    <Link :href="route('teacher.teaching-schedule')" class="btn-outline btn-sm mt-5">فتح الجدول</Link>
                 </div>
             </section>
 

@@ -357,22 +357,7 @@ const statusClasses = {
                                             <Icon name="edit" class="w-3.5 h-3.5" />
                                             <span>{{ row.status === 'graded' ? 'تعديل الدرجة' : 'رصد الدرجة' }}</span>
                                         </button>
-                                        <Link
-                                            v-if="row.assignment_id"
-                                            :href="route('teacher.curriculum', { assignment: row.assignment_id })"
-                                            class="btn-ghost btn-xs text-surface-400 hover:text-surface-600"
-                                        >
-                                            فتح المنهج
-                                        </Link>
                                     </div>
-
-                                    <Link
-                                        v-else-if="row.assignment_id"
-                                        :href="route('teacher.curriculum', { assignment: row.assignment_id })"
-                                        class="btn-ghost btn-sm"
-                                    >
-                                        فتح المنهج
-                                    </Link>
                                 </td>
                             </tr>
                         </tbody>

@@ -129,13 +129,82 @@ class CurriculumController extends Controller
             return ['key' => $key, 'name' => $name];
         };
 
-        $allAssignments = TeachingAssignment::with(['subject:id,name', 'gradeLevel:id,key,name,stage,track'])
-            ->where('teacher_id', Auth::id())
+        $trackLabels = [
+            'science'    => 'المسار العلمي',
+            'arts'       => 'المسار الأدبي',
+            'technology' => 'المسار التكنولوجي',
+        ];
+
+        $teacherId = (int) Auth::id();
+        $rawAssignments = TeachingAssignment::with(['subject:id,name', 'gradeLevel:id,key,name,stage,track'])
+            ->where('teacher_id', $teacherId)
             ->where('is_active', true)
-            ->get()
-            ->map(function (TeachingAssignment $a) use ($stageLabels, $extractBaseGrade) {
+            ->get();
+
+        // Ensure all 3 secondary tracks (science, arts, technology) are available whenever
+        // a teacher is assigned to Grade 11 or Grade 12 for a subject.
+        $secondaryTrackedGrades = \App\Domain\Academic\Models\GradeLevel::query()
+            ->where('stage', 'secondary')
+            ->whereIn('track', ['science', 'arts', 'technology'])
+            ->where('is_active', true)
+            ->get();
+
+        $createdNewTrackAssignment = false;
+        foreach ($rawAssignments as $existingAssignment) {
+            $gl = $existingAssignment->gradeLevel;
+            if (! $gl || $gl->stage !== 'secondary') {
+                continue;
+            }
+            $base = $extractBaseGrade($gl);
+            if (! in_array($base['key'], ['grade_11', 'grade_12'], true)) {
+                continue;
+            }
+
+            $siblingGrades = $secondaryTrackedGrades->filter(
+                fn ($candidate) => str_starts_with((string) $candidate->key, $base['key'] . '_')
+            );
+
+            foreach ($siblingGrades as $siblingGrade) {
+                $alreadyLoaded = $rawAssignments->contains(
+                    fn (TeachingAssignment $a) =>
+                        (int) $a->subject_id === (int) $existingAssignment->subject_id
+                        && (int) $a->grade_level_id === (int) $siblingGrade->id
+                );
+
+                if (! $alreadyLoaded) {
+                    $ta = TeachingAssignment::firstOrCreate(
+                        [
+                            'teacher_id'     => $teacherId,
+                            'subject_id'     => $existingAssignment->subject_id,
+                            'grade_level_id' => $siblingGrade->id,
+                        ],
+                        [
+                            'private_monthly_price' => $existingAssignment->private_monthly_price ?? 0,
+                            'accepts_private'       => (bool) $existingAssignment->accepts_private,
+                            'currency'              => $existingAssignment->currency ?? 'QAR',
+                            'is_active'             => true,
+                        ]
+                    );
+                    if (! $ta->is_active) {
+                        $ta->update(['is_active' => true]);
+                    }
+                    $createdNewTrackAssignment = true;
+                }
+            }
+        }
+
+        if ($createdNewTrackAssignment) {
+            $rawAssignments = TeachingAssignment::with(['subject:id,name', 'gradeLevel:id,key,name,stage,track'])
+                ->where('teacher_id', $teacherId)
+                ->where('is_active', true)
+                ->get();
+        }
+
+        $allAssignments = $rawAssignments
+            ->map(function (TeachingAssignment $a) use ($stageLabels, $trackLabels, $extractBaseGrade) {
                 $stageKey  = $a->gradeLevel?->stage ?? '';
                 $baseGrade = $extractBaseGrade($a->gradeLevel);
+                $trackKey  = $a->gradeLevel?->track;
 
                 return [
                     'id'              => $a->id,
@@ -148,8 +217,10 @@ class CurriculumController extends Controller
                     'grade_name'      => $a->gradeLevel?->name,
                     'base_grade_key'  => $baseGrade['key'],
                     'base_grade_name' => $baseGrade['name'],
-                    'track_key'       => $a->gradeLevel?->track,
-                    'track_name'      => $a->gradeLevel?->trackLabel(),
+                    'track_key'       => $trackKey,
+                    'track_name'      => ($trackKey && isset($trackLabels[$trackKey]))
+                        ? $trackLabels[$trackKey]
+                        : $a->gradeLevel?->trackLabel(),
                     'label'           => ($a->subject?->name ?? 'مادة') . ' — ' . ($a->gradeLevel?->name ?? 'الصف'),
                 ];
             })

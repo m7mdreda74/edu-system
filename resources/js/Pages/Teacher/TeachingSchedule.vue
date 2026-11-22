@@ -218,7 +218,7 @@ function formatDate(value, timeZone = 'Asia/Qatar') {
             <header>
                 <h1 class="text-3xl font-black text-surface-900 dark:text-white">تحديد المواعيد وجدول الحصص</h1>
                 <p class="text-surface-500 mt-2">
-                    حدد مواعيد مجموعاتك الأسبوعية، مواعيد الحصص الخاصة (البرايفت)، والحصص المجانية. لبناء الخطة الأكاديمية والمناهج، انتقل إلى تبويب الخطة الأكاديمية.
+                    حدد مواعيد مجموعاتك الأسبوعية، مواعيد الحصص الخاصة (البرايفت)، والحصص المجانية.
                 </p>
             </header>
 
@@ -240,10 +240,6 @@ function formatDate(value, timeZone = 'Asia/Qatar') {
                         </h2>
                         <p class="text-xs text-surface-400 mt-1">{{ assignment.groups.length }} مجموعة مسندة إليك</p>
                     </div>
-                    <Link :href="route('teacher.curriculum', { assignment: assignment.id })" class="btn-primary btn-sm flex items-center gap-1.5 shadow-sm">
-                        <Icon name="book" class="w-4 h-4" />
-                        <span>الخطة الأكاديمية وبناء المنهج</span>
-                    </Link>
                 </div>
 
                 <div class="rounded-2xl border border-accent-500/25 bg-accent-500/5 p-5 space-y-4">
@@ -524,8 +520,7 @@ function formatDate(value, timeZone = 'Asia/Qatar') {
                                     <span class="badge-primary text-[10px]">Live Sessions</span>
                                 </h4>
                                 <p class="text-xs text-surface-500 mt-0.5">
-                                    تُجدول تلقائياً في مواعيد المجموعة التالية. لبناء الوحدات الكاملة والملازم، انتقل إلى
-                                    <Link :href="route('teacher.curriculum', { assignment: assignment.id })" class="text-primary-600 dark:text-primary-400 underline font-bold">الخطة الأكاديمية</Link>.
+                                    تُجدول تلقائياً في مواعيد المجموعة التالية.
                                 </p>
                             </div>
                             <button

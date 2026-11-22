@@ -1023,10 +1023,10 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                 </div>
             </header>
 
-            <!-- ── Classification Bar (اختر المادة / اختر المرحلة / اختر الصف / اختر المسار) + زر إنشاء هيكل الفصل ── -->
-            <section class="card p-4 sm:p-5 space-y-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
+            <!-- ── Classification Bar (اختر المادة / اختر المرحلة / اختر الصف / اختر المسار) + زر إنشاء هيكل الفصل بجانبهم ── -->
+            <section class="card p-4 sm:p-5 space-y-3">
+                <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+                    <div class="flex-1 min-w-[160px]">
                         <label for="filter-subject" class="input-label">اختر المادة</label>
                         <select
                             id="filter-subject"
@@ -1041,7 +1041,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                         </select>
                     </div>
 
-                    <div>
+                    <div class="flex-1 min-w-[160px]">
                         <label for="filter-stage" class="input-label">اختر المرحلة</label>
                         <select
                             id="filter-stage"
@@ -1057,7 +1057,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                         </select>
                     </div>
 
-                    <div>
+                    <div class="flex-1 min-w-[170px]">
                         <label for="filter-grade" class="input-label">اختر الصف</label>
                         <select
                             id="filter-grade"
@@ -1073,7 +1073,7 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                         </select>
                     </div>
 
-                    <div v-if="requiresTrack">
+                    <div v-if="requiresTrack" class="flex-1 min-w-[180px]">
                         <label for="filter-track" class="input-label">اختر المسار</label>
                         <select
                             id="filter-track"
@@ -1088,29 +1088,28 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                             </option>
                         </select>
                     </div>
+
+                    <div v-if="terms.length" class="shrink-0">
+                        <button
+                            type="button"
+                            class="btn-primary h-[42px] px-4 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                            :disabled="!isClassificationComplete"
+                            @click="toggleSkeleton"
+                        >
+                            <Icon name="plus" class="w-4 h-4" />
+                            <span>{{ showSkeleton ? 'إغلاق مولّد الهيكل' : '+ إنشاء هيكل الفصل' }}</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-surface-100 dark:border-surface-800">
-                    <div class="text-xs text-surface-500 dark:text-surface-400 font-semibold flex items-center gap-2 flex-wrap">
-                        <template v-if="isClassificationComplete">
-                            <span>المقرر المختار حالياً:</span>
-                            <span class="badge-primary text-xs">{{ assignment.subject?.name }} — {{ assignment.grade?.name }}</span>
-                        </template>
-                        <span v-else class="text-amber-600 dark:text-amber-400 font-bold">
-                            يرجى اختيار المادة والمرحلة والصف {{ requiresTrack ? 'والمسار ' : '' }}أعلاه لتفعيل زر إنشاء هيكل الفصل.
-                        </span>
-                    </div>
-
-                    <button
-                        v-if="terms.length"
-                        type="button"
-                        class="btn-primary btn-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                        :disabled="!isClassificationComplete"
-                        @click="toggleSkeleton"
-                    >
-                        <Icon name="plus" class="w-4 h-4" />
-                        <span>{{ showSkeleton ? 'إغلاق مولّد الهيكل' : '+ إنشاء هيكل الفصل (وحدات ودروس)' }}</span>
-                    </button>
+                <div class="text-xs text-surface-500 dark:text-surface-400 font-semibold flex items-center gap-2 flex-wrap">
+                    <template v-if="isClassificationComplete">
+                        <span>المقرر المختار حالياً:</span>
+                        <span class="badge-primary text-xs">{{ assignment.subject?.name }} — {{ assignment.grade?.name }}</span>
+                    </template>
+                    <span v-else class="text-amber-600 dark:text-amber-400 font-bold">
+                        يرجى اختيار المادة والمرحلة والصف {{ requiresTrack ? 'والمسار ' : '' }}أعلاه لتفعيل زر إنشاء هيكل الفصل.
+                    </span>
                 </div>
             </section>
 
@@ -1155,11 +1154,10 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                 <div>
                     <h2 class="font-bold text-lg text-surface-900 dark:text-white">إنشاء هيكل الفصل (وحدات ودروس)</h2>
                     <p class="input-hint">
-                        الخطوة الأولى: نبدأ بإضافة عدد الوحدات أولاً، ثم بعد ذلك تحدد عدد دروس كل وحدة على حدة (أو تضيف الدروس من داخل كل وحدة مباشرة).
+                        حدد عدد الوحدات المراد إنشاؤها أولاً، ثم أضف عدد الدروس المطلوب داخل كل وحدة.
                     </p>
                 </div>
 
-                <!-- الخطوة 1: الفصل الدراسي + عدد الوحدات فقط -->
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div>
                         <label for="skeleton-term" class="input-label">الفصل الدراسي</label>
@@ -1170,77 +1168,22 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
                     </div>
 
                     <div>
-                        <label for="units-count" class="input-label">1. عدد الوحدات المراد إنشاؤها أولاً</label>
+                        <label for="units-count" class="input-label">عدد الوحدات المراد إنشاؤها أولاً</label>
                         <input id="units-count" v-model.number="skeleton.units_count" type="number" min="1" max="20" class="input font-bold" />
                         <p v-if="skeleton.errors.units_count" class="error-msg">{{ skeleton.errors.units_count }}</p>
                     </div>
                 </div>
 
-                <div v-if="skeletonStep === 1" class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-surface-100 dark:border-surface-800">
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-surface-100 dark:border-surface-800">
                     <button type="button" class="btn-ghost btn-sm" @click="showSkeleton = false">إلغاء</button>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            class="btn-outline btn-sm"
-                            :disabled="skeleton.processing"
-                            @click="generateUnitsOnly"
-                        >
-                            {{ skeleton.processing ? 'جارٍ الإنشاء...' : `إنشاء ${skeleton.units_count || 0} وحدات الآن (وإضافة الدروس داخل كل وحدة)` }}
-                        </button>
-                        <button
-                            type="button"
-                            class="btn-primary btn-sm"
-                            @click="skeletonStep = 2"
-                        >
-                            التالي: تحديد عدد دروس كل وحدة ←
-                        </button>
-                    </div>
-                </div>
-
-                <!-- الخطوة 2: تحديد عدد دروس كل وحدة على حدة -->
-                <div v-else class="space-y-4 pt-3 border-t border-surface-100 dark:border-surface-800">
-                    <div class="flex items-center justify-between">
-                        <label class="input-label mb-0">2. حدد عدد دروس كل وحدة على حدة:</label>
-                        <button type="button" class="text-xs font-bold text-primary-600 hover:underline" @click="skeletonStep = 1">
-                            → تعديل عدد الوحدات
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                        <div
-                            v-for="(_, idx) in skeleton.unit_lessons"
-                            :key="idx"
-                            class="rounded-xl border border-surface-200 dark:border-surface-700/80 bg-surface-50/70 dark:bg-surface-900/50 p-3"
-                        >
-                            <label :for="`unit-lessons-${idx}`" class="block text-xs font-bold text-surface-700 dark:text-surface-200 mb-1.5">
-                                عدد دروس الوحدة {{ idx + 1 }}
-                            </label>
-                            <input
-                                :id="`unit-lessons-${idx}`"
-                                v-model.number="skeleton.unit_lessons[idx]"
-                                type="number"
-                                min="0"
-                                max="20"
-                                class="input py-1.5 text-sm font-bold text-center"
-                            />
-                            <p v-if="skeleton.errors[`unit_lessons.${idx}`]" class="error-msg mt-1">
-                                {{ skeleton.errors[`unit_lessons.${idx}`] }}
-                            </p>
-                        </div>
-                    </div>
-                    <p v-if="skeleton.errors.lessons_per_unit" class="error-msg">{{ skeleton.errors.lessons_per_unit }}</p>
-
-                    <div class="alert-info text-xs">
-                        <Icon name="info" class="w-4 h-4 shrink-0" />
-                        <span>الإضافة تتم بعد الموجود: الترقيم يكمل من آخر وحدة في الفصل، ولا يُحذف أي شيء سبق بناؤه.</span>
-                    </div>
-
-                    <div class="flex flex-wrap justify-end gap-2">
-                        <button type="button" class="btn-ghost btn-sm" @click="showSkeleton = false">إلغاء</button>
-                        <button type="button" class="btn-primary btn-sm" :disabled="skeleton.processing" @click="generateSkeleton">
-                            {{ skeleton.processing ? 'جارٍ الإنشاء...' : `إنشاء ${skeleton.units_count || 0} وحدة مع دروسها` }}
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        class="btn-sm px-5 py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-surface-950 font-black shadow-md transition-colors disabled:opacity-50"
+                        :disabled="skeleton.processing"
+                        @click="generateUnitsOnly"
+                    >
+                        {{ skeleton.processing ? 'جارٍ الإنشاء...' : `إنشاء ${skeleton.units_count || 0} وحدات الآن وإضافة الدروس داخل كل وحدة` }}
+                    </button>
                 </div>
             </section>
 
@@ -1770,20 +1713,9 @@ const SLOT_EMPTY = 'w-full rounded-xl border-2 border-dashed border-surface-300 
             <div v-else-if="terms.length" class="card p-10 sm:p-14 text-center">
                 <Icon name="courses" class="w-12 h-12 text-surface-300 dark:text-surface-700 mx-auto mb-4" />
                 <h3 class="font-bold text-lg text-surface-800 dark:text-surface-100 mb-2">لا توجد وحدات في هذا الفصل بعد</h3>
-                <p class="text-sm text-surface-400 max-w-md mx-auto mb-6">
-                    اختر المادة والمرحلة والصف أعلاه، ثم اضغط على زر إنشاء هيكل الفصل لتحديد عدد الوحدات وعدد الدروس لكل وحدة على حدة.
+                <p class="text-sm text-surface-400 max-w-md mx-auto">
+                    اختر المادة والمرحلة والصف أعلاه، ثم اضغط على زر «+ إنشاء هيكل الفصل» لإضافة الوحدات والدروس.
                 </p>
-                <div class="flex flex-wrap justify-center gap-2">
-                    <button
-                        type="button"
-                        class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                        :disabled="!isClassificationComplete"
-                        @click="toggleSkeleton"
-                    >
-                        <Icon name="plus" class="w-4 h-4" />
-                        <span>إنشاء هيكل الفصل (وحدات ودروس)</span>
-                    </button>
-                </div>
             </div>
         </div>
     </DashboardLayout>
